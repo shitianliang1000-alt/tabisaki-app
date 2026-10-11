@@ -51,3 +51,8 @@
 **Vulnerability:** The central `el()` DOM helper in `js/ui.js` and `admin/admin.js` protected against XSS in `href`, `src`, `action`, and `formaction` attributes, but missed the `data` attribute. This allowed attackers to use `<object data="javascript:alert(1)">` to execute malicious code.
 **Learning:** Preventing XSS via element attributes requires identifying *all* attributes that can act as an execution sink. The `data` attribute of the `<object>` tag can evaluate URIs similarly to `href` or `src`.
 **Prevention:** Added `data` to the list of sanitized attributes in both `el()` functions to neutralize any malicious URIs (e.g. `javascript:`, `vbscript:`, dangerous `data:` URIs) by replacing them with `about:blank`.
+
+## 2026-10-11 - Prevent XSS via HTML injection in srcdoc attribute
+**Vulnerability:** The central `el()` DOM helper in `js/ui.js` and `admin/admin.js` prevented injection in attributes like `href`, `src`, `data`, and inline event handlers, but missed the `srcdoc` attribute. If an attacker controlled the attribute name or values, they could inject arbitrary HTML containing `<script>` tags by setting `srcdoc="<script>alert(1)</script>"` on an `<iframe>`.
+**Learning:** The `srcdoc` attribute accepts raw HTML rather than a URI, so validating URI schemes (like checking for `javascript:`) is fundamentally incorrect for preventing XSS in `srcdoc`. Since the overarching design philosophy of this codebase strictly avoids parsing string payloads as HTML (no `innerHTML`), allowing `srcdoc` breaks this guarantee.
+**Prevention:** Added an explicit drop condition `} else if (lowerK === "srcdoc") { /* do nothing */ }` to neutralize the `srcdoc` attribute entirely inside the `el()` DOM helper, ensuring no HTML injection vectors remain.

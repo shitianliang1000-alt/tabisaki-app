@@ -38,6 +38,9 @@ function el(tag, attrs = {}, ...kids) {
       }
       // Neutralize inline event handlers passed as strings or array bypasses
       // Do nothing to prevent the attribute from being added to the element entirely
+    } else if (lowerK === "srcdoc") {
+      // srcdoc takes raw HTML. Since we intentionally do not use innerHTML,
+      // we must drop srcdoc entirely to prevent XSS via HTML injection in iframes.
     } else if (["href", "src", "action", "formaction", "data"].includes(lowerK)) {
       if (v !== null && v !== undefined && v !== false) {
         const strV = String(v);
