@@ -54,8 +54,9 @@ export class TripMap {
     const L = window.L;
     this.map = L.map(this.el, {
       scrollWheelZoom: false,   // ページのスクロールを奪わない
-      zoomControl: true,
+      zoomControl: false,       // 日本語の名前で付け直します（下）
     }).setView(DEFAULT_CENTER, 9);
+    japaneseControls(this.map);
     L.tileLayer(this.tileUrl, {
       attribution: this.attribution,
       maxZoom: 19,
@@ -178,7 +179,7 @@ export class TripMap {
     // 実際の道が要るときは、旅程から「経路を開く」で地図アプリへ
     // 渡します（そちらは本物の経路を持っています）。
 
-    const bounds = L.latLngBounds(latlngs);
+    const bounds = L.latLngBounds(fitTargets(points).map((p) => [p.lat, p.lng]));
     this.map.fitBounds(bounds,
       { padding: [32, 32], maxZoom: 14, animate: !reduceMotion() });
   }
@@ -228,6 +229,44 @@ export class TripMap {
 
 
 
+
+/**
+ * 地図をどこに合わせるか。
+ *
+ * 出発地と終点まで入れて合わせていました。東京駅から鎌倉へ行くと、
+ * 携帯の幅では東京湾ぜんぶが入る縮尺になり、**立ち寄りの4か所が
+ * 1本のピンに重なって**、どこを回るのかが読めませんでした。地図で
+ * 見たいのは立ち寄りの並びです。出発地は、近ければ枠に入りますし、
+ * 遠ければ地図を引けば見えます。
+ *
+ * 立ち寄りが無い（出発と終点だけの）ときは、全部に合わせます。
+ *
+ * @param {Array<{kind?: string}>} points
+ */
+export function fitTargets(points) {
+  const spots = points.filter((p) => p.kind === "spot");
+  return spots.length ? spots : points;
+}
+
+/**
+ * Leaflet の操作部品を日本語の名前にします。
+ *
+ * 既定は英語です（「Zoom in」「Close popup」）。読み上げでは、
+ * この画面の中でそこだけ英語で読まれます。地図を作るたびに呼びます。
+ *
+ * @param {object} map Leaflet の地図（zoomControl: false で作ったもの）
+ */
+export function japaneseControls(map) {
+  const L = window.L;
+  if (!map || !L) return;
+  L.control.zoom({ zoomInTitle: "拡大", zoomOutTitle: "縮小" }).addTo(map);
+  // 吹き出しの「×」は、名前が中に書き込まれていて設定では変えられません。
+  // 開いたときに付け直します。
+  map.on("popupopen", (e) => {
+    e.popup?.getElement?.()?.querySelector(".leaflet-popup-close-button")
+      ?.setAttribute("aria-label", "閉じる");
+  });
+}
 
 /** その箱に実際に描ける幅。まだ measure できないときは既定に任せます。 */
 function boxWidth(node) {
@@ -313,7 +352,7 @@ TripMap.prototype.showDay = function showDay(dayIndex) {
     ? this.points
     : this.points.filter((p) => p.day === undefined || p.day === dayIndex
         || p.kind !== "spot");
-  const target = pts.length ? pts : this.points;
+  const target = fitTargets(pts.length ? pts : this.points);
   if (!window.L || !this.map) return;
   const bounds = window.L.latLngBounds(target.map((p) => [p.lat, p.lng]));
   this.map.fitBounds(bounds,

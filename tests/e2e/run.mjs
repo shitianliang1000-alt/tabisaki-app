@@ -1468,6 +1468,76 @@ await check("旅程の画面でも、押せるものが 44pt ある", async () =
   }
 });
 
+// 携帯では、押したボタンごと画面が隠れます（条件の画面 ⇔ 結果の画面）。
+// フォーカスがページの頭に落ちると、キーボードでは次の Tab が最初から
+// やり直しになり、読み上げでは何が起きたかが何も言われません。
+await check("携帯で画面が切り替わっても、フォーカスが迷子にならない", async () => {
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 844 }, serviceWorkers: "block",
+  });
+  const pg = await phone.newPage();
+  if (process.env.E2E_OFFLINE) {
+    const origin = new URL(BASE).origin;
+    await pg.route((u) => u.origin !== origin,
+      (route) => route.abort("connectionrefused"));
+  }
+  const answer = setInterval(() => {
+    pg.evaluate(() => {
+      const dlg = document.getElementById("quota-dialog");
+      if (dlg?.open) document.getElementById("quota-go")?.click();
+    }).catch(() => {});
+  }, 500);
+  const where = () => pg.evaluate(() => {
+    const e = document.activeElement;
+    return `${e?.tagName.toLowerCase()}#${e?.id ?? ""}.${[...(e?.classList ?? [])].join(".")}`
+      + ` ${(e?.textContent ?? "").trim().slice(0, 12)}`;
+  });
+  try {
+    await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg, () => !document.getElementById("make-plan").disabled);
+    await pg.click('[data-example^="温泉でゆっくり"]');
+    await pg.focus("#make-plan");
+    await pg.keyboard.press("Enter");
+    await pg.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+    await pg.waitForTimeout(500);
+    const after = await where();
+    assert(after.startsWith("h2"), `旅程ができたあと、フォーカスが見出しにありません: ${after}`);
+    const said = await pg.$eval("#sr-announce", (e) => e.textContent);
+    assert(/旅程ができました/.test(said), `できたことが読み上げに届いていません: ${said}`);
+    await pg.focus("#back-to-form");
+    await pg.keyboard.press("Enter");
+    await pg.waitForTimeout(300);
+    const back = await where();
+    assert(back.startsWith("section#form-pane"),
+      `条件の画面に戻ったあと、フォーカスが条件の画面にありません: ${back}`);
+  } finally {
+    clearInterval(answer);
+    await phone.close();
+  }
+});
+
+await check("できなかった理由に、フォーカスが移る", async () => {
+  const pg = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  try {
+    await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg, () => !document.getElementById("make-plan").disabled);
+    await pg.fill("#depart-place", "");
+    await pg.focus("#make-plan");
+    await pg.keyboard.press("Enter");
+    await pg.waitForSelector("#form-error:not([hidden])");
+    const id = await pg.evaluate(() => document.activeElement?.id);
+    assert(id === "form-error", `フォーカスが ${id || "（ページの頭）"} にあります`);
+  } finally {
+    await pg.close();
+  }
+});
+
+await check("地図の部品が、日本語の名前で読まれる", async () => {
+  const names = await page.$$eval("#map .leaflet-control-zoom a",
+    (els) => els.map((e) => e.getAttribute("aria-label")));
+  assert(names.join(",") === "拡大,縮小", `名前: ${names.join(",")}`);
+});
+
 // 指で押したあと、触った跡が残らないこと。
 //
 // :hover の指定に @media (hover: hover) の囲いがありませんでした。

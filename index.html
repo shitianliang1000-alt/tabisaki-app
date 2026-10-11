@@ -144,7 +144,7 @@
      要ります。<header> に入れておかないと、支援技術の「見出し・目印で
      移動する」操作からこの2つだけが外れます。 -->
 <header>
-  <a class="sr-only" href="#form-pane">条件の入力へ移動</a>
+  <a class="sr-only skip-link" href="#form-pane">条件の入力へ移動</a>
   <!-- 文書としての h1 はここに置きます。画面に見せる名前とひとことは、
        条件の欄の上（.brand-line）に1行だけ出します。 -->
   <h1 class="sr-only">旅さき</h1>
@@ -164,6 +164,8 @@
 <!-- 圏外の帯。圏外のときだけ出ます（js/online.js）。
      目安の時刻を、時刻表の時刻と読み違えさせないためです。 -->
 <p id="net-status" class="net-status" role="status" aria-live="polite" hidden></p>
+<!-- 読み上げにだけ伝える一文（旅程ができた、など）。画面には出しません。 -->
+<p id="sr-announce" class="sr-only" role="status" aria-live="polite"></p>
 
 <main class="layout">
 
@@ -177,7 +179,7 @@
   </button>
 
   <!-- ===================== 左: 条件 ===================== -->
-  <section class="pane pane-form" id="form-pane">
+  <section class="pane pane-form" id="form-pane" aria-label="条件">
 
     <!-- 名前とひとこと。
          ------------------------------------------------------------
@@ -763,7 +765,7 @@
   </section>
 
   <!-- ===================== 右: 結果 ===================== -->
-  <section class="pane pane-result">
+  <section class="pane pane-result" aria-label="旅程">
 
     <!-- 携帯では、条件と結果を別の画面にします（css の data-view）。
          同じ画面に縦に並べていたころは、旅程が出てもまず条件が見えていて、

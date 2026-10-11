@@ -10,6 +10,7 @@
 // 地図（Leaflet とタイル）は、この画面を開いたときに初めて作ります。
 
 import { blockOf } from "./areas.js";
+import { japaneseControls } from "./map.js";
 
 /** 一覧の並び（北から）。js/areas.js の地方の分けかたと同じです。 */
 const BLOCK_ORDER = ["北海道", "東北", "関東", "中部", "近畿", "中国地方",
@@ -127,9 +128,10 @@ export function setupAreaMap(dialog, { regions, onPick, tileUrl, attribution }) 
     // 地図の中のピンは、キーボードの順路に入れません（47本を Tab で
     // 渡ることになるため）。キーボードと読み上げは下の一覧で選べます。
     map = L.map(mapBox, {
-      zoomControl: true, scrollWheelZoom: true, keyboard: false,
+      zoomControl: false, scrollWheelZoom: true, keyboard: false,
       attributionControl: true,
     }).setView([36.6, 137.6], 5);
+    japaneseControls(map);
     L.tileLayer(tileUrl, { attribution, maxZoom: 18 }).addTo(map);
     const icon = L.divIcon({ className: "area-pin", html: PIN_HTML,
                              iconSize: [44, 44], iconAnchor: [22, 22] });
