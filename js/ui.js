@@ -227,6 +227,63 @@ let icalModule = null;
 export const loadSketch = () => (sketchModule ??= import("./sketch.js"));
 const loadIcal = () => (icalModule ??= import("./ical.js"));
 
+/**
+ * 旅程を文字で渡します。共有シートがあれば開き、無ければコピーします。
+ * @returns {Promise<string>} 画面に出すひとこと（共有シートを閉じたときは ""）
+ */
+export async function sendItineraryText(itin) {
+  const text = itineraryText(itin);
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ text }))) {
+      await navigator.share({ title: itin.title ?? "旅程", text });
+      return "";
+    }
+    await navigator.clipboard.writeText(text);
+    return "コピーしました";
+  } catch (e) {
+    // 共有シートを閉じただけなら、何も言いません。
+    if (e?.name === "AbortError") return "";
+    return "コピーできませんでした";
+  }
+}
+
+/**
+ * 旅程を .ics にして保存します（Google・Apple・Outlook が読めます）。
+ * ブラウザの中だけで作るので、どこにも送りません。
+ * @returns {Promise<string>} 画面に出すひとこと
+ */
+export async function saveItineraryIcs(itin) {
+  let toIcs, icsFilename;
+  try {
+    ({ toIcs, icsFilename } = await loadIcal());
+  } catch {
+    icalModule = null;
+    return "書き出せませんでした";
+  }
+  const text = toIcs(itin);
+  if (!text) return "予定がありません";
+  let url = null;
+  try {
+    url = URL.createObjectURL(new Blob([text], {
+      type: "text/calendar;charset=utf-8",
+    }));
+    const a = el("a", { href: url, download: icsFilename(itin) });
+    a.style.display = "none";
+    document.body.append(a);
+    a.click();
+    // すぐ外すと、端末によっては download の名前が読まれないまま
+    // 「download」という名前で保存されます。1拍おいてから外します。
+    setTimeout(() => a.remove(), 0);
+    return "書き出しました";
+  } catch {
+    return "書き出せませんでした";
+  } finally {
+    // 取り消しは、保存が始まるのを待ってから。すぐ消すと、端末に
+    // よっては中身の無いファイルが落ちます。
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }
+}
+
 const fmtElapsed = (sec) =>
   `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
@@ -1111,20 +1168,10 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     type: "button", class: "md-btn md-btn--filled md-state share-text",
   }, el("span", {}, "旅程を送る / コピー"));
   copyBtn.addEventListener("click", async () => {
-    const text = itineraryText(itin);
     const label = copyBtn.querySelector("span");
-    try {
-      if (navigator.share && (!navigator.canShare || navigator.canShare({ text }))) {
-        await navigator.share({ title: itin.title ?? "旅程", text });
-        return;
-      }
-      await navigator.clipboard.writeText(text);
-      label.textContent = "コピーしました";
-    } catch (e) {
-      // 共有シートを閉じただけなら、何も言いません。
-      if (e?.name === "AbortError") return;
-      label.textContent = "コピーできませんでした";
-    }
+    const said = await sendItineraryText(itin);
+    if (!said) return;
+    label.textContent = said;
     setTimeout(() => { label.textContent = "旅程を送る / コピー"; }, 2600);
   });
 
@@ -1144,37 +1191,7 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
   loadIcal().catch(() => {});
   calBtn.addEventListener("click", async () => {
     const label = calBtn.querySelector("span");
-    let toIcs, icsFilename;
-    try {
-      ({ toIcs, icsFilename } = await loadIcal());
-    } catch {
-      icalModule = null;
-      label.textContent = "書き出せませんでした";
-      setTimeout(() => { label.textContent = "カレンダーに入れる"; }, 2600);
-      return;
-    }
-    const text = toIcs(itin);
-    if (!text) { label.textContent = "予定がありません"; return; }
-    let url = null;
-    try {
-      url = URL.createObjectURL(new Blob([text], {
-        type: "text/calendar;charset=utf-8",
-      }));
-      const a = el("a", { href: url, download: icsFilename(itin) });
-      a.style.display = "none";
-      document.body.append(a);
-      a.click();
-      // すぐ外すと、端末によっては download の名前が読まれないまま
-      // 「download」という名前で保存されます。1拍おいてから外します。
-      setTimeout(() => a.remove(), 0);
-      label.textContent = "書き出しました";
-    } catch {
-      label.textContent = "書き出せませんでした";
-    } finally {
-      // 取り消しは、保存が始まるのを待ってから。すぐ消すと、端末に
-      // よっては中身の無いファイルが落ちます。
-      if (url) setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    }
+    label.textContent = await saveItineraryIcs(itin);
     setTimeout(() => { label.textContent = "カレンダーに入れる"; }, 2600);
   });
 

@@ -39,7 +39,7 @@ import { paceBreakdown, slackLevel } from "./score.js";
 import { VARIANTS, distinguishOf, recommendOf, summaryOf, tripsFor }
   from "./variants.js";
 import { $, el, loadSketch, openSheet, renderItinerary, renderProgress, renderToday,
-         scrollBehavior, suggestionButton } from "./ui.js";
+         saveItineraryIcs, scrollBehavior, sendItineraryText, suggestionButton } from "./ui.js";
 import { catchUp } from "./today.js";
 import { isOffline, watchConnection } from "./online.js";
 import { conditionsOf, metricsEnabled, setMetricsEnabled, track } from "./metrics.js";
@@ -57,7 +57,7 @@ import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
          replaceHistory, savedLabel, thawItinerary } from "./history.js";
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
-import { answerTurn, askTurn, hasTurn, placeMap, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
+import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
 import { answerQuestion, isQuestion } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
 
@@ -3197,9 +3197,14 @@ function show(itin, trip) {
     onDetails: () => state.map.invalidate(),
     // 旅行中は、地図と次の行き先がすぐ見えるほうがいいので開いておきます。
     openDetails: state.tripMode === true,
+    // 答えの下の共有の印。リンクは「いま出ている旅程そのもの」です。
+    onShareLink: () => shareTripLink(itin, trip),
+    onShareCalendar: () => saveItineraryIcs(itin),
+    onShareText: () => sendItineraryText(itin),
   });
 
   placeMap();
+  placeToday();
   renderItinerary($("#itinerary"), itin, trip, {
     // 行程（時刻・乗る電車・歩く道）は、答えの本文に出します。
     routeInto: routeSlot(),

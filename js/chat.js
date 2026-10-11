@@ -55,6 +55,10 @@ function rescueMap(node) {
   const map = $("#map");
   const result = $("#result");
   if (map && result && node?.contains(map)) result.prepend(map);
+  // 旅の当日の札（#today）も同じです。元の場所は #result の .itin です。
+  const today = $("#today");
+  const home = result?.querySelector(":scope > .itin");
+  if (today && home && node?.contains(today)) home.prepend(today);
 }
 
 /**
@@ -74,7 +78,7 @@ function freeze() {
   // 前の答えの行程は、短い表に戻します。くわしい行程（押せるもの・
   // 日のタブ）は、いまの答えにだけ置きます。
   if (current.daySlot && current.mini) current.daySlot.replaceChildren(...current.mini);
-  for (const n of current.ai.querySelectorAll(".details-toggle, .ai-details-note, .ai-follow-note, .follow-ups, .cands button")) {
+  for (const n of current.ai.querySelectorAll(".details-toggle, .ai-details-note, .ai-follow-note, .follow-ups, .ai-today, .ai-share, .cands button")) {
     if (n.closest(".cands")) {
       n.disabled = true;
     } else {
@@ -179,6 +183,14 @@ export function routeSlot() {
   return current?.daySlot ?? null;
 }
 
+/** 旅の当日の札（#today）を、いまの答えの中へ移します。 */
+export function placeToday() {
+  const today = $("#today");
+  if (!current?.todaySlot?.isConnected || !today) return false;
+  if (today.parentElement !== current.todaySlot) current.todaySlot.append(today);
+  return true;
+}
+
 /**
  * 地図（#map）を、いまの答えの中へ移します。移したら true。
  * 行程が無い答え（組めなかった）には移しません。
@@ -254,6 +266,13 @@ export function answerTurn(itin, h = {}) {
     + (itin.spotCount ? `立ち寄りは${itin.spotCount}か所です。` : "")));
   if (itin.rationale) answer.append(el("p", {}, itin.rationale));
 
+  // 旅の当日の札（次の予定・出発を知らせる・次の便を調べ直す…）。
+  // 詳細の中に置くと、旅の途中でいちばん要るものが畳まれて見えません。
+  // 答えの本文に出します（中身は js/app.js の renderTodayBox が書きます）。
+  const todaySlot = el("div", { class: "ai-today" });
+  answer.append(todaySlot);
+  current.todaySlot = todaySlot;
+
   // 候補。ゆったり・王道・探索の3つを並べ、いま見ている1つに印を付けます。
   if (itin.variants?.length > 1 && h.onVariant) {
     answer.append(el("p", { class: "ai-sub" }, "候補です。"));
@@ -311,7 +330,7 @@ export function answerTurn(itin, h = {}) {
   };
   toggle.addEventListener("click", () => setOpen(details.hidden));
   answer.append(el("p", { class: "ai-sub ai-details-note" },
-    "天気・確かめたこと・費用・共有は、詳細にまとめています。"), toggle);
+    "天気・確かめたこと・費用は、詳細にまとめています。"), toggle);
   setOpen(Boolean(h.openDetails || current.detailsOpen));
 
   // 続けて頼む札。押すと、そのまま送ります。
@@ -326,4 +345,46 @@ export function answerTurn(itin, h = {}) {
     }
     answer.append(chips);
   }
+
+  // 共有。答えのいちばん下に、共有の印を1つ置きます。押すと
+  // 「リンク」「カレンダー」「文字で送る」が開きます。
+  const shares = [
+    h.onShareLink && ["link", "リンクで送る", h.onShareLink],
+    h.onShareCalendar && ["calendar", "カレンダーに入れる", h.onShareCalendar],
+    h.onShareText && ["message", "文字で送る / コピー", h.onShareText],
+  ].filter(Boolean);
+  if (shares.length) answer.append(shareBar(shares));
+}
+
+/**
+ * 共有の印と、その中身。
+ * @param {[string, string, () => Promise<string|void>|string|void][]} items
+ */
+function shareBar(items) {
+  const said = el("span", { class: "ai-share-said", role: "status" });
+  const menu = el("div", { class: "ai-share-menu", role: "group", "aria-label": "共有のしかた", hidden: "" });
+  for (const [ic, label, run] of items) {
+    const b = el("button", { type: "button", class: "ai-share-item md-state" },
+      icon(ic), el("span", {}, label));
+    b.addEventListener("click", async () => {
+      said.textContent = "";
+      try {
+        const out = await run();
+        if (out) said.textContent = out;
+      } catch {
+        said.textContent = "共有できませんでした";
+      }
+    });
+    menu.append(b);
+  }
+  const btn = el("button", {
+    type: "button", class: "ai-share-btn md-state",
+    "aria-expanded": "false", "aria-label": "この旅程を共有", title: "共有",
+  }, icon("share"), el("span", {}, "共有"));
+  btn.addEventListener("click", () => {
+    const open = menu.hidden;
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  return el("div", { class: "ai-share" }, btn, menu, said);
 }

@@ -3462,6 +3462,38 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .turn-details .map { height: 320px; margin: 12px 12px 0; border-radius: 12px; }
 /* 答えの本文の地図と行程（2026-10）。 */
 .ai-route { margin: 0 0 14px; }
+
+/* 旅の当日の札。答えの本文に置きます（詳細に畳まない）。 */
+.ai-today:empty, .ai-today:has(> #today[hidden]) { display: none; }
+.ai-today { margin: 4px 0 16px; }
+.ai-today .today { margin: 0; padding: 16px 18px; border: 1px solid var(--chat-line); border-bottom: 1px solid var(--chat-line); border-radius: 14px; }
+
+/* 共有。答えのいちばん下に、印を1つ。 */
+.ai-share { margin: 14px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-share-btn, .ai-share-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-ink-2);
+  font: inherit; font-size: var(--hig-t-footnote); font-weight: 500;
+  cursor: pointer;
+}
+.ai-share-btn .ic, .ai-share-item .ic { width: 17px; height: 17px; flex: none; }
+.ai-share-btn[aria-expanded="true"] { background: var(--chat-hover); color: var(--chat-ink); }
+.ai-share-menu { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-share-menu[hidden] { display: none; }
+.ai-share-said { font-size: var(--hig-t-footnote); color: var(--chat-ink-2); }
+.ai-share-said:empty { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .ai-share-btn:hover, .ai-share-item:hover { background: var(--chat-hover); color: var(--chat-ink); }
+}
+@media (pointer: coarse) {
+  .ai-share-btn, .ai-share-item { min-height: 44px; }
+}
+
+/* 旅行中モードは、当日の札と共有だけにします。 */
+body[data-trip-mode="on"] .ai-answer > :not(.ai-today):not(.ai-share),
+body[data-trip-mode="on"] .turn-details { display: none !important; }
 .ai-map:empty { display: none; }
 .ai-map .map {
   height: 300px; margin: 0 0 12px;

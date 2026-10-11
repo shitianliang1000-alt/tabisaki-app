@@ -755,6 +755,25 @@ await check("紙には、時刻と場所だけを出す", async () => {
   assert(shown.head !== false, "紙に題が出ていません");
 });
 
+await check("答えの下の共有の印から、リンク・カレンダー・文字で渡せる", async () => {
+  // 詳細を開かなくても共有できること（2026-10、ご指示）。
+  const btn = await page.$(".turn-ai:not(.is-past) .ai-share-btn");
+  assert(btn, "答えの下に共有の印がありません");
+  await btn.click();
+  const items = await page.$$eval(".turn-ai:not(.is-past) .ai-share-menu:not([hidden]) .ai-share-item",
+    (els) => els.map((e) => e.textContent.trim()));
+  const all = items.join(" / ");
+  assert(/リンク/.test(all) && /カレンダー/.test(all) && /文字/.test(all),
+    `共有のしかたが足りません: ${all}`);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 10_000 }),
+    page.click('.turn-ai:not(.is-past) .ai-share-item:has-text("カレンダー")'),
+  ]);
+  assert(/\.ics$/.test(download.suggestedFilename()), `カレンダーのファイルではありません: ${download.suggestedFilename()}`);
+  await btn.click();
+});
+
 await check("旅程を文字にして渡せる", async () => {
   // 共有シートの無い環境では、クリップボードに入ります。
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -1899,6 +1918,8 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
       };
       return {
         has: Boolean(box),
+        // 詳細に畳まず、答えの本文に出ていること（2026-10、ご指示）。
+        inAnswer: Boolean(document.querySelector(".turn-ai:not(.is-past) .ai-today #today .today")),
         next: document.querySelector(".today-next")?.textContent ?? "",
         nextSize: size(".today-next"),
         bodySize: parseFloat(getComputedStyle(document.body).fontSize),
@@ -1913,6 +1934,7 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
       };
     });
     assert(got.has, "当日なのに「今日の旅」が出ていません");
+    assert(got.inAnswer, "「今日の旅」が答えの本文ではなく、詳細の中にあります");
     assert(got.next.length > 0, "次の予定の名前が出ていません");
     // 歩きながら、ちらっと見て読める大きさであること。
     assert(got.nextSize > got.bodySize,
