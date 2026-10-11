@@ -1,0 +1,60 @@
+// チャットの質問に答えるテスト（js/qa.js）。
+//
+// 質問と、旅程を組む頼みを取り違えると、聞いたのに旅程が変わる・
+// 頼んだのに文しか返らない、のどちらかになります。迷う言い方は
+// 組むほうに倒すことを見ます。
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { answerQuestion, isQuestion, itineraryContext } from "../js/qa.js";
+
+test("旅の質問は、質問として読む", () => {
+  for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
+                   "持ち物は何がいる？", "小町通りって混んでる?", "拝観料を教えて"]) {
+    assert.equal(isQuestion(t), true, t);
+  }
+});
+
+test("旅程を組む・直す頼みは、質問にしない", () => {
+  for (const t of ["明日晴れている東京に近いところに行きたい(日帰り)", "もっとゆっくりにして",
+                   "日帰りにして", "京都でおすすめの場所は？", "どこに行けばいい？",
+                   "温泉でゆっくりしたい", "鎌倉", "箱根へ1泊2日で組んで？"]) {
+    assert.equal(isQuestion(t), false, t);
+  }
+});
+
+const ITIN = {
+  title: "鎌倉", prefecture: "神奈川県",
+  days: [{ date: new Date(2026, 9, 12), items: [
+    { kind: "transit", title: "東京駅 → 鎌倉駅", start: new Date(2026, 9, 12, 9, 0) },
+    { kind: "spot", title: "鶴岡八幡宮", start: new Date(2026, 9, 12, 10, 5) },
+    { kind: "free", title: "自由時間", start: new Date(2026, 9, 12, 11, 0) },
+  ] }],
+};
+
+test("いまの旅程を、時刻つきの短い文にして渡す", () => {
+  const t = itineraryContext(ITIN);
+  assert.match(t, /旅先: 鎌倉（神奈川県）/);
+  assert.match(t, /1日目（10月12日）/);
+  assert.match(t, /10:05 鶴岡八幡宮/);
+  assert.doesNotMatch(t, /自由時間/);
+  assert.match(itineraryContext(null), /まだ旅程はありません/);
+});
+
+test("答えは、AIの返した文をそのまま返し、旅程と質問を渡している", async () => {
+  let seen = "";
+  const got = await answerQuestion("鶴岡八幡宮は何時まで？", { itin: ITIN, history: [{ q: "前の質問", a: "前の答え" }] }, {
+    call: async (prompt) => { seen = prompt; return { answer: "6時から20時までです。" }; },
+  });
+  assert.equal(got.ok, true);
+  assert.equal(got.answer, "6時から20時までです。");
+  assert.match(seen, /質問: 鶴岡八幡宮は何時まで？/);
+  assert.match(seen, /10:05 鶴岡八幡宮/);
+  assert.match(seen, /Q: 前の質問/);
+});
+
+test("答えが作れなかったら、そう言う（作り話で埋めない）", async () => {
+  const got = await answerQuestion("何時まで？", {}, { call: async () => ({}) });
+  assert.equal(got.ok, false);
+  assert.match(got.answer, /うまく答えを作れませんでした/);
+});

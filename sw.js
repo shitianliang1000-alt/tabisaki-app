@@ -30,7 +30,9 @@
 // しました。
 // v10: 画面の枠を組み替えました（js/shell.js を足し、css を大きく変えています）。
 // v11: チャットの画面にしました（js/chat.js・js/chatread.js を足しています）。
-const VERSION = "tabisaki-v11";
+// v12: 質問に答える js/qa.js、晴れ・近場で選ぶ js/sunny.js、見出しの字
+//      （vendor/fonts/）、地を塗らないしるし（mark.svg）を足しました。
+const VERSION = "tabisaki-v12";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -46,11 +48,16 @@ const SHELL_FILES = [
   "./index.html",
   "./manifest.webmanifest",
   "./icon.svg",
+  "./mark.svg",
   "./icon-192.png",
   "./css/hig-tokens.css",
   "./css/hig.css",
   "./css/app.css",
   // 地図の部品。ここが欠けると、圏外では旅程の地図が出ません。
+  // 見出しの字（css/app.css の @font-face）。
+  "./vendor/fonts/noto-sans-jp-109-500-normal.woff2",
+  "./vendor/fonts/noto-sans-jp-116-500-normal.woff2",
+  "./vendor/fonts/noto-sans-jp-119-500-normal.woff2",
   "./vendor/leaflet.js",
   "./vendor/leaflet.css",
   "./vendor/images/marker-icon.png",
@@ -144,6 +151,8 @@ const SHELL_FILES = [
   "./js/shell.js",
   "./js/chat.js",
   "./js/chatread.js",
+  "./js/qa.js",
+  "./js/sunny.js",
   "./js/sketch.js",
   "./js/snapshot.js",
   "./js/stays.js",

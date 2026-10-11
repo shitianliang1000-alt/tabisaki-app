@@ -165,7 +165,9 @@ test("index.html に直に書いた形が、icons.js とずれていない", () 
   const html = read("../index.html");
   const paths = [...html.matchAll(/<svg class="ic[^"]*"[^>]*><path d="([^"]+)"/g)]
     .map((m) => m[1]);
-  assert.equal(paths.length, 20, `直書きの記号が ${paths.length} 個です`);
+  // 2026-10: こだわりを「＋」の中の4つの欄にしたので、その項目と
+  // 「戻る」「閉じる」が増えました（旅の例は外しました）。
+  assert.equal(paths.length, 31, `直書きの記号が ${paths.length} 個です`);
   const known = new Set(iconNames().map((n) => iconPath(n)));
   for (const d of paths) {
     assert.ok(known.has(d), `icons.js に無い形が index.html にあります: ${d}`);

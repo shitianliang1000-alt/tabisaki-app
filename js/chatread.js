@@ -12,6 +12,8 @@
 // 読み取ったものは、チャットの吹き出しの下に「読み取った条件」として
 // 並べます。何を拾ったのかが見えないと、直しようがありません。
 
+import { readWish } from "./sunny.js";
+
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 /** 漢数字（一〜十）も数にします。「二泊三日」と書く人がいます。 */
@@ -61,7 +63,7 @@ const PLACE = `((?:${KANA_PLACES})駅?|[一-龯々〆ヵヶァ-ヴー]{1,12}?駅
  * @returns {{
  *   start: Date|null, nights: number|null,
  *   departHour: number|null, returnHour: number|null,
- *   origin: string|null, mix: number|null, avoidCrowds: boolean|null,
+ *   origin: string|null, mix: number|null, avoidCrowds: boolean|null, sunny: boolean,
  *   people: number|null, budgetYen: number|null,
  *   labels: string[], rest: string, found: boolean,
  * }}
@@ -141,6 +143,11 @@ export function readChat(text, now = new Date()) {
     break;
   }
 
+  // 「東京に近いところ」は、東京を出発地として読みます（行き先ではありません）。
+  const wish = readWish(src);
+  if (!out.origin && wish.nearPlace && !NOT_PLACE.test(wish.nearPlace)) out.origin = wish.nearPlace;
+  out.sunny = wish.sunny;
+
   // --- 旅のしかた ----------------------------------------------------------
   if ((m = take(/穴場(?:多め|中心|が?多く|を?多く|めぐり|巡り)?|知る人ぞ知る|マイナー(?:な|め)?|ディープ/))) out.mix = 75;
   else if ((m = take(/定番(?:中心|多め|どころ)?|王道|有名(?:な|どころ|所)/))) out.mix = 15;
@@ -175,6 +182,8 @@ export function readChat(text, now = new Date()) {
   if (out.departHour != null) L.push(`${fmtHour(out.departHour)}に出発`);
   if (out.returnHour != null) L.push(`${fmtHour(out.returnHour)}までに帰る`);
   if (out.origin) L.push(`${out.origin}から`);
+  if (out.sunny) L.push("晴れる所");
+  if (wish.near) L.push("近場");
   if (out.mix === 75) L.push("穴場多め");
   if (out.mix === 15) L.push("定番中心");
   if (out.avoidCrowds === true) L.push("混雑を避ける");

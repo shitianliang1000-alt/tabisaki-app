@@ -63,7 +63,7 @@ async function until(page, fn, { timeout = 90_000, step = 250, arg } = {}) {
  *
  * 出発地・日時は入力欄の下の札からも開けますが、ここではいつも
  * 「＋」→ 項目、の道を通ります（はじめての人が通る道です）。
- * name は from・when・mix・examples のどれか。
+ * name は from・when・mix・tune（こだわりの一覧）のどれか。
  */
 async function openPanel(pg, name) {
   await closeConditions(pg);
@@ -82,21 +82,34 @@ async function closePanel(pg) {
 }
 
 /**
- * 「こだわり」のシートを開きます（人数・予算・移動手段・宿など）。
- * 「＋」→「こだわり」から開きます。
+ * 「こだわり」の欄を1つ開きます（「＋」→「こだわり」→ 区切り）。
+ * section は tune-time（時間と興味）・tune-move（人数・予算・移動）・
+ * tune-stay（同行者と宿）・tune-food（食事と旅の終わり）のどれか。
  */
-async function openConditions(pg) {
-  const open = await pg.$eval("#cond-dialog", (d) => d.open);
-  if (open) return;
-  await closePanel(pg);
+async function openConditions(pg, section = "tune-move") {
+  const open = await pg.$eval("#pop", (e) => !e.hidden && e.dataset.panel);
+  if (open === section) return;
+  if (open) await pg.keyboard.press("Escape");
   await pg.click("#plus");
   await pg.click("#pill-tune");
+  await pg.click(`#panel-tune [data-open-cond="${section}"]`);
+  await pg.waitForSelector(`#pop .pop-panel[data-panel="${section}"]:not([hidden])`);
 }
 
-/** シートを閉じます（「完了」）。 */
+/** こだわりの欄を閉じます。 */
 async function closeConditions(pg) {
-  const open = await pg.$eval("#cond-dialog", (d) => d.open);
-  if (open) await pg.click("#cond-done");
+  const open = await pg.$eval("#pop", (e) => !e.hidden && e.dataset.panel);
+  if (open && String(open).startsWith("tune")) await pg.keyboard.press("Escape");
+}
+
+/** こだわりの欄を閉じて、いまの条件で組み直します（入力欄が空なら、そうなります）。 */
+async function makeWithConditions(pg) {
+  await closeConditions(pg);
+  await pg.$eval("#note", (e) => {
+    e.value = "";
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await pg.click("#make-plan");
 }
 
 /**
@@ -114,10 +127,32 @@ async function waitResult(pg, timeout = 120_000) {
   if (shut) await pg.click("#details-toggle");
 }
 
-/** 例を1つ選んで、欄に入れます（「＋」→「旅の例」）。 */
+/**
+ * 例の文を欄に入れます。
+ *
+ * 「＋」の「旅の例」は外しました（2026-10、ご指示）。はじめの画面の
+ * 4つの例に無い文は、ここで書き込みます（書く人と同じです）。出発地が
+ * 決まっている例は、出発地も入れます。
+ */
+const EXAMPLES = {
+  "温泉でゆっくり": ["温泉でゆっくり癒されたい"],
+  "湯布院で温泉": ["湯布院で温泉に入って、ゆったり過ごしたい", "博多駅"],
+  "鎌倉": ["鎌倉を日帰りで、食べ歩きもしたい", "東京駅"],
+};
 async function pickExample(pg, prefix) {
-  await openPanel(pg, "examples");
-  await pg.click(`#panel-examples [data-example^="${prefix}"]`);
+  await closePanel(pg);
+  const chip = await pg.$(`.note-examples [data-example^="${prefix}"]`);
+  if (chip && await chip.isVisible()) { await chip.click(); return; }
+  const [text, from] = EXAMPLES[prefix] ?? [prefix];
+  // 出発地の欄は「＋」の中にあって、閉じていると見えません。
+  // 見えなくても入れられるよう、値を直に入れて input を起こします。
+  const put = (sel, v) => pg.$eval(sel, (e, val) => {
+    e.value = val;
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+    e.dispatchEvent(new Event("change", { bubbles: true }));
+  }, v);
+  if (from) await put("#depart-place", from);
+  await put("#note", text);
 }
 
 const browser = await chromium.launch({
@@ -241,8 +276,8 @@ await check("出発地・日時は、押したものだけが開く", async () =
   await page.click("#pill-when");
   got = await shown();
   assert(got.join() === "when", `日時を押したら、${got.join("・")} が開きました`);
-  const dlg = await page.$eval("#cond-dialog", (d) => d.open);
-  assert(!dlg, "大きな設定のシートまで開いています");
+  const panel = await page.$eval("#pop", (e) => e.dataset.panel);
+  assert(panel === "when", `日時のほかの欄まで開いています: ${panel}`);
   await page.keyboard.press("Escape");
   const closed = await page.$eval("#pop", (e) => e.hidden);
   assert(closed, "Esc で閉じません");
@@ -250,7 +285,7 @@ await check("出発地・日時は、押したものだけが開く", async () =
   await page.click("#plus");
   const items = await page.$$eval("#plus-menu .plus-item",
     (els) => els.map((e) => e.querySelector("b")?.textContent.trim()));
-  assert(items.join("・") === "出発地・日時・旅の例・まわる場所・こだわり",
+  assert(items.join("・") === "出発地・日時・まわる場所・こだわり",
     `「＋」の中身: ${items.join("・")}`);
   await page.keyboard.press("Escape");
 });
@@ -264,8 +299,9 @@ await check("自分の言葉が先、書きかたの見本はその次", async (
   assert(noteTop < chipTop, "見本が自由入力より上にあります");
   // きっかけは1か所にまとまっていること。以前は札とカードの2か所に
   // 分かれていて、画面の1枚目がカードで埋まっていました。
+  // 見本は、はじめの画面の4つだけです（「＋」の「旅の例」は外しました）。
   const chips = await page.$$eval("[data-example]", (els) => els.length);
-  assert(chips >= 8, `書きかたの見本が ${chips} 個しかありません`);
+  assert(chips === 4, `書きかたの見本が ${chips} 個です`);
   const cards = await page.$$eval(".mood", (els) => els.length);
   assert(cards === 0, `きっかけが2か所に分かれています（カード ${cards} 枚）`);
   // 押したら、欄がその文で埋まること（下の別の確認と合わせて二重に
@@ -510,8 +546,8 @@ await check("答えが、チャットの形で返る", async () => {
   const got = await page.evaluate(() => ({
     bubble: document.querySelector(".turn-user .bubble")?.textContent ?? "",
     lead: document.querySelector(".turn-ai .ai-lead")?.textContent ?? "",
-    days: document.querySelectorAll(".turn-ai .mini-day").length,
-    rows: document.querySelectorAll(".turn-ai .mini-list li").length,
+    days: document.querySelectorAll(".turn-ai .ai-days .day").length,
+    rows: document.querySelectorAll(".turn-ai .ai-days .tl").length,
     cands: document.querySelectorAll(".turn-ai .cand").length,
     toggle: document.getElementById("details-toggle")?.textContent ?? "",
     note: document.getElementById("note").value,
@@ -568,36 +604,34 @@ await check("立ち寄りの補足は、畳まれている", async () => {
   assert(!got.some((g) => g.loose), "補足が畳まれずに出ています");
 });
 
-await check("地図は「詳細を確認する」の中にある", async () => {
-  // はじめの画面には地図を置きません。旅程の地図は、詳細を開いたら出ます。
+await check("地図と行程（経路）は答えの本文にあり、詳細には無い", async () => {
+  // はじめの画面には地図を置きません。旅程ができたら、答えの中に
+  // 地図と、時刻・乗る電車まで入った行程を出します（2026-10、ご指示）。
   const got = await page.evaluate(() => ({
-    inDetails: Boolean(document.querySelector("#turn-details #map")),
+    inAnswer: Boolean(document.querySelector(".turn-ai .ai-map #map")),
+    daysInAnswer: document.querySelectorAll(".ai-answer .ai-days .days").length,
+    daysInDetails: document.querySelectorAll("#turn-details .days").length,
     h: document.getElementById("map").getBoundingClientRect().height,
     home: Boolean(document.getElementById("home-map")),
   }));
-  assert(got.inDetails, "地図が詳細の中にありません");
-  assert(got.h > 150, `詳細を開いても地図が出ていません（高さ ${got.h}）`);
+  assert(got.inAnswer, "地図が答えの本文にありません");
+  assert(got.daysInAnswer === 1, `答えの中の行程が ${got.daysInAnswer} 組です`);
+  assert(got.daysInDetails === 0, "詳細の中にも行程が残っています");
+  assert(got.h > 150, `地図が出ていません（高さ ${got.h}）`);
   assert(!got.home, "はじめの画面の地図が残っています");
 });
 
-await check("要約 → 旅程 → 3案 → 言葉で直す → 詳細 の順に出る", async () => {
-  // 旅程ができた直後に知りたいのは「で、何時にどこへ行くのか」です。
-  // 案を選び直すのは、それを見たあとの話です。
-  const order = await page.$$eval("#itinerary > *",
-    (els) => els.map((e) => e.className));
-  const at = (frag) => order.findIndex((c) => c.includes(frag));
-  const days = at("days");
-  assert(days > 0, `旅程が見つかりません: ${order.join(" / ")}`);
-  assert(at("summary") < days, "要約が旅程より下にあります");
-  if (at("variants") >= 0) {
-    assert(at("variants") > days, "3案が旅程より上にあります");
-  }
-  if (at("talk") >= 0) {
-    assert(at("talk") > days, "「言葉で直す」が旅程より上にあります");
-  }
-  if (at("more") >= 0) {
-    assert(at("more") > days, "詳細が旅程より上にあります");
-  }
+await check("詳細には、旅程を直す欄も3案も置かない", async () => {
+  // 3案は答えの「候補」、直すのはチャットへの返信です。詳細に同じ入口を
+  // 2つ置くと、どちらを使えばいいか迷います（2026-10、ご指示）。
+  const got = await page.evaluate(() => ({
+    talk: document.querySelectorAll("#turn-details .panel.talk, #turn-details .panel.adjust").length,
+    variants: document.querySelectorAll("#turn-details .variants").length,
+    summary: Boolean(document.querySelector("#turn-details .summary")),
+  }));
+  assert(got.talk === 0, "詳細に「旅程を直す」が残っています");
+  assert(got.variants === 0, "詳細に3案が残っています");
+  assert(got.summary, "詳細に要約がありません");
 });
 
 await check("旅程の下の操作が、ほかと同じ部品でできている", async () => {
@@ -612,22 +646,14 @@ await check("旅程の下の操作が、ほかと同じ部品でできている"
   assert(send, "「旅程を送る / コピー」がありません");
 });
 
-await check("旅程ができたあとも、例を選んで欄に入れられる", async () => {
-  // はじめの画面の例は、旅程ができたら引っ込めます（続けて書く欄だけに
-  // します）。例は「＋」→「旅の例」からいつでも出せます。
+await check("旅程ができたあとは、例を並べず、続けて書く欄だけにする", async () => {
+  // はじめの画面の例は、旅程ができたら引っ込めます。「＋」にも旅の例は
+  // ありません（2026-10、ご指示）。続けて書いて送れば、旅程が直ります。
   const under = await page.$eval(".note-examples",
     (e) => e.getBoundingClientRect().height);
   assert(under === 0, "旅程ができたあとも、入力欄の下に例が並んでいます");
-  const want = await page.$eval('#panel-examples [data-example^="鎌倉"]', (e) => e.dataset.example);
-  await pickExample(page, "鎌倉");
-  const got = await page.$eval("#note", (e) => e.value);
-  assert(got === want, `欄が埋まっていません: ${got}`);
-  const closed = await page.$eval("#pop", (e) => e.hidden);
-  assert(closed, "例を選んだあとも、欄が開いたままです");
-  await page.$eval("#note", (e) => {
-    e.value = "";
-    e.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  const inPlus = await page.$$eval('#pop [data-open-cond="examples"], #panel-examples', (els) => els.length);
+  assert(inPlus === 0, "「＋」に旅の例が残っています");
 });
 
 await check("エリアを地図で探して、欄に入れられる", async () => {
@@ -712,7 +738,7 @@ await check("紙には、時刻と場所だけを出す", async () => {
       return e ? getComputedStyle(e).display !== "none" : null;
     };
     return {
-      map: vis(".map"), form: vis(".dock"), variants: vis(".variants"),
+      map: vis(".ai-map") ?? vis(".map"), form: vis(".dock"), variants: vis(".cands"),
       actions: vis(".actions"), talk: vis(".panel.talk"),
       days: vis(".days"), head: vis(".itin-head"), checked: vis(".panel.checked"),
     };
@@ -839,22 +865,26 @@ await check("判断が、数字より先に出ている", async () => {
 });
 
 await check("3案の違いが書かれている", async () => {
-  const cards = await page.$$(".variant");
+  const cards = await page.$$(".turn-ai:not(.is-past) .cand");
   if (cards.length < 2) return;
-  const heading = await page.$eval(".variants h3", (e) => e.textContent);
-  assert(/おすすめ|選べます/.test(heading), `見出しが妙です: ${heading}`);
+  const badge = await page.$eval(".turn-ai:not(.is-past) .cand-badge", (e) => e.textContent).catch(() => "");
+  assert(/おすすめ/.test(badge), `おすすめの印がありません: ${badge}`);
+  const sums = await page.$$eval(".turn-ai:not(.is-past) .cand-sum", (els) => els.map((e) => e.textContent.trim()));
+  assert(sums.every(Boolean), "候補の説明が空です");
 });
 
 await check("案を選び直せる", async () => {
-  const cards = await page.$$(".variant");
+  const cards = await page.$$(".turn-ai:not(.is-past) .cand");
   if (cards.length < 2) return;
-  const other = await page.$(".variant:not(.is-selected)");
+  const other = await page.$(".turn-ai:not(.is-past) .cand:not(.is-selected)");
   if (!other) return;
   await other.click();
   await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await page.waitForTimeout(1500);
-  const sel = await page.$$eval(".variant.is-selected", (els) => els.length);
+  const sel = await page.$$eval(".turn-ai:not(.is-past) .cand.is-selected", (els) => els.length);
   assert(sel === 1, `選ばれている案が ${sel} 件あります`);
+  const map = await page.$(".turn-ai:not(.is-past) .ai-map #map");
+  assert(map, "選び直したら、地図が答えから消えました");
 });
 
 await check("立ち寄りを、その場で差し替えられる・外せる", async () => {
@@ -868,8 +898,8 @@ await check("立ち寄りを、その場で差し替えられる・外せる", a
   await page.click('.tl.spot .spot-action[data-action="remove"]');
   await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
-    const o = document.querySelector(".talk-out");
-    return Boolean(o && !o.hidden && o.textContent.includes("外して"));
+    const o = document.querySelector(".turn-ai:not(.is-past) .ai-edit");
+    return Boolean(o && o.textContent.includes("外して"));
   }, { timeout: 120_000 });
   const after = await page.$$eval(".tl.spot", (els) => els.length);
   assert(after < before, `外す前 ${before}件・外したあと ${after}件で減っていません`);
@@ -880,11 +910,11 @@ await check("立ち寄りを、その場で差し替えられる・外せる", a
   await back.click();
   await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
-    const o = document.querySelector(".talk-out");
+    const o = document.querySelector(".turn-ai:not(.is-past) .ai-edit");
     // 「戻して、組み直しました」から「戻しました（外す前の旅程です）」に
     // 変えたとき、ここが合わなくなって待ち続けました。語尾ではなく
     // **何をしたか**で見ます。
-    return Boolean(o && !o.hidden && o.textContent.includes("戻し"));
+    return Boolean(o && o.textContent.includes("戻し"));
   }, { timeout: 120_000 });
   const restored = await page.$$eval(".tl.spot", (els) => els.length);
   assert(restored >= before, `戻したのに ${restored}件（外す前は ${before}件）です`);
@@ -898,24 +928,10 @@ await check("立ち寄りを、その場で差し替えられる・外せる", a
       ?.trim() ?? ""));
   assert(restored === before,
     `戻したのに件数が違います（${before} → ${restored}）`);
-  const said = await page.$eval(".talk-out", (e) => e.textContent);
+  const said = await page.$eval(".turn-ai:not(.is-past) .ai-edit", (e) => e.textContent);
   assert(said.includes("外す前の旅程"),
     `何を返したのかが書かれていません: ${said.slice(0, 60)}`);
   assert(names.every((n) => n), "戻した旅程の立ち寄りに、名前がありません");
-});
-
-await check("言葉で直せる", async () => {
-  const input = await page.$("#edit-text");
-  if (!input) return;   // AIキーが無い環境では出ないことがあります
-  await input.fill("もっとゆっくり");
-  await page.click(".talk-go");
-  await until(page, () => {
-    const o = document.querySelector(".talk-out");
-    return Boolean(o && !o.hidden && o.textContent.trim()
-      && !o.textContent.includes("読み取っています"));
-  }, { timeout: 120_000 });
-  const said = await page.$eval(".talk-out", (e) => e.textContent.trim());
-  assert(said.length > 0, "何をどう読み取ったかが返っていません");
 });
 
 await check("共有と印刷の情報が入っている（OGP）", async () => {
@@ -1121,7 +1137,7 @@ await check("車を選ぶと、車の旅として組み直す", async () => {
   const on = await page.$eval('#transport-choice [data-transport="car"]',
     (e) => e.getAttribute("aria-pressed"));
   assert(on === "true", `車が選ばれていません: ${on}`);
-  await page.click("#cond-make");
+  await makeWithConditions(page);
   await waitResult(page);
   await until(page, () => {
     const l = [...document.querySelectorAll(".check-list .ck-label")]
@@ -1159,7 +1175,7 @@ await check("電車＋現地の車では、区間ごとに乗るものが変わ�
   // 道のりで決まる区間が並びます。どちらかに寄せると嘘になります。
   await openConditions(page);
   await page.click('#transport-choice [data-transport="transit+car"]');
-  await page.click("#cond-make");
+  await makeWithConditions(page);
   await waitResult(page);
   await until(page, () => document.querySelectorAll(".tl.transit").length > 1,
              { timeout: 120_000 });
@@ -1187,6 +1203,7 @@ await check("電車＋現地の車では、区間ごとに乗るものが変わ�
 await check("連泊を選ぶと、宿を動かさない旅になる", async () => {
   await openConditions(page);
   await page.click('#transport-choice [data-transport="any"]');
+  await openConditions(page, "tune-stay");
   await page.click('#stay-choice [data-stay="base"]');
   await closeConditions(page);
   // 1泊2日にします（日帰りでは宿の話が出ません）
@@ -1265,8 +1282,8 @@ await check("回る順を、その場で入れ替えられる", async () => {
   await moves[0].click();
   await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
-    const o = document.querySelector(".talk-out");
-    return Boolean(o && !o.hidden && o.textContent.includes("回る順"));
+    const o = document.querySelector(".turn-ai:not(.is-past) .ai-edit");
+    return Boolean(o && o.textContent.includes("回る順"));
   }, { timeout: 120_000 });
 
   const after = await page.$$eval(".day:not([hidden]) .tl.spot",
@@ -1308,8 +1325,8 @@ await check("掴んで動かしても、入れ替わる", async () => {
   await page.mouse.up();
 
   await until(page, () => {
-    const o = document.querySelector(".talk-out");
-    return Boolean(o && !o.hidden && o.textContent.includes("回る順"));
+    const o = document.querySelector(".turn-ai:not(.is-past) .ai-edit");
+    return Boolean(o && o.textContent.includes("回る順"));
   }, { timeout: 120_000 });
   const after = await page.$$eval(".day:not([hidden]) .tl.spot",
     (els) => els.map((e) => e.dataset.spot));
@@ -1553,9 +1570,14 @@ await check("指で押せる大きさになっている（44pt）", async () => 
     await pg.keyboard.press("Escape");
     await pg.click("#plus");
     await pg.click("#pill-tune");
-    await pg.waitForTimeout(300);
-    const sheet = await measure(["#cond-dialog .md-chip", "#cond-dialog .md-btn", ".linkish"]);
-    await pg.click("#cond-done");
+    await pg.waitForTimeout(200);
+    const tuneMenu = await measure(["#panel-tune .plus-item", "#panel-tune .pop-close"]);
+    await pg.click('#panel-tune [data-open-cond="tune-move"]');
+    await pg.waitForTimeout(200);
+    const sheet = await measure(["#panel-tune-move .md-chip", "#panel-tune-move .pop-back",
+      "#panel-tune-move .pop-done"]);
+    sheet.bad.push(...tuneMenu.bad);
+    await pg.keyboard.press("Escape");
     await pg.click("#side-open");
     await pg.waitForTimeout(400);
     const side = await measure([".side-item", ".side-close"]);

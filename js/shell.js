@@ -1,5 +1,5 @@
 // 画面の枠。旅の一覧（左）・入力欄の「＋」と、そこから開く小さな欄・
-// 入力欄の下の札・こだわりのシート。
+// 入力欄の下の札・はじめの画面の挨拶。
 //
 // 旅程づくりそのものには関わりません。条件の値は、これまでどおり
 // 各入力欄（#depart-place など）が持っています。ここはそれを読んで
@@ -65,6 +65,27 @@ export function modeText(nights, transportLabel) {
     ? `${span}・${transportLabel}` : span;
 }
 
+/**
+ * 時刻に合わせた挨拶（はじめの画面の見出し）。
+ *
+ *    4〜10時 … おはようございます
+ *   10〜17時 … こんにちは
+ *   それ以外 … こんばんは
+ */
+export function greeting(now = new Date()) {
+  const h = now.getHours();
+  if (h >= 4 && h < 10) return "おはようございます";
+  if (h >= 10 && h < 17) return "こんにちは";
+  return "こんばんは";
+}
+
+/** 挨拶を書き直します。開いたまま時間がたっても合うように、ときどき呼びます。 */
+export function updateGreeting(now = new Date()) {
+  const node = $("#hero-greet");
+  const word = greeting(now);
+  if (node && node.textContent !== word) node.textContent = word;
+}
+
 /** まぜかたのつまみ（0〜100）を、3段のどれに当たるかに直します。 */
 export function mixStep(value) {
   const v = Number(value);
@@ -75,6 +96,7 @@ export function mixStep(value) {
 }
 
 const $ = (s) => document.querySelector(s);
+const SIDE_KEY = "tabisaki.side";
 
 /** 札の字を、いまの条件に合わせて書き直します。 */
 export function updatePills() {
@@ -100,14 +122,19 @@ const FIRST = {
   from: "#depart-place",
   when: "#depart-at",
   mix: '#mix-quick [aria-checked="true"]',
-  examples: "#panel-examples [data-example]",
+  tune: "#panel-tune .plus-item",
+  "tune-time": "#day-start",
+  "tune-move": "#people-choice",
+  "tune-stay": '#companions-choice [data-companion]',
+  "tune-food": "#food-choice",
   menu: "#plus-menu .plus-item",
 };
 
 let openedBy = null;
 
 /**
- * 「＋」の欄を開きます。what は menu・from・when・mix・examples のどれか。
+ * 「＋」の欄を開きます。what は menu・from・when・mix・tune（こだわりの
+ * 一覧）・tune-time などのこだわりの4つの欄のどれか。
  * 開いているのは、いつも1つだけです。
  */
 export function openPop(what = "menu", { focus = true } = {}) {
@@ -118,8 +145,25 @@ export function openPop(what = "menu", { focus = true } = {}) {
     p.hidden = p.dataset.panel !== what;
   }
   pop.dataset.panel = what;
+  pop.scrollTop = 0;
+  fitPop(pop);
   $("#plus")?.setAttribute("aria-expanded", "true");
   if (focus) $(FIRST[what] ?? FIRST.menu)?.focus();
+}
+
+/**
+ * 欄が画面の外へはみ出さないよう、高さを画面に収めます。はじめの画面
+ * では入力欄の下に、旅程の画面では上に開くので、使える高さが違います。
+ */
+function fitPop(pop) {
+  pop.style.maxHeight = "";
+  const r = pop.getBoundingClientRect?.();
+  const H = globalThis.innerHeight;
+  if (!r || !H) return;
+  const below = r.top > (pop.parentElement?.getBoundingClientRect?.().top ?? 0);
+  const room = below ? H - r.top - 12 : r.bottom - 12;
+  const css = parseFloat(getComputedStyle(pop).maxHeight);
+  if (room > 120 && (!Number.isFinite(css) || room < css)) pop.style.maxHeight = `${Math.floor(room)}px`;
 }
 
 /** 閉じます。フォーカスは、開いたボタン（無ければ入力欄）へ返します。 */
@@ -137,15 +181,9 @@ export function closePop({ restore = true } = {}) {
   openedBy = null;
 }
 
-/** こだわりのシートを開きます（人数・予算・移動手段・宿・食事…）。 */
+/** こだわりの一覧を開きます（人数・予算・移動手段・宿・食事…）。 */
 export function openTune() {
-  const dlg = $("#cond-dialog");
-  if (!dlg?.showModal) return;
-  closePop({ restore: false });
-  if (!dlg.open) dlg.showModal();
-  const tune = $("#tune");
-  if (tune) tune.open = true;
-  $("#tune > summary")?.focus();
+  openPop("tune");
 }
 
 /**
@@ -153,9 +191,8 @@ export function openTune() {
  *
  * @param {object} h
  * @param {() => void} h.onNewTrip 「新しい旅」
- * @param {() => void} h.onMake    こだわりのシートの「この条件で旅程をつくる」
  */
-export function wireShell({ onNewTrip, onMake }) {
+export function wireShell({ onNewTrip }) {
   // --- 旅の一覧（狭い画面では引き出し） ---
   const side = $("#side");
   const scrim = $("#side-scrim");
@@ -168,7 +205,23 @@ export function wireShell({ onNewTrip, onMake }) {
     else if (isDrawer() && side?.contains(document.activeElement)) opener?.focus();
   };
   opener?.addEventListener("click", () => setSide(true));
-  $("#side-close")?.addEventListener("click", () => setSide(false));
+  // 広い画面では、同じボタンで一覧を畳みます（細い帯になります）。
+  const closer = $("#side-close");
+  const setMini = (mini) => {
+    document.body.dataset.side = mini ? "mini" : "";
+    closer?.setAttribute("aria-expanded", String(!mini));
+    const word = mini ? "旅の一覧を広げる" : "旅の一覧を畳む";
+    closer?.setAttribute("aria-label", word);
+    closer?.setAttribute("title", word);
+    try { localStorage.setItem(SIDE_KEY, mini ? "mini" : ""); } catch { /* 覚えなくても動きます */ }
+  };
+  closer?.addEventListener("click", () => {
+    if (isDrawer()) { setSide(false); return; }
+    setMini(document.body.dataset.side !== "mini");
+  });
+  try {
+    if (!isDrawer() && localStorage.getItem(SIDE_KEY) === "mini") setMini(true);
+  } catch { /* 読めなくても広げたまま */ }
   scrim?.addEventListener("click", () => setSide(false));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
@@ -177,6 +230,9 @@ export function wireShell({ onNewTrip, onMake }) {
   });
   // 一覧の中の操作を押したら、引き出しは閉じます（押した先の画面を見せる）。
   side?.addEventListener("click", (e) => {
+    // 畳んだ帯の「最近の旅」などは見えないので、しるしを押したら広げます。
+    if (!isDrawer() && document.body.dataset.side === "mini"
+        && e.target.closest(".brand-line")) { setMini(false); return; }
     if (!isDrawer()) return;
     if (e.target.closest("#side-close")) return;
     if (e.target.closest(".side-item, .recent-row")) setSide(false);
@@ -195,17 +251,12 @@ export function wireShell({ onNewTrip, onMake }) {
       const what = btn.dataset.openCond;
       // 一覧の中から選んだときは、戻る先を「＋」にします。
       if (!btn.closest("#pop")) openedBy = e.currentTarget;
-      if (what === "tune") { openTune(); return; }
       openPop(what);
     });
   }
   for (const b of document.querySelectorAll("#pop .pop-close, #pop .pop-done")) {
     b.addEventListener("click", () => closePop());
   }
-  // 例を選んだら、欄はもう要りません（入力欄が埋まります）。
-  pop?.addEventListener("click", (e) => {
-    if (e.target.closest("[data-example]")) closePop();
-  });
   // 欄の外を押したら閉じます。入力欄の中の「＋」と札は、自分で開け閉めします。
   document.addEventListener("pointerdown", (e) => {
     if (!pop || pop.hidden) return;
@@ -220,24 +271,17 @@ export function wireShell({ onNewTrip, onMake }) {
     }
   });
   // 一覧の中は、上下の矢印で動けるようにします（menu の作法）。
-  $("#plus-menu")?.addEventListener("keydown", (e) => {
-    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
-    const all = [...document.querySelectorAll("#plus-menu .plus-item")];
-    const i = all.indexOf(document.activeElement);
-    e.preventDefault();
-    const n = e.key === "Home" ? 0 : e.key === "End" ? all.length - 1
-      : (i + (e.key === "ArrowUp" ? -1 : 1) + all.length) % all.length;
-    all[n]?.focus();
-  });
-
-  // --- こだわりのシート ---
-  const dlg = $("#cond-dialog");
-  $("#cond-done")?.addEventListener("click", () => dlg.close());
-  dlg?.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-  $("#cond-make")?.addEventListener("click", () => {
-    dlg.close();
-    onMake?.();
-  });
+  for (const box of document.querySelectorAll("#plus-menu, #panel-tune .tune-menu")) {
+    box.addEventListener("keydown", (e) => {
+      if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
+      const all = [...box.querySelectorAll(".plus-item")];
+      const i = all.indexOf(document.activeElement);
+      e.preventDefault();
+      const n = e.key === "Home" ? 0 : e.key === "End" ? all.length - 1
+        : (i + (e.key === "ArrowUp" ? -1 : 1) + all.length) % all.length;
+      all[n]?.focus();
+    });
+  }
 
   // --- 定番と穴場（3段） ---
   const bias = $("#hidden-bias");
@@ -264,8 +308,8 @@ export function wireShell({ onNewTrip, onMake }) {
   });
   bias?.addEventListener("input", () => syncMix(bias.value));
 
-  // 札は、どこで何が変わっても追いかけます。条件の欄は「＋」の中にも
-  // シートの中にもあり、値を入れる道（チャット・現在地・前につくった旅）が
+  // 札は、どこで何が変わっても追いかけます。条件の欄は「＋」の中に
+  // いくつもあり、値を入れる道（チャット・現在地・前につくった旅）が
   // 多いので、1つずつ繋ぐより取りこぼしがありません。
   let queued = false;
   const later = () => {
@@ -277,4 +321,6 @@ export function wireShell({ onNewTrip, onMake }) {
     document.addEventListener(ev, later, true);
   }
   updatePills();
+  updateGreeting();
+  setInterval(() => updateGreeting(), 60_000);
 }

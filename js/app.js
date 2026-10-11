@@ -57,7 +57,8 @@ import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
          replaceHistory, savedLabel, thawItinerary } from "./history.js";
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
-import { answerTurn, hasTurn, resetThread, sayInTurn, startTurn } from "./chat.js";
+import { answerTurn, askTurn, hasTurn, placeMap, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
+import { answerQuestion, isQuestion } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
 
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
@@ -171,11 +172,11 @@ async function boot() {
       state.sentNote = null;
       state.shown = null;
       resetThread();
+      state.qa = [];
       setTopTitle("");
       showView("form");
       note.focus();
     },
-    onMake: () => $("#make-plan").click(),
   });
   updateWindowHelp();
 
@@ -342,6 +343,7 @@ function renderRecent() {
 function openHistory(item) {
   // やりとりは、その旅のものだけにします（前の旅の答えと混ぜない）。
   resetThread();
+  state.qa = [];
   state.sentNote = item.state?.note || "";
   startTurn(item.state?.note || item.title, []);
   if (!item.itin) { replayHistory(item); return; }
@@ -2524,6 +2526,13 @@ async function send(textArg) {
   const box = $("#note");
   const text = String(textArg ?? box.value).trim();
   closePop({ restore: false });
+  // 旅の質問なら、文で答えます。旅程は組み直さず、組み立て中でも
+  // 止めません（js/qa.js）。
+  if (text && isQuestion(text)) {
+    if (textArg == null) clearDraft();
+    ask(text);
+    return;
+  }
   const prev = state.shown;
   const read = readChat(text);
   const labels = await applyChat(read);
@@ -2563,6 +2572,36 @@ async function send(textArg) {
   state.sentNote = text;
   saveConditions();
   run();
+}
+
+/** 質問に答えます（send から）。答えは積んだ順に並びます。 */
+async function ask(text) {
+  count("chat_send", "ask");
+  const turn = askTurn(text);
+  const history = state.qa ?? (state.qa = []);
+  const got = await answerQuestion(text, { itin: state.shown?.itin, history });
+  turn.answer(got.answer, got.sources);
+  if (got.ok) history.push({ q: text, a: got.answer });
+  if (history.length > 6) history.splice(0, history.length - 6);
+  announce(got.answer);
+  noticeIfAway("質問に答えました");
+}
+
+/**
+ * 画面を離れているあいだに終わったら、タブの名前で知らせます。
+ * 旅程づくりは数分かかることがあり、その間に別のタブを見ている人が
+ * います。戻ってきたら、元の名前に戻します。
+ */
+function noticeIfAway(what) {
+  if (!document.hidden) return;
+  const base = state.baseTitle ?? (state.baseTitle = document.title);
+  document.title = `✓ ${what} — ${base}`;
+  const back = () => {
+    if (document.hidden) return;
+    document.title = base;
+    document.removeEventListener("visibilitychange", back);
+  };
+  document.addEventListener("visibilitychange", back);
 }
 
 // --- 本体 -------------------------------------------------------------------
@@ -2648,6 +2687,7 @@ async function run(override) {
     signal.throwIfAborted();
     showRoutesUsage();
     show(itin, trip);
+    noticeIfAway("旅程ができました");
     count("plan_ok", trip.transport,
           { ...facts(), r: Math.max(1, ...(state.plans ?? []).map((p) => p.itin?.rounds ?? 1)) });
   } catch (e) {
@@ -3159,7 +3199,10 @@ function show(itin, trip) {
     openDetails: state.tripMode === true,
   });
 
+  placeMap();
   renderItinerary($("#itinerary"), itin, trip, {
+    // 行程（時刻・乗る電車・歩く道）は、答えの本文に出します。
+    routeInto: routeSlot(),
     onBack: () => {
       $("#result").hidden = true;
     },

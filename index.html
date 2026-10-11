@@ -61,7 +61,7 @@
 <meta name="twitter:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
 <meta name="twitter:image" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/og.png">
 
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="mark.svg" type="image/svg+xml">
 <!-- iOS は apple-touch-icon に SVG を読みません。SVG だけを置いていたころは、
      ホーム画面に追加すると、しるしではなくページの縮小画像が並んでいました。
      PNG を渡します（Android 側は manifest の icons を見ます）。 -->
@@ -175,22 +175,22 @@
   <nav class="side" id="side" aria-label="旅の一覧">
     <div class="side-head">
       <p class="brand-line">
-        <img class="brand-mark" src="icon.svg" alt="" width="28" height="28">
+        <img class="brand-mark" src="mark.svg" alt="" width="28" height="28">
         <b class="brand-name" aria-hidden="true">旅さき</b>
       </p>
       <button type="button" class="md-icon-btn md-state side-close" id="side-close"
-              aria-label="旅の一覧を閉じる" title="旅の一覧を閉じる">
+              aria-label="旅の一覧を畳む" title="旅の一覧を畳む" aria-controls="side" aria-expanded="true">
         <svg class="ic" data-icon="sidebar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 4h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM9 4v16"/></svg>
       </button>
     </div>
-    <button type="button" class="side-item md-state" id="new-trip">
+    <button type="button" class="side-item md-state" id="new-trip" title="新しい旅">
       <svg class="ic" data-icon="compose" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>新しい旅</span>
     </button>
     <!-- エリアを地図で探す（js/areamap.js）。行き先をまだ決めていない人が、
          どこへ行けるのかを地図で見て選べるようにします。押すと欄に
          エリアの名前が入るだけで、勝手に組み始めません。 -->
     <button type="button" class="side-item md-state area-open"
-            id="open-area-map" aria-haspopup="dialog">
+            id="open-area-map" aria-haspopup="dialog" title="エリアから探す">
       <svg class="ic" data-icon="map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4 3 6.5V20l6-2.5M9 4l6 3M9 4v13.5M15 7l6-2.5V18l-6 2.5M15 7v13.5M9 17.5l6 3"/></svg><span>エリアから探す</span>
     </button>
 
@@ -206,14 +206,12 @@
   </section>
 
     <div class="side-fill"></div>
-    <p class="side-note">旅の記録はこの端末の中だけに残ります。どこにも送りません。</p>
     <footer class="credits">
-    <p id="ph-data"></p>
+    <p id="ph-data" hidden></p>
     <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
          まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
          後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
     <p><a href="credits.html">著作権表記</a></p>
-    <p class="ai-note">AIは間違えることがあります</p>
   </footer>
   </nav>
   <div class="side-scrim" id="side-scrim" hidden></div>
@@ -238,7 +236,8 @@
 
     <div class="chat-body" id="chat-body">
       <div class="hero">
-        <img class="hero-mark" src="icon.svg" alt="" width="40" height="40">
+        <!-- 挨拶は時刻で変わります（朝・昼・夜。js/shell.js の greeting）。 -->
+        <p class="hero-greet"><img class="hero-mark" src="mark.svg" alt="" width="40" height="40"><span id="hero-greet">こんにちは</span></p>
         <h2 class="hero-title" id="hero-title">どんな旅にしますか？</h2>
         <p class="hero-sub">行きたいことを書いて送るだけで、行き先・まわる順・時刻まで組みます。</p>
       </div>
@@ -312,13 +311,10 @@
           <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="when">
             <svg class="ic" data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/></svg><span class="plus-tx"><b>日時</b><small>出発と帰りの日にち・時刻</small></span>
           </button>
-          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="examples">
-            <svg class="ic" data-icon="bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></svg><span class="plus-tx"><b>旅の例</b><small>押すと、欄に入ります</small></span>
-          </button>
           <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="mix">
             <svg class="ic" data-icon="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 10l6.1-.9Z"/></svg><span class="plus-tx"><b>まわる場所</b><small>定番中心・バランス・穴場多め</small></span>
           </button>
-          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune" id="pill-tune" aria-haspopup="dialog">
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune" id="pill-tune">
             <svg class="ic" data-icon="sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg><span class="plus-tx"><b>こだわり</b><small>人数・予算・移動手段・宿など</small></span>
           </button>
         </div>
@@ -436,81 +432,35 @@
           </div>
           <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
         </div>
-        <div class="pop-panel" id="panel-examples" data-panel="examples" role="group" aria-labelledby="panel-examples-title" hidden>
+        <div class="pop-panel" id="panel-tune" data-panel="tune" role="group" aria-labelledby="panel-tune-title" hidden>
           <header class="pop-head">
-            <h2 class="pop-title" id="panel-examples-title">旅の例</h2>
+            <h2 class="pop-title" id="panel-tune-title">こだわり</h2>
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
-          <div class="chip-set example-list" role="group" aria-label="旅の例">
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="日光で滝と社寺をめぐりたい">日光 滝と社寺</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="湯布院で温泉に入って、ゆったり過ごしたい" data-from="博多駅">湯布院 温泉</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="温泉でゆっくり癒されたい">温泉でゆっくり</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="歴史ある街を歩いて、美味しいものを食べたい">歴史ある街歩き</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="人が少ない静かな場所で自然を感じたい">静かな自然</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="絶景が見たい。写真をたくさん撮りたい">絶景・写真</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="海の見えるところでのんびりしたい">海でのんびり</button>
-            <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="美術館と建築をめぐりたい">アートと建築</button>
+          <div class="tune-menu" role="menu" aria-label="こだわり">
+            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-time">
+              <svg class="ic" data-icon="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 7.5V12l3 2"/></svg><span class="plus-tx"><b>時間と興味</b><small>いつ動くか・混雑・興味</small></span>
+            </button>
+            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-move">
+              <svg class="ic" data-icon="crowd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 9.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4ZM4.5 19v-2.5a4.5 4.5 0 0 1 9 0V19M16.5 9.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4M15.5 12.4A4.3 4.3 0 0 1 20 16.5V19"/></svg><span class="plus-tx"><b>人数・予算・移動</b><small>人数・予算・移動手段</small></span>
+            </button>
+            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-stay">
+              <svg class="ic" data-icon="lodging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M6.5 11a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2Z"/></svg><span class="plus-tx"><b>同行者と宿</b><small>ベビーカー・車椅子・宿</small></span>
+            </button>
+            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-food">
+              <svg class="ic" data-icon="meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M9.5 3v5M17 3c-1.5 1-2 3-2 5s1 3 2 3v10"/></svg><span class="plus-tx"><b>食事と旅の終わり</b><small>食べたいもの・旅の終わり</small></span>
+            </button>
           </div>
+          <p class="reset-row">
+            <button type="button" class="linkish" id="reset-form">条件をリセット</button>
+          </p>
         </div>
-        </div>
-      </div>
-
-      <!-- はじめての人のための、そのまま使える例（4つ）。押すと欄が埋まります。
-           旅程ができたあとは出しません（続けて書く欄だけにします）。 -->
-      <div class="chip-set note-examples" role="group" aria-label="そのまま使える例">
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
-      </div>
-
-      <p class="compose-foot">AIは間違えることがあります。電車の時刻は目安です。出かける前に公式の情報も確かめてください。</p>
-    </div>
-  </section>
-
-</main>
-
-<!-- こだわり。人数・予算・移動手段・宿・食事など、決めたい人だけが開く
-     細かい設定です（「＋」→「こだわり」）。チャットに書いたことは、
-     ここの設定より勝ちます。 -->
-<dialog id="cond-dialog" class="md-dialog cond-sheet" aria-labelledby="cond-title">
-  <header class="cond-head">
-    <span class="cond-head-side" aria-hidden="true"></span>
-    <h2 class="hig-title-2" id="cond-title">こだわり</h2>
-    <button type="button" class="md-btn md-btn--text md-state cond-done" id="cond-done">完了</button>
-  </header>
-  <div class="cond-body">
-    <details class="tune" id="tune" open>
-      <!-- 開く前に、中に何があるかを見せます。「こだわり」だけでは、
-           人数や宿のことがここにあると分かりません。中は4つの区切りに
-           分け、それぞれに見出しを付けます（縦に13項目が続くと、
-           どこまでが何の話か追えませんでした）。 -->
-      <summary><span class="tune-sum">
-        <span>こだわりを追加する（任意）</span>
-        <small class="tune-sum-sub">時間と興味・人数と移動・同行者と宿・食事と帰り</small>
-      </span></summary>
-
-      <h3 class="tune-sec">時間と興味</h3>
+        <div class="pop-panel tune-panel" id="panel-tune-time" data-panel="tune-time" role="group" aria-labelledby="panel-tune-time-title" hidden>
+          <header class="pop-head">
+            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
+            <h2 class="pop-title" id="panel-tune-time-title">時間と興味</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
 
       <!-- 1日のうち、観光にあてる時間帯。帰着時刻とは別のことです。
            長さ（9時間）だけでは「いつ動くのか」が決まりません。同じ9時間
@@ -555,8 +505,14 @@
           <button type="button" class="md-chip md-state" data-genre="view" aria-pressed="false"><span>絶景</span></button>
         </div>
       </div>
-
-      <h3 class="tune-sec">人数・予算・移動</h3>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel tune-panel" id="panel-tune-move" data-panel="tune-move" role="group" aria-labelledby="panel-tune-move-title" hidden>
+          <header class="pop-head">
+            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
+            <h2 class="pop-title" id="panel-tune-move-title">人数・予算・移動</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
       <!-- 予算と移動手段。
            どちらも「あとから直せない」たぐいの前提です。特に車が
            使えるかどうかは、バスが1日3本の土地で旅程が成立するか
@@ -674,8 +630,14 @@
           長い乗車を減点せず、日ごとに土地を移る旅程にします。
           青春18きっぷなら、上の移動手段で「普通列車のみ」も選んでください。</p>
       </div>
-
-      <h3 class="tune-sec">同行者と宿</h3>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel tune-panel" id="panel-tune-stay" data-panel="tune-stay" role="group" aria-labelledby="panel-tune-stay-title" hidden>
+          <header class="pop-head">
+            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
+            <h2 class="pop-title" id="panel-tune-stay-title">同行者と宿</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
       <!-- 同行者。
            ------------------------------------------------------------
            旅程は「ふつうに歩ける大人ひとり」を前提に組まれていました。
@@ -739,8 +701,14 @@
           遠くへは行きにくくなります。泊まり歩くと広く回れますが、
           毎朝まとめ直すことになります。</p>
       </div>
-
-      <h3 class="tune-sec">食事と旅の終わり</h3>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel tune-panel" id="panel-tune-food" data-panel="tune-food" role="group" aria-labelledby="panel-tune-food-title" hidden>
+          <header class="pop-head">
+            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
+            <h2 class="pop-title" id="panel-tune-food-title">食事と旅の終わり</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
       <!-- 食べたいもの。
            ------------------------------------------------------------
            6択でした。ガイドラインのセグメンテッドコントロールは
@@ -805,17 +773,30 @@
         <p class="md-field-help" id="end-help">
           旅を終えたときに、出発した駅へ戻る前提で組みます。</p>
       </div>
-    </details>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        </div>
+      </div>
 
-    <p class="reset-row">
-      <button type="button" class="linkish" id="reset-form">条件をリセット</button>
-    </p>
-  </div>
-  <div class="cond-foot">
-    <button type="button" class="md-btn md-btn--filled md-state cond-make" id="cond-make">
-      <span>この条件で旅程をつくる</span></button>
-  </div>
-</dialog>
+      <!-- はじめての人のための、そのまま使える例（4つ）。押すと欄が埋まります。
+           旅程ができたあとは出しません（続けて書く欄だけにします）。 -->
+      <div class="chip-set note-examples" role="group" aria-label="そのまま使える例">
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
+      </div>
+
+      <p class="compose-foot">AIは間違えることがあります。電車の時刻は目安です。出かける前に公式の情報も確かめてください。</p>
+    </div>
+  </section>
+
+</main>
+
 
 <dialog id="settings-dialog" class="md-dialog">
   <h2 class="hig-title-2">設定</h2>

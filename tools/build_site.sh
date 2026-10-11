@@ -16,7 +16,7 @@ set -eu
 dist="${1:-dist}"
 rm -rf "$dist"
 mkdir -p "$dist"
-cp index.html credits.html icon.svg og.svg og.png manifest.webmanifest \
+cp index.html credits.html icon.svg mark.svg og.svg og.png manifest.webmanifest \
    icon-180.png icon-192.png icon-512.png icon-maskable-512.png \
    robots.txt sitemap.xml sw.js "$dist"/
 # admin/ は入れません。認証が無く、置けば誰でも開けます。

@@ -13,6 +13,37 @@
    段は影ではなく、白と、0.5px のヘアラインで出します。
    ===================================================================== */
 
+/* 見出しの字（Noto Sans JP の Medium）。
+   ロゴの「旅さき」と、はじめの画面の挨拶・「どんな旅にしますか？」に
+   使います。端末に無いことが多いので配ります。名前を "Tabisaki Title"
+   にしているのは、本文の字の並び（body の font-family にも Noto Sans JP
+   があります）がこの一部だけの字に当たって、本文の字が混ざらないように
+   するためです。全部の字を持つと数MBに
+   なるので、見出しに出る字が入っている3つの区切りだけを置いています
+   （約60KB。vendor/fonts/、SIL Open Font License）。区切りに無い字は、
+   下に並べた端末の字で出ます。 */
+@font-face {
+  font-family: "Tabisaki Title";
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: local("Noto Sans JP Medium"), local("NotoSansJP-Medium"),
+       url("../vendor/fonts/noto-sans-jp-109-500-normal.woff2") format("woff2");
+  unicode-range: U+266a,U+4f11,U+533a,U+5343,U+534a,U+53cd,U+5404,U+56f3,U+5b57-5b58,U+5bae,U+5c4a,U+5e0c,U+5e2f,U+5eab,U+5f35,U+5f79,U+614b,U+6226,U+629e,U+65c5,U+6625,U+6751,U+6821,U+6b69,U+6b8b,U+6bce,U+6c42,U+706b,U+7c21,U+7cfb,U+805e,U+80b2,U+82b8,U+843d,U+8853,U+88c5,U+8a3c,U+8a66,U+8d8a,U+8fba,U+9069,U+91cf,U+9752,U+975e,U+9999,U+ff0f-ff10,U+ff14-ff15;
+}
+@font-face {
+  font-family: "Tabisaki Title";
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: local("Noto Sans JP Medium"), local("NotoSansJP-Medium"),
+       url("../vendor/fonts/noto-sans-jp-116-500-normal.woff2") format("woff2");
+  unicode-range: U+a9,U+3010-3011,U+30e2,U+4e0b,U+4eca,U+4ed6,U+4ed8,U+4f53,U+4f5c,U+4f7f,U+53d6,U+540d,U+54c1,U+5730,U+5916,U+5b50,U+5c0f,U+5f8c,U+624b,U+6570,U+6587,U+6599,U+691c,U+696d,U+6cd5,U+7269,U+7279,U+7406,U+767a-767b,U+77e5,U+7d04,U+7d22,U+8005,U+80fd,U+81ea,U+8868,U+8981,U+89a7,U+901a,U+9023,U+90e8,U+91d1,U+9332,U+958b,U+96c6,U+9ad8,U+ff1a,U+ff1f;
+}
+@font-face {
+  font-family: "Tabisaki Title";
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: local("Noto Sans JP Medium"), local("NotoSansJP-Medium"),
+       url("../vendor/fonts/noto-sans-jp-119-500-normal.woff2") format("woff2");
+  unicode-range: U+20,U+2027,U+3001-3002,U+3041-307f,U+3081-308f,U+3091-3093,U+3099-309a,U+309d-309e,U+30a1-30e1,U+30e3-30ed,U+30ef-30f0,U+30f2-30f4,U+30fb-30fe,U+ff0c,U+ff0e;
+}
+
 * { box-sizing: border-box; }
 
 /* .placeholder などはクラス側で display を指定しているため、
@@ -148,7 +179,7 @@ p, li { text-wrap: pretty; }
   display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px;
   margin: 0 0 16px; padding-right: 48px;
 }
-.brand-mark { flex: none; width: 28px; height: 28px; border-radius: 7px; }
+.brand-mark { flex: none; width: 28px; height: 28px; }
 .brand-name {
   font-size: var(--hig-t-title3, 1.25rem); font-weight: 700; letter-spacing: .02em;
   color: var(--hig-label);
@@ -3071,8 +3102,9 @@ body { background: var(--chat-bg); }
 }
 .side .brand-line { margin: 0; padding: 0; flex-wrap: nowrap; }
 .side .brand-name {
-  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
-  font-size: var(--hig-t-title3, 1.25rem); font-weight: 600; color: var(--chat-ink);
+  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: var(--hig-t-title3, 1.25rem); font-weight: 500; letter-spacing: .04em;
+  color: var(--chat-ink);
 }
 .side-close { display: none; color: var(--chat-ink-2); }
 .side-item {
@@ -3096,10 +3128,6 @@ body { background: var(--chat-bg); }
 .side .recent-row { border-radius: 10px; padding-left: 10px; color: var(--chat-ink); }
 .side .recent-list li + li { border-top: 0; }
 .side-fill { flex: 1; min-height: 16px; }
-.side-note {
-  margin: 0 10px 6px; font-size: var(--hig-t-caption1); line-height: 1.5;
-  color: var(--chat-ink-2);
-}
 .side .credits { margin: 8px 0 0; padding: 10px 10px 0; }
 .side .credits p { margin: 0 0 2px; }
 .side-scrim { display: none; }
@@ -3149,12 +3177,20 @@ body[data-view="result"] .note-examples { display: none; }
   text-align: center;
   flex-wrap: wrap;
 }
-.hero-mark { flex: none; width: 36px; height: 36px; border-radius: 9px; }
-.hero-title {
-  margin: 0;
-  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+.hero-greet {
+  flex-basis: 100%; margin: 0;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.4rem);
   line-height: 1.3; font-weight: 500; letter-spacing: .02em;
+  color: var(--chat-ink);
+}
+.hero-mark { flex: none; width: 38px; height: 38px; }
+.hero-title {
+  flex-basis: 100%; margin: 6px 0 0;
+  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: clamp(1.15rem, 1rem + .5vw, 1.4rem);
+  line-height: 1.4; font-weight: 500; letter-spacing: .03em;
   color: var(--chat-ink);
 }
 .hero-sub {
@@ -3267,7 +3303,19 @@ body[data-view="form"] .compose-foot { visibility: hidden; }
 /* はじめの画面では、入力欄の下に開きます（上には見出ししかありません）。 */
 body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .pop[hidden], .pop-panel[hidden] { display: none !important; }
-.pop[data-panel="mix"], .pop[data-panel="examples"], .pop[data-panel="when"] { width: min(440px, 100%); }
+.pop[data-panel="mix"], .pop[data-panel="when"], .pop[data-panel="tune"] { width: min(440px, 100%); }
+/* こだわりの欄（4つ）。中身が多いので、少し広く・長くします。 */
+.pop[data-panel^="tune-"] { width: min(520px, 100%); max-height: min(78vh, 680px); }
+.pop .pop-back { color: var(--chat-ink-2); margin-left: -8px; }
+.pop .pop-back + .pop-title { flex: 1; margin-left: 2px; }
+.pop .tune-menu { display: flex; flex-direction: column; margin: 0 -8px; }
+.pop .reset-row { margin: 8px 2px 0; font-size: var(--hig-t-footnote); }
+.pop .tune-group { margin: 0 0 16px; }
+.pop .tune-group > .tune-label { margin: 0 0 6px; }
+.pop .tune-panel .pop-foot {
+  position: sticky; bottom: -8px; margin: 4px -8px -8px; padding: 8px;
+  background: var(--chat-input);
+}
 .plus-item {
   display: flex; align-items: center; gap: 12px;
   width: 100%; min-height: 48px; padding: 6px 10px;
@@ -3303,7 +3351,6 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .pop .when-row { display: grid; gap: 8px; }
 .pop .mix-quick { width: 100%; margin: 0 0 10px; background: var(--hig-fill-2); }
 .pop .mix-quick > button { flex: 1; min-height: 36px; font-size: var(--hig-t-footnote); }
-.pop .example-list { gap: 6px; }
 
 /* --- やりとり --- */
 .thread {
@@ -3422,6 +3469,14 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .turn-details[hidden] { display: none; }
 .turn-details .result { display: block; }
 .turn-details .map { height: 320px; margin: 12px 12px 0; border-radius: 12px; }
+/* 答えの本文の地図と行程（2026-10）。 */
+.ai-route { margin: 0 0 14px; }
+.ai-map:empty { display: none; }
+.ai-map .map {
+  height: 300px; margin: 0 0 12px;
+  border: 1px solid var(--chat-line); border-radius: 14px; overflow: hidden;
+}
+.ai-days .itin { --itin-gutter-l: 0px; --itin-gutter-r: 0px; }
 .turn-details .itin { --itin-gutter-l: 14px; --itin-gutter-r: 14px; }
 .is-past .ai-body { color: var(--chat-ink); }
 .is-past .cand { opacity: .75; }
@@ -3471,36 +3526,63 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .turn-ai .plan-card .plan-cancel { margin: 8px 0 0; min-height: 36px; }
 .turn-ai #form-error { margin: 0 0 10px; }
 
-/* --- こだわりのシート --- */
-.cond-sheet {
-  width: min(560px, 94vw); max-height: min(86vh, 860px);
-  padding: 0; overflow: hidden;
-  background: var(--chat-bg);
+
+/* --- 答えの本文の行程（2026-10） ---
+   詳細の中にあった行程を、チャットの見た目に合わせて置き直しました。
+   カードは塗らずに細い線で囲み、色は「定番」「混雑」などの札だけに
+   残します。経路の行は小さめの字で、カードより一段控えめにします。 */
+.ai-days .day-head { margin: 4px 0 10px; font-size: var(--hig-t-subhead); }
+.ai-days .day-tabs { margin: 0 0 12px; }
+.ai-days .tl .body {
+  margin-bottom: 10px;
+  border: 1px solid var(--chat-line); border-radius: 14px;
+  background: var(--chat-input); box-shadow: none;
 }
-.cond-sheet[open] { display: flex; flex-direction: column; }
-.cond-head {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  padding: 8px 8px 8px 16px;
-  border-bottom: 1px solid var(--chat-line);
-  background: var(--chat-bg);
+.ai-days .tl.spot .body.card-tinted { background: var(--chat-input); }
+.ai-days .tl.transit .body, .ai-days .tl.free .body, .ai-days .tl.luggage .body {
+  padding: 6px 2px 8px; border: 0; background: transparent;
 }
-.cond-head h2 { margin: 0; font-size: var(--hig-t-headline, 1.0625rem); }
-.cond-done { justify-self: end; font-weight: 600; }
-.cond-body {
-  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: 18px 20px 8px;
+.ai-days .tl.transit .title { font-size: var(--hig-t-footnote); color: var(--chat-ink-2); }
+.ai-days .tl.transit .detail { font-size: var(--hig-t-footnote); }
+.ai-days .tl.transit .item-links { margin-top: 6px; gap: 6px; }
+.ai-days .tl.transit .item-links .link { min-height: 30px; padding: 0 10px; }
+.ai-days .card-info { padding: 12px 14px 12px; }
+.ai-days .item-links .link {
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  background: transparent; color: var(--chat-ink);
 }
-.cond-body .tune {
-  margin: 0 0 12px; padding: 4px 16px;
-  border-radius: 14px; background: var(--hig-card);
+.ai-days .item-links .primary-link { background: var(--chat-hover); border-color: transparent; }
+.ai-days .spot-more > summary { color: var(--chat-ink-2); min-height: 36px; }
+.ai-days .spot-action { border-radius: 8px; }
+.ai-days .time b { font-variant-numeric: tabular-nums; }
+@media (prefers-color-scheme: dark) {
+  .ai-days .tl.spot .body.card-tinted { background: var(--chat-input); }
 }
-.cond-body .reset-row { margin: 4px 0 8px; }
-.cond-foot {
-  padding: 10px 20px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--chat-line);
-  background: var(--chat-bg);
+
+/* --- 質問への答え --- */
+.ai-qa > p { margin: 0 0 8px; line-height: 1.75; }
+.ai-qa .ai-thinking { color: var(--chat-ink-2); }
+.qa-src { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.qa-src a {
+  display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px;
+  border: 1px solid var(--chat-line); border-radius: 8px;
+  color: var(--chat-ink-2); font-size: var(--hig-t-caption1); text-decoration: none;
 }
-.cond-make { width: 100%; justify-content: center; min-height: 50px; border-radius: 14px; }
+
+/* --- 一覧を畳む（広い画面） ---
+   畳むと、しるしと「新しい旅」などの記号だけの細い帯になります
+   （Claude の左の帯と同じ）。畳んだかどうかは覚えておきます（js/shell.js）。 */
+@media (min-width: 1100px) {
+  .side-close { display: inline-flex; }
+  body[data-side="mini"] .layout { grid-template-columns: 60px minmax(0, 1fr); }
+  body[data-side="mini"] .side { padding-left: 8px; padding-right: 8px; align-items: center; }
+  body[data-side="mini"] .side-head { flex-direction: column; gap: 6px; padding: 0 0 8px; }
+  body[data-side="mini"] .side .brand-name,
+  body[data-side="mini"] .side-item > span,
+  body[data-side="mini"] .side .recent,
+  body[data-side="mini"] .side .credits { display: none; }
+  body[data-side="mini"] .side-item { width: 44px; padding: 0; justify-content: center; }
+}
 
 /* --- 1列（一覧は引き出し） --- */
 @media (max-width: 1099px) {
@@ -3549,10 +3631,7 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
   }
   .note-examples .md-chip { justify-content: flex-start; min-height: 44px; text-align: left; }
   .turn-details .map { height: 240px; margin: 10px 10px 0; }
-  .cond-sheet {
-    width: 100%; max-width: none; max-height: calc(100dvh - 40px);
-    margin: auto 0 0; border-radius: 14px 14px 0 0;
-  }
+  .ai-map .map { height: 220px; }
 }
 @media (pointer: coarse) {
   .cond-pill, .plus-btn, .send-btn { min-height: 44px; min-width: 44px; }
@@ -3569,7 +3648,8 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
 
 /* 紙には、やりとりの枠を出しません。旅程（詳細）だけを刷ります。 */
 @media print {
-  .side, .side-scrim, .topbar, .dock, .turn-user, .ai-mark, .ai-answer, .hero { display: none !important; }
+  .side, .side-scrim, .topbar, .dock, .turn-user, .ai-mark, .hero { display: none !important; }
+  .ai-answer > :not(.ai-route), .ai-map { display: none !important; }
   .layout, .chat, .chat-body { display: block !important; height: auto !important; overflow: visible !important; }
   .turn-ai { display: block; }
   .turn-details, .turn-details[hidden] { display: block !important; border: 0; }

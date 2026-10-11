@@ -215,7 +215,7 @@ async function contrast(name, dark) {
       ["まぜかたの帯（定番）", "#mix-seg-major"],
       ["まぜかたの帯（知る人ぞ知る）", "#mix-seg-known"],
       ["まぜかたの帯（穴場）", "#mix-seg-hidden"],
-      ["この条件で旅程をつくる", "#cond-make"],
+      ["こだわりを決める", ".tune-panel .pop-done"],
       ["旅程をつくる（送る）", ".send-btn"],
       ["塗りつぶしのボタン", ".md-btn--filled"],
       ["選んだチップ", '.md-chip[aria-pressed="true"]'],
