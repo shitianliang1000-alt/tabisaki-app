@@ -11,7 +11,7 @@ import test from "node:test";
 
 import { namedSpotAreas } from "../js/areas.js";
 import { insideOf } from "../js/shapes.js";
-import { isLodging, isNotAPlace, isUmbrella, whyNotASpot }
+import { isInfoDesk, isLodging, isNotAPlace, isUmbrella, whyNotASpot }
   from "../js/notaspot.js";
 
 const at = (name, category = "観光名所", extra = {}) =>
@@ -22,6 +22,27 @@ test("宿は、行き先にしない", () => {
     "琵琶湖グランドホテル", "長浜ドーム宿泊研修館", "かんぽの宿 寄居",
     "和の宿ホテル祖谷温泉", "TOYOTA SHARE エクシブ琵琶湖"]) {
     assert.equal(isLodging(at(name)), true, name);
+  }
+});
+
+test("観光案内所は、行き先にしない", () => {
+  // 「宮島に行きたい」の1か所目が、45分の「広島駅総合案内所」でした。
+  for (const name of ["広島駅総合案内所", "下関駅観光案内所",
+    "まちなかインフォメーションセンター", "山ノ内インフォメーション センター",
+    "佐野SAインフォメーション"]) {
+    assert.equal(isInfoDesk(at(name)), true, name);
+    assert.equal(whyNotASpot(at(name)), "案内所", name);
+  }
+});
+
+test("案内所の字があっても、見どころなら残す", () => {
+  for (const name of [
+    "倉吉白壁土蔵群・赤瓦観光案内所",   // 見どころの名前とつないだもの
+    "奥津湖総合案内所 みずの郷奥津湖 ビジターセンター",
+    "中禅寺観光センター",              // 観光センターは物産館などを兼ねる
+    "尾瀬沼ビジターセンター",
+    "案内所跡"]) {
+    assert.equal(isInfoDesk(at(name)), false, name);
   }
 });
 
