@@ -40,7 +40,7 @@ import { MAX_POINTS, computeRoute, legDetailLookup, legLookupAll, pickMode }
   from "./routes.js";
 import { SPOTS_PER_DAY, planStays, suggestRegionCount } from "./stays.js";
 import { dayEnd, endPlace, nightsOf } from "./trip.js";
-import { issuesToPrompt, trimToFit } from "./verify.js";
+import { issuesToPrompt, trimKeepingPicks, trimToFit } from "./verify.js";
 import { critique, relaxForItinerary, relaxForUnreachable } from "./relax.js";
 import { itineraryCrowd, spreadCrowds } from "./crowd.js";
 import { costBreakdown } from "./cost.js";
@@ -1417,11 +1417,25 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
   // 旅程を早く出すより、実際の便が入った旅程を待つほうがよい、という
   // 判断です。
   if (useRoutes && opts.measureFinal !== false) {
+    // 選んだ場所と、あとから足した穴埋め（topUpStays・fillEmptyDays）。
+    // 実際の時刻で入りきらなくなったとき、先に外すのは穴埋めのほうです。
+    const chosenIds = new Set([...proposal.picks.map((p) => p.spotId),
+                               ...(trip.must?.spotIds ?? [])]);
+    const fillerIds = new Set(spots.map((x) => x.id)
+      .filter((id) => !chosenIds.has(id)));
     const measured = await measureFinalOrder(trimmed, ctx, trip,
                                              { stays, outbound, nightOut,
+                                               fillerIds,
                                                signal: opts.signal });
     if (measured) {
-      trimmed = measured.trimmed;
+      // 外した場所は、**目安で組んだときのぶんも残します**。
+      //
+      // ここで measured.trimmed に置き換えるだけだったので、目安の
+      // 段階で外した場所（「宮島に行きたい」の弥山・厳島）は数えられず、
+      // 実際の経路で組み直すたびに「全スポットが時間内に収まることを
+      // 確認」と出ていました。外したのに、外していないと言っていました。
+      trimmed = { ...measured.trimmed,
+                  dropped: [...(trimmed.dropped ?? []), ...measured.dropped] };
       travelFn = measured.travelFn;
       legDetail = measured.legDetail;
       localRoute = measured.route ?? localRoute;
@@ -1639,6 +1653,9 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
   let current = trimmed;
   let best = null;
   let lastShift = Infinity;
+  // 組み直しの回ごとに外れた場所。最後の回の dropped だけを見ると、
+  // 1回目で外れた場所が消えます（2回目は、外れたあとの並びから始まるため）。
+  const lostSoFar = [];
 
   for (let round = 0; round < MEASURE_ROUNDS; round++) {
     const visits = current.result?.visits ?? [];
@@ -1703,12 +1720,19 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
     // 着く前に見学が始まる旅程になります。
     const measuredOut = ctxIn.nightOut ?? route.legs[0] ?? outbound;
     const startAt = arrivalAfter(trip.departAt, measuredOut);
-    const again = trimToFit(visits.map((v) => v.spot),
-                            { ...ctx, startAt, travelFn: nextTravel });
+    const again = trimKeepingPicks(visits.map((v) => v.spot),
+                                   { ...ctx, startAt, travelFn: nextTravel },
+                                   ctxIn.fillerIds);
     const settled = again.result?.visits?.length ? again : current;
+    if (settled === again) {
+      // 穴埋めは数えません。あとから足した場所です。
+      lostSoFar.push(...(again.dropped ?? [])
+        .filter((s) => !ctxIn.fillerIds?.has(s.id)));
+    }
 
     best = {
       trimmed: settled,
+      dropped: [...lostSoFar],
       travelFn: nextTravel, legDetail: nextDetail, route,
       outbound: measuredOut,
     };

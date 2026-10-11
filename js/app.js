@@ -23,7 +23,7 @@ import { PLACES, findPlace, nearestPlaceInfo } from "./places.js";
 import { findStop, preloadStops, searchStops } from "./stops.js";
 import { END_MODES, formatHourField, makeTrip, parseHourField, validateTrip }
   from "./trip.js";
-import { TripMap, pointsFromItinerary } from "./map.js";
+import { TripMap, pointsFromItinerary, japaneseControls } from "./map.js";
 import { haversineKm } from "./feasibility.js";
 import { configureQuota, describeUsage, quota } from "./quota.js";
 import { artFor } from "./art.js";
@@ -423,6 +423,21 @@ function rememberTrip(itin, trip) {
     trip,
   });
   renderRecent();
+}
+
+/**
+ * 画面には出さず、読み上げにだけ伝えます（#sr-announce）。
+ *
+ * 同じ文を続けて入れると読まれないことがあるので、いったん空にして
+ * から入れます。
+ *
+ * @param {string} text
+ */
+function announce(text) {
+  const box = $("#sr-announce");
+  if (!box) return;
+  box.textContent = "";
+  setTimeout(() => { box.textContent = text; }, 50);
 }
 
 function setBadge(text, isError = false) {
@@ -930,9 +945,10 @@ async function startHomeMap() {
     // 日本より目立っていました。本州を囲む枠に合わせ、画面の大きさに
     // 応じた縮尺を Leaflet に選ばせます。
     const map = window.L.map(box, {
-      zoomControl: true, scrollWheelZoom: false,
+      zoomControl: false, scrollWheelZoom: false,
       attributionControl: true,
-    }).fitBounds(JAPAN_HOME_VIEW);
+    }).setView([36.2, 138.3], 5);
+    japaneseControls(map);
     window.L.tileLayer(TILE_URL,
       { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
     state.homeMap = map;
@@ -2069,6 +2085,40 @@ function showView(view) {
   // 地図の見え始めです）。2度目以降は startHomeMap 側で弾かれます。
   if (view === "result" && isNarrow()) startHomeMap();
   globalThis.scrollTo?.({ top: 0, behavior: scrollBehavior() });
+  // 携帯では、押したボタン（「旅程をつくる」「条件を変更する」）ごと
+  // 画面が隠れます。フォーカスは行き場を失ってページの頭に落ち、
+  // キーボードでは次の Tab が「条件の入力へ移動」から始まり、読み上げ
+  // では何が起きたのかが何も言われませんでした。移った先の画面へ
+  // 渡します。
+  landFocus(view === "result" ? ".pane-result" : "#form-pane");
+}
+
+/**
+ * フォーカスが隠れた所（または行き場の無いページの頭）にあるときだけ、
+ * 指定の場所へ移します。
+ *
+ * いつも動かすわけではありません。広い画面では条件と結果が並んで
+ * いるので、押したボタンはそのまま見えています。そこから勝手に
+ * 動かすと、続けて操作しようとした人の位置を奪います。
+ *
+ * 見出しのような、ふだんは押せない所へも渡せるように tabindex="-1"
+ * を付けます（Tab の順路には入りません）。
+ *
+ * @param {string|Element} target
+ * @param {{from?: string[]}} [opts] ここにフォーカスがあるときも「行き場が
+ *   無い」とみなす場所（組み立て中の経過の箱など、消えていく所）
+ */
+function landFocus(target, { from = [] } = {}) {
+  const to = typeof target === "string" ? $(target) : target;
+  if (!to) return;
+  const now = document.activeElement;
+  const lost = !now || now === document.body
+    || now.getClientRects().length === 0
+    || from.some((sel) => now.matches?.(sel));
+  if (!lost) return;
+  if (!to.hasAttribute("tabindex")) to.setAttribute("tabindex", "-1");
+  // 先頭へ戻したばかりなので、ここでは動かしません。
+  to.focus({ preventScroll: true });
 }
 
 /**
@@ -2123,6 +2173,12 @@ function showError(text, suggestions = [], kind = "plan") {
       suggestions.map((s) => suggestionButton(s, applySuggestion))));
   }
   box.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+  // 理由を読み上げにも届けます。箱は出ても、読み上げでは何も言われず、
+  // 押した「旅程をつくる」に留まったままでした（目で見えない人には、
+  // 押しても何も起きなかったのと同じです）。箱へフォーカスを移すと、
+  // 中身が読まれ、そのまま次の操作（直す候補のボタン）へ進めます。
+  box.setAttribute("tabindex", "-1");
+  box.focus({ preventScroll: true });
 }
 
 /**
@@ -3032,6 +3088,18 @@ function show(itin, trip) {
     applyTripModeView();
     showView("result");
   }
+
+  // できたことを伝えます。組み立て中の経過は読み上げに届いていましたが、
+  // 経過の箱は終わると隠れるので、**できた瞬間は黙っていました。**
+  // フォーカスが経過の箱（やめるボタン）や結果の画面そのものに
+  // 残っていたら、旅程の見出しへ渡します。そこから Tab で旅程を
+  // 順に読めます。開き直した旅程（保存・共有・旅行中モード）は、
+  // 「できました」ではないので言いません。
+  if (!itin.restored && !itin.sharedLink && !itin.savedAt) {
+    announce(`旅程ができました。${itin.title ?? itin.regionName ?? ""}`);
+  }
+  const head = $("#itinerary .itin-head h2");
+  if (head) landFocus(head, { from: [".pane-result", "#progress, #progress *"] });
 
   // ピンを押したときも、旅程の行と同じシートを開きます（往復できます）。
   const points = pointsFromItinerary(itin, trip, { onSpot: openSpotSheet });

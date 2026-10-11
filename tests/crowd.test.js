@@ -84,9 +84,21 @@ test("混雑回避を入れると、旅程の混雑の見込みが下がる", as
   });
   const on = await planTrip({ kb: await loadKnowledgeBase(), trip: trip(true) });
   const off = await planTrip({ kb: await loadKnowledgeBase(), trip: trip(false) });
-  const scoreOf = (itin) => itineraryCrowd(itin).score;
-  assert.ok(scoreOf(on) <= scoreOf(off),
-    `回避ON ${scoreOf(on)} / OFF ${scoreOf(off)}`);
+  // 比べるのは、**両方の旅程に入った場所だけ**です。
+  //
+  // 並べ替えると、時間に入りきる場所が変わります。片方にだけ
+  // 静かな漁港が入り、もう片方には長谷寺が入る、ということが起きます。
+  // 全体の平均で比べると、混雑回避の効き目ではなく「何が入ったか」を
+  // 比べることになります（鶴岡八幡宮の知名度を直したら、それで逆転しました）。
+  const common = (a, b) => {
+    const names = new Set(itineraryCrowd(b).perSpot.map((x) => x.name));
+    return itineraryCrowd(a).perSpot.filter((x) => names.has(x.name));
+  };
+  const avg = (xs) => xs.reduce((a, x) => a + x.score, 0) / xs.length;
+  const both = common(on, off);
+  assert.ok(both.length >= 3, `共通の場所が少なすぎます（${both.length}か所）`);
+  assert.ok(avg(both) <= avg(common(off, on)),
+    `回避ON ${avg(both)} / OFF ${avg(common(off, on))}`);
   assert.ok(on.crowd, "混雑の評価が旅程に付いていません");
   assert.equal(off.crowd, null);
 });

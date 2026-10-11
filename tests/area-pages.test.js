@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
-  examplePrompts, groupByChiho, nearbySpots, nextSaturday, pickPrefSpots, readableDescription, shardSlug,
-  sitemapXml, spotIcon,
+  examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
+  readableDescription, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
 
 const BASE = "https://example.test/app/";
@@ -332,10 +332,67 @@ test("404.html: どの深さで出ても崩れない絶対URLで、検索には�
   assert.match(html, /script-src 'none'/);
 });
 
-test("都道府県の一覧は地方ごとに分かれ、表に無い名前も落とさない", () => {
-  const prefs = ["沖縄県", "北海道", "東京都", "神奈川県", "どこか県"].map((name) => ({ name }));
-  const g = groupByChiho(prefs);
-  assert.deepEqual(g.map((x) => x.name), ["北海道・東北", "関東", "九州・沖縄", "その他"]);
-  assert.deepEqual(g[1].prefs.map((p) => p.name), ["東京都", "神奈川県"]);
-  assert.equal(g.flatMap((x) => x.prefs).length, prefs.length);
+test("説明文: エリアはコースで寄る有名な場所、県は定番の名前を入れて、ページごとに違う文にする", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [
+      spot("a", { name: "大涌谷", fame_tier: "major", fame_score: 80 }),
+      spot("b", { name: "駅前の店", fame_tier: "known", fame_score: 20 }),
+    ]]]),
+  };
+  const itin = itinOf(["b", "a"]);
+  // 寄る順は b → a。説明文は有名な順に a を先に書く。
+  itin.days[0].items.find((i) => i.spotId === "a").place.fame_score = 80;
+  itin.days[0].items.find((i) => i.spotId === "b").place.fame_score = 20;
+  itin.days[0].items.find((i) => i.spotId === "a").title = "大涌谷";
+  itin.days[0].items.find((i) => i.spotId === "b").title = "駅前の店";
+  const { pages } = await buildAll(kbDoc, { base: BASE, planCourse: async () => itin });
+  const hakone = pages.find((p) => p.path.endsWith("hakone.html")).html;
+  assert.match(hakone, /<meta name="description" content="箱根（神奈川県）を箱根湯本駅から1日で、大涌谷・駅前の店とまわる/);
+  const pref = pages.find((p) => p.path === "areas/kanagawa/index.html").html;
+  assert.match(pref, /<meta name="description" content="神奈川県の観光地。大涌谷・駅前の店などの定番と/);
+  assert.match(pref, /<h2>神奈川県の定番・主な観光地<\/h2>/);
+
+  // コースが無いエリアは、観光地の名前で書く。
+  const { pages: noCourse } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null });
+  assert.match(noCourse.find((p) => p.path.endsWith("hakone.html")).html,
+    /<meta name="description" content="箱根（神奈川県）の観光地（大涌谷・駅前の店など）/);
+});
+
+test("名前の並びは重なりを除いて先頭から", () => {
+  assert.equal(nameList(["a", "b", "a", "", "c", "d"]), "a・b・c");
+  assert.equal(nameList([]), "");
+});
+
+test("県の定番の欄は、本当に定番（major）を先に並べる", () => {
+  const { major } = pickPrefSpots([
+    spot("k", { name: "島", fame_tier: "known", fame_score: 90, category: "島" }),
+    spot("m", { name: "遺跡", fame_tier: "major", fame_score: 60, category: "史跡" }),
+  ], "神奈川県");
+  assert.deepEqual(major.map((s) => s.name), ["遺跡", "島"]);
+});
+
+test("エリアの一覧は地方ごとの見出しで区切る（知らない名前も落とさない）", async () => {
+  const groups = groupByChiho([
+    { name: "沖縄県" }, { name: "北海道" }, { name: "東京都" }, { name: "どこか" },
+  ]);
+  assert.deepEqual(groups.map((g) => [g.chiho, g.list.map((p) => p.name)]), [
+    ["北海道・東北", ["北海道"]], ["関東", ["東京都"]], ["九州・沖縄", ["沖縄県"]], ["その他", ["どこか"]],
+  ]);
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a")]]]),
+  };
+  const { pages } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null });
+  const index = pages.find((p) => p.path === "areas/index.html").html;
+  assert.match(index, /<h2>関東<\/h2>\n<ul class="prefs">\n  <li><a href="kanagawa\/index\.html">/);
+});
+
+test("モデルコースには、エリアの中心から遠い場所（鎌倉に横須賀の三笠）を入れない", () => {
+  const kamakura = { lat: 35.3192, lng: 139.5467 };
+  assert.equal(isFar(kamakura, { lat: 35.2848, lng: 139.6743 }), true); // 記念艦三笠 約12km
+  assert.equal(isFar(kamakura, { lat: 35.3167, lng: 139.5357 }), false); // 長谷寺
+  assert.equal(isFar(kamakura, { name: "座標なし" }), false);
 });

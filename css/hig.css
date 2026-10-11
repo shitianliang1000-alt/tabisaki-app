@@ -669,9 +669,16 @@
 @media (pointer: coarse) {
   .md-slider { height: var(--hig-touch); }
 }
+/* つまみの周りに、ほかの部品と同じ青い輪を出します。以前の輪は主色を
+   25% に薄めたもので、白いつまみと背景の境目とほとんど見分けが
+   つかず、キーボードでは**いまスライダーにいるのかが分かりません**
+   でした（周りとの差 3:1 に届かない）。Firefox のつまみにも付けます。 */
 .md-slider:focus-visible { outline: none; }
 .md-slider:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tabi-indigo) 25%, transparent);
+  box-shadow: 0 0 0 2px var(--hig-bg), 0 0 0 5px var(--hig-blue);
+}
+.md-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 2px var(--hig-bg), 0 0 0 5px var(--hig-blue);
 }
 
 /* --------------------------------------------------------------- 進捗 --- */
