@@ -6,8 +6,8 @@
 <meta name="google-site-verification" content="k0FDDoZ0exT481VXx6EdX8K0hVHcS7h3eAgdPasYEd8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F4F1EB" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16140F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
 <title>旅さき — 行きたいことから旅程をつくる旅行プランアプリ</title>
 <meta name="description" content="「温泉と海をゆっくり楽しみたい」など、行きたいことを伝えるだけで、行き先・まわる順・移動時間まで考えた旅程を作ります。営業時間と移動時間を実際に照らし合わせるので、そのまま行ける旅程になります。">
 
@@ -169,109 +169,139 @@
 
 <main class="layout">
 
-  <!-- 設定は、上のバーではなく地図の上に浮かせます。結果が出る前も
-       出たあとも、地図はこの位置に必ずあるためです。
-       **pane の外に置きます。**携帯では条件と結果を別画面にするので、
-       結果の中に置くと、条件の画面から設定へ入れなくなります。 -->
-  <button type="button" class="md-icon-btn md-state settings-fab hig-glass" id="open-settings"
-          aria-label="設定" title="設定">
-    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg>
-  </button>
+  <!-- ===================== 左: 旅の一覧 =====================
+       行き来の入口をここにまとめます（新しい旅・エリア・前につくった旅・
+       設定）。広い画面では左に常に出し、狭い画面では左から引き出します
+       （js/app.js の wireSide）。 -->
+  <nav class="side" id="side" aria-label="旅の一覧">
+    <div class="side-head">
+      <p class="brand-line">
+        <img class="brand-mark" src="icon.svg" alt="" width="28" height="28">
+        <b class="brand-name" aria-hidden="true">旅さき</b>
+      </p>
+      <button type="button" class="md-icon-btn md-state side-close" id="side-close"
+              aria-label="旅の一覧を閉じる" title="旅の一覧を閉じる">
+        <svg class="ic" data-icon="sidebar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 4h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM9 4v16"/></svg>
+      </button>
+    </div>
+    <button type="button" class="side-item md-state" id="new-trip">
+      <svg class="ic" data-icon="compose" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>新しい旅</span>
+    </button>
+    <!-- エリアを地図で探す（js/areamap.js）。行き先をまだ決めていない人が、
+         どこへ行けるのかを地図で見て選べるようにします。押すと欄に
+         エリアの名前が入るだけで、勝手に組み始めません。 -->
+    <button type="button" class="side-item md-state area-open"
+            id="open-area-map" aria-haspopup="dialog">
+      <svg class="ic" data-icon="map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4 3 6.5V20l6-2.5M9 4l6 3M9 4v13.5M15 7l6-2.5V18l-6 2.5M15 7v13.5M9 17.5l6 3"/></svg><span>エリアから探す</span>
+    </button>
 
-  <!-- ===================== 左: 条件 ===================== -->
+  <section class="recent" id="recent" hidden aria-labelledby="recent-title">
+    <div class="recent-head">
+      <h2 id="recent-title">最近の旅</h2>
+      <!-- 取り消せない操作は、赤で示し、確認を挟みます
+           （ガイドライン: destructive action は色と確認の両方）。 -->
+      <button type="button" class="linkish linkish--danger"
+              id="recent-clear">すべて消す</button>
+    </div>
+    <ul class="recent-list" id="recent-list"></ul>
+  </section>
+
+    <div class="side-fill"></div>
+    <p class="side-note">旅の記録はこの端末の中だけに残ります。どこにも送りません。</p>
+    <button type="button" class="side-item md-state" id="open-settings">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg><span>設定</span>
+    </button>
+  <footer class="credits">
+    <!-- エリア別のページ（公開のときに tools/build_area_pages.mjs が作ります）。
+         検索から来る人の入口で、ここはその逆向きの道です。 -->
+    <p><a href="areas/index.html">エリアから探す（都道府県の観光地とモデルコース）</a></p>
+    <p id="ph-data"></p>
+    <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
+         まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
+         後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
+    <p><a href="credits.html">著作権表記</a></p>
+    <p class="ai-note">AIは間違えることがあります</p>
+  </footer>
+  </nav>
+  <div class="side-scrim" id="side-scrim" hidden></div>
+
+  <!-- ===================== 中央: どんな旅にしたい？ =====================
+       AI に話しかける画面の形にします。大きな入力欄が1つあり、
+       出発地・日時・こだわりは欄の下の札に要約して見せます。札を押すと
+       「旅の条件」のシート（#cond-dialog）が開きます。
+       以前の「1・2・3」の手順はやめました。書いて送るだけで組めるのに、
+       手順が3段あると、全部埋めないといけないように見えたためです。 -->
   <section class="pane pane-form" id="form-pane" aria-label="条件">
+    <div class="topbar">
+      <button type="button" class="md-icon-btn md-state side-open" id="side-open"
+              aria-label="旅の一覧を開く" aria-controls="side" aria-expanded="false">
+        <svg class="ic" data-icon="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 8h16M4 16h10"/></svg>
+      </button>
+      <!-- いまの旅のかたち（日帰り・電車 など）。押すと条件のシート。 -->
+      <button type="button" class="mode-pill md-state" id="mode-pill" data-open-cond="tune"
+              aria-haspopup="dialog">
+        <span id="mode-pill-tx">日帰り・電車</span><svg class="ic mode-chev" data-icon="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 9.5 12 16l7-6.5"/></svg>
+      </button>
+      <span class="topbar-end"></span>
+    </div>
 
-    <!-- 名前とひとこと。
-         ------------------------------------------------------------
-         以前は名前を画面に出していませんでした（条件の入力が下がる
-         ため）。初めて来た人には、入力欄が並んでいるだけで、何の
-         サイトなのかが分かりませんでした。**1行だけ**置きます。
-         名前は上の h1 と同じなので読み上げません（二度読みになる）。 -->
-    <p class="brand-line">
-      <img class="brand-mark" src="icon.svg" alt="" width="28" height="28">
-      <b class="brand-name" aria-hidden="true">旅さき</b>
-      <span class="brand-tag">行きたいことから、旅程をつくる</span>
-    </p>
-
-    <!-- できあがりの見本（携帯だけ）。
-         ------------------------------------------------------------
-         携帯では条件と結果を別の画面にしているので、初めて開くと
-         入力欄が並んでいるだけに見えました。広い画面なら右半分に
-         地図と「つくりかた」が出ますが、携帯にはそれがありません。
-         **何が返ってくるのか**を、入力の前に小さく1枚だけ見せます。
-         中身は固定の見本です（通信しません）。押すと同じ旅の一文が
-         欄に入るので、そのまま試せます。前につくった旅がある人には
-         もう要らないので、そのときは出しません（css）。 -->
-    <section class="preview" aria-labelledby="preview-title">
-      <p class="preview-kicker">できあがりの例</p>
-      <h2 class="preview-title" id="preview-title">鎌倉を日帰りで・東京駅から</h2>
-      <div class="preview-body">
-        <svg class="preview-map" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
-          <path class="pv-coast" d="M0 70 C20 62 34 74 52 68 S84 58 96 64 V96 H0Z"/>
-          <path class="pv-route" d="M78 12 L70 30 L58 44 L44 60 L22 62"/>
-          <circle class="pv-start" cx="78" cy="12" r="5"/>
-          <g class="pv-pin"><circle cx="70" cy="30" r="7"/><text x="70" y="33.5" font-size="9">1</text></g>
-          <g class="pv-pin"><circle cx="58" cy="44" r="7"/><text x="58" y="47.5" font-size="9">2</text></g>
-          <g class="pv-pin"><circle cx="44" cy="60" r="7"/><text x="44" y="63.5" font-size="9">3</text></g>
-          <g class="pv-pin pv-hidden"><circle cx="22" cy="62" r="7"/><text x="22" y="65.5" font-size="9">4</text></g>
-        </svg>
-        <ol class="preview-list">
-          <li><time>9:52</time><span>鶴岡八幡宮</span></li>
-          <li><time>11:30</time><span>小町通りで昼ごはん</span></li>
-          <li><time>13:20</time><span>長谷寺</span></li>
-          <li><time>15:00</time><span>由比ヶ浜 <em class="pv-tag">穴場</em></span></li>
-        </ol>
+    <div class="compose-wrap">
+      <div class="hero">
+        <img class="hero-mark" src="icon.svg" alt="" width="44" height="44">
+        <h2 class="hero-title" id="hero-title">どんな旅にしたい？</h2>
+        <p class="hero-sub">行きたいことを書くだけで、行き先・まわる順・時刻まで組みます。</p>
       </div>
-      <p class="preview-note">行き先・まわる順・電車の時刻・帰りの時間まで、1枚にまとめます。</p>
-      <button type="button" class="md-btn md-btn--tonal md-state preview-try"
-              data-example="鎌倉を日帰りで、食べ歩きもしたい">この例で試す</button>
-    </section>
 
-    <!-- 前につくった旅程。
-         旅行サイトでいちばん戻ってくる導線がここです。中身（時刻の
-         入った旅程）ではなく **条件** を覚えておいて、押されたら
-         その場で組み直します。営業時間も混雑も日ごとに変わるので、
-         3か月前の旅程をそのまま出すと閉まっている店へ案内します。 -->
-    <section class="recent" id="recent" hidden aria-labelledby="recent-title">
-      <div class="recent-head">
-        <h2 id="recent-title">前につくった旅</h2>
-        <!-- 取り消せない操作は、赤で示し、確認を挟みます
-             （ガイドライン: destructive action は色と確認の両方）。 -->
-        <button type="button" class="linkish linkish--danger"
-                id="recent-clear">すべて消す</button>
+      <!-- 入力欄。送るボタンは欄の中に置きます。 -->
+      <div class="composer" id="composer">
+        <label class="note-field">
+          <span class="sr-only">やりたいこと</span>
+          <textarea id="note" rows="2"
+            placeholder="例）温泉でゆっくりして、海も見たい"></textarea>
+        </label>
+        <div class="composer-row">
+          <div class="cond-pills" role="group" aria-label="旅の条件">
+            <button type="button" class="cond-pill md-state" id="pill-from" data-open-cond="from"
+                    aria-haspopup="dialog">
+              <svg class="ic" data-icon="spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11ZM12 12.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg><span id="pill-from-tx">東京駅から</span>
+            </button>
+            <button type="button" class="cond-pill md-state" id="pill-when" data-open-cond="when"
+                    aria-haspopup="dialog">
+              <svg class="ic" data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/></svg><span id="pill-when-tx">今日</span>
+            </button>
+            <button type="button" class="cond-pill md-state" id="pill-tune" data-open-cond="tune"
+                    aria-haspopup="dialog">
+              <svg class="ic" data-icon="sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg><span>こだわり</span>
+            </button>
+          </div>
+          <button type="button" class="send-btn md-state" id="make-plan">
+            <svg class="ic fab-ic" data-icon="up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20V4.5M6 10.5 12 4.5l6 6"/></svg>
+            <span class="fab-tx sr-only">旅程をつくる</span>
+          </button>
+        </div>
       </div>
-      <ul class="recent-list" id="recent-list"></ul>
-      <p class="recent-note">この端末の中だけに残ります。どこにも送りません。</p>
-    </section>
+      <p class="area-picked" id="area-picked" role="status"></p>
 
-    <!-- ① どんな旅にしたいか。
-         自分の言葉を先に置きます。下の札は「書きかたの見本」であって、
-         こちらが用意した11通りに寄せるためのものではありません。 -->
-    <section class="step" aria-labelledby="step1-title">
-      <h2 class="step-title" id="step1-title">
-        <span class="step-num" aria-hidden="true">1</span>どんな旅にしたい？
-      </h2>
+      <div class="tune-group" id="pinned" hidden></div>
+      <div id="form-error" hidden></div>
 
-      <label class="md-field note-field">
-        <span class="sr-only">やりたいこと</span>
-        <textarea id="note" rows="3"
-          placeholder="例）温泉でゆっくりして、海も見たい"></textarea>
-      </label>
+      <!-- 定番と穴場のまぜかた（3段）。旅の中身がいちばん変わる設定なので、
+           シートに畳まず、欄のすぐ下に出します。細かいつまみはシートの中。 -->
+      <div class="mix-quick-row">
+        <span class="mix-quick-label" id="mix-quick-label">まわる場所</span>
+        <div class="md-segmented mix-quick" id="mix-quick" role="radiogroup"
+             aria-labelledby="mix-quick-label">
+          <button type="button" role="radio" aria-checked="false" data-mix="15">定番中心</button>
+          <button type="button" role="radio" aria-checked="true" data-mix="40">バランス</button>
+          <button type="button" role="radio" aria-checked="false" data-mix="75">穴場多め</button>
+        </div>
+      </div>
 
       <!-- そのまま使える例。
            ------------------------------------------------------------
            自由入力の枠は、何を書いてよいか分からないと空のままです。
            **押すと欄が埋まる一文**を置きます。札は短く、入るのは
            長い文です。書き換えてもらうための下書きです。
-
-           ここには以前、下に「思いつかないときは、ここから」という
-           色の面のカードを6枚、別に並べていました。同じ「書く言葉の
-           きっかけ」が2か所に分かれていて、画面の1枚目がカードで
-           埋まっていました。**同じ役目のものは1か所にまとめます。**
-           カードをやめて、札に寄せました。
-
-           前半は行き先の名指し、後半は旅のしかた（温泉・歴史・自然…）
-           です。どちらも押せば欄が埋まります。
 
            data-from の付いた札は、出発地も入れます（はじめての人が
            押してそのまま「旅程をつくる」まで行けるように）。ただし
@@ -303,21 +333,86 @@
         <button type="button" class="md-chip md-chip--assist md-state"
                 data-example="美術館と建築をめぐりたい">アートと建築</button>
       </div>
+    </div>
 
-      <!-- エリアを地図で探す（js/areamap.js）。行き先をまだ決めていない人が、
-           どこへ行けるのかを地図で見て選べるようにします。押すと欄に
-           エリアの名前が入るだけで、勝手に組み始めません。 -->
-      <button type="button" class="md-btn md-btn--tonal md-state area-open"
-              id="open-area-map" aria-haspopup="dialog">
-        <svg class="ic" data-icon="map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4 3 6.5V20l6-2.5M9 4l6 3M9 4v13.5M15 7l6-2.5V18l-6 2.5M15 7v13.5M9 17.5l6 3"/></svg><span>エリアを地図で探す</span>
-      </button>
-      <p class="area-picked" id="area-picked" role="status"></p>
-    </section>
+    <p class="compose-foot">営業時間・移動時間・帰りの時刻を確かめて組みます。電車の時刻は目安です。出かける前に公式の情報も確かめてください。</p>
+  </section>
 
-    <!-- ② いつ・どこから -->
+  <!-- ===================== 右: 結果 ===================== -->
+  <section class="pane pane-result" aria-label="旅程">
+
+    <!-- 携帯では、条件と結果を別の画面にします（css の data-view）。
+         同じ画面に縦に並べていたころは、旅程が出てもまず条件が見えていて、
+         結果まで自分でスクロールしないと読めませんでした。戻る道はここ。
+         広い画面では左右に並ぶので、このボタンは出しません。 -->
+    <button type="button" class="md-btn md-btn--tonal md-state back-to-form hig-glass"
+            id="back-to-form">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg><span>条件を変更する</span>
+    </button>
+
+    <!-- 頼んだこと（吹き出し）。何を頼んで、この旅程が返ってきたのかを
+         旅程の上に残します（js/app.js の renderAsk）。 -->
+    <div class="ask" id="ask" hidden>
+      <p class="ask-bubble" id="ask-text"></p>
+      <ul class="ask-chips" id="ask-chips" aria-label="頼んだときの条件"></ul>
+    </div>
+
+    <div id="placeholder" class="placeholder">
+      <div id="home-map" class="home-map"></div>
+      <!-- 見出し（h1）は画面に出しません（条件の入力が下がるため）。
+           代わりに、ここへ「何が返ってくるか」を先に見せます。
+           一行の案内だけだと、右半分が空白の理由が分かりません。
+           以前は地図とのすき間が詰まっていて、狭い画面では地図の下端に
+           食い込んで見えていました（flex:1 の地図が可変の高さを取り、
+           この帯の分だけ縮む形になっていたためです）。地図の最小の高さを
+           確保して、帯の取り分をあらかじめ空けておきます。 -->
+      <ol class="home-steps" id="home-hint" aria-label="つくりかた">
+        <li><i aria-hidden="true">1</i><span>行きたいことを、ひとこと書く</span></li>
+        <li><i aria-hidden="true">2</i><span>出発地と時刻は、欄の下の札で決める</span></li>
+        <li><i aria-hidden="true">3</i><span>行き先・順番・移動時間の入った旅程と、地図が出る</span></li>
+      </ol>
+    </div>
+
+    <div id="progress" class="planning" hidden role="status" aria-live="polite"></div>
+
+    <div id="result" class="result" hidden>
+      <div id="map" class="map">
+        <button type="button" class="md-icon-btn md-state map-expand" id="map-expand"
+                aria-label="地図を大きく見る" title="地図を大きく見る">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"/></svg>
+        </button>
+      </div>
+      <!-- 紙のときだけ出る順路の図（js/routemap.js が描きます）。
+           画面では地図（タイル）を見てもらうので隠しています。紙には
+           タイルが刷れないので、こちらを出します。**紙は電池も電波も
+           要りません。**旅の最後の受け皿です。 -->
+      <div id="map-print" class="map-print" aria-hidden="true"></div>
+      <div class="itin">
+        <!-- 旅の当日だけ出ます。次に何をすればいいかだけを大きく。 -->
+        <div id="today" hidden></div>
+      </div>
+      <div id="itinerary" class="itin"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- 旅の条件。
+     いつ・どこから・まわる場所・こだわりを1枚にまとめます。入力欄の下の札
+     （#pill-from など）と、上の「日帰り・電車」から開きます。
+     中の部品は以前の左の欄と同じもので、名前（id）も変えていません。 -->
+<dialog id="cond-dialog" class="md-dialog cond-sheet" aria-labelledby="cond-title">
+  <header class="cond-head">
+    <span class="cond-head-side" aria-hidden="true"></span>
+    <h2 class="hig-title-2" id="cond-title">旅の条件</h2>
+    <button type="button" class="md-btn md-btn--text md-state cond-done" id="cond-done">完了</button>
+  </header>
+  <div class="cond-body">
+    <!-- いつ・どこから -->
     <section class="step" aria-labelledby="step2-title">
       <h2 class="step-title" id="step2-title">
-        <span class="step-num" aria-hidden="true">2</span>いつ・どこから？
+        いつ・どこから
       </h2>
 
       <label class="md-field">
@@ -355,12 +450,13 @@
 
     </section>
 
-    <!-- ③ 旅の好み。畳まずに出します。
-         「定番と穴場のまぜかた」も「混雑」も、旅の中身が変わる設定です。
-         「もう少しくわしく決める」の中に隠すようなものではありません。 -->
+    <!-- ③ 定番と穴場のまぜかた。
+         入力欄のすぐ下にも3段の切り替え（#mix-quick）を出しています。
+         ここは細かく決めたい人のためのつまみで、どちらを動かしても
+         同じ値（#hidden-bias）が変わります。 -->
     <section class="step" aria-labelledby="step3-title">
       <h2 class="step-title" id="step3-title">
-        <span class="step-num" aria-hidden="true">3</span>旅の好み
+        まわる場所
       </h2>
 
       <div class="tune-group">
@@ -734,88 +830,17 @@
       </div>
     </details>
 
-    <div class="tune-group" id="pinned" hidden></div>
-    <div id="form-error" hidden></div>
-
     <!-- 別の旅を一から考えたいとき。確認を挟んでから、保存した条件を
          消して開き直します（js/app.js の resetConditions）。 -->
     <p class="reset-row">
       <button type="button" class="linkish" id="reset-form">条件をリセット</button>
     </p>
-
-    <div class="make hig-glass hig-glass-thick hig-scroll-edge">
-      <button type="button" class="md-fab-extended md-state" id="make-plan">
-        <svg class="ic fab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8ZM18.5 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7Z"/></svg>
-        <span class="fab-tx">旅程をつくる</span>
-      </button>
-      <p class="make-note">行き先・まわる順・移動時間まで、まとめて組み立てます。</p>
-    </div>
-
-    <footer class="credits">
-      <!-- エリア別のページ（公開のときに tools/build_area_pages.mjs が作ります）。
-           検索から来る人の入口で、ここはその逆向きの道です。 -->
-      <p><a href="areas/index.html">エリアから探す（都道府県の観光地とモデルコース）</a></p>
-      <p id="ph-data"></p>
-      <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
-           まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
-           後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
-      <p><a href="credits.html">著作権表記</a></p>
-      <p class="ai-note">AIは間違えることがあります</p>
-    </footer>
-  </section>
-
-  <!-- ===================== 右: 結果 ===================== -->
-  <section class="pane pane-result" aria-label="旅程">
-
-    <!-- 携帯では、条件と結果を別の画面にします（css の data-view）。
-         同じ画面に縦に並べていたころは、旅程が出てもまず条件が見えていて、
-         結果まで自分でスクロールしないと読めませんでした。戻る道はここ。
-         広い画面では左右に並ぶので、このボタンは出しません。 -->
-    <button type="button" class="md-btn md-btn--tonal md-state back-to-form hig-glass"
-            id="back-to-form">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg><span>条件を変更する</span>
-    </button>
-
-    <div id="placeholder" class="placeholder">
-      <div id="home-map" class="home-map"></div>
-      <!-- 見出し（h1）は画面に出しません（条件の入力が下がるため）。
-           代わりに、ここへ「何が返ってくるか」を先に見せます。
-           一行の案内だけだと、右半分が空白の理由が分かりません。
-           以前は地図とのすき間が詰まっていて、狭い画面では地図の下端に
-           食い込んで見えていました（flex:1 の地図が可変の高さを取り、
-           この帯の分だけ縮む形になっていたためです）。地図の最小の高さを
-           確保して、帯の取り分をあらかじめ空けておきます。 -->
-      <ol class="home-steps" id="home-hint" aria-label="つくりかた">
-        <li><i aria-hidden="true">1</i><span>行きたいことを、ひとこと書く</span></li>
-        <li><i aria-hidden="true">2</i><span>出発地と時刻を決める</span></li>
-        <li><i aria-hidden="true">3</i><span>行き先・順番・移動時間の入った旅程が、ここに出る</span></li>
-      </ol>
-    </div>
-
-    <div id="progress" class="planning" hidden role="status" aria-live="polite"></div>
-
-    <div id="result" class="result" hidden>
-      <div id="map" class="map">
-        <button type="button" class="md-icon-btn md-state map-expand" id="map-expand"
-                aria-label="地図を大きく見る" title="地図を大きく見る">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"/></svg>
-        </button>
-      </div>
-      <!-- 紙のときだけ出る順路の図（js/routemap.js が描きます）。
-           画面では地図（タイル）を見てもらうので隠しています。紙には
-           タイルが刷れないので、こちらを出します。**紙は電池も電波も
-           要りません。**旅の最後の受け皿です。 -->
-      <div id="map-print" class="map-print" aria-hidden="true"></div>
-      <div class="itin">
-        <!-- 旅の当日だけ出ます。次に何をすればいいかだけを大きく。 -->
-        <div id="today" hidden></div>
-      </div>
-      <div id="itinerary" class="itin"></div>
-    </div>
-
-  </section>
-
-</main>
+  </div>
+  <div class="cond-foot">
+    <button type="button" class="md-btn md-btn--filled md-state cond-make" id="cond-make">
+      <span>この条件で旅程をつくる</span></button>
+  </div>
+</dialog>
 
 <dialog id="settings-dialog" class="md-dialog">
   <h2 class="hig-title-2">設定</h2>

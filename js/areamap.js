@@ -81,6 +81,45 @@ const PIN_HTML = '<span class="area-pin-dot"></span>';
  *          tileUrl: string, attribution: string}} opts
  * @returns {{open: () => void}}
  */
+/**
+ * エリアのピンを地図に立てます。押すと名前と一言が出て、
+ * 「このエリアにする」で onPick が呼ばれます。
+ *
+ * エリアを地図で探す画面と、はじめの画面の地図の両方で使います。
+ * ピンはキーボードの順路に入れません（47本を Tab で渡ることになる
+ * ため）。キーボードと読み上げでは、一覧から選べます。
+ *
+ * @returns {object[]} 立てたピン（Leaflet の marker）
+ */
+export function pinAreas(map, areas, onPick) {
+  const L = globalThis.L;
+  if (!L || !map) return [];
+  const icon = L.divIcon({ className: "area-pin", html: PIN_HTML,
+                           iconSize: [44, 44], iconAnchor: [22, 22] });
+  const pins = [];
+  for (const a of areas) {
+    const m = L.marker([a.lat, a.lng], { icon, keyboard: false, title: a.name });
+    const card = document.createElement("div");
+    card.className = "area-pop";
+    const name = document.createElement("b");
+    name.textContent = a.name;
+    const sub = document.createElement("span");
+    sub.textContent = `${a.prefecture}・${a.tagline}`;
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "md-btn md-btn--tonal md-state";
+    go.dataset.pick = a.id;
+    go.textContent = "このエリアにする";
+    go.addEventListener("click", () => { map.closePopup(); onPick(a); });
+    card.append(name, sub, go);
+    m.bindPopup(card, { closeButton: true, maxWidth: 220, minWidth: 180,
+                        autoPanPadding: [16, 16] });
+    m.addTo(map);
+    pins.push(m);
+  }
+  return pins;
+}
+
 export function setupAreaMap(dialog, { regions, onPick, tileUrl, attribution }) {
   const areas = curatedAreas(regions);
   const list = dialog.querySelector(".area-list");
@@ -133,27 +172,7 @@ export function setupAreaMap(dialog, { regions, onPick, tileUrl, attribution }) 
     }).setView([36.6, 137.6], 5);
     japaneseControls(map);
     L.tileLayer(tileUrl, { attribution, maxZoom: 18 }).addTo(map);
-    const icon = L.divIcon({ className: "area-pin", html: PIN_HTML,
-                             iconSize: [44, 44], iconAnchor: [22, 22] });
-    for (const a of areas) {
-      const m = L.marker([a.lat, a.lng], { icon, keyboard: false, title: a.name });
-      const card = document.createElement("div");
-      card.className = "area-pop";
-      const name = document.createElement("b");
-      name.textContent = a.name;
-      const sub = document.createElement("span");
-      sub.textContent = `${a.prefecture}・${a.tagline}`;
-      const go = document.createElement("button");
-      go.type = "button";
-      go.className = "md-btn md-btn--tonal md-state";
-      go.dataset.pick = a.id;
-      go.textContent = "このエリアにする";
-      go.addEventListener("click", () => pick(a));
-      card.append(name, sub, go);
-      m.bindPopup(card, { closeButton: true, maxWidth: 220, minWidth: 180,
-                          autoPanPadding: [16, 16] });
-      m.addTo(map);
-    }
+    pinAreas(map, areas, pick);
   };
 
   return {
