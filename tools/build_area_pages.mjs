@@ -475,7 +475,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
                                    siblings = [] }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
-  const title = `${region.name}の1日モデルコースと観光地｜旅さき`;
+  const title = `${region.name}の1日モデルコースと観光地｜旅行プラン作成｜旅さき`;
   const list = [...nearbySpots(region, spots)].sort(byFame).slice(0, REGION_SPOTS);
   const items = course ? courseItems(course) : null;
   // 寄る順ではなく、よく知られた順に（鎌倉なら駅ビルより長谷寺と大仏）。
@@ -486,7 +486,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
     ? `${region.name}（${prefName}）を${region.station ?? "駅"}から1日で、${stops}とまわるモデルコース。`
     : `${region.name}（${prefName}）の観光地${famous ? `（${famous}など）` : ""}と1日の旅程づくり。`)
     + (region.tagline ? `${region.tagline}。` : "")
-    + "行きたいことを書くと、営業時間と移動時間まで合わせた旅程をつくれます。";
+    + "行きたいことを書くと、営業時間と移動時間まで合わせた旅行プランを作成できます。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
 <h1>${esc(region.name)}</h1>
 ${region.tagline ? `<p class="lead">${esc(region.tagline)}</p>` : ""}
@@ -535,11 +535,11 @@ export function renderPrefPage({ prefName, prefSlug, spots, regions, base }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/index.html`;
   const { major, hidden } = pickPrefSpots(spots, prefName);
-  const title = `${prefName}の観光地・定番と穴場｜旅さき`;
+  const title = `${prefName}の観光地・定番と穴場｜旅行プラン作成｜旅さき`;
   const famous = nameList(major.map((s) => s.name));
   const description = `${prefName}の観光地。${famous ? `${famous}などの定番と、` : "定番と、"}`
     + `知る人ぞ知る穴場。収録${spots.length.toLocaleString("ja-JP")}か所から、`
-    + "行きたいことに合わせて旅程をつくれます。";
+    + "行きたいことに合わせて旅行プランを作成できます。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
 <p class="lead">収録 ${spots.length.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
@@ -604,9 +604,9 @@ export function groupByChiho(prefs) {
 export function renderIndexPage({ prefs, base }) {
   const rel = "../";
   const canonical = `${base}areas/index.html`;
-  const title = "エリアから探す — 都道府県の観光地とモデルコース｜旅さき";
+  const title = "エリアから探す — 都道府県の観光地と旅行プランのモデルコース｜旅さき";
   const description = "47都道府県の定番の観光地と穴場、主なエリアの1日モデルコース。"
-    + "行きたいことを書くと、旅さきが営業時間と移動時間まで合わせた旅程をつくります。";
+    + "行きたいことを書くと、旅さきが営業時間と移動時間まで合わせた旅行プランを作成します。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
 <p class="lead">都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
