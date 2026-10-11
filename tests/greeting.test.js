@@ -23,7 +23,8 @@ test("挨拶は Zen Maru Gothic、ロゴと入力案内は同梱の見出し字�
 
   const greetingRule = css.match(/\.hero-greet\s*\{([^}]+)\}/)?.[1] ?? "";
   assert.match(greetingRule, /font-family:\s*"Zen Maru Gothic",\s*sans-serif\s*;/);
-  assert.match(greetingRule, /font-size:\s*32px\s*;/);
+  assert.match(greetingRule, /--hero-greet-size:\s*2rem\s*;/);
+  assert.match(greetingRule, /font-size:\s*var\(--hero-greet-size\)\s*;/);
   assert.match(greetingRule, /font-weight:\s*400\s*;/);
   assert.match(html, /https:\/\/fonts\.googleapis\.com\/css2\?family=Zen\+Maru\+Gothic:wght@400/);
   assert.match(html, /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com;/);
