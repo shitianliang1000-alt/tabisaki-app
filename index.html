@@ -76,6 +76,8 @@
      ここに並んでいるのが、このアプリの外部依存のすべてです。
        tile.osm       … 地図のタイル
        upload.wikimedia … スポットの写真
+       fonts.googleapis.com … 挨拶用スタイルシート
+       fonts.gstatic.com     … 挨拶用フォントファイル
        *.googleapis   … AI と経路（キーを直に持つ場合）
        open-meteo     … 天気
        ja.wikipedia   … 写真の在りかを聞く
@@ -92,8 +94,8 @@
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self';
-  style-src 'self' 'unsafe-inline';
-  font-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
   worker-src 'self';
   manifest-src 'self';
   img-src 'self' data: https://*.tile.openstreetmap.org https://upload.wikimedia.org;
@@ -123,17 +125,13 @@
      日本ではない場所（アメリカ）が出ました。14KB を待つ数十ミリ秒より、
      地図が壊れないほうが大事です。tests/leaflet-css.test.js が見張ります。 -->
 <link rel="stylesheet" href="vendor/leaflet.css">
-<!-- 字は端末に入っているものだけを使います。Web フォントは読みません。
-     San Francisco は配布できず、和文は Apple ならヒラギノ、Windows なら
-     游ゴシック、Android なら Noto が最初から入っています。
-     わざわざ他所のサーバへ取りに行く相手は、ごく一部です。
-
-     そのごく一部のために払っていた代償のほうが大きいものでした。
-     **スクリプトは、先に書かれたスタイルシートの読み込みを待ちます。**
-     つまり fonts.googleapis.com が遅い日は、地図だけでなく、
-     条件の入力まで待たされていました。 -->
+<!-- はじめの画面の挨拶だけ Zen Maru Gothic を使います。
+     Google Fonts に接続できない場合は CSS の sans-serif にフォールバックします。
+     ロゴの「旅さき」と「どんな旅にしますか？」は、圏外でも表示できるよう
+     同梱の Noto Sans JP の一部を使います。 -->
 
 <!-- 1. 配色（Apple のシステムカラー） 2. 部品 3. このアプリの並べかた -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300&display=swap">
 <link rel="stylesheet" href="css/hig-tokens.css">
 <link rel="stylesheet" href="css/hig.css">
 <link rel="stylesheet" href="css/app.css">
