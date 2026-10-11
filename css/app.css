@@ -1362,6 +1362,10 @@ body[data-trip-mode="on"] .today { margin-top: 0; min-height: 60vh; }
   border-top: .5px solid var(--hig-separator);
   padding-top: 16px;
 }
+/* 6つ並ぶとき（歩きと確かめた度合いが付いたとき）は 3×2 にします。
+   auto-fit のままだと、広い画面では5つで1段が埋まり、6つ目だけが
+   次の段の左端に取り残されていました。 */
+.stats:has(> :nth-child(6)) { grid-template-columns: repeat(3, 1fr); }
 .stats > div { text-align: center; min-width: 0; }
 .stats strong {
   display: block; font-size: var(--hig-t-title2); font-weight: 400;
@@ -2091,15 +2095,21 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 /* 駄目だったときの代わり。
    警告ではないので赤くしません。かといって本文に埋もれると、現地で
    思い出せません。囲みを付けて、1行だけ目に留まるようにします。 */
+/* 記号・文・「地図」は1行に並べ、文だけを折り返します。折り返しを
+   許していたころは、文が長いと記号が1行目に取り残され、「地図」が
+   3行目に落ちて、囲みの高さが倍になっていました。 */
 .tl .backup {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: baseline; gap: 8px;
   margin: 8px 0 0; padding: 8px 12px;
   border-radius: var(--md-sys-shape-corner-small);
   background: color-mix(in srgb, var(--hig-blue) 8%, transparent);
   font-size: var(--hig-t-footnote); line-height: 1.7;
   color: var(--md-sys-color-on-surface-variant);
 }
+.tl .backup > span { flex: 1 1 auto; min-width: 0; }
+.tl .backup .ic { align-self: center; }
 .tl .backup .link {
+  flex: none;
   color: var(--md-sys-color-primary); text-decoration: none; font-weight: 500;
 }
 /* 事前予約。行ってから知るのがいちばん困ることです。
@@ -2170,6 +2180,23 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 .spot-tune {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 8px;
+  /* 右下の「›」（.tl .chev）は絶対配置でカードの角に乗ります。ここに
+     場所を空けておかないと、いる時間の数字（「1時間15分」）の上に
+     「›」が重なります。 */
+  padding-right: 40px;
+}
+.spot-tune .tune-dwell {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 220px; min-width: 0;
+}
+.spot-tune .tune-dwell .tune-cap,
+.spot-tune .tune-dwell .tune-out { flex: none; white-space: nowrap; }
+.spot-tune .tune-dwell .tune-bar { min-width: 64px; }
+/* 320px 級の画面では1行に収まりません。はみ出させず、「いる時間
+   1時間15分」を1行目、バーを2行目にします（名前と数字は離しません）。 */
+@media (max-width: 359px) {
+  .spot-tune .tune-dwell { flex-wrap: wrap; row-gap: 0; }
+  .spot-tune .tune-dwell .tune-bar { order: 1; flex: 1 1 100%; max-width: none; }
 }
 .spot-tune .tune-grip {
   display: inline-flex; align-items: center;
@@ -2338,7 +2365,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* 旅程の下の操作。並びは「送る → 保存 → 直す → 印刷 → リンク」。
-   いちばん使うもの（同行者に送る）だけを塗りにします。 */
+   いちばん使うもの（同行者に送る）だけを塗りにします。続く「手元に
+   残す・直す」（カレンダー・保存・つくり直す）を色の面、「渡す・
+   書き出す」（印刷・リンク・ファイル）を線にして、見た目の段が並びの
+   段と揃うようにします。以前は「旅程のリンク」だけが色の面で、
+   携帯の1列では面と線が交互に並び、どれが格上か読めませんでした。 */
 .actions {
   display: flex; flex-wrap: wrap; gap: 8px 10px;
   margin: 8px 0 0; padding-top: 16px;

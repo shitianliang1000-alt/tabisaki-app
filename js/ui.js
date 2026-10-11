@@ -1189,7 +1189,7 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     // 出ます。条件のリンクは、受け取った側で組み直すので別の旅程になります。
     handlers.onShareTrip
       ? el("button", { type: "button",
-                       class: "md-btn md-btn--tonal md-state share-trip",
+                       class: "md-btn md-btn--outlined md-state share-trip",
                        onClick: handlers.onShareTrip },
           el("span", {}, "この旅程のリンクを共有"))
       : null,
@@ -1850,7 +1850,11 @@ function tuneRow(item, itin, handlers) {
       handlers.onSpotDwell({ id, name: item.title, minutes: Number(bar.value) });
     });
     bar.addEventListener("click", (e) => e.stopPropagation());
-    row.append(el("span", { class: "tune-cap" }, "いる時間"), bar, out);
+    // 名前・バー・数字はひと組で折り返します。ばらばらに折れると、
+    // 「いる時間」が上の行の矢印の横に残り、バーだけが次の行へ落ちて
+    // 何のバーか読めなくなっていました。
+    row.append(el("span", { class: "tune-dwell" },
+      el("span", { class: "tune-cap" }, "いる時間"), bar, out));
   }
   return row;
 }
