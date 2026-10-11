@@ -461,13 +461,16 @@ await check("何をしてくれるサイトかが書いてある", async () => {
     text: e.textContent.replace(/\s+/g, ""), h: e.getBoundingClientRect().height,
   })).catch(() => null);
   assert(brand && brand.h > 0 && brand.text.includes("旅さき"), "画面に名前が出ていません");
-  // はじめの画面の見出しの下に、送ると何が返るかを1行で書きます。
-  const sub = await page.$eval(".hero-sub", (e) => ({
-    text: e.textContent.trim(), h: e.getBoundingClientRect().height,
+  // はじめの画面は、見出し（挨拶）と入力欄だけにします（2026-10、ご指示）。
+  // アイコンも、「どんな旅にしますか？」も、説明の1行も置きません。
+  const hero = await page.evaluate(() => ({
+    greet: document.getElementById("hero-greet")?.getBoundingClientRect().height ?? 0,
+    extras: document.querySelectorAll(".hero img, .hero-title, .hero-sub").length,
+    text: document.querySelector(".hero")?.textContent.replace(/\s+/g, "") ?? "",
   }));
-  assert(sub.h > 0, "何をするサイトかの1行が隠れています");
-  assert(/送る/.test(sub.text) && /組みます/.test(sub.text),
-    `何が出てくるのか書かれていません: ${sub.text}`);
+  assert(hero.greet > 0, "見出し（挨拶）が出ていません");
+  assert(hero.extras === 0, "はじめの画面に、アイコンや説明が残っています");
+  assert(!/どんな旅|送るだけ/.test(hero.text), `余計な文が残っています: ${hero.text}`);
 });
 
 await check("停留所の読み解きを、別のスレッドに回している", async () => {
@@ -1438,7 +1441,7 @@ await check("字を大きくすると、実際に大きくなる", async () => {
     };
     return {
       root: parseFloat(getComputedStyle(document.documentElement).fontSize),
-      title: px(".hero-sub"),
+      title: px(".hero-greet"),
       help: px(".md-field-help"),
       button: px(".cond-pill"),
       // 当たり判定は指の大きさで決まるので、**動かないこと**を見ます。
