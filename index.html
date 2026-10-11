@@ -8,8 +8,8 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
-<title>旅さき — 行きたいことから旅程をつくる旅行プランアプリ</title>
-<meta name="description" content="「温泉と海をゆっくり楽しみたい」など、行きたいことを伝えるだけで、行き先・まわる順・移動時間まで考えた旅程を作ります。営業時間と移動時間を実際に照らし合わせるので、そのまま行ける旅程になります。">
+<title>旅さき — 行きたいことから旅行プランを作成できる旅程アプリ</title>
+<meta name="description" content="「温泉と海をゆっくり楽しみたい」など、行きたいことを伝えるだけで、旅行プランの作成を、行き先・まわる順・移動時間まで丸ごとおまかせ。営業時間と移動時間を実際に照らし合わせるので、そのまま行ける旅行プランになります。">
 
 <!-- 共有したときの見た目。
      これが無いと、LINE や X に貼ったときに真っ白なカードになります。
@@ -49,7 +49,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/">
 <meta property="og:site_name" content="旅さき">
-<meta property="og:title" content="旅さき — 行きたいことから旅程をつくる旅行プランアプリ">
+<meta property="og:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta property="og:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
 <meta property="og:image" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/og.png">
 <meta property="og:image:width" content="1200">
@@ -57,7 +57,7 @@
 <meta property="og:image:alt" content="旅さき — 行きたい、から旅程をつくる。">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="旅さき — 行きたいことから旅程をつくる旅行プランアプリ">
+<meta name="twitter:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta name="twitter:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
 <meta name="twitter:image" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/og.png">
 
@@ -145,7 +145,7 @@
   <a class="sr-only skip-link" href="#note">入力欄へ移動</a>
   <!-- 文書としての h1 はここに置きます。画面に見せる名前とひとことは、
        条件の欄の上（.brand-line）に1行だけ出します。 -->
-  <h1 class="sr-only">旅さき</h1>
+  <h1 class="sr-only">旅さき — 行きたいことから旅行プランを作成</h1>
 </header>
 
 <!-- 画面は全部 JavaScript で動きます。読み込めなかったとき（無効にしている・
@@ -209,6 +209,10 @@
     <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
          まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
          後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
+    <!-- 検索エンジンが辿れるように、エリアのページ（areas/）への普通のリンクを
+         置いています。画面の「エリアから探す」は地図を開くボタンで、
+         リンクではないため、これが無いと areas/ は誰からもリンクされません。 -->
+    <p><a href="areas/index.html">都道府県別の観光地・旅行プラン</a></p>
     <p><a href="credits.html">著作権表記</a></p>
   </footer>
   </nav>
