@@ -1079,10 +1079,21 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
   // それを見たあとの話です。順番が逆でした。
   //
   //   要約 → 流れ → 旅程 → 3案 → 旅程を直す → 詳しく見る
-  container.append(daysWrap);
-  if (variantsBox) container.append(variantsBox);
-  if (talkBox) container.append(talkBox);
-  if (adjustBox) container.append(adjustBox);
+  //
+  // チャットの画面（handlers.routeInto がある）では、行程は答えの本文に
+  // 出し、詳細の中には置きません。3案と「旅程を直す」も詳細には
+  // 出しません（3案は答えの「候補」、直すのはチャットへの返信です）。
+  // 外した場所を戻すボタンだけは、行程の下に残します。
+  if (handlers.routeInto) {
+    handlers.routeInto.replaceChildren(daysWrap);
+    const dropped = droppedList(itin, handlers);
+    if (dropped) handlers.routeInto.append(dropped);
+  } else {
+    container.append(daysWrap);
+    if (variantsBox) container.append(variantsBox);
+    if (talkBox) container.append(talkBox);
+    if (adjustBox) container.append(adjustBox);
+  }
   if (detail.length) {
     const more = el("details", { class: "more" });
     more.append(el("summary", {},

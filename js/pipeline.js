@@ -23,6 +23,7 @@ import { areaNote, areaScope, blockGroups, detectAreas, namedSpotAreas,
 import { isTouring } from "./touring.js";
 import { journeyNote, pickJourney, stripJourney } from "./journeys.js";
 import { readIntent } from "./intent.js";
+import { readWish, stripNear, wishScope } from "./sunny.js";
 import { nightTrainLeg } from "./trains.js";
 import { TUNING } from "./config.js";
 import { discoverArea, resolveDestination } from "./discover.js";
@@ -232,11 +233,14 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 無いことになり、点の高い順に返っていました。時刻は知らなくても、
   // **どこへ向かう列車かは分かります**。そこを行き先にします。
   // 旅のしかたの名前（「東海道五十三次」の「東海」）は地名として読みません。
-  const areaText = journey ? stripJourney(trip.note, journey) : trip.note;
+  // 「東京に近いところ」の「東京」は行き先ではないので、地名として読みません。
+  const wish = readWish(trip.note);
+  const areaText = stripNear(journey ? stripJourney(trip.note, journey) : trip.note);
   // モデルが読み替えた俗称の行き先（「三都心」→ 東京・大阪・名古屋）も
   // 足します。辞書に無い言い回しは、これが無いと地名の指定が無いことに
   // なり、点の高い順に選ばれます。
-  const towardText = [areaText, ...intent.toward, ...(query.places ?? [])]
+  const towardText = [areaText, ...intent.toward,
+    ...(query.places ?? []).filter((p) => !wish.nearPlace || !String(p).includes(wish.nearPlace))]
     .filter(Boolean).join(" ");
   let scope = opts.ignoreAreas
     ? { regionIds: null, matched: [], missing: [] }
@@ -368,6 +372,21 @@ export async function planTrip({ trip, kb, onProgress = () => {},
 
   const nights = nightsOf(trip);
   const days = nights + 1;
+
+  // 「明日晴れていて、近いところ」。行き先の名前が無いときだけ、
+  // 出発日の予報と出発地からの距離で、行き先にしてよいエリアを絞ります
+  // （js/sunny.js）。名前が書いてあれば、そちらが勝ちます。
+  const wishNotes = [];
+  if ((wish.sunny || wish.near) && !scope.regionIds && !opts.ignoreAreas) {
+    onProgress(1, wish.sunny ? "行ける範囲の天気予報を見ています" : "近いエリアを探しています");
+    const got = await wishScope(wish, {
+      regions: kb.regions, origin: trip.origin, date: trip.departAt, nights,
+      fetch: opts.fetchSky, signal,
+    });
+    stop();
+    wishNotes.push(...got.notes);
+    if (got.regionIds?.size) scope = { ...scope, regionIds: got.regionIds, matched: [], missing: [] };
+  }
 
   // 移動を楽しみたい人で、地名の指定が無いなら、全国を地方ごとに散らします。
   // 指定が無いまま点の高い順に選ぶと、近くに固まった数エリアで終わり、
@@ -976,6 +995,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
     ...discoveryNotes,
     ...areaNotes,
     ...farNotes,
+    ...wishNotes,
     ...seasonalNotes(chosenSpots, trip.departAt),
     ...itin.warnings,
   ];

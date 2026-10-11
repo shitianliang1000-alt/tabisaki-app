@@ -3,16 +3,20 @@
 //
 // 答えは、まず**読めば分かる短さ**にします。
 //
-//   どこへ・何日の旅か → 候補（ゆったり／王道／探索） → 1日目の行程
-//   → 「詳細を確認する」（地図・天気・確かめたこと・費用…）
+//   どこへ・何日の旅か → 候補（ゆったり／王道／探索） → 地図 → 行程と経路
+//   → 「詳細を確認する」（天気・確かめたこと・費用…）
 //
 // 以前は、組み終わると20近い分析の板と地図が一度に出ていました。
 // 旅を決めたい人が最初に知りたいのは「どこへ行って、何時に何をするか」
 // です。細かい根拠は消さず、ボタンの奥に置きます。
 //
-// 地図や旅程の部品（#result・#progress・#form-error）は、画面に1組
-// しかありません。いちばん新しい答えの中へ移して使い、前の答えには
-// 短い文だけを残します。
+// 地図や旅程の部品（#result・#map・#progress・#form-error）は、画面に
+// 1組しかありません。いちばん新しい答えの中へ移して使います。前の
+// 答えには、そのときの行程を短い表にして残します（くわしい行程の
+// ボタンを押すと、いまの旅程のほうが変わってしまうためです）。
+//
+// 地図と、行程（時刻・乗る電車・歩く道）は答えの本文に出します
+// （2026-10、ご指示）。以前は「詳細を確認する」の中でした。
 
 import { el, fmtDay, fmtTime, scrollBehavior } from "./ui.js";
 import { icon } from "./icons.js";
@@ -36,6 +40,21 @@ function park() {
     const node = $(id);
     if (node && node.parentElement !== stash) stash.append(node);
   }
+  // 地図は #result の先頭が元の場所です。
+  const map = $("#map");
+  const result = $("#result");
+  if (map && result && map.parentElement !== result) result.prepend(map);
+}
+
+/**
+ * 書き直す前に、地図を元の場所（#result の先頭）へ戻します。
+ * 答えの中に地図があるまま中身を入れ替えると、地図ごと消えて、
+ * 二度と出せなくなります。
+ */
+function rescueMap(node) {
+  const map = $("#map");
+  const result = $("#result");
+  if (map && result && node?.contains(map)) result.prepend(map);
 }
 
 /**
@@ -48,10 +67,15 @@ function freeze() {
   if (err && !err.hidden && err.textContent.trim() && current.ai.contains(err)) {
     current.answer.append(el("p", { class: "ai-error" }, err.firstChild?.textContent ?? err.textContent));
   }
+  rescueMap(current.ai);
   park();
   current.details.remove();
+  current.route?.querySelector(".ai-map")?.remove();
+  // 前の答えの行程は、短い表に戻します。くわしい行程（押せるもの・
+  // 日のタブ）は、いまの答えにだけ置きます。
+  if (current.daySlot && current.mini) current.daySlot.replaceChildren(...current.mini);
   for (const n of current.ai.querySelectorAll(".details-toggle, .ai-details-note, .ai-follow-note, .follow-ups, .cands button")) {
-    if (n.tagName === "BUTTON" && n.closest(".cands")) {
+    if (n.closest(".cands")) {
       n.disabled = true;
     } else {
       n.remove();
@@ -95,6 +119,43 @@ export function startTurn(text, labels = []) {
   });
 }
 
+/**
+ * 質問を1つ積みます（旅程は組み直しません）。
+ *
+ * いまの答え（旅程）は、そのまま触れる形で残します。質問のたびに
+ * 旅程が読むだけになると、聞いてから「この候補で」と押せません。
+ * 答えは、返したものを書き込む関数で渡します。
+ *
+ * @param {string} text 聞いたこと
+ * @returns {{ answer: (text: string, sources?: {title: string, url: string}[]) => void, node: HTMLElement }}
+ */
+export function askTurn(text) {
+  const thread = $("#thread");
+  const user = el("div", { class: "turn turn-user turn-ask" },
+    el("p", { class: "bubble" }, text));
+  const body = el("div", { class: "ai-answer ai-qa", role: "status", "aria-live": "polite" },
+    el("p", { class: "ai-thinking" }, "考えています…"));
+  const ai = el("div", { class: "turn turn-ai turn-qa" },
+    el("span", { class: "ai-mark", "aria-hidden": "true" }, icon("sparkle")),
+    el("div", { class: "ai-body" }, body));
+  thread?.append(user, ai);
+  document.body.dataset.view = "result";
+  requestAnimationFrame(() => {
+    user.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
+  });
+  return {
+    node: ai,
+    answer(said, sources = []) {
+      body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));
+      if (sources.length) {
+        body.append(el("ul", { class: "qa-src", "aria-label": "調べた先" },
+          ...sources.map((s) => el("li", {},
+            el("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.title)))));
+      }
+    },
+  };
+}
+
 /** やりとりを全部消して、はじめの画面に戻します（「新しい旅」）。 */
 export function resetThread() {
   park();
@@ -106,7 +167,27 @@ export function resetThread() {
 /** 答えの欄に、ひとこと書きます（やめた・組めなかった など）。 */
 export function sayInTurn(text) {
   if (!current) return;
+  rescueMap(current.answer);
   current.answer.replaceChildren(el("p", {}, text));
+}
+
+/**
+ * いまの答えの、行程を書く場所（js/ui.js の renderItinerary が使います）。
+ * 答えがまだ無ければ null。
+ */
+export function routeSlot() {
+  return current?.daySlot ?? null;
+}
+
+/**
+ * 地図（#map）を、いまの答えの中へ移します。移したら true。
+ * 行程が無い答え（組めなかった）には移しません。
+ */
+export function placeMap() {
+  const map = $("#map");
+  if (!current?.mapSlot?.isConnected || !map) return false;
+  if (map.parentElement !== current.mapSlot) current.mapSlot.append(map);
+  return true;
 }
 
 /** 移動の行を「電車 40分」のような短い言葉にします。 */
@@ -156,6 +237,7 @@ function dayList(day, index) {
 export function answerTurn(itin, h = {}) {
   if (!current) startTurn(itin.note ?? "");
   const { answer, details } = current;
+  rescueMap(answer);
   answer.replaceChildren();
   const title = itin.title ?? itin.regionName ?? "旅程";
   const nights = nightsOf(itin);
@@ -192,15 +274,26 @@ export function answerTurn(itin, h = {}) {
     answer.append(list);
   }
 
-  // 行程（いま選んでいる候補のもの）。
+  // 地図と行程（いま選んでいる候補のもの）。行程は、組み立て側
+  // （js/ui.js の renderItinerary）が時刻・乗る電車・歩く道まで入った
+  // 形に差し替えます（routeSlot）。それまでの間と、試験のためには、
+  // ここで短い表を書いておきます。
   const days = itin.days ?? [];
+  const mapSlot = el("div", { class: "ai-map" });
+  const daySlot = el("div", { class: "ai-days" });
+  const mini = days.map((d, i) => dayList(d, i));
+  daySlot.append(...mini);
+  const route = el("div", { class: "ai-route" }, mapSlot, daySlot);
   if (days.length) {
     answer.append(el("p", { class: "ai-sub" },
       itin.variants?.length > 1
         ? `「${VARIANTS[itin.variantKey]?.label ?? "この候補"}」の行程です。`
-        : "行程です。"));
-    days.forEach((d, i) => answer.append(dayList(d, i)));
+        : "行程です。"), route);
   }
+  current.route = route;
+  current.mapSlot = mapSlot;
+  current.daySlot = daySlot;
+  current.mini = mini;
 
   // 詳細（地図・天気・確かめたこと・費用・直すボタン）。
   const toggle = el("button", {
@@ -218,7 +311,7 @@ export function answerTurn(itin, h = {}) {
   };
   toggle.addEventListener("click", () => setOpen(details.hidden));
   answer.append(el("p", { class: "ai-sub ai-details-note" },
-    "天気・地図・確かめたこと・費用は、詳細にまとめています。"), toggle);
+    "天気・確かめたこと・費用・共有は、詳細にまとめています。"), toggle);
   setOpen(Boolean(h.openDetails || current.detailsOpen));
 
   // 続けて頼む札。押すと、そのまま送ります。

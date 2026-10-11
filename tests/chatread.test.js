@@ -66,3 +66,12 @@ test("条件だけの返信と、中身のある返信を分ける", () => {
   assert.equal(hasSubstance(readChat("大阪からでお願い", NOW).rest), false);
   assert.equal(hasSubstance(readChat("明日、鎌倉で食べ歩き", NOW).rest), true);
 });
+
+test("「東京に近いところ」は、東京を出発地として読み、晴れ・近場も並べる", () => {
+  const r = readChat("明日晴れている東京に近いところに行きたい(日帰り)", NOW);
+  assert.equal(r.origin, "東京");
+  assert.equal(r.nights, 0);
+  assert.equal(r.sunny, true);
+  assert.ok(r.labels.includes("晴れる所"));
+  assert.ok(r.labels.includes("近場"));
+});
