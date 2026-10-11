@@ -24,7 +24,7 @@ test("挨拶の字は、配っている見出しの字に入っている", async
   const ranges = [...css.matchAll(/font-family: "Tabisaki Title";[\s\S]*?unicode-range: ([^;]+);/g)]
     .flatMap((m) => m[1].split(",").map((r) => r.trim().slice(2).split("-").map((h) => parseInt(h, 16))));
   const has = (ch) => ranges.some(([a, b = a]) => ch.codePointAt(0) >= a && ch.codePointAt(0) <= b);
-  for (const word of ["おはようございます", "こんにちは", "こんばんは", "どんな旅にしますか？", "旅さき"]) {
+  for (const word of ["おはようございます", "こんにちは", "こんばんは", "旅さき"]) {
     for (const ch of word) assert.ok(has(ch), `「${ch}」（${word}）が見出しの字にありません`);
   }
 });

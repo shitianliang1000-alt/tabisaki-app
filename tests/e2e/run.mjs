@@ -461,13 +461,16 @@ await check("何をしてくれるサイトかが書いてある", async () => {
     text: e.textContent.replace(/\s+/g, ""), h: e.getBoundingClientRect().height,
   })).catch(() => null);
   assert(brand && brand.h > 0 && brand.text.includes("旅さき"), "画面に名前が出ていません");
-  // はじめの画面の見出しの下に、送ると何が返るかを1行で書きます。
-  const sub = await page.$eval(".hero-sub", (e) => ({
-    text: e.textContent.trim(), h: e.getBoundingClientRect().height,
+  // はじめの画面は、見出し（挨拶）と入力欄だけにします（2026-10、ご指示）。
+  // アイコンも、「どんな旅にしますか？」も、説明の1行も置きません。
+  const hero = await page.evaluate(() => ({
+    greet: document.getElementById("hero-greet")?.getBoundingClientRect().height ?? 0,
+    extras: document.querySelectorAll(".hero img, .hero-title, .hero-sub").length,
+    text: document.querySelector(".hero")?.textContent.replace(/\s+/g, "") ?? "",
   }));
-  assert(sub.h > 0, "何をするサイトかの1行が隠れています");
-  assert(/送る/.test(sub.text) && /組みます/.test(sub.text),
-    `何が出てくるのか書かれていません: ${sub.text}`);
+  assert(hero.greet > 0, "見出し（挨拶）が出ていません");
+  assert(hero.extras === 0, "はじめの画面に、アイコンや説明が残っています");
+  assert(!/どんな旅|送るだけ/.test(hero.text), `余計な文が残っています: ${hero.text}`);
 });
 
 await check("停留所の読み解きを、別のスレッドに回している", async () => {
@@ -750,6 +753,25 @@ await check("紙には、時刻と場所だけを出す", async () => {
   }
   assert(shown.days !== false, "紙に旅程が出ていません");
   assert(shown.head !== false, "紙に題が出ていません");
+});
+
+await check("答えの下の共有の印から、リンク・カレンダー・文字で渡せる", async () => {
+  // 詳細を開かなくても共有できること（2026-10、ご指示）。
+  const btn = await page.$(".turn-ai:not(.is-past) .ai-share-btn");
+  assert(btn, "答えの下に共有の印がありません");
+  await btn.click();
+  const items = await page.$$eval(".turn-ai:not(.is-past) .ai-share-menu:not([hidden]) .ai-share-item",
+    (els) => els.map((e) => e.textContent.trim()));
+  const all = items.join(" / ");
+  assert(/リンク/.test(all) && /カレンダー/.test(all) && /文字/.test(all),
+    `共有のしかたが足りません: ${all}`);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 10_000 }),
+    page.click('.turn-ai:not(.is-past) .ai-share-item:has-text("カレンダー")'),
+  ]);
+  assert(/\.ics$/.test(download.suggestedFilename()), `カレンダーのファイルではありません: ${download.suggestedFilename()}`);
+  await btn.click();
 });
 
 await check("旅程を文字にして渡せる", async () => {
@@ -1438,7 +1460,7 @@ await check("字を大きくすると、実際に大きくなる", async () => {
     };
     return {
       root: parseFloat(getComputedStyle(document.documentElement).fontSize),
-      title: px(".hero-sub"),
+      title: px(".hero-greet"),
       help: px(".md-field-help"),
       button: px(".cond-pill"),
       // 当たり判定は指の大きさで決まるので、**動かないこと**を見ます。
@@ -1896,6 +1918,8 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
       };
       return {
         has: Boolean(box),
+        // 詳細に畳まず、答えの本文に出ていること（2026-10、ご指示）。
+        inAnswer: Boolean(document.querySelector(".turn-ai:not(.is-past) .ai-today #today .today")),
         next: document.querySelector(".today-next")?.textContent ?? "",
         nextSize: size(".today-next"),
         bodySize: parseFloat(getComputedStyle(document.body).fontSize),
@@ -1910,6 +1934,7 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
       };
     });
     assert(got.has, "当日なのに「今日の旅」が出ていません");
+    assert(got.inAnswer, "「今日の旅」が答えの本文ではなく、詳細の中にあります");
     assert(got.next.length > 0, "次の予定の名前が出ていません");
     // 歩きながら、ちらっと見て読める大きさであること。
     assert(got.nextSize > got.bodySize,

@@ -174,9 +174,11 @@ export function buildItinerary(input) {
   // 人はそうしません。前の街にもう一晩いて、翌朝に移ります。
   // 立ち寄りのある日まで、移動を遅らせます。
   const visitDays = new Set(visits.map((v) => v.day ?? 0));
+  // ただし片道で通す旅（日本縦断）は別です。その日の終着まで進むこと
+  // そのものが予定なので、立ち寄りが無くても予定どおりに移ります。
   const shifted = moves.map((m) => {
     let day = m.day;
-    while (day < nights && !visitDays.has(day)) day++;
+    while (!trip.oneWayStops && day < nights && !visitDays.has(day)) day++;
     if (day === m.day) return m;
     // 遅らせたぶん、時刻もその日の朝に置き直します。
     const start = atHour(

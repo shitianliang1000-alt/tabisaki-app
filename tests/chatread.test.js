@@ -5,7 +5,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasSubstance, readChat } from "../js/chatread.js";
+import { hasSubstance, readChat, stripOriginPhrase } from "../js/chatread.js";
 
 // 2026年10月11日（日）10時
 const NOW = new Date(2026, 9, 11, 10, 0);
@@ -74,4 +74,22 @@ test("「東京に近いところ」は、東京を出発地として読み、�
   assert.equal(r.sunny, true);
   assert.ok(r.labels.includes("晴れる所"));
   assert.ok(r.labels.includes("近場"));
+});
+
+test("「青森駅でスタート」は出発地。青春18きっぷ・日本縦断も札に出す", () => {
+  const now = new Date(2026, 9, 11, 20, 0);
+  const r = readChat("日本縦断をしたい。(青春18きっぷ5日間用で明日から青森駅でスタート)", now);
+  assert.equal(r.origin, "青森駅");
+  assert.equal(r.nights, 4);
+  assert.equal(r.start.getDate(), 12);
+  assert.ok(r.labels.includes("普通列車のみ"), r.labels.join(","));
+  assert.ok(r.labels.includes("日本縦断（片道）"), r.labels.join(","));
+  assert.equal(readChat("仙台駅スタートで3日間", now).origin, "仙台駅");
+});
+
+test("出発地の名前は、行き先を探す文から消す", () => {
+  assert.ok(!stripOriginPhrase("明日から青森駅でスタート", "青森駅").includes("青森"));
+  assert.ok(!stripOriginPhrase("東京駅から鎌倉へ", "東京駅").includes("東京"));
+  // 出発地でない名前は残します。
+  assert.ok(stripOriginPhrase("鎌倉で寺めぐり", "東京駅").includes("鎌倉"));
 });

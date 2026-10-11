@@ -3172,7 +3172,7 @@ body[data-view="result"] .hero,
 body[data-view="result"] .note-examples { display: none; }
 
 .hero {
-  width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px 24px;
+  width: 100%; max-width: 800px; margin: 0 auto; padding: 0 24px 28px;
   display: flex; align-items: center; justify-content: center; gap: 14px;
   text-align: center;
   flex-wrap: wrap;
@@ -3181,21 +3181,9 @@ body[data-view="result"] .note-examples { display: none; }
   flex-basis: 100%; margin: 0;
   display: flex; align-items: center; justify-content: center; gap: 12px;
   font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.4rem);
+  font-size: clamp(1.9rem, 1.3rem + 1.8vw, 2.6rem);
   line-height: 1.3; font-weight: 500; letter-spacing: .02em;
   color: var(--chat-ink);
-}
-.hero-mark { flex: none; width: 38px; height: 38px; }
-.hero-title {
-  flex-basis: 100%; margin: 6px 0 0;
-  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: clamp(1.15rem, 1rem + .5vw, 1.4rem);
-  line-height: 1.4; font-weight: 500; letter-spacing: .03em;
-  color: var(--chat-ink);
-}
-.hero-sub {
-  flex-basis: 100%; margin: 4px 0 0;
-  font-size: var(--hig-t-subhead); line-height: 1.6; color: var(--chat-ink-2);
 }
 
 /* --- 入力欄（下に貼り付く） --- */
@@ -3233,6 +3221,9 @@ body[data-view="result"] .dock { padding-top: 4px; }
 .composer textarea:focus-visible { outline: none; }
 .composer textarea::placeholder { color: var(--chat-ink-2); opacity: 1; }
 .composer-row { display: flex; align-items: center; gap: 6px; }
+/* はじめの画面は、入力欄を大きく取ります（Claude のホームと同じ構え）。 */
+body[data-view="form"] .composer { padding: 18px 14px 12px 20px; border-radius: 24px; gap: 14px; }
+body[data-view="form"] .composer textarea { min-height: 5.6em; }
 .plus-btn {
   flex: none; display: grid; place-items: center;
   width: 36px; height: 36px; padding: 0;
@@ -3243,7 +3234,7 @@ body[data-view="result"] .dock { padding-top: 4px; }
 .plus-btn .ic { width: 20px; height: 20px; }
 .plus-btn[aria-expanded="true"] { background: var(--chat-hover); color: var(--chat-ink); }
 .cond-pills {
-  flex: 1; min-width: 0; display: flex; gap: 6px;
+  flex: 1; min-width: 0; display: flex; gap: 6px; justify-content: flex-end;
   overflow-x: auto; scrollbar-width: none;
 }
 .cond-pills::-webkit-scrollbar { display: none; }
@@ -3471,6 +3462,38 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .turn-details .map { height: 320px; margin: 12px 12px 0; border-radius: 12px; }
 /* 答えの本文の地図と行程（2026-10）。 */
 .ai-route { margin: 0 0 14px; }
+
+/* 旅の当日の札。答えの本文に置きます（詳細に畳まない）。 */
+.ai-today:empty, .ai-today:has(> #today[hidden]) { display: none; }
+.ai-today { margin: 4px 0 16px; }
+.ai-today .today { margin: 0; padding: 16px 18px; border: 1px solid var(--chat-line); border-bottom: 1px solid var(--chat-line); border-radius: 14px; }
+
+/* 共有。答えのいちばん下に、印を1つ。 */
+.ai-share { margin: 14px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-share-btn, .ai-share-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-ink-2);
+  font: inherit; font-size: var(--hig-t-footnote); font-weight: 500;
+  cursor: pointer;
+}
+.ai-share-btn .ic, .ai-share-item .ic { width: 17px; height: 17px; flex: none; }
+.ai-share-btn[aria-expanded="true"] { background: var(--chat-hover); color: var(--chat-ink); }
+.ai-share-menu { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-share-menu[hidden] { display: none; }
+.ai-share-said { font-size: var(--hig-t-footnote); color: var(--chat-ink-2); }
+.ai-share-said:empty { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .ai-share-btn:hover, .ai-share-item:hover { background: var(--chat-hover); color: var(--chat-ink); }
+}
+@media (pointer: coarse) {
+  .ai-share-btn, .ai-share-item { min-height: 44px; }
+}
+
+/* 旅行中モードは、当日の札と共有だけにします。 */
+body[data-trip-mode="on"] .ai-answer > :not(.ai-today):not(.ai-share),
+body[data-trip-mode="on"] .turn-details { display: none !important; }
 .ai-map:empty { display: none; }
 .ai-map .map {
   height: 300px; margin: 0 0 12px;
@@ -3618,7 +3641,6 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
   .layout { height: 100vh; height: 100dvh; }
   .chat { overflow: hidden; }
   .hero { padding: 0 16px 18px; }
-  .hero-mark { width: 30px; height: 30px; }
   .thread { padding: 8px 14px 24px; gap: 18px; }
   .turn-ai { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; }
   .bubble, .read-chips { max-width: 90%; }
