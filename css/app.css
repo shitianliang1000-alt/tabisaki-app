@@ -3181,7 +3181,8 @@ body[data-view="result"] .note-examples { display: none; }
   flex-basis: 100%; margin: 0;
   display: flex; align-items: center; justify-content: center; gap: 12px;
   font-family: "Zen Maru Gothic", sans-serif;
-  font-size: 32px;
+  --hero-greet-size: 2rem;
+  font-size: var(--hero-greet-size);
   line-height: 1.15; font-weight: 400; letter-spacing: .02em;
   color: var(--chat-ink);
 }
