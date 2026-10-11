@@ -84,3 +84,30 @@ test("最長往復切符は、全国を地方ごとに回る", async () => {
   assert.ok(blocks.size >= 2, [...blocks].join("・"));
   assert.ok(itin.warnings.some((w) => /「最長往復切符」は/.test(w)));
 });
+
+// 「日本縦断をしたい。青春18きっぷ5日間用で明日から青森駅でスタート」
+// （2026-10、ご指示）。以前は青森を行き先として読み、高松→長崎→富士山→
+// 秩父→札幌と、行ったり来たりの旅程になっていました。
+test("日本縦断は、出発地から片道で進み、毎日の終着が道順に並ぶ", async () => {
+  const origin = findPlace("青森駅");
+  const itin = await planTrip({ kb, trip: trip(
+    "日本縦断をしたい。(青春18きっぷ5日間用で明日から青森駅でスタート)", { origin }) });
+  assert.equal(itin.transport, "local");
+  const lats = itin.regionIds.map((id) => kb.regionsById.get(id).lat);
+  assert.ok(lats.length >= 3, `終着が少なすぎます: ${lats.length}`);
+  // 北から南へ、戻らずに進むこと。
+  for (let i = 1; i < lats.length; i++) {
+    assert.ok(lats[i] < lats[i - 1] + 0.3, `南へ進んでいません: ${lats.join(", ")}`);
+  }
+  assert.ok(lats.at(-1) < 36, "縦断の旅が西日本まで届いていません");
+  // 青森へ戻る移動で終わらないこと（片道の旅です）。
+  const lastMove = itin.days.at(-1).items.filter((i) => i.kind === "transit").at(-1);
+  assert.ok(!/青森/.test(lastMove?.title ?? ""), `青森へ戻っています: ${lastMove?.title}`);
+  assert.ok(itin.warnings.some((w) => /「日本縦断」は/.test(w) && /終着/.test(w)));
+});
+
+test("日本縦断は、南から始めれば北へ進む", async () => {
+  const itin = await planTrip({ kb, trip: trip("日本縦断がしたい", { origin: findPlace("博多駅") }) });
+  const lats = itin.regionIds.map((id) => kb.regionsById.get(id).lat);
+  assert.ok(lats.at(-1) > lats[0], `北へ進んでいません: ${lats.join(", ")}`);
+});

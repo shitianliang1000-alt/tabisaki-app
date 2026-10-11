@@ -49,6 +49,16 @@ export const KNOWN_JOURNEYS = [
     transport: null, enjoyTravel: true, spread: true, along: [],
   },
   {
+    // 片道で通す旅です。出発地が南なら、南から北へたどります
+    // （向きは js/pipeline.js が出発地から決めます）。
+    name: "日本縦断",
+    re: /日本(列島)?縦断|列島縦断/,
+    meaning: "日本列島を、端から端まで片道で通して旅すること",
+    transport: null, enjoyTravel: true, spread: false, oneWay: true,
+    along: ["青森", "盛岡", "仙台", "福島", "宇都宮", "東京", "静岡", "名古屋",
+            "京都", "大阪", "岡山", "広島", "下関", "博多", "熊本", "鹿児島"],
+  },
+  {
     name: "東海道五十三次",
     re: /東海道五十三次|旧東海道/,
     meaning: "江戸の日本橋から京都の三条大橋まで、旧東海道の宿場町を"
@@ -144,6 +154,8 @@ export function normalizeJourney(raw) {
     // 沿う街が分かっているなら、その道の旅です（全国に散らしません）。
     spread: raw.spread === true && along.length === 0,
     along,
+    // 片道で通す旅（出発地へ戻らない）。
+    oneWay: raw.oneWay === true && along.length > 1,
     known: raw.known === true,
   };
 }
@@ -170,10 +182,13 @@ export function stripJourney(text, j) {
 }
 
 /** 旅程に添える一言。何として読み、どう組んだかを言います。 */
-export function journeyNote(j) {
+export function journeyNote(j, { from, stops } = {}) {
   if (!j) return "";
   const what = j.meaning ? `「${j.name}」は、${j.meaning}です。` : "";
-  const how = j.along.length
+  const how = j.oneWay && stops?.length
+    ? `${from ? `${from}から` : ""}${stops.at(-1)}まで片道で進み、`
+      + `毎日の終着を${stops.join("→")}にしています。`
+    : j.along.length
     ? `${j.along[0]}から${j.along[j.along.length - 1]}までの道沿いから`
       + "行き先を選んでいます。"
     : j.spread ? "全国を地方ごとに回る旅として組んでいます。" : "";

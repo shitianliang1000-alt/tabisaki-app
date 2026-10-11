@@ -134,7 +134,8 @@ export function readChat(text, now = new Date()) {
   }
 
   // --- どこから ------------------------------------------------------------
-  const fromRe = new RegExp(`${PLACE}(?:から|を?出発|発(?![見表明売電]))`, "g");
+  // 「青森駅でスタート」「青森駅スタート」も出発地です。
+  const fromRe = new RegExp(`${PLACE}(?:から|を?出発|で?スタート|発(?![見表明売電]))`, "g");
   for (const hit of rest.matchAll(fromRe)) {
     const name = hit[1];
     if (NOT_PLACE.test(name)) continue;
@@ -189,11 +190,29 @@ export function readChat(text, now = new Date()) {
   if (out.avoidCrowds === true) L.push("混雑を避ける");
   if (out.avoidCrowds === false) L.push("混雑は気にしない");
   if (out.people) L.push(`${out.people}人`);
+  // 乗り物と旅の形は js/pipeline.js が読みます（文が設定に勝ちます）。
+  // ここでは、読んだことが見えるように札だけ出します。
+  if (/青春18|18きっぷ|鈍行|各駅停車|普通列車(?:のみ|だけ|で)/.test(src)) L.push("普通列車のみ");
+  if (/日本(?:列島)?縦断|列島縦断/.test(src)) L.push("日本縦断（片道）");
   if (out.budgetYen) L.push(`予算 ${(out.budgetYen / 10000).toLocaleString("ja-JP")}万円`);
 
   out.found = L.length > 0;
   out.rest = rest.replace(/\s+/g, " ").trim();
   return out;
+}
+
+/**
+ * 希望文から「◯◯から」「◯◯でスタート」の部分を消します（出発地の名前のときだけ）。
+ * 出発地を行き先として読まないためです（「青森駅でスタート」で青森を
+ * 行き先に選ぶと、縦断の旅が青森から始まりません）。
+ */
+export function stripOriginPhrase(text, originName) {
+  const base = String(originName ?? "").normalize("NFKC").replace(/駅$/, "").trim();
+  const s = String(text ?? "");
+  if (!base) return s;
+  const esc = base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.normalize("NFKC")
+    .replace(new RegExp(`${esc}駅?(?:から(?:出発|スタート)?|を?出発|で?スタート|発(?![見表明売電]))`, "g"), " ");
 }
 
 export function fmtHour(h) {

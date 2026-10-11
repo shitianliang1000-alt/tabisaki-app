@@ -22,6 +22,7 @@ import { areaNote, areaScope, blockGroups, detectAreas, namedSpotAreas,
   from "./areas.js";
 import { isTouring } from "./touring.js";
 import { journeyNote, pickJourney, stripJourney } from "./journeys.js";
+import { stripOriginPhrase } from "./chatread.js";
 import { readIntent } from "./intent.js";
 import { readWish, stripNear, wishScope } from "./sunny.js";
 import { nightTrainLeg } from "./trains.js";
@@ -40,7 +41,7 @@ import { buildItinerary } from "./planner.js";
 import { MAX_POINTS, computeRoute, legDetailLookup, legLookupAll, pickMode }
   from "./routes.js";
 import { SPOTS_PER_DAY, planStays, suggestRegionCount } from "./stays.js";
-import { dayEnd, endPlace, nightsOf } from "./trip.js";
+import { END_MODES, dayEnd, endPlace, nightsOf } from "./trip.js";
 import { issuesToPrompt, trimKeepingPicks, trimToFit } from "./verify.js";
 import { critique, relaxForItinerary, relaxForUnreachable } from "./relax.js";
 import { itineraryCrowd, spreadCrowds } from "./crowd.js";
@@ -97,6 +98,64 @@ function alongRegions(along, kb) {
   return { regionIds: ids, groupById, spread: true };
 }
 
+/**
+ * 片道で通す旅（日本縦断）の、日ごとの終着を決めます。
+ *
+ * 沿う街を出発地から近い側から並べ（青森からなら南へ、鹿児島からなら
+ * 北へ）、出発地の街を除いた道のりを日数で等分して、それぞれの区切りに
+ * いちばん近い街を、その日の終着（泊まる所）にします。街ごとに内訳を
+ * 持たせるので、1つの街に2日固まりません。
+ */
+function oneWayStops(along, kb, origin, days) {
+  const base = alongRegions(along, kb);
+  if (!base || !origin || !Number.isFinite(origin.lat)) return base;
+  // 街ごとの代表（その名前のエリアの中心）。収録の無い街は飛ばします。
+  const towns = [];
+  for (const place of along) {
+    const rs = [...base.groupById.entries()]
+      .filter(([, p]) => p === place).map(([id]) => kb.regionsById.get(id)).filter(Boolean);
+    if (!rs.length) continue;
+    const lat = rs.reduce((s, r) => s + r.lat, 0) / rs.length;
+    const lng = rs.reduce((s, r) => s + r.lng, 0) / rs.length;
+    towns.push({ place, regions: rs, lat, lng });
+  }
+  if (towns.length < 2) return base;
+  if (haversineKm(origin, towns[0]) > haversineKm(origin, towns.at(-1))) towns.reverse();
+  // 出発地のすぐそばの街は、終着になりません（1日目に動かずに終わります）。
+  const ahead = towns.filter((t) => haversineKm(origin, t) > 60);
+  if (!ahead.length) return base;
+  // 出発地からの道のり（街をつないだ長さ）。
+  const at = [];
+  let sum = 0, prev = origin;
+  for (const t of ahead) { sum += haversineKm(prev, t); at.push(sum); prev = t; }
+  const n = Math.max(1, Math.min(days, ahead.length));
+  const picks = [];
+  for (let k = 1; k <= n; k++) {
+    const goal = (sum * k) / n;
+    let best = -1;
+    for (const [i, d] of at.entries()) {
+      if (picks.includes(i)) continue;
+      if (best < 0 || Math.abs(d - goal) < Math.abs(at[best] - goal)) best = i;
+    }
+    if (best >= 0) picks.push(best);
+  }
+  picks.sort((a, b) => a - b);
+  const ids = new Set();
+  const groupById = new Map();
+  for (const i of picks) {
+    for (const r of ahead[i].regions) { ids.add(r.id); groupById.set(r.id, ahead[i].place); }
+  }
+  const last = ahead[picks.at(-1)].regions[0];
+  return {
+    regionIds: ids, groupById, spread: true,
+    stops: picks.map((i) => ahead[i].place),
+    destination: {
+      name: last.station || last.name,
+      lat: last.stationLat ?? last.lat, lng: last.stationLng ?? last.lng,
+    },
+  };
+}
+
 /** 旅のしかたを言う語。移動を楽しみたい人の希望文では、検索に使いません。 */
 const JOURNEY_WORDS = /^(移動|楽しみ|楽しむ|青春|18|きっぷ|切符|青春18きっぷ|鈍行|各駅|各駅停車|ローカル|ローカル線|車窓|乗り鉄|鉄旅|鉄道旅|列車旅|汽車旅|乗り継ぎ|乗りつぎ|遠く|日本一周|日本縦断|周遊)$/;
 
@@ -120,6 +179,12 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   const stop = () => signal?.throwIfAborted();
 
   onProgress(0);
+  // 「青森駅でスタート」「東京駅から」の出発地の名前は、行き先として
+  // 読みません（読むと、縦断の旅が出発地のまわりで終わります）。
+  if (trip.origin?.name && trip.note) {
+    const note = stripOriginPhrase(trip.note, trip.origin.name).replace(/\s+/g, " ").trim();
+    if (note !== trip.note) trip = { ...trip, note, noteAsWritten: trip.note };
+  }
   // 希望文から、乗り物の指定を読み取ります。
   //
   // 「ツーリングをしたい」「サンライズに乗って」のような書きかたは、
@@ -402,8 +467,17 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 選びます。街ごとに内訳を持たせ、1つの街に固まらないようにします。
   // 書かれた地名があるときは、そちらを優先します（「国道1号線で静岡へ」）。
   if (journey?.along.length && !scope.matched?.length) {
-    const alongScope = alongRegions(journey.along, kb);
+    const alongScope = journey.oneWay
+      ? oneWayStops(journey.along, kb, trip.origin, days)
+      : alongRegions(journey.along, kb);
     if (alongScope) scope = { ...scope, ...alongScope };
+    // 片道で通す旅（日本縦断）は、出発地へ戻りません。最後の日の
+    // 終着が旅の終わりです。画面の「出発地に戻る」は既定の値なので、
+    // 文に書かれた旅の形を優先します。
+    if (alongScope?.destination && trip.endMode === END_MODES.RETURN_TO_ORIGIN) {
+      trip = { ...trip, endMode: END_MODES.END_AT_DESTINATION,
+               destination: alongScope.destination, oneWayStops: true };
+    }
   }
 
   if (scope.regionIds) {
@@ -567,8 +641,22 @@ export async function planTrip({ trip, kb, onProgress = () => {},
                      enjoyTravel,
                      // 車で来ている人に、駅前だけを並べないための合図です。
                      touring: isTouring(trip), signal };
-  let proposal = await proposePlan(candidates, query, trip.note,
-                                   maxSpots, targets, "", planOpts);
+  // 片道で通す旅（日本縦断）は、決めた終着を1日ひとつずつ、道順のまま
+  // 使います。案の側で1つ落ちると、その夜の宿が前の街のままになり、
+  // 次の朝に飛ばした街から出発する、ちぐはぐな旅程になりました。
+  const fillStops = (p) => {
+    if (!scope.stops?.length || !p) return p;
+    const ids = new Set(p.regionIds ?? [p.regionId]);
+    const out = [];
+    for (const place of scope.stops) {
+      const group = candidates.filter((c) => scope.groupById?.get(c.region.id) === place);
+      const pick = group.find((c) => ids.has(c.region.id)) ?? group[0];
+      if (pick) out.push(pick.region.id);
+    }
+    return out.length ? { ...p, regionIds: out, regionId: out[0] } : p;
+  };
+  let proposal = fillStops(await proposePlan(candidates, query, trip.note,
+                                             maxSpots, targets, "", planOpts));
   stop();
 
   onProgress(3, "移動時間と営業時間を照合しています");
@@ -613,9 +701,9 @@ export async function planTrip({ trip, kb, onProgress = () => {},
           : `予定の空きが多いため、${round - 1}回目の作り直しです`);
       let next;
       try {
-        next = await proposePlan(candidates, query, trip.note, maxSpots,
-                                 targets, issuesToPrompt(best.checked.result),
-                                 planOpts);
+        next = fillStops(await proposePlan(candidates, query, trip.note, maxSpots,
+                                           targets, issuesToPrompt(best.checked.result),
+                                           planOpts));
       } catch (e) {
         // やめると言われたのなら、最善を出さずに止まります。
         stop();
@@ -964,7 +1052,11 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   }
 
   const journeyNotes = [];
-  if (journey) journeyNotes.push(journeyNote(journey));
+  if (journey) {
+    journeyNotes.push(journeyNote(journey, {
+      from: trip.origin?.name, stops: scope.stops,
+    }));
+  }
   if (enjoyTravel) {
     journeyNotes.push("移動も旅のうちとして組んでいます。遠いエリアや長い"
       + "乗車を減点せず、日ごとに土地を移るようにしました。"
