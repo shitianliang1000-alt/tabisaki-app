@@ -80,7 +80,7 @@ async function audit(name, { dark = false, plan = false, width = 1280,
     if (today) {
       await page.click("#pill-when");
       await page.click('[data-day-preset="today"]');
-      await page.click("#cond-done");
+      await page.keyboard.press("Escape");
     }
     await page.click("#make-plan");
     // 「もう少し詳しく調べますか」には、利用者として答え続けます。
@@ -90,7 +90,9 @@ async function audit(name, { dark = false, plan = false, width = 1280,
         if (dlg?.open) document.getElementById("quota-go")?.click();
       }).catch(() => {});
     }, 500);
-    await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+    await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
+    // 旅程の細かい板は「詳細を確認する」の奥です。開いて、そこも測ります。
+    await page.click("#details-toggle");
     await page.waitForTimeout(1500);
     clearInterval(answering);
   }
@@ -192,6 +194,7 @@ async function contrast(name, dark) {
   await page.waitForTimeout(1200);
   // 畳んであるものを開き、チップを1つ選んで、選ばれた状態も測ります。
   // シートを開いて、畳んであるものも開き、チップを1つ選びます。
+  await page.click("#plus").catch(() => {});
   await page.click("#pill-tune").catch(() => {});
   await page.click('[data-genre="onsen"]').catch(() => {});
   await page.waitForTimeout(300);

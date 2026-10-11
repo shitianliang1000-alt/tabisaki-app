@@ -144,7 +144,7 @@
      要ります。<header> に入れておかないと、支援技術の「見出し・目印で
      移動する」操作からこの2つだけが外れます。 -->
 <header>
-  <a class="sr-only skip-link" href="#form-pane">条件の入力へ移動</a>
+  <a class="sr-only skip-link" href="#note">入力欄へ移動</a>
   <!-- 文書としての h1 はここに置きます。画面に見せる名前とひとことは、
        条件の欄の上（.brand-line）に1行だけ出します。 -->
   <h1 class="sr-only">旅さき</h1>
@@ -170,9 +170,8 @@
 <main class="layout">
 
   <!-- ===================== 左: 旅の一覧 =====================
-       行き来の入口をここにまとめます（新しい旅・エリア・前につくった旅・
-       設定）。広い画面では左に常に出し、狭い画面では左から引き出します
-       （js/app.js の wireSide）。 -->
+       新しい旅・エリアから探す・前につくった旅。広い画面では左に常に
+       出し、狭い画面では左から引き出します（js/shell.js）。 -->
   <nav class="side" id="side" aria-label="旅の一覧">
     <div class="side-head">
       <p class="brand-line">
@@ -208,13 +207,7 @@
 
     <div class="side-fill"></div>
     <p class="side-note">旅の記録はこの端末の中だけに残ります。どこにも送りません。</p>
-    <button type="button" class="side-item md-state" id="open-settings">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg><span>設定</span>
-    </button>
-  <footer class="credits">
-    <!-- エリア別のページ（公開のときに tools/build_area_pages.mjs が作ります）。
-         検索から来る人の入口で、ここはその逆向きの道です。 -->
-    <p><a href="areas/index.html">エリアから探す（都道府県の観光地とモデルコース）</a></p>
+    <footer class="credits">
     <p id="ph-data"></p>
     <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
          まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
@@ -225,156 +218,38 @@
   </nav>
   <div class="side-scrim" id="side-scrim" hidden></div>
 
-  <!-- ===================== 中央: どんな旅にしたい？ =====================
-       AI に話しかける画面の形にします。大きな入力欄が1つあり、
-       出発地・日時・こだわりは欄の下の札に要約して見せます。札を押すと
-       「旅の条件」のシート（#cond-dialog）が開きます。
-       以前の「1・2・3」の手順はやめました。書いて送るだけで組めるのに、
-       手順が3段あると、全部埋めないといけないように見えたためです。 -->
-  <section class="pane pane-form" id="form-pane" aria-label="条件">
+  <!-- ===================== 旅の相談（チャット） =====================
+       AIに話しかける画面です。書いて送ると、下に答え（旅程）が返ります。
+       返ってきた旅程は、続けて書けば直せます（「もっとゆっくり」など）。
+       出発地・日時・まわる場所・こだわりは、欄の左の「＋」から足します。
+       書いたことは、ここで決めた設定より勝ちます（js/chatread.js）。 -->
+  <section class="pane chat" id="form-pane" aria-label="旅の相談">
     <div class="topbar">
       <button type="button" class="md-icon-btn md-state side-open" id="side-open"
               aria-label="旅の一覧を開く" aria-controls="side" aria-expanded="false">
         <svg class="ic" data-icon="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 8h16M4 16h10"/></svg>
       </button>
-      <!-- いまの旅のかたち（日帰り・電車 など）。押すと条件のシート。 -->
-      <button type="button" class="mode-pill md-state" id="mode-pill" data-open-cond="tune"
-              aria-haspopup="dialog">
-        <span id="mode-pill-tx">日帰り・電車</span><svg class="ic mode-chev" data-icon="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 9.5 12 16l7-6.5"/></svg>
+      <p class="topbar-title" id="topbar-title"></p>
+      <button type="button" class="md-icon-btn md-state" id="open-settings"
+              aria-label="設定" title="設定">
+        <svg class="ic" data-icon="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg>
       </button>
-      <span class="topbar-end"></span>
     </div>
 
-    <div class="compose-wrap">
+    <div class="chat-body" id="chat-body">
       <div class="hero">
-        <img class="hero-mark" src="icon.svg" alt="" width="44" height="44">
-        <h2 class="hero-title" id="hero-title">どんな旅にしたい？</h2>
-        <p class="hero-sub">行きたいことを書くだけで、行き先・まわる順・時刻まで組みます。</p>
+        <img class="hero-mark" src="icon.svg" alt="" width="40" height="40">
+        <h2 class="hero-title" id="hero-title">どんな旅にしますか？</h2>
+        <p class="hero-sub">行きたいことを書いて送るだけで、行き先・まわる順・時刻まで組みます。</p>
       </div>
 
-      <!-- 入力欄。送るボタンは欄の中に置きます。 -->
-      <div class="composer" id="composer">
-        <label class="note-field">
-          <span class="sr-only">やりたいこと</span>
-          <textarea id="note" rows="2"
-            placeholder="例）温泉でゆっくりして、海も見たい"></textarea>
-        </label>
-        <div class="composer-row">
-          <div class="cond-pills" role="group" aria-label="旅の条件">
-            <button type="button" class="cond-pill md-state" id="pill-from" data-open-cond="from"
-                    aria-haspopup="dialog">
-              <svg class="ic" data-icon="spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11ZM12 12.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg><span id="pill-from-tx">東京駅から</span>
-            </button>
-            <button type="button" class="cond-pill md-state" id="pill-when" data-open-cond="when"
-                    aria-haspopup="dialog">
-              <svg class="ic" data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/></svg><span id="pill-when-tx">今日</span>
-            </button>
-            <button type="button" class="cond-pill md-state" id="pill-tune" data-open-cond="tune"
-                    aria-haspopup="dialog">
-              <svg class="ic" data-icon="sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg><span>こだわり</span>
-            </button>
-          </div>
-          <button type="button" class="send-btn md-state" id="make-plan">
-            <svg class="ic fab-ic" data-icon="up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20V4.5M6 10.5 12 4.5l6 6"/></svg>
-            <span class="fab-tx sr-only">旅程をつくる</span>
-          </button>
-        </div>
-      </div>
-      <p class="area-picked" id="area-picked" role="status"></p>
+      <!-- やりとり。1回ぶんは「頼んだこと」と「答え」の組です（js/chat.js）。 -->
+      <div class="thread" id="thread" aria-label="やりとり"></div>
 
-      <div class="tune-group" id="pinned" hidden></div>
-      <div id="form-error" hidden></div>
-
-      <!-- 定番と穴場のまぜかた（3段）。旅の中身がいちばん変わる設定なので、
-           シートに畳まず、欄のすぐ下に出します。細かいつまみはシートの中。 -->
-      <div class="mix-quick-row">
-        <span class="mix-quick-label" id="mix-quick-label">まわる場所</span>
-        <div class="md-segmented mix-quick" id="mix-quick" role="radiogroup"
-             aria-labelledby="mix-quick-label">
-          <button type="button" role="radio" aria-checked="false" data-mix="15">定番中心</button>
-          <button type="button" role="radio" aria-checked="true" data-mix="40">バランス</button>
-          <button type="button" role="radio" aria-checked="false" data-mix="75">穴場多め</button>
-        </div>
-      </div>
-
-      <!-- そのまま使える例。
-           ------------------------------------------------------------
-           自由入力の枠は、何を書いてよいか分からないと空のままです。
-           **押すと欄が埋まる一文**を置きます。札は短く、入るのは
-           長い文です。書き換えてもらうための下書きです。
-
-           data-from の付いた札は、出発地も入れます（はじめての人が
-           押してそのまま「旅程をつくる」まで行けるように）。ただし
-           出発地が既定の東京駅のままのときだけです。自分の駅を
-           入れた人の出発地は書き換えません。 -->
-      <div class="chip-set note-examples" role="group" aria-label="そのまま使える例">
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="日光で滝と社寺をめぐりたい">日光 滝と社寺</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="湯布院で温泉に入って、ゆったり過ごしたい" data-from="博多駅">湯布院 温泉</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="温泉でゆっくり癒されたい">温泉でゆっくり</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="歴史ある街を歩いて、美味しいものを食べたい">歴史ある街歩き</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="人が少ない静かな場所で自然を感じたい">静かな自然</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="絶景が見たい。写真をたくさん撮りたい">絶景・写真</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="海の見えるところでのんびりしたい">海でのんびり</button>
-        <button type="button" class="md-chip md-chip--assist md-state"
-                data-example="美術館と建築をめぐりたい">アートと建築</button>
-      </div>
-    </div>
-
-    <p class="compose-foot">営業時間・移動時間・帰りの時刻を確かめて組みます。電車の時刻は目安です。出かける前に公式の情報も確かめてください。</p>
-  </section>
-
-  <!-- ===================== 右: 結果 ===================== -->
-  <section class="pane pane-result" aria-label="旅程">
-
-    <!-- 携帯では、条件と結果を別の画面にします（css の data-view）。
-         同じ画面に縦に並べていたころは、旅程が出てもまず条件が見えていて、
-         結果まで自分でスクロールしないと読めませんでした。戻る道はここ。
-         広い画面では左右に並ぶので、このボタンは出しません。 -->
-    <button type="button" class="md-btn md-btn--tonal md-state back-to-form hig-glass"
-            id="back-to-form">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg><span>条件を変更する</span>
-    </button>
-
-    <!-- 頼んだこと（吹き出し）。何を頼んで、この旅程が返ってきたのかを
-         旅程の上に残します（js/app.js の renderAsk）。 -->
-    <div class="ask" id="ask" hidden>
-      <p class="ask-bubble" id="ask-text"></p>
-      <ul class="ask-chips" id="ask-chips" aria-label="頼んだときの条件"></ul>
-    </div>
-
-    <div id="placeholder" class="placeholder">
-      <div id="home-map" class="home-map"></div>
-      <!-- 見出し（h1）は画面に出しません（条件の入力が下がるため）。
-           代わりに、ここへ「何が返ってくるか」を先に見せます。
-           一行の案内だけだと、右半分が空白の理由が分かりません。
-           以前は地図とのすき間が詰まっていて、狭い画面では地図の下端に
-           食い込んで見えていました（flex:1 の地図が可変の高さを取り、
-           この帯の分だけ縮む形になっていたためです）。地図の最小の高さを
-           確保して、帯の取り分をあらかじめ空けておきます。 -->
-      <ol class="home-steps" id="home-hint" aria-label="つくりかた">
-        <li><i aria-hidden="true">1</i><span>行きたいことを、ひとこと書く</span></li>
-        <li><i aria-hidden="true">2</i><span>出発地と時刻は、欄の下の札で決める</span></li>
-        <li><i aria-hidden="true">3</i><span>行き先・順番・移動時間の入った旅程と、地図が出る</span></li>
-      </ol>
-    </div>
-
+      <!-- 答えの部品。組み始めると、いちばん新しい答えの中へ移ります。 -->
+      <div class="stash" id="stash" hidden>
+        <div id="form-error" hidden></div>
     <div id="progress" class="planning" hidden role="status" aria-live="polite"></div>
-
     <div id="result" class="result" hidden>
       <div id="map" class="map">
         <button type="button" class="md-icon-btn md-state map-expand" id="map-expand"
@@ -393,137 +268,239 @@
       </div>
       <div id="itinerary" class="itin"></div>
     </div>
+      </div>
+    </div>
 
+    <div class="dock" id="dock">
+      <div class="tune-group" id="pinned" hidden></div>
+      <p class="area-picked" id="area-picked" role="status"></p>
+
+      <div class="composer" id="composer">
+        <label class="note-field">
+          <span class="sr-only">やりたいこと</span>
+          <textarea id="note" rows="2"
+            placeholder="例）温泉でゆっくりして、海も見たい"></textarea>
+        </label>
+        <div class="composer-row">
+          <button type="button" class="plus-btn md-state" id="plus" aria-haspopup="true"
+                  aria-expanded="false" aria-controls="pop" aria-label="条件を足す" title="条件を足す">
+            <svg class="ic" data-icon="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="cond-pills" role="group" aria-label="いまの条件">
+            <button type="button" class="cond-pill md-state" id="pill-from" data-open-cond="from"
+                    aria-haspopup="dialog">
+              <svg class="ic" data-icon="spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11ZM12 12.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg><span id="pill-from-tx">東京駅から</span>
+            </button>
+            <button type="button" class="cond-pill md-state" id="pill-when" data-open-cond="when"
+                    aria-haspopup="dialog">
+              <svg class="ic" data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/></svg><span id="pill-when-tx">今日</span>
+            </button>
+          </div>
+          <button type="button" class="send-btn md-state" id="make-plan">
+            <svg class="ic fab-ic" data-icon="up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20V4.5M6 10.5 12 4.5l6 6"/></svg>
+            <span class="fab-tx sr-only">旅程をつくる</span>
+          </button>
+        </div>
+
+        <!-- 「＋」の中身。押すと、まず項目の一覧（menu）が出ます。項目を
+             選ぶと、その1つだけ（駅名の欄・カレンダー…）に切り替わります。 -->
+        <div class="pop" id="pop" hidden>
+        <div class="pop-panel" id="plus-menu" data-panel="menu" role="menu" aria-label="条件を足す" hidden>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="from">
+            <svg class="ic" data-icon="spot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11ZM12 12.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg><span class="plus-tx"><b>出発地</b><small>駅の名前で決める</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="when">
+            <svg class="ic" data-icon="calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/></svg><span class="plus-tx"><b>日時</b><small>出発と帰りの日にち・時刻</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="examples">
+            <svg class="ic" data-icon="bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z"/></svg><span class="plus-tx"><b>旅の例</b><small>押すと、欄に入ります</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="mix">
+            <svg class="ic" data-icon="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 10l6.1-.9Z"/></svg><span class="plus-tx"><b>まわる場所</b><small>定番中心・バランス・穴場多め</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune" id="pill-tune" aria-haspopup="dialog">
+            <svg class="ic" data-icon="sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg><span class="plus-tx"><b>こだわり</b><small>人数・予算・移動手段・宿など</small></span>
+          </button>
+        </div>
+        <div class="pop-panel" id="panel-from" data-panel="from" role="group" aria-labelledby="panel-from-title" hidden>
+          <header class="pop-head">
+            <h2 class="pop-title" id="panel-from-title">出発地</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <label class="md-field">
+          <span class="md-field-label">出発地</span>
+          <input list="place-list" id="depart-place" placeholder="駅名（例: 新宿駅）"
+          autocomplete="off">
+          <datalist id="place-list"></datalist>
+          </label>
+          <button type="button" class="md-btn md-btn--tonal md-state here-btn"
+          id="use-here">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10ZM12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>現在地から探す</span>
+          </button>
+          <p class="here-note" id="here-note">
+          現在地は、いちばん近い駅を出発地に入れるためだけに使います。
+          どこにも送りません。</p>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel" id="panel-when" data-panel="when" role="group" aria-labelledby="panel-when-title" hidden>
+          <header class="pop-head">
+            <h2 class="pop-title" id="panel-when-title">日時</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <!-- 出発日の近道。時刻と、出発から帰着までの日数はそのまま保ちます。 -->
+          <div class="chip-set date-presets" role="group" aria-label="出発日の近道">
+          <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="today">今日</button>
+          <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="tomorrow">明日</button>
+          <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="saturday">今週末（土）</button>
+          <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="sunday">今週末（日）</button>
+          </div>
+          <div class="when-row">
+          <label class="md-field">
+          <span class="md-field-label">出発</span>
+          <input type="datetime-local" id="depart-at">
+          </label>
+          <label class="md-field">
+          <span class="md-field-label">帰着（この時刻まで）</span>
+          <input type="datetime-local" id="arrive-by">
+          </label>
+          </div>
+          <p class="md-field-help" id="window-help"></p>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel" id="panel-mix" data-panel="mix" role="group" aria-labelledby="panel-mix-title" hidden>
+          <header class="pop-head">
+            <h2 class="pop-title" id="panel-mix-title">まわる場所</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <div class="md-segmented mix-quick" id="mix-quick" role="radiogroup" aria-label="まわる場所">
+            <button type="button" role="radio" aria-checked="false" data-mix="15">定番中心</button>
+            <button type="button" role="radio" aria-checked="true" data-mix="40">バランス</button>
+            <button type="button" role="radio" aria-checked="false" data-mix="75">穴場多め</button>
+          </div>
+          <div class="tune-group">
+          <!-- つまみの名前は <label for> で結びます。span + aria-labelledby でも
+          読み上げは通りますが、名前を押してつまみに触れる・支援技術が
+          「名前のある入力欄」として数える、といった当たり前が付きません。 -->
+          <label class="tune-label" id="bias-label" for="hidden-bias">定番と穴場のまぜかた</label>
+          <!-- 10か所のうち何か所が定番で、何か所が穴場か。**帯の幅がその数**です。
+          幅で見せる形に戻しました。
+
+          いちど、点を3つの区画に並べる形にしました（人が多いところに
+          点が多い、という絵）。区画が3つ並ぶと高さが 58px になり、
+          上下に名前と文が付くので、つまみの周りだけで4段になります。
+          しかも「区画」という入れものが増えたぶん、**どこを動かすと
+          何が変わるのか**が遠くなりました。
+
+          帯なら1段で済み、幅そのものが数です。読めなかったのは帯の形
+          ではなく、帯に**何も書いていなかった**ことでした（色の3分割
+          だけで、どの色がどれなのか分からない）。名前と数を帯の中に
+          書き、狭くなったら数だけ、もっと狭ければ何も書かない
+          ようにします。数は実際に選ぶ関数（mixTargets）から引きます。
+
+          字が落ちた区間の色は、下の文に付けた同じ色の点で分かります
+          （色だけで意味を運ばないよう、点の横には必ず言葉があります）。 -->
+          <div class="mix" id="mix-view" aria-hidden="true">
+          <div class="mix-bar">
+          <i class="mix-seg mix-seg--major" id="mix-seg-major">
+          <b>定番</b><em>5</em>
+          </i>
+          <i class="mix-seg mix-seg--known" id="mix-seg-known">
+          <b>知る人ぞ知る</b><em>3</em>
+          </i>
+          <i class="mix-seg mix-seg--hidden" id="mix-seg-hidden">
+          <b>穴場</b><em>2</em>
+          </i>
+          </div>
+          </div>
+          <input type="range" class="md-slider" id="hidden-bias"
+          min="0" max="100" value="40"
+          aria-describedby="mix-summary">
+          <!-- 読みかたと数を、1つの塊にします。以前は「定番を軸に、穴場を
+          少し混ぜます」と「10か所のうち…」が別々の段落で並び、
+          同じことを2度読ませていました。
+
+          数そのものは帯の中にも出ているので、文のほうは短く畳みます
+          （「定番が5か所、…が3か所、…が2か所くらいになります」は
+          390px で3行になり、つまみの下が文だけで埋まっていました）。
+          ここに文を残すのは、帯が aria-hidden だからです。つまみの
+          説明（aria-describedby）はこの文が担います。 -->
+          <p class="mix-summary" id="mix-summary">
+          <span class="mix-mood" id="hidden-bias-help">定番より</span>
+          10か所行くとして、<span class="mix-part"><span
+          class="mix-key mix-key--major">定番</span><b
+          id="mix-classic-n">5</b>か所</span>／<span class="mix-part"><span
+          class="mix-key mix-key--known">知る人ぞ知る場所</span><b
+          id="mix-known-n">3</b>か所</span>／<span class="mix-part"><span
+          class="mix-key mix-key--hidden">穴場</span><b
+          id="mix-hidden-n">2</b>か所</span>くらい</p>
+          </div>
+          <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
+        </div>
+        <div class="pop-panel" id="panel-examples" data-panel="examples" role="group" aria-labelledby="panel-examples-title" hidden>
+          <header class="pop-head">
+            <h2 class="pop-title" id="panel-examples-title">旅の例</h2>
+            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <div class="chip-set example-list" role="group" aria-label="旅の例">
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="日光で滝と社寺をめぐりたい">日光 滝と社寺</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="湯布院で温泉に入って、ゆったり過ごしたい" data-from="博多駅">湯布院 温泉</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="温泉でゆっくり癒されたい">温泉でゆっくり</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="歴史ある街を歩いて、美味しいものを食べたい">歴史ある街歩き</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="人が少ない静かな場所で自然を感じたい">静かな自然</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="絶景が見たい。写真をたくさん撮りたい">絶景・写真</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="海の見えるところでのんびりしたい">海でのんびり</button>
+            <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="美術館と建築をめぐりたい">アートと建築</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- はじめての人のための、そのまま使える例（4つ）。押すと欄が埋まります。
+           旅程ができたあとは出しません（続けて書く欄だけにします）。 -->
+      <div class="chip-set note-examples" role="group" aria-label="そのまま使える例">
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="鎌倉を日帰りで、食べ歩きもしたい" data-from="東京駅">鎌倉 日帰り</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="箱根で温泉に入って、美術館もめぐりたい">箱根 温泉と美術館</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="雨でも楽しめる京都をまわりたい" data-from="大阪駅">雨の日の京都</button>
+        <button type="button" class="md-chip md-chip--assist md-state"
+                data-example="海沿いの道をドライブして、景色のいいところに寄りたい">海沿いドライブ</button>
+      </div>
+
+      <p class="compose-foot">AIは間違えることがあります。電車の時刻は目安です。出かける前に公式の情報も確かめてください。</p>
+    </div>
   </section>
 
 </main>
 
-<!-- 旅の条件。
-     いつ・どこから・まわる場所・こだわりを1枚にまとめます。入力欄の下の札
-     （#pill-from など）と、上の「日帰り・電車」から開きます。
-     中の部品は以前の左の欄と同じもので、名前（id）も変えていません。 -->
+<!-- こだわり。人数・予算・移動手段・宿・食事など、決めたい人だけが開く
+     細かい設定です（「＋」→「こだわり」）。チャットに書いたことは、
+     ここの設定より勝ちます。 -->
 <dialog id="cond-dialog" class="md-dialog cond-sheet" aria-labelledby="cond-title">
   <header class="cond-head">
     <span class="cond-head-side" aria-hidden="true"></span>
-    <h2 class="hig-title-2" id="cond-title">旅の条件</h2>
+    <h2 class="hig-title-2" id="cond-title">こだわり</h2>
     <button type="button" class="md-btn md-btn--text md-state cond-done" id="cond-done">完了</button>
   </header>
   <div class="cond-body">
-    <!-- いつ・どこから -->
-    <section class="step" aria-labelledby="step2-title">
-      <h2 class="step-title" id="step2-title">
-        いつ・どこから
-      </h2>
-
-      <label class="md-field">
-        <span class="md-field-label">出発地</span>
-        <input list="place-list" id="depart-place" placeholder="駅名（例: 新宿駅）"
-               autocomplete="off">
-        <datalist id="place-list"></datalist>
-      </label>
-      <button type="button" class="md-btn md-btn--tonal md-state here-btn"
-              id="use-here">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10ZM12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>現在地から探す</span>
-      </button>
-      <p class="here-note" id="here-note">
-        現在地は、いちばん近い駅を出発地に入れるためだけに使います。
-        どこにも送りません。</p>
-
-      <!-- 出発日の近道。時刻と、出発から帰着までの日数はそのまま保ちます。 -->
-      <div class="chip-set date-presets" role="group" aria-label="出発日の近道">
-        <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="today">今日</button>
-        <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="tomorrow">明日</button>
-        <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="saturday">今週末（土）</button>
-        <button type="button" class="md-chip md-chip--assist md-state" data-day-preset="sunday">今週末（日）</button>
-      </div>
-      <div class="when-row">
-        <label class="md-field">
-          <span class="md-field-label">出発</span>
-          <input type="datetime-local" id="depart-at">
-        </label>
-        <label class="md-field">
-          <span class="md-field-label">帰着（この時刻まで）</span>
-          <input type="datetime-local" id="arrive-by">
-        </label>
-      </div>
-      <p class="md-field-help" id="window-help"></p>
-
-    </section>
-
-    <!-- ③ 定番と穴場のまぜかた。
-         入力欄のすぐ下にも3段の切り替え（#mix-quick）を出しています。
-         ここは細かく決めたい人のためのつまみで、どちらを動かしても
-         同じ値（#hidden-bias）が変わります。 -->
-    <section class="step" aria-labelledby="step3-title">
-      <h2 class="step-title" id="step3-title">
-        まわる場所
-      </h2>
-
-      <div class="tune-group">
-        <!-- つまみの名前は <label for> で結びます。span + aria-labelledby でも
-             読み上げは通りますが、名前を押してつまみに触れる・支援技術が
-             「名前のある入力欄」として数える、といった当たり前が付きません。 -->
-        <label class="tune-label" id="bias-label" for="hidden-bias">定番と穴場のまぜかた</label>
-        <!-- 10か所のうち何か所が定番で、何か所が穴場か。**帯の幅がその数**です。
-             幅で見せる形に戻しました。
-
-             いちど、点を3つの区画に並べる形にしました（人が多いところに
-             点が多い、という絵）。区画が3つ並ぶと高さが 58px になり、
-             上下に名前と文が付くので、つまみの周りだけで4段になります。
-             しかも「区画」という入れものが増えたぶん、**どこを動かすと
-             何が変わるのか**が遠くなりました。
-
-             帯なら1段で済み、幅そのものが数です。読めなかったのは帯の形
-             ではなく、帯に**何も書いていなかった**ことでした（色の3分割
-             だけで、どの色がどれなのか分からない）。名前と数を帯の中に
-             書き、狭くなったら数だけ、もっと狭ければ何も書かない
-             ようにします。数は実際に選ぶ関数（mixTargets）から引きます。
-
-             字が落ちた区間の色は、下の文に付けた同じ色の点で分かります
-             （色だけで意味を運ばないよう、点の横には必ず言葉があります）。 -->
-        <div class="mix" id="mix-view" aria-hidden="true">
-          <div class="mix-bar">
-            <i class="mix-seg mix-seg--major" id="mix-seg-major">
-              <b>定番</b><em>5</em>
-            </i>
-            <i class="mix-seg mix-seg--known" id="mix-seg-known">
-              <b>知る人ぞ知る</b><em>3</em>
-            </i>
-            <i class="mix-seg mix-seg--hidden" id="mix-seg-hidden">
-              <b>穴場</b><em>2</em>
-            </i>
-          </div>
-        </div>
-        <input type="range" class="md-slider" id="hidden-bias"
-               min="0" max="100" value="40"
-               aria-describedby="mix-summary">
-        <!-- 読みかたと数を、1つの塊にします。以前は「定番を軸に、穴場を
-             少し混ぜます」と「10か所のうち…」が別々の段落で並び、
-             同じことを2度読ませていました。
-
-             数そのものは帯の中にも出ているので、文のほうは短く畳みます
-             （「定番が5か所、…が3か所、…が2か所くらいになります」は
-             390px で3行になり、つまみの下が文だけで埋まっていました）。
-             ここに文を残すのは、帯が aria-hidden だからです。つまみの
-             説明（aria-describedby）はこの文が担います。 -->
-        <p class="mix-summary" id="mix-summary">
-          <span class="mix-mood" id="hidden-bias-help">定番より</span>
-          10か所行くとして、<span class="mix-part"><span
-            class="mix-key mix-key--major">定番</span><b
-            id="mix-classic-n">5</b>か所</span>／<span class="mix-part"><span
-            class="mix-key mix-key--known">知る人ぞ知る場所</span><b
-            id="mix-known-n">3</b>か所</span>／<span class="mix-part"><span
-            class="mix-key mix-key--hidden">穴場</span><b
-            id="mix-hidden-n">2</b>か所</span>くらい</p>
-      </div>
-
-    </section>
-
-    <!-- ここから下は「決めたい人だけ」。
-         初めての人に9項目を並べると、埋めること自体が目的になります。
-         最初に出すのは「どんな旅・どこから・いつ・定番と穴場」の4つで、
-         残りはここへ畳みます。触らなくても旅程は組めます。 -->
-    <details class="tune" id="tune">
+    <details class="tune" id="tune" open>
       <!-- 開く前に、中に何があるかを見せます。「こだわり」だけでは、
            人数や宿のことがここにあると分かりません。中は4つの区切りに
            分け、それぞれに見出しを付けます（縦に13項目が続くと、
@@ -830,8 +807,6 @@
       </div>
     </details>
 
-    <!-- 別の旅を一から考えたいとき。確認を挟んでから、保存した条件を
-         消して開き直します（js/app.js の resetConditions）。 -->
     <p class="reset-row">
       <button type="button" class="linkish" id="reset-form">条件をリセット</button>
     </p>
@@ -1065,23 +1040,6 @@
   </div>
 </dialog>
 
-<!-- 旅行者は「API」を使っている意識がありません。
-     「APIの使用を続けますか」と出しても、何を聞かれているのか
-     伝わりません。同じ確認を、旅の言葉でします。 -->
-<dialog id="quota-dialog" class="md-dialog">
-  <h2 class="hig-title-2">この旅を、もう少し詳しく調べますか</h2>
-  <p class="hig-subhead" id="quota-detail" style="margin:0 0 12px"></p>
-  <!-- 文面は app.js が入れます。AIをどこで動かしているかで、できることが
-       変わるためです（Workers AI には検索がありません）。 -->
-  <p class="hig-footnote" id="quota-note"
-     style="margin:0;padding:14px 16px;border-radius:var(--hig-r-sm);background:var(--hig-fill);color:var(--hig-label)"></p>
-  <div class="md-dialog-actions">
-    <button type="button" class="md-btn md-btn--text md-state" id="quota-stop">
-      <span>ここまでにする</span></button>
-    <button type="button" class="md-btn md-btn--filled md-state" id="quota-go">
-      <span>詳しく調べる</span></button>
-  </div>
-</dialog>
 
 <!-- async を付けます。
      これが無いと、地図の部品が届くまでページ全体が止まります。

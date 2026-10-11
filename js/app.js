@@ -30,7 +30,6 @@ import { artFor } from "./art.js";
 import { icon } from "./icons.js";
 import { mixTargets } from "./mix.js";
 import { photoFor } from "./photos.js";
-import { followReading } from "./follow.js";
 import { applyEdit, describeEdit, parseEdit } from "./edit.js";
 import { applyReplan } from "./replan.js";
 import { confidenceOf, describeSource, freshnessOf } from "./confidence.js";
@@ -57,7 +56,9 @@ import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
          replaceHistory, savedLabel, thawItinerary } from "./history.js";
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
-import { renderAsk, updatePills, wireShell } from "./shell.js";
+import { closePop, updatePills, wireShell } from "./shell.js";
+import { answerTurn, hasTurn, resetThread, sayInTurn, startTurn } from "./chat.js";
+import { hasSubstance, readChat } from "./chatread.js";
 
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
 // と、ファイルの書き出し・読み込み（js/transfer.js）は、開いた直後の
@@ -136,14 +137,12 @@ async function boot() {
   state.map = new TripMap("map");
   state.map.configure({ tileUrl: TILE_URL, attribution: TILE_ATTRIBUTION });
   startBackgroundMap();
-  // 携帯では、条件の画面に地図は出ていません（3画面に分けています）。
-  // 見えていない地図のために Leaflet を待ち、地図のタイルを何枚も
-  // 落とすのは、移動中の回線ではただの負担です。結果の画面に移った
-  // ときに作ります。
-  if (!isNarrow()) startHomeMap();
-  else startHomeMapWhenSeen();
-
-  configureQuota({ ask: askQuota, onChange: showQuota });
+  // はじめの画面に地図は置きません（チャットの欄だけにします。地図は
+  // 答えの「詳細を確認する」の中です）。
+  //
+  // 50件ごとに「もう少し調べますか？」と聞く確認もやめました。
+  // 使いすぎの歯止めは、中継（server/worker.js）が IP ごとに持っています。
+  configureQuota({ onChange: showQuota });
 
   registerServiceWorker();
   // 圏外のあいだは、そのことを上に1行出します（js/online.js）。
@@ -165,9 +164,14 @@ async function boot() {
     // 日時は残します（同じ人が続けて別の旅を考えるときに、毎回入れ
     // 直させないため）。
     onNewTrip: () => {
+      state.planAbort?.abort();
       const note = $("#note");
       note.value = "";
       note.dispatchEvent(new Event("input", { bubbles: true }));
+      state.sentNote = null;
+      state.shown = null;
+      resetThread();
+      setTopTitle("");
       showView("form");
       note.focus();
     },
@@ -204,7 +208,6 @@ async function boot() {
     kept.itin.restored = true;
     state.trip = kept.trip;
     state.tripMode = true;
-    $("#placeholder").hidden = true;
     show(kept.itin, kept.trip);
   }
 
@@ -265,7 +268,6 @@ async function openSharedTrip() {
   itin.sharedLink = true;
   state.trip = trip;
   showView("result");
-  $("#placeholder").hidden = true;
   show(itin, trip);
   setBadge("送られてきた旅程を開きました");
   setTimeout(() => setBadge(kbBadgeText()), 3600);
@@ -338,8 +340,13 @@ function renderRecent() {
  * 端末の空きが足りなくて条件だけ残ったもの）ときだけ組み直します。
  */
 function openHistory(item) {
+  // やりとりは、その旅のものだけにします（前の旅の答えと混ぜない）。
+  resetThread();
+  state.sentNote = item.state?.note || "";
+  startTurn(item.state?.note || item.title, []);
   if (!item.itin) { replayHistory(item); return; }
   applyFormState(item.state);
+  clearDraft();
   saveConditions();
   const itin = thawItinerary(item.itin);
   const trip = thawItinerary(item.trip ?? null) ?? state.trip;
@@ -352,6 +359,7 @@ function openHistory(item) {
 /** 条件を入力欄に戻して、そのまま組み直します。 */
 function replayHistory(item) {
   applyFormState(item.state);
+  clearDraft();
   // 日付だけは、そのままだと過去になっていることがあります。
   // 過ぎた日で組むと「出発時刻が過去です」で止まるので、
   // そのときは同じ長さのまま、次の同じ曜日へずらします。
@@ -771,53 +779,6 @@ function showQuota() {
   box.classList.remove("ok");
 }
 
-/** 確認ダイアログ。押されたボタンだけが返事になります。 */
-function askQuota({ used, byKind, next }) {
-  const dlg = $("#quota-dialog");
-  // 内訳も、旅行者に意味の通る言葉にします。
-  // 「embed 12件」と書かれても、何のことか分かりません。
-  const label = { routes: "乗換・所要時間の確認", gemini: "行き先の調査",
-                  embed: "希望の読み取り" };
-  const parts = Object.entries(byKind).sort((a, b) => b[1] - a[1])
-    .map(([k, n]) => `${label[k] ?? k} ${n}回`);
-  $("#quota-detail").textContent =
-    `ここまでに ${used}回 調べました`
-    + (parts.length ? `（内訳: ${parts.join("・")}）` : "")
-    + "。";
-  $("#quota-go").querySelector("span").textContent = "詳しく調べる";
-  // できないことを「します」と書かない。
-  //
-  // 「収録に無い場所をAIが探します」と出していましたが、AIを中継の中で
-  // 動かしている（Workers AI）ときは検索ができません。収録済みの中から
-  // 選ぶだけです。押す前に分かるようにします。
-  const note = $("#quota-note");
-  if (note) {
-    note.textContent = canGround()
-      ? "ここから先は、実際の乗換時間を調べたり、収録に無い場所をAIが"
-        + "探したりします。ここまでにしても旅程は作れます"
-        + "（移動時間は距離からの目安、行き先は収録済みの中から選びます）。"
-      : "ここから先は、実際の乗換時間を調べ、AIが希望に合う行き先を"
-        + "選びます。収録に無い場所をインターネットで探すことはしません"
-        + "（いまの設定では、AIに検索の機能がありません）。"
-        + "ここまでにしても旅程は作れます（移動時間は距離からの目安です）。";
-  }
-
-  return new Promise((resolve) => {
-    const done = (ok) => {
-      $("#quota-go").removeEventListener("click", yes);
-      $("#quota-stop").removeEventListener("click", no);
-      dlg.close();
-      resolve(ok);
-    };
-    const yes = () => done(true);
-    const no = () => done(false);
-    $("#quota-go").addEventListener("click", yes);
-    $("#quota-stop").addEventListener("click", no);
-    // Esc で閉じられると、続けたいのか止めたいのかが分かりません
-    dlg.addEventListener("cancel", (e) => e.preventDefault());
-    dlg.showModal();
-  });
-}
 
 
 // --- 画面まわりの部品 -------------------------------------------------------
@@ -926,92 +887,6 @@ function pickArea(area) {
   if (said) said.textContent = `「${area.name}」を入れました。続けて書き足せます。`;
   note.focus();
   note.setSelectionRange(note.value.length, note.value.length);
-}
-
-/**
- * 最初の地図で必ず収める枠（南西, 北東）。北九州から道東まで。
- *
- * 九州の南端と北海道の北端まで含めると、広い画面でも縮尺が1段
- * 引かれて大陸が半分を占めます。縮尺を小数にすると（zoomSnap）
- * タイルの継ぎ目に白い線が出るので、整数のまま、この枠で1段寄せます。
- * 中心はこの枠の中心なので、寄せたときも端が少し切れるだけです。
- */
-const JAPAN_HOME_VIEW = [[33, 130.5], [43.5, 145]];
-
-let homeMapStarted = false;
-
-async function startHomeMap() {
-  const box = document.getElementById("home-map");
-  if (!box) return;
-  if (homeMapStarted) return;   // 2度作らない
-  homeMapStarted = true;
-  await whenLeaflet();
-  if (!window.L) {
-    // 地図を読み込めない環境で、灰色の四角を黙って出さないこと。
-    // 旅程づくりは地図が無くても成立します。
-    box.classList.add("map-fallback");
-    box.textContent = "地図を読み込めませんでした"
-      + "（インターネット接続をご確認ください）。"
-      + "旅程はこのままつくれます。";
-    return;
-  }
-  try {
-    // 最初に見せるのは日本列島です。中心と縮尺を決め打ちにしていた
-    // ころは、広い画面だと大陸と朝鮮半島が半分を占め、外国語の地名が
-    // 日本より目立っていました。本州を囲む枠に合わせ、画面の大きさに
-    // 応じた縮尺を Leaflet に選ばせます。
-    const map = window.L.map(box, {
-      zoomControl: false, scrollWheelZoom: false,
-      attributionControl: true,
-    }).setView([36.2, 138.3], 5);
-    japaneseControls(map);
-    window.L.tileLayer(TILE_URL,
-      { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
-    state.homeMap = map;
-  } catch {
-    return;   // 地図が出せなくても、入力はできます
-  }
-  pinHomeAreas();
-}
-
-/**
- * 携帯では、はじめの画面の地図は例の下にあります。開いた瞬間には
- * 見えていないので、画面に入ってから作ります（見えない地図のために
- * タイルを落とさない）。
- */
-function startHomeMapWhenSeen() {
-  const box = document.getElementById("home-map");
-  if (!box || !globalThis.IntersectionObserver) return;
-  const io = new IntersectionObserver((entries) => {
-    if (!entries.some((e) => e.isIntersecting)) return;
-    io.disconnect();
-    startHomeMap();
-  }, { rootMargin: "120px" });
-  io.observe(box);
-}
-
-/**
- * はじめの画面の地図に、エリアのピンを立てます。
- *
- * 行き先をまだ決めていない人には、日本地図が出ているだけでは手が
- * かりになりません。収録の主なエリアを並べ、押せば欄に名前が入る
- * ようにします（「エリアから探す」と同じピンで、勝手に組み始めません）。
- */
-let homePinned = false;
-async function pinHomeAreas() {
-  if (homePinned || !state.homeMap) return;
-  homePinned = true;
-  try {
-    // 収録の読み込みは起動の少しあとで始まります。始まるまで待ちます。
-    for (let i = 0; !state.kbPromise && i < 100; i += 1) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    const [mod, kb] = await Promise.all([import("./areamap.js"), state.kbPromise]);
-    areaModule = mod;
-    mod.pinAreas(state.homeMap, mod.curatedAreas(kb?.regions ?? []), pickArea);
-  } catch {
-    // ピンが立たなくても、地図と入力はそのまま使えます
-  }
 }
 
 /**
@@ -1559,8 +1434,15 @@ function wireForm() {
   $("#arrive-by").addEventListener("change", updateWindowHelp);
   // 引数なしで呼びます。そのまま渡すと、クリックイベントが
   // 「条件」として渡ってしまいます。
-  $("#make-plan").addEventListener("click", () => run());
-  $("#back-to-form").addEventListener("click", () => showView("form"));
+  $("#make-plan").addEventListener("click", () => send());
+  // Enter で送ります（Shift + Enter で改行）。変換中の Enter は、
+  // 字を決めるためのものなので送りません。
+  $("#note").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+    if (e.metaKey || e.ctrlKey) return;   // 下の Ctrl/⌘ + Enter に任せます
+    e.preventDefault();
+    send();
+  });
 
   // 開発者向けの欄は、既定では出しません（?debug=1 で出ます）。
   const dev = document.getElementById("dev-settings");
@@ -1575,7 +1457,7 @@ function wireForm() {
   document.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      if (state.mode === "plan") run();
+      if (state.mode === "plan") send();
     }
   });
 }
@@ -1676,7 +1558,8 @@ async function readTrip() {
     endMode: other ? END_MODES.END_AT_DESTINATION : END_MODES.RETURN_TO_ORIGIN,
     departAt: new Date($("#depart-at").value),
     arriveBy: new Date($("#arrive-by").value),
-    note: $("#note").value,
+    // 送った文です（送ると欄は空になります）。
+    note: state.sentNote ?? $("#note").value,
     interests: genres,
     // 予算の上限。決めていなければ null（見ません）。
     budgetYen: state.budgetYen ?? null,
@@ -1719,7 +1602,7 @@ const SAVE_KEY = "tabisaki.lastTrip";
 /** 入力欄の中身。保存・共有・復元で同じ形を使います。 */
 function formState() {
   return {
-    note: $("#note").value,
+    note: state.sentNote ?? $("#note").value,
     from: $("#depart-place").value,
     to: $("#end-place").value,
     end: state.endMode,
@@ -1837,9 +1720,9 @@ function restoreConditions() {
     if (raw) {
       applyFormState(JSON.parse(raw));
       restored = "saved";
-      // 長い文を戻したときに、欄を文の長さまで伸ばします。
-      const box = $("#note");
-      if (box.value) box.dispatchEvent(new Event("input", { bubbles: true }));
+      // 前に送った文は、入力欄には戻しません（チャットの欄は、いつも
+      // 空から書き始めます）。出発地や日時は残ります。
+      clearDraft();
     }
   } catch { /* 無ければ既定値のまま */ }
   // エリアのページ（areas/）から来たとき。`?q=` は「どんな旅にしたい？」
@@ -2139,14 +2022,13 @@ function showView(view) {
   document.body.dataset.view = view;
   // 結果の画面に移ったら、そこで地図を用意します（携帯では、ここが
   // 地図の見え始めです）。2度目以降は startHomeMap 側で弾かれます。
-  if (view === "result" && isNarrow()) startHomeMap();
   globalThis.scrollTo?.({ top: 0, behavior: scrollBehavior() });
   // 携帯では、押したボタン（「旅程をつくる」「条件を変更する」）ごと
   // 画面が隠れます。フォーカスは行き場を失ってページの頭に落ち、
   // キーボードでは次の Tab が「条件の入力へ移動」から始まり、読み上げ
   // では何が起きたのかが何も言われませんでした。移った先の画面へ
   // 渡します。
-  landFocus(view === "result" ? ".pane-result" : "#form-pane");
+  landFocus(view === "result" ? "#thread" : "#note");
 }
 
 /**
@@ -2522,6 +2404,167 @@ function applySuggestion(s) {
   run();
 }
 
+// --- チャット -----------------------------------------------------------------
+
+/** 入力欄を空にします（送ったあと・前の条件を戻したとき）。 */
+function clearDraft() {
+  const box = $("#note");
+  if (!box) return;
+  box.value = "";
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/** 上の帯に、いま話している旅の名前を出します。 */
+function setTopTitle(text) {
+  const t = $("#topbar-title");
+  if (t) t.textContent = text;
+}
+
+/** 直す頼みかどうか。「もっと」「外して」のような言い方を見ます。 */
+const EDIT_WORDS = /(もっと|少なく|減らし|増やし|外し|はずし|抜い|やめ|なしで|代わり|別の|入れて|加えて|追加|足して|変えて|かえて|変更|にして|して(?:ほしい|ください|下さい)?$|多め|少なめ|早め|遅め|ゆっくり|のんびり|詰め)/;
+
+/**
+ * いまの旅先と別の土地の名前が書いてあるか（「松江と出雲をゆっくり」）。
+ * 書いてあれば、直しではなく新しい旅の頼みとして扱います。
+ */
+function mentionsOtherPlace(text, itin) {
+  const here = [itin?.regionName, itin?.title, itin?.prefecture, itin?.headline]
+    .filter(Boolean).join(" ");
+  for (const r of state.kb?.regions ?? []) {
+    const names = [r.name, String(r.prefecture ?? "").replace(/[都府県]$/, "")];
+    for (const n of names) {
+      if (n && n.length >= 2 && text.includes(n) && !here.includes(n)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * チャットに書いた条件を、設定の欄へ書き込みます。
+ *
+ * **書いたことが、設定より勝ちます。** 「明日」と書けば、日時の欄が
+ * 今日のままでも明日で組みます。読み取ったものは吹き出しの下に並べる
+ * ので、違っていればそこで分かります。
+ *
+ * @returns {Promise<string[]>} 吹き出しの下に並べる言葉
+ */
+async function applyChat(read) {
+  const labels = [...read.labels];
+  const dep = $("#depart-at"), arr = $("#arrive-by");
+  const d0 = new Date(dep.value), d1 = new Date(arr.value);
+  if (read.start || read.nights != null || read.departHour != null || read.returnHour != null) {
+    const ok0 = Number.isFinite(d0.getTime()), ok1 = Number.isFinite(d1.getTime());
+    const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+    const prevNights = ok0 && ok1
+      ? Math.max(0, Math.round((day(d1) - day(d0)) / 86400000)) : 0;
+    const base = read.start ?? (ok0 ? day(d0) : day(new Date()));
+    const depH = read.departHour ?? (ok0 ? d0.getHours() + d0.getMinutes() / 60 : 9);
+    const retH = read.returnHour ?? (ok1 ? d1.getHours() + d1.getMinutes() / 60 : 19);
+    const nights = read.nights ?? prevNights;
+    const at = (d, h) => new Date(d.getFullYear(), d.getMonth(), d.getDate(),
+                                  Math.floor(h), Math.round((h % 1) * 60));
+    let start = at(base, depH);
+    // 今日のぶんで、もう過ぎた時刻なら、いまから少し先にします。
+    const now = new Date();
+    if (start < now && day(start).getTime() === day(now).getTime()) {
+      start = new Date(Math.ceil((now.getTime() + 10 * 60000) / 1800000) * 1800000);
+    }
+    const endDay = new Date(base); endDay.setDate(endDay.getDate() + nights);
+    const end = at(endDay, retH);
+    dep.value = localInput(start);
+    arr.value = localInput(end);
+    updateWindowHelp();
+  }
+  if (read.origin) {
+    const place = await resolvePlace(read.origin);
+    const i = labels.indexOf(`${read.origin}から`);
+    if (place) {
+      $("#depart-place").value = place.name;
+      if (i >= 0) labels[i] = `${place.name}から`;
+    } else if (i >= 0) {
+      labels[i] = `「${read.origin}」は見つからないので、${$("#depart-place").value || "出発地"}から`;
+    }
+  }
+  if (read.mix != null && $("#hidden-bias")) {
+    const bias = $("#hidden-bias");
+    bias.value = String(read.mix);
+    bias.dispatchEvent(new Event("input", { bubbles: true }));
+    renderMix(read.mix);
+  }
+  if (read.avoidCrowds != null) $("#avoid-crowds").checked = read.avoidCrowds;
+  if (read.people) {
+    const sel = $("#people-choice");
+    if (sel) {
+      sel.value = String(Math.min(6, read.people));
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+  if (read.budgetYen) {
+    // 選べる額（1万・2万・3万）に無いときも、その額をそのまま使います。
+    const hit = document.querySelector(`#budget-choice [data-budget="${read.budgetYen}"]`);
+    if (hit) hit.click();
+    else state.budgetYen = read.budgetYen;
+  }
+  saveConditions();
+  updatePills();
+  return labels;
+}
+
+/**
+ * 送る。チャットの入口はここ1つです。
+ *
+ *   はじめて送る          → その希望で組む
+ *   条件だけを言い直した  → 前の希望のまま、条件を変えて組み直す（「明日にして」）
+ *   直す言い方をした      → いまの旅程を直す（「もっとゆっくり」「◯◯を外して」）
+ *   それ以外              → 新しい希望として組む
+ *
+ * @param {string} [textArg] 札から送るとき
+ */
+async function send(textArg) {
+  const box = $("#note");
+  const text = String(textArg ?? box.value).trim();
+  closePop({ restore: false });
+  const prev = state.shown;
+  const read = readChat(text);
+  const labels = await applyChat(read);
+  // 何も書かずに送ったら、はじめは「おまかせ」で、旅程があるときは
+  // 「＋」で変えた条件のまま組み直します。
+  startTurn(text || (prev ? "いまの条件で組み直してください" : ""), labels);
+  if (!text && prev) { run(); return; }
+  if (textArg == null) clearDraft();
+  count("chat_send", prev ? "follow" : "first");
+
+  if (prev && text) {
+    if (!hasSubstance(read.rest)) {
+      // 条件だけ。前の希望のまま組み直します。
+      state.editNote = labels.length
+        ? `${labels.join("・")}で組み直しました。` : "";
+      run();
+      return;
+    }
+    if (EDIT_WORDS.test(read.rest) && !mentionsOtherPlace(read.rest, prev.itin)) {
+      const patch = await parseEdit(read.rest, prev.itin,
+        hasApiKey() ? { call: (prompt, o) => callModel(prompt, o) } : {});
+      if (!patch.empty) {
+        const said = describeEdit(patch, prev.itin);
+        let base = prev.trip;
+        if (read.found) {
+          try { base = await readTrip(); } catch { base = prev.trip; }
+        }
+        const next = applyEdit(patch, base);
+        syncFormTo(next);
+        state.trip = next;
+        state.editNote = said;
+        run(next);
+        return;
+      }
+    }
+  }
+  state.sentNote = text;
+  saveConditions();
+  run();
+}
+
 // --- 本体 -------------------------------------------------------------------
 
 /**
@@ -2530,8 +2573,18 @@ function applySuggestion(s) {
  *   省略すると、左の入力欄から読みます。
  */
 async function run(override) {
-  const trip = override ?? await readTrip();
+  // 答えを書く場所が無ければ作ります（「いまの条件で作り直す」など、
+  // チャットを通らずに組むとき）。
+  if (!hasTurn()) startTurn(state.sentNote ?? $("#note").value.trim(), []);
+  let trip;
+  try {
+    trip = override ?? await readTrip();
+  } catch (e) {
+    showError(e.message ?? String(e), e.suggestions ?? []);
+    return;
+  }
   showError("");
+  sayInTurn("");
 
   if (!trip.origin) {
     showError("出発地が見つかりません。一覧から駅名を選んでください。");
@@ -2554,9 +2607,7 @@ async function run(override) {
   // 条件のページに留まったままだと、旅程ができても自分でスクロール
   // して探すことになります。
   updatePills();
-  renderAsk();
   showView("result");
-  $("#placeholder").hidden = true;
   $("#result").hidden = true;
   $("#progress").hidden = false;
   const progress = $("#progress");
@@ -2606,8 +2657,7 @@ async function run(override) {
       if (state.planAbort === ctrl || state.planAbort === null) {
         progress.textContent = "";
         $("#progress").hidden = true;
-        $("#placeholder").hidden = false;
-        showView("form");
+        sayInTurn("組み立てをやめました。条件を変えて、もう一度送ってください。");
         setBadge("組み立てをやめました");
         setTimeout(() => setBadge(kbBadgeText()), 2600);
       }
@@ -2615,10 +2665,8 @@ async function run(override) {
     }
     count("plan_error", failureKind(e), facts());
     $("#progress").hidden = true;
-    $("#placeholder").hidden = false;
-    // うまくいかなかったときは、条件の画面へ戻します。理由は
-    // 条件の下に出るので、結果の画面に残すと読めません。
-    showView("form");
+    // うまくいかなかった理由は、その答えの中に出します（チャットのまま
+    // 直して送り直せます）。
     showError(e.message ?? String(e), e.suggestions ?? []);
   } finally {
     // あとから始まった組み立てがあれば、ボタンはそちらのものです。
@@ -3098,10 +3146,22 @@ function show(itin, trip) {
                   requeried: null, requerying: false };
   renderTodayBox(itin, trip);
 
+  state.shown = { itin, trip };
+  setTopTitle(itin.title ?? itin.regionName ?? "");
+  // 開き直した旅程（旅行中モード・送られてきたリンク）には、頼んだ
+  // ことの吹き出しがまだありません。そのときの希望の文を出します。
+  if (!hasTurn()) startTurn(trip?.note || itin.title || "", []);
+  answerTurn(itin, {
+    onVariant: (key) => switchVariant(key),
+    onFollow: (text) => send(text),
+    onDetails: () => state.map.invalidate(),
+    // 旅行中は、地図と次の行き先がすぐ見えるほうがいいので開いておきます。
+    openDetails: state.tripMode === true,
+  });
+
   renderItinerary($("#itinerary"), itin, trip, {
     onBack: () => {
       $("#result").hidden = true;
-      $("#placeholder").hidden = false;
     },
     onShare: () => shareConditions(trip),
     onShareTrip: () => shareTripLink(itin, trip),
@@ -3156,8 +3216,10 @@ function show(itin, trip) {
   if (!itin.restored && !itin.sharedLink && !itin.savedAt) {
     announce(`旅程ができました。${itin.title ?? itin.regionName ?? ""}`);
   }
-  const head = $("#itinerary .itin-head h2");
-  if (head) landFocus(head, { from: [".pane-result", "#progress, #progress *"] });
+  // 答えが出たら、続けて書けるように入力欄へ戻します（チャットの作法）。
+  // 送るボタンは組み立て中に押せなくなるので、フォーカスは行き場を
+  // 失っています。読み上げには、上の「旅程ができました」が届きます。
+  landFocus("#note", { from: ["#progress, #progress *"] });
 
   // ピンを押したときも、旅程の行と同じシートを開きます（往復できます）。
   const points = pointsFromItinerary(itin, trip, { onSpot: openSpotSheet });
@@ -3167,21 +3229,13 @@ function show(itin, trip) {
   // 地図の側でも濃くします（js/follow.js）。狭い画面では地図は上に
   // あって読んでいるあいだは見えないので、動かしません。
   state.stopFollow?.();
-  state.stopFollow = sideMapLayout()
-    ? followReading($(".pane-result"),
-        () => document.querySelectorAll("#itinerary .tl.spot[data-spot]"),
-        (id) => state.map.follow(id))
-    : null;
+  state.stopFollow = null;
   // 背景の地図も、その旅先へ寄せます。左で条件を直しているあいだも
   // 「いまどこの話をしているか」が背後に残ります。
   const first = points.find((p) => p.kind === "spot") ?? points[0];
   if (first) moveBackgroundMap(first.lat, first.lng, 9);
 }
 
-/** 地図を旅程の横に固定する幅か（css/app.css の同じ値と揃えます）。 */
-function sideMapLayout() {
-  return Boolean(globalThis.matchMedia?.("(min-width: 1360px)")?.matches);
-}
 
 /**
  * 立ち寄り1件の説明を開きます。旅程の行からも、地図のピンからも。

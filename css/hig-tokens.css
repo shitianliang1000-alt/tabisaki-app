@@ -354,3 +354,40 @@
     --hig-red:    #FF8F86;
   }
 }
+
+/* --- チャットの画面（2026-10） -------------------------------------------
+   Claude の画面に寄せた色です。地は白ではなく生成り、入力欄だけを
+   白く浮かせ、頼んだことの吹き出しは一段濃い生成りにします。
+   色を乗せるのは送るボタンだけです（素焼きの赤茶）。
+
+   送るボタンの字（矢印）は、明るい配色では白、暗い配色では濃い墨に
+   します。どちらも 4.5:1 を超えます（白 × #B5532F = 4.95、
+   #1F1E1D × #D97757 = 5.33）。 */
+:root {
+  --chat-bg: #FAF9F5;
+  --chat-side: #F4F2EC;
+  --chat-bubble: #F0EEE6;
+  --chat-line: #E3E0D6;
+  --chat-input: #FFFFFF;
+  --chat-hover: #ECE9E0;
+  --chat-ink: #1F1E1D;
+  --chat-ink-2: #6B6862;
+  --chat-accent: #B5532F;
+  --chat-on-accent: #FFFFFF;
+  --chat-mark: #C6613F;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chat-bg: #262624;
+    --chat-side: #1F1E1D;
+    --chat-bubble: #141413;
+    --chat-line: #3A3936;
+    --chat-input: #30302E;
+    --chat-hover: #3A3936;
+    --chat-ink: #F5F4EE;
+    --chat-ink-2: #A6A39B;
+    --chat-accent: #D97757;
+    --chat-on-accent: #1F1E1D;
+    --chat-mark: #D97757;
+  }
+}
