@@ -22,6 +22,7 @@
    なるので、見出しに出る字が入っている3つの区切りだけを置いています
    （約60KB。vendor/fonts/、SIL Open Font License）。区切りに無い字は、
    下に並べた端末の字で出ます。 */
+@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500&display=swap');
 @font-face {
   font-family: "Tabisaki Title";
   font-style: normal; font-weight: 500; font-display: swap;
@@ -3180,7 +3181,7 @@ body[data-view="result"] .note-examples { display: none; }
 .hero-greet {
   flex-basis: 100%; margin: 0;
   display: flex; align-items: center; justify-content: center; gap: 12px;
-  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-family: "Zen Maru Gothic", sans-serif;
   font-size: clamp(1.9rem, 1.3rem + 1.8vw, 2.6rem);
   line-height: 1.3; font-weight: 500; letter-spacing: .02em;
   color: var(--chat-ink);
