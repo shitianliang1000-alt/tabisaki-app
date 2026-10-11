@@ -126,10 +126,11 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 使われないので、合うスポットが無ければ無視されます。バイクで
   // 回りたい人に、電車の時刻表で組んだ旅程が出ていました。
   //
-  // **画面で選ばれているときは、そちらが勝ちます。** 明示的に選んだ
-  // ものを、文からの推し量りで上書きはしません。
+  // **文に書いてあれば、そちらが勝ちます**（2026-10 から）。チャットで
+  // 「車で」と書いた人は、設定の欄が「電車・バス」のままでも車で
+  // 組んでほしいはずです。設定を開かずに済むことを優先します。
   const intent = readIntent(trip.note);
-  if (intent.transport && trip.transport === "any") {
+  if (intent.transport) {
     trip = { ...trip, transport: intent.transport };
   }
   // 移動そのものを楽しみたいか（画面で選んだか、希望文に書いてあるか）。

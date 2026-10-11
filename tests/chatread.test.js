@@ -1,0 +1,68 @@
+// チャットに書いた条件を読み取るテスト（js/chatread.js）。
+//
+// 書いたことが設定より勝つので、読み違えると「頼んでいない日・駅」で
+// 組まれます。拾いすぎ（「明日から」を出発地と読むなど）を特に見ます。
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { hasSubstance, readChat } from "../js/chatread.js";
+
+// 2026年10月11日（日）10時
+const NOW = new Date(2026, 9, 11, 10, 0);
+const ymd = (d) => d && `${d.getMonth() + 1}/${d.getDate()}`;
+
+test("日付・日数・出発地・まわる場所をまとめて読む", () => {
+  const r = readChat("明日から1泊2日で、大阪から。穴場多めで", NOW);
+  assert.equal(ymd(r.start), "10/12");
+  assert.equal(r.nights, 1);
+  assert.equal(r.origin, "大阪");
+  assert.equal(r.mix, 75);
+});
+
+test("「明日から」「朝から」は出発地にしない", () => {
+  assert.equal(readChat("明日から箱根", NOW).origin, null);
+  assert.equal(readChat("朝から晩まで遊ぶ", NOW).origin, null);
+  assert.equal(readChat("9時から動きたい", NOW).origin, null);
+});
+
+test("駅名と「発」も出発地として読む", () => {
+  assert.equal(readChat("新宿駅から日帰りで鎌倉", NOW).origin, "新宿駅");
+  assert.equal(readChat("名古屋発 二泊三日", NOW).origin, "名古屋");
+  assert.equal(readChat("東京駅を出発して", NOW).origin, "東京駅");
+});
+
+test("曜日・日付・日数の言いかた", () => {
+  assert.equal(ymd(readChat("来週の土曜に箱根へ", NOW).start), "10/17");
+  assert.equal(ymd(readChat("10月20日から3日間", NOW).start), "10/20");
+  assert.equal(readChat("10月20日から3日間", NOW).nights, 2);
+  assert.equal(readChat("二泊三日", NOW).nights, 2);
+  assert.equal(readChat("日帰りで", NOW).nights, 0);
+  // 過ぎた日付は来年
+  assert.equal(readChat("1月5日", NOW).start.getFullYear(), 2027);
+});
+
+test("帰りの時刻と出発の時刻を取り違えない", () => {
+  const r = readChat("9時に出発して、19時までに帰りたい", NOW);
+  assert.equal(r.departHour, 9);
+  assert.equal(r.returnHour, 19);
+});
+
+test("人数・予算・混雑", () => {
+  const r = readChat("家族4人で予算3万円、混雑は避けたい", NOW);
+  assert.equal(r.people, 4);
+  assert.equal(r.budgetYen, 30000);
+  assert.equal(r.avoidCrowds, true);
+  assert.equal(readChat("ふたりで", NOW).people, 2);
+});
+
+test("条件の書いていない文は、何も読まない", () => {
+  const r = readChat("温泉でゆっくりしたい", NOW);
+  assert.equal(r.found, false);
+  assert.deepEqual(r.labels, []);
+});
+
+test("条件だけの返信と、中身のある返信を分ける", () => {
+  assert.equal(hasSubstance(readChat("明日にして", NOW).rest), false);
+  assert.equal(hasSubstance(readChat("大阪からでお願い", NOW).rest), false);
+  assert.equal(hasSubstance(readChat("明日、鎌倉で食べ歩き", NOW).rest), true);
+});

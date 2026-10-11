@@ -3027,33 +3027,33 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 .area-block-title { margin: 0 0 6px; font-size: var(--hig-t-subhead);
                     color: var(--hig-label-2); }
 
-/* =====================================================================
-   画面の枠（2026-10 リデザイン）
 
-   AI と話す画面の形に寄せました。
-     左   … 旅の一覧（新しい旅・エリアから探す・最近の旅・設定）
-     中央 … 「どんな旅にしたい？」の大きな入力欄。旅程もここに出ます
-     右   … 地図。はじめはエリアのピン、旅程ができたら順路
-   出発地・日時・こだわりは、入力欄の下の札に要約し、押すと
-   「旅の条件」のシート（#cond-dialog）が開きます。
+/* =====================================================================
+   チャットの画面（2026-10）
+
+   Claude の画面の形にしています。
+     左   … 旅の一覧（新しい旅・エリアから探す・最近の旅）
+     中央 … やりとり。頼んだこと（右の吹き出し）と答え（左）が積み上がり、
+            いちばん下に入力欄が貼り付きます
+   はじめの画面は、見出しと入力欄だけを真ん中に置きます（地図は
+   置きません。地図は答えの「詳細を確認する」の中です）。
+   出発地・日時・まわる場所・旅の例・こだわりは、入力欄の「＋」から
+   1つずつ開きます。
 
    幅ごとの形
-     1100px〜 … 3列（一覧は常に出す）
-     861〜1099 … 2列（一覧は左から引き出す）
-     〜860    … 1列（入力欄は画面の下に貼り付く。旅程は別の画面）
+     1100px〜 … 2列（一覧は常に出す）
+     〜1099   … 1列（一覧は左から引き出す）
    ===================================================================== */
 
-/* --- 3列 --- */
+body { background: var(--chat-bg); }
+
+/* --- 枠 --- */
 .layout {
-  grid-template-columns: 260px minmax(0, 1fr) minmax(360px, 42%);
+  grid-template-columns: 260px minmax(0, 1fr);
+  height: 100vh; height: 100dvh;
 }
 .side { grid-column: 1; grid-row: 1; }
-.pane-form { grid-column: 2; grid-row: 1; }
-.pane-result { grid-column: 3; grid-row: 1; }
-/* 旅程を見ているあいだは、入力欄をしまい、中央と右を旅程に渡します。
-   入力欄へは「条件を変更する」か、左の「新しい旅」で戻れます。 */
-body[data-view="result"] .pane-form { display: none; }
-body[data-view="result"] .pane-result { grid-column: 2 / -1; }
+.chat { grid-column: 2; grid-row: 1; }
 
 /* --- 旅の一覧 --- */
 .side {
@@ -3061,8 +3061,8 @@ body[data-view="result"] .pane-result { grid-column: 2 / -1; }
   display: flex; flex-direction: column; gap: 2px;
   padding: 12px 10px calc(12px + env(safe-area-inset-bottom))
            max(10px, env(safe-area-inset-left));
-  background: var(--tabi-sand);
-  border-right: 1px solid var(--hig-separator-opaque);
+  background: var(--chat-side);
+  border-right: 1px solid var(--chat-line);
   scrollbar-width: thin;
 }
 .side-head {
@@ -3070,249 +3070,425 @@ body[data-view="result"] .pane-result { grid-column: 2 / -1; }
   padding: 0 0 8px 6px;
 }
 .side .brand-line { margin: 0; padding: 0; flex-wrap: nowrap; }
-.side .brand-name { font-size: var(--hig-t-headline, 1.0625rem); font-weight: 600; }
-.side-close { display: none; color: var(--hig-label-2); }
+.side .brand-name {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  font-size: var(--hig-t-title3, 1.25rem); font-weight: 600; color: var(--chat-ink);
+}
+.side-close { display: none; color: var(--chat-ink-2); }
 .side-item {
   display: flex; align-items: center; gap: 10px;
   width: 100%; min-height: 44px; padding: 0 10px;
   border: 0; border-radius: 10px; background: transparent;
-  color: var(--hig-label); text-decoration: none; text-align: left;
+  color: var(--chat-ink); text-decoration: none; text-align: left;
   font: inherit; font-size: var(--hig-t-subhead); font-weight: 500;
   cursor: pointer;
 }
 .side .area-open { margin-top: 0; }
-.side-item .ic { width: 20px; height: 20px; flex: none; color: var(--hig-label-2); }
+.side-item .ic { width: 20px; height: 20px; flex: none; color: var(--chat-ink-2); }
 @media (hover: hover) and (pointer: fine) {
-  .side-item:hover, .side .recent-row:hover { background: var(--hig-fill-2); }
+  .side-item:hover, .side .recent-row:hover { background: var(--chat-hover); }
 }
 .side .recent { margin: 16px 0 0; }
 .side .recent-head { padding: 0 4px 0 10px; }
 .side .recent-head h2 {
-  font-size: var(--hig-t-footnote); font-weight: 600; color: var(--hig-label-2);
+  font-size: var(--hig-t-footnote); font-weight: 600; color: var(--chat-ink-2);
 }
-.side .recent-row { border-radius: 10px; padding-left: 10px; }
+.side .recent-row { border-radius: 10px; padding-left: 10px; color: var(--chat-ink); }
 .side .recent-list li + li { border-top: 0; }
 .side-fill { flex: 1; min-height: 16px; }
 .side-note {
   margin: 0 10px 6px; font-size: var(--hig-t-caption1); line-height: 1.5;
-  color: var(--hig-label-2);
+  color: var(--chat-ink-2);
 }
 .side .credits { margin: 8px 0 0; padding: 10px 10px 0; }
 .side .credits p { margin: 0 0 2px; }
 .side-scrim { display: none; }
 
-/* --- 中央: 入力欄 --- */
-.pane-form {
+/* --- やりとりの面 --- */
+.chat {
+  position: relative;
   display: flex; flex-direction: column;
+  min-width: 0; min-height: 0; overflow: hidden;
   padding: 0;
-  background: var(--hig-card);
-  border-right: 0;
+  background: var(--chat-bg);
+  color: var(--chat-ink);
 }
 .topbar {
-  position: sticky; top: 0; z-index: 6;
+  flex: none; z-index: 6;
   display: flex; align-items: center; gap: 4px;
-  min-height: 56px; padding: env(safe-area-inset-top) 12px 0;
-  background: var(--hig-card);
+  min-height: 52px; padding: env(safe-area-inset-top) 10px 0;
+  background: var(--chat-bg);
 }
-.topbar-end { flex: 1; }
+.topbar .md-icon-btn { color: var(--chat-ink-2); }
+.topbar-title {
+  flex: 1; min-width: 0; margin: 0 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--hig-t-subhead); font-weight: 500; color: var(--chat-ink);
+}
 .side-open { display: none; }
-.mode-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  min-height: 44px; padding: 0 12px;
-  border: 0; border-radius: 10px; background: transparent;
-  color: var(--hig-label);
-  font: inherit; font-size: var(--hig-t-headline, 1.0625rem); font-weight: 600;
-  cursor: pointer;
+.chat-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
-.mode-pill .ic { width: 16px; height: 16px; color: var(--hig-label-2); }
-@media (hover: hover) and (pointer: fine) {
-  .mode-pill:hover, .cond-pill:hover { background: var(--hig-fill); }
+.stash { display: none !important; }
+
+/* はじめの画面: 見出しと入力欄を、まとめて真ん中に置きます。 */
+body[data-view="form"] .chat-body {
+  flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end;
+  overflow: visible;
 }
-.compose-wrap {
-  flex: 1;
-  display: flex; flex-direction: column; justify-content: center; gap: 20px;
-  width: 100%; max-width: 760px; margin: 0 auto;
-  padding: 16px max(24px, env(safe-area-inset-right)) 40px
-           max(24px, env(safe-area-inset-left));
+body[data-view="form"] .chat::after { content: ""; flex: 1.2 1 0; }
+body[data-view="form"] .thread { display: none; }
+body[data-view="result"] .hero,
+body[data-view="result"] .note-examples { display: none; }
+
+.hero {
+  width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  text-align: center;
+  flex-wrap: wrap;
 }
-.hero { text-align: center; }
-.hero-mark { display: none; margin: 0 auto 10px; border-radius: 10px; }
+.hero-mark { flex: none; width: 36px; height: 36px; border-radius: 9px; }
 .hero-title {
-  margin: 0; font-size: var(--hig-t-large-title); line-height: 1.3; font-weight: 600;
-  letter-spacing: .01em; font-feature-settings: "palt" 1;
+  margin: 0;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.4rem);
+  line-height: 1.3; font-weight: 500; letter-spacing: .02em;
+  color: var(--chat-ink);
 }
 .hero-sub {
-  margin: 8px 0 0; font-size: var(--hig-t-subhead); line-height: 1.6;
-  color: var(--hig-label-2);
+  flex-basis: 100%; margin: 4px 0 0;
+  font-size: var(--hig-t-subhead); line-height: 1.6; color: var(--chat-ink-2);
 }
+
+/* --- 入力欄（下に貼り付く） --- */
+.dock {
+  flex: none; position: relative; z-index: 10;
+  width: 100%; max-width: 800px; margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+}
+body[data-view="result"] .dock { padding-top: 4px; }
+.dock #pinned { margin: 0 0 8px; }
+.dock .area-picked { margin: 0 0 6px 14px; }
+.dock .area-picked:empty { display: none; }
 .composer {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 14px 12px 12px 22px;
-  border: 1px solid var(--hig-separator-opaque);
-  border-radius: 28px;
-  background: var(--hig-card);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(0, 0, 0, .06);
+  position: relative;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 10px 10px 16px;
+  border: 1px solid var(--chat-line);
+  border-radius: 20px;
+  background: var(--chat-input);
+  box-shadow: 0 1px 2px rgba(31, 30, 29, .04), 0 4px 20px rgba(31, 30, 29, .05);
 }
-/* フォーカスの印は欄の枠に出します（中の textarea には出しません。
-   角の丸い枠の中に四角い青枠が出ると、どこが押せるのか崩れて見えます）。 */
 .composer:has(textarea:focus-visible) {
-  outline: 3px solid var(--hig-blue); outline-offset: 2px;
+  border-color: color-mix(in srgb, var(--chat-ink) 38%, var(--chat-line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-ink) 38%, var(--chat-line)),
+              0 6px 24px rgba(31, 30, 29, .08);
 }
 .composer .note-field { margin: 0; display: block; }
 .composer textarea {
-  display: block; width: 100%; min-height: 3em; max-height: 320px;
-  margin: 0; padding: 6px 0 0;
+  display: block; width: 100%; min-height: 2.6em; max-height: 320px;
+  margin: 0; padding: 4px 4px 0 0;
   border: 0; outline: none; resize: none; background: transparent;
-  color: var(--hig-label);
+  color: var(--chat-ink);
   font: inherit; font-size: 1.0625rem; line-height: 1.55;
 }
 .composer textarea:focus-visible { outline: none; }
-.composer textarea::placeholder { color: var(--hig-label-2); opacity: 1; }
-.composer-row { display: flex; align-items: flex-end; gap: 8px; }
-.cond-pills { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.composer textarea::placeholder { color: var(--chat-ink-2); opacity: 1; }
+.composer-row { display: flex; align-items: center; gap: 6px; }
+.plus-btn {
+  flex: none; display: grid; place-items: center;
+  width: 36px; height: 36px; padding: 0;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-ink-2);
+  cursor: pointer;
+}
+.plus-btn .ic { width: 20px; height: 20px; }
+.plus-btn[aria-expanded="true"] { background: var(--chat-hover); color: var(--chat-ink); }
+.cond-pills {
+  flex: 1; min-width: 0; display: flex; gap: 6px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.cond-pills::-webkit-scrollbar { display: none; }
 .cond-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  min-height: 36px; padding: 0 12px; max-width: 100%;
-  border: 1px solid var(--hig-separator-opaque); border-radius: 999px;
-  background: var(--hig-card); color: var(--hig-label);
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 32px; padding: 0 10px; max-width: 100%;
+  border: 0; border-radius: 8px;
+  background: transparent; color: var(--chat-ink-2);
   font: inherit; font-size: var(--hig-t-footnote); font-weight: 500;
   white-space: nowrap; cursor: pointer;
 }
 .cond-pill > span { overflow: hidden; text-overflow: ellipsis; }
-.cond-pill .ic { width: 16px; height: 16px; flex: none; color: var(--hig-label-2); }
+.cond-pill .ic { width: 15px; height: 15px; flex: none; }
+@media (hover: hover) and (pointer: fine) {
+  .plus-btn:hover, .cond-pill:hover { background: var(--chat-hover); color: var(--chat-ink); }
+}
 /* 送るボタン。色を乗せるのは、この画面ではここだけです。 */
 .send-btn {
   flex: none; display: grid; place-items: center;
-  width: 44px; height: 44px; padding: 0;
-  border: 0; border-radius: 999px;
-  background: var(--hig-label); color: var(--hig-card);
+  width: 36px; height: 36px; padding: 0; margin-left: auto;
+  border: 0; border-radius: 10px;
+  background: var(--chat-accent); color: var(--chat-on-accent);
   cursor: pointer;
 }
 .send-btn .ic { width: 20px; height: 20px; }
-.send-btn:disabled { background: var(--hig-gray3); cursor: progress; }
-.composer:has(textarea:placeholder-shown) .send-btn:not(:disabled) {
-  background: color-mix(in srgb, var(--hig-label) 72%, var(--hig-card));
+.send-btn:disabled { opacity: .45; cursor: progress; }
+.composer:has(textarea:placeholder-shown) .send-btn:not(:disabled) { opacity: .7; }
+.note-examples {
+  justify-content: center; margin: 14px 0 0; gap: 8px;
 }
-.compose-wrap .area-picked { margin: -10px 0 0 22px; }
-.compose-wrap #pinned { margin: 0; }
-.compose-wrap #form-error { margin: 0; }
-.mix-quick-row {
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 8px 12px;
+.note-examples .md-chip {
+  min-height: 36px; padding: 0 14px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-ink-2);
+  font-size: var(--hig-t-footnote);
 }
-.mix-quick-label { font-size: var(--hig-t-footnote); color: var(--hig-label-2); }
-.mix-quick { background: var(--hig-fill-2); }
-.mix-quick > button { flex: none; min-height: 36px; padding: 0 16px; font-size: var(--hig-t-footnote); }
-.compose-wrap .note-examples {
-  justify-content: center; margin: 0;
-}
-.compose-wrap .note-examples .md-chip {
-  min-height: 40px; padding: 0 16px;
-  background: var(--hig-card); font-size: var(--hig-t-subhead);
+@media (hover: hover) and (pointer: fine) {
+  .note-examples .md-chip:hover { background: var(--chat-hover); color: var(--chat-ink); }
 }
 .compose-foot {
-  margin: 0; padding: 0 24px calc(16px + env(safe-area-inset-bottom));
+  margin: 0; padding: 8px 0 calc(10px + env(safe-area-inset-bottom));
   text-align: center; font-size: var(--hig-t-caption1); line-height: 1.5;
-  color: var(--hig-label-2);
+  color: var(--chat-ink-2);
 }
+body[data-view="form"] .compose-foot { visibility: hidden; }
 
-/* --- 右: 地図（はじめの画面） --- */
-.pane-result { background: var(--hig-card); border-left: 1px solid var(--hig-separator-opaque); }
-.placeholder { position: relative; padding: 16px; }
-.home-map { margin-bottom: 0; border-radius: 18px; }
-/* つくりかたは、地図の下に重ねます。 */
-.home-steps {
-  position: absolute; left: 28px; right: 28px; bottom: 28px; z-index: 450;
-  grid-template-columns: 1fr; gap: 6px; margin: 0;
-  pointer-events: none;
+/* --- 「＋」から開く欄 --- */
+.pop {
+  position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 30;
+  width: min(380px, 100%);
+  max-height: min(70vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--chat-line); border-radius: 16px;
+  background: var(--chat-input); color: var(--chat-ink);
+  box-shadow: 0 8px 32px rgba(31, 30, 29, .14), 0 1px 3px rgba(31, 30, 29, .08);
 }
-.home-steps li {
-  pointer-events: auto;
-  background: var(--hig-glass-tint-2);
-  -webkit-backdrop-filter: var(--hig-glass-blur); backdrop-filter: var(--hig-glass-blur);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .10);
-  padding: 8px 12px;
+/* はじめの画面では、入力欄の下に開きます（上には見出ししかありません）。 */
+body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
+.pop[hidden], .pop-panel[hidden] { display: none !important; }
+.pop[data-panel="mix"], .pop[data-panel="examples"], .pop[data-panel="when"] { width: min(440px, 100%); }
+.plus-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 48px; padding: 6px 10px;
+  border: 0; border-radius: 10px; background: transparent;
+  color: var(--chat-ink); text-align: left;
+  font: inherit; cursor: pointer;
 }
-@media (prefers-reduced-transparency: reduce) {
-  .home-steps li { background: var(--hig-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.plus-item .ic { width: 20px; height: 20px; flex: none; color: var(--chat-ink-2); }
+.plus-tx { display: flex; flex-direction: column; gap: 1px; }
+.plus-tx b { font-weight: 500; font-size: var(--hig-t-subhead); }
+.plus-tx small { font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }
+@media (hover: hover) and (pointer: fine) {
+  .plus-item:hover { background: var(--chat-hover); }
 }
-/* 地図の出典（右下）と重ならないよう、下は少し空けます。 */
-.placeholder .leaflet-bottom { bottom: 0; }
-.placeholder:has(.home-steps) .leaflet-control-attribution { margin-bottom: 0; }
+.pop-panel:not(#plus-menu) { padding: 4px 8px 8px; }
+.pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 0 -4px 6px 0;
+}
+.pop-title { margin: 0; font-size: var(--hig-t-subhead); font-weight: 600; }
+.pop-close { color: var(--chat-ink-2); }
+.pop-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+.pop .pop-done {
+  min-height: 40px; border-radius: 10px;
+  background: var(--chat-ink); color: var(--chat-bg);
+}
+.pop .md-field { display: block; margin: 0 0 8px; }
+.pop .here-btn { margin: 0 0 6px; }
+.pop .here-note, .pop .md-field-help {
+  margin: 4px 0 0; font-size: var(--hig-t-caption1); line-height: 1.5; color: var(--chat-ink-2);
+}
+.pop .date-presets { margin: 0 0 10px; }
+.pop .when-row { display: grid; gap: 8px; }
+.pop .mix-quick { width: 100%; margin: 0 0 10px; background: var(--hig-fill-2); }
+.pop .mix-quick > button { flex: 1; min-height: 36px; font-size: var(--hig-t-footnote); }
+.pop .example-list { gap: 6px; }
 
-/* --- 旅程の画面: 頼んだこと --- */
-.ask {
+/* --- やりとり --- */
+.thread {
+  display: flex; flex-direction: column; gap: 22px;
+  width: 100%; max-width: 760px; margin: 0 auto;
+  padding: 12px max(20px, env(safe-area-inset-right)) 28px max(20px, env(safe-area-inset-left));
+}
+.turn-user {
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
-  padding: 8px 20px 0;
+  scroll-margin-top: 12px;
 }
-.ask-bubble {
-  max-width: 80%; margin: 0; padding: 10px 18px;
-  border-radius: 22px; background: var(--hig-fill);
-  font-size: var(--hig-t-body); line-height: 1.55;
-  overflow-wrap: anywhere;
+.bubble {
+  max-width: 82%; margin: 0; padding: 10px 16px;
+  border-radius: 18px; background: var(--chat-bubble); color: var(--chat-ink);
+  font-size: var(--hig-t-body); line-height: 1.6;
+  white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.ask-chips {
+.read-chips {
   list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 6px;
+  max-width: 82%;
 }
-.ask-chips li {
-  padding: 2px 10px; border-radius: 999px;
-  border: 1px solid var(--hig-separator-opaque);
-  font-size: var(--hig-t-caption1); color: var(--hig-label-2);
+.read-chips::before {
+  content: "読み取った条件"; align-self: center;
+  font-size: var(--hig-t-caption2); color: var(--chat-ink-2);
 }
-body[data-view="form"] .ask { display: none !important; }
-/* 旅程の画面でも、入力欄へ戻る道を出します（左上）。 */
-.back-to-form { display: none; }
-body[data-view="result"] .back-to-form {
-  display: inline-flex; position: sticky; top: 12px; z-index: 12;
-  margin: 12px 0 0 16px;
-  background: var(--hig-glass-tint-2);
-  -webkit-backdrop-filter: var(--hig-glass-blur); backdrop-filter: var(--hig-glass-blur);
-  box-shadow: inset 0 .5px 0 var(--hig-glass-hairline), var(--hig-glass-shadow);
-  color: var(--md-sys-color-primary);
+.read-chips li {
+  padding: 1px 9px; border-radius: 999px;
+  border: 1px solid var(--chat-line);
+  font-size: var(--hig-t-caption1); color: var(--chat-ink-2);
 }
-@media (prefers-reduced-transparency: reduce) {
-  body[data-view="result"] .back-to-form {
-    background: var(--hig-material);
-    -webkit-backdrop-filter: saturate(120%) blur(30px);
-    backdrop-filter: saturate(120%) blur(30px);
-  }
+.turn-ai {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px;
+  align-items: start;
 }
-@media (prefers-contrast: more) {
-  body[data-view="result"] .back-to-form {
-    background: var(--hig-elevated);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-    box-shadow: inset 0 0 0 1px var(--hig-label), var(--hig-shadow-2);
-  }
+.ai-mark {
+  display: grid; place-items: center; width: 28px; height: 28px; margin-top: 1px;
+  color: var(--chat-mark);
 }
-body[data-view="result"] .pane-result { border-left: 0; background: var(--md-sys-color-surface); }
+.ai-mark .ic { width: 22px; height: 22px; }
+.ai-body { min-width: 0; font-size: var(--hig-t-body); line-height: 1.75; color: var(--chat-ink); }
+.ai-answer > p { margin: 0 0 10px; }
+.ai-answer:empty { display: none; }
+.ai-lead { font-weight: 500; }
+.ai-sub { color: var(--chat-ink-2); font-size: var(--hig-t-subhead); }
+.ai-edit {
+  padding: 6px 12px; border-left: 3px solid var(--chat-mark);
+  background: color-mix(in srgb, var(--chat-mark) 8%, transparent);
+  border-radius: 0 8px 8px 0;
+}
+.ai-error { color: var(--md-sys-color-error); }
+.cands {
+  list-style: none; margin: 0 0 14px; padding: 0;
+  display: grid; gap: 8px;
+}
+.cand {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 4px 10px;
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--chat-line); border-radius: 12px;
+  background: var(--chat-input); color: var(--chat-ink); text-align: left;
+  font: inherit; font-size: var(--hig-t-subhead); line-height: 1.5;
+  cursor: pointer;
+}
+.cand b { font-weight: 600; }
+.cand-badge {
+  padding: 0 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--chat-mark) 14%, transparent);
+  color: var(--chat-ink); font-size: var(--hig-t-caption2); font-weight: 600;
+}
+.cand-sum { grid-column: 1 / -1; color: var(--chat-ink-2); font-size: var(--hig-t-footnote); }
+.cand.is-selected { border-color: var(--chat-mark); box-shadow: inset 0 0 0 1px var(--chat-mark); }
+.cand:disabled { cursor: default; opacity: .7; }
+@media (hover: hover) and (pointer: fine) {
+  .cand:not(:disabled):hover { background: var(--chat-hover); }
+}
+.mini-day { margin: 0 0 14px; }
+.mini-day-head {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0 0 4px; font-size: var(--hig-t-subhead); font-weight: 600;
+}
+.mini-day-head small { font-weight: 400; color: var(--chat-ink-2); font-size: var(--hig-t-footnote); }
+.mini-list { list-style: none; margin: 0; padding: 0 0 0 2px; border-left: 2px solid var(--chat-line); }
+.mini-list li {
+  display: flex; gap: 12px; padding: 2px 0 2px 12px;
+  font-size: var(--hig-t-subhead); line-height: 1.6;
+}
+.mini-time { flex: none; width: 3.2em; font-variant-numeric: tabular-nums; color: var(--chat-ink-2); }
+.mini-name { min-width: 0; overflow-wrap: anywhere; }
+.mini-list .mini-move {
+  padding-left: calc(12px + 3.2em + 12px);
+  font-size: var(--hig-t-caption1); color: var(--chat-ink-2);
+}
+.mini-meal .mini-name, .mini-lodging .mini-name { color: var(--chat-ink-2); }
+.ai-details-note { margin-top: 4px; }
+.details-toggle {
+  gap: 6px; margin: 0 0 12px; min-height: 40px;
+  border: 1px solid var(--chat-line); border-radius: 10px;
+  background: var(--chat-input); color: var(--chat-ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .details-toggle:hover { background: var(--chat-hover); }
+}
+.details-toggle .ic { width: 18px; height: 18px; transition: transform var(--hig-short, .2s) ease; }
+.details-toggle[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.follow-ups { gap: 6px; margin: 2px 0 0; }
+.follow-ups .md-chip {
+  min-height: 34px; border: 1px solid var(--chat-line); border-radius: 10px;
+  background: transparent; color: var(--chat-ink); font-size: var(--hig-t-footnote);
+}
+.turn-details {
+  margin: 0 0 12px;
+  border: 1px solid var(--chat-line); border-radius: 16px;
+  background: var(--md-sys-color-surface);
+  overflow: hidden;
+}
+.turn-details[hidden] { display: none; }
+.turn-details .result { display: block; }
+.turn-details .map { height: 320px; margin: 12px 12px 0; border-radius: 12px; }
+.turn-details .itin { --itin-gutter-l: 14px; --itin-gutter-r: 14px; }
+.is-past .ai-body { color: var(--chat-ink); }
+.is-past .cand { opacity: .75; }
 
-/* --- 旅の条件のシート --- */
+/* --- 考えているあいだ（Claude の「考え中」に合わせます） --- */
+.turn-ai .planning {
+  display: block; height: auto; margin: 0 0 8px; padding: 0; background: transparent;
+}
+.turn-ai .plan-card .step-list .dot { background: var(--chat-line); }
+.turn-ai .plan-card .step-list li.done .dot { background: var(--chat-ink-2); }
+.turn-ai .plan-card .step-list li.active .dot { background: var(--chat-mark); box-shadow: none; }
+/* いちばん新しい答えは、頼んだことを画面の上まで送れるだけの高さを
+   持たせます（Claude と同じ、送ると上へ流れる動き）。 */
+.thread > .turn-ai:last-child { min-height: 55vh; }
+.turn-ai .plan-card {
+  margin: 0; padding: 0; max-width: none;
+  background: transparent; border: 0; box-shadow: none;
+}
+.turn-ai .plan-card .phase-row,
+.turn-ai .plan-card .md-progress,
+.turn-ai .plan-card .step-count,
+.turn-ai .plan-card .sketch { display: none !important; }
+.turn-ai .plan-card .step-text {
+  margin: 0; font-size: var(--hig-t-body); font-weight: 500; line-height: 1.75;
+  background: linear-gradient(90deg, var(--chat-ink-2) 0%, var(--chat-ink) 45%, var(--chat-ink-2) 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: chat-shimmer 2.2s linear infinite;
+}
+@keyframes chat-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .turn-ai .plan-card .step-text { animation: none; -webkit-text-fill-color: currentColor; background: none; }
+}
+.turn-ai .plan-card .step-detail {
+  margin: 2px 0 6px; font-size: var(--hig-t-footnote); color: var(--chat-ink-2);
+}
+.turn-ai .plan-card .step-list {
+  margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--chat-line);
+  font-size: var(--hig-t-footnote); color: var(--chat-ink-2);
+}
+.turn-ai .plan-card .step-list li { padding: 1px 0; }
+.turn-ai .plan-card .step-list li.active { color: var(--chat-ink); }
+.turn-ai .plan-card .step-elapsed {
+  margin: 6px 0 0; font-size: var(--hig-t-caption1); color: var(--chat-ink-2);
+}
+.turn-ai .plan-card .plan-cancel { margin: 8px 0 0; min-height: 36px; }
+.turn-ai #form-error { margin: 0 0 10px; }
+
+/* --- こだわりのシート --- */
 .cond-sheet {
   width: min(560px, 94vw); max-height: min(86vh, 860px);
   padding: 0; overflow: hidden;
-  background: var(--tabi-sand);
+  background: var(--chat-bg);
 }
 .cond-sheet[open] { display: flex; flex-direction: column; }
 .cond-head {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   padding: 8px 8px 8px 16px;
-  border-bottom: 1px solid var(--hig-separator-opaque);
-  background: var(--tabi-sand);
+  border-bottom: 1px solid var(--chat-line);
+  background: var(--chat-bg);
 }
 .cond-head h2 { margin: 0; font-size: var(--hig-t-headline, 1.0625rem); }
 .cond-done { justify-self: end; font-weight: 600; }
 .cond-body {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 18px 20px 8px;
-}
-.cond-body .step {
-  margin: 0 0 18px; padding: 14px 16px 4px;
-  border-radius: 14px; background: var(--hig-card);
-}
-.cond-body .step-title {
-  margin: 0 0 10px; font-size: var(--hig-t-footnote); font-weight: 600;
-  color: var(--hig-label-2);
 }
 .cond-body .tune {
   margin: 0 0 12px; padding: 4px 16px;
@@ -3321,17 +3497,15 @@ body[data-view="result"] .pane-result { border-left: 0; background: var(--md-sys
 .cond-body .reset-row { margin: 4px 0 8px; }
 .cond-foot {
   padding: 10px 20px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--hig-separator-opaque);
-  background: var(--tabi-sand);
+  border-top: 1px solid var(--chat-line);
+  background: var(--chat-bg);
 }
 .cond-make { width: 100%; justify-content: center; min-height: 50px; border-radius: 14px; }
 
-/* --- 2列（一覧は引き出し） --- */
+/* --- 1列（一覧は引き出し） --- */
 @media (max-width: 1099px) {
-  .layout { grid-template-columns: minmax(0, 1fr) minmax(320px, 44%); }
-  .pane-form { grid-column: 1; }
-  .pane-result { grid-column: 2; }
-  body[data-view="result"] .pane-result { grid-column: 1 / -1; }
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .chat { grid-column: 1; }
   .side {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 900;
     width: min(300px, 86vw);
@@ -3354,94 +3528,49 @@ body[data-view="result"] .pane-result { border-left: 0; background: var(--md-sys
   .side, body[data-side="open"] .side { transition: none; }
 }
 
-/* --- 1列（携帯） --- */
+/* --- 携帯 --- */
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
-  .pane-form, .pane-result,
-  body[data-view="result"] .pane-result { grid-column: 1; grid-row: auto; }
-  .pane-form { border-bottom: 0; padding-bottom: 0; }
-  .topbar { position: sticky; }
-  .compose-wrap {
-    justify-content: flex-start; gap: 16px;
-    padding: 24px max(16px, env(safe-area-inset-right)) 12px
-             max(16px, env(safe-area-inset-left));
-  }
-  .hero { margin: 24px 0 8px; }
-  .hero-mark { display: block; }
-  .hero-title { font-size: var(--hig-t-title2); }
-  /* 入力欄は、画面の下に貼り付けます（書き終えたところから、すぐ送れる）。 */
-  .composer {
-    position: fixed; z-index: 20;
-    left: max(10px, env(safe-area-inset-left));
-    right: max(10px, env(safe-area-inset-right));
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    padding: 10px 8px 8px 16px; border-radius: 24px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .12);
-  }
-  .composer textarea { min-height: 1.6em; max-height: 30vh; padding-top: 2px; }
-  .cond-pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .cond-pills::-webkit-scrollbar { display: none; }
-  .cond-pill { flex: none; }
-  body[data-view="form"] { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
-  body[data-view="result"] .composer { display: none; }
-  .compose-wrap .area-picked { margin: 0; }
-  .compose-wrap .note-examples {
+  /* 古い3画面の作りの指定（ページ全体を送る・下に帯の余白）を、
+     ここで打ち消します。この画面では、送るのはやりとりの面だけです。 */
+  body, body[data-view="form"], body[data-view="result"] { padding-bottom: 0; overflow: hidden; }
+  .layout { height: 100vh; height: 100dvh; }
+  .chat { overflow: hidden; }
+  .hero { padding: 0 16px 18px; }
+  .hero-mark { width: 30px; height: 30px; }
+  .thread { padding: 8px 14px 24px; gap: 18px; }
+  .turn-ai { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; }
+  .bubble, .read-chips { max-width: 90%; }
+  .dock { padding: 0 max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left)); }
+  .composer { border-radius: 18px; padding: 10px 8px 8px 14px; }
+  .composer textarea { max-height: 30vh; }
+  .pop { width: 100% !important; max-height: 60vh; }
+  .note-examples {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
   }
-  .compose-wrap .note-examples .md-chip {
-    justify-content: flex-start; min-height: 48px; padding: 0 14px;
-    border-radius: 14px; text-align: left;
-  }
-  /* 携帯では6つまで（画面の1枚目が例で埋まらないように）。 */
-  .compose-wrap .note-examples .md-chip:nth-child(n+7) { display: none; }
-  .compose-foot { padding: 4px 16px 16px; }
-
-  /* はじめの画面では、地図を例の下に小さく出します（エリアのピン入り）。
-     旅程のぶん（作成中・結果）は、旅程の画面だけに出します。 */
-  body[data-view="form"] .pane-result {
-    display: block; border-left: 0; background: transparent;
-  }
-  body[data-view="form"] .pane-result > :not(#placeholder) { display: none !important; }
-  body[data-view="form"] .placeholder { height: auto; padding: 0 16px 16px; }
-  body[data-view="form"] .home-map { flex: none; height: 240px; min-height: 0; }
-  body[data-view="form"] .home-steps { display: none; }
-
-  /* 旅程の画面の「条件を変更する」は、これまでどおり左上に浮かせます。 */
-  body[data-view="result"] .back-to-form {
-    position: fixed; margin: 0;
-    top: calc(12px + env(safe-area-inset-top));
-    left: calc(12px + env(safe-area-inset-left));
-  }
-  .ask { padding: 0 12px; }
-
-  /* 旅の条件は、下から出るシートにします。 */
+  .note-examples .md-chip { justify-content: flex-start; min-height: 44px; text-align: left; }
+  .turn-details .map { height: 240px; margin: 10px 10px 0; }
   .cond-sheet {
     width: 100%; max-width: none; max-height: calc(100dvh - 40px);
     margin: auto 0 0; border-radius: 14px 14px 0 0;
   }
 }
-@media (max-width: 860px) and (pointer: coarse) {
-  .cond-pill, .mix-quick > button { min-height: 44px; }
-}
 @media (pointer: coarse) {
-  .cond-pill { min-height: 44px; }
-  .mix-quick > button { min-height: 44px; }
-  .compose-wrap .note-examples .md-chip { min-height: 44px; }
-}
-
-/* 暗い配色。地図の上の札は、地図に合わせて暗くしません（地図は明るいため）。 */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .composer {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
-  }
+  .cond-pill, .plus-btn, .send-btn { min-height: 44px; min-width: 44px; }
+  .pop .mix-quick > button, .note-examples .md-chip, .follow-ups .md-chip,
+  .details-toggle, .pop .pop-done, .plus-item { min-height: 44px; }
 }
 
 /* 旅行中モードでは、枠もしまいます。 */
 body[data-trip-mode="on"] .side,
 body[data-trip-mode="on"] .side-scrim { display: none !important; }
-body[data-trip-mode="on"] .pane-result { grid-column: 1 / -1 !important; }
+body[data-trip-mode="on"] .layout { grid-template-columns: 1fr; }
+body[data-trip-mode="on"] .chat { grid-column: 1 / -1; display: flex !important; }
+body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
 
-/* 紙には、枠を出しません。 */
+/* 紙には、やりとりの枠を出しません。旅程（詳細）だけを刷ります。 */
 @media print {
-  .side, .side-scrim, .topbar, .composer, .ask { display: none !important; }
+  .side, .side-scrim, .topbar, .dock, .turn-user, .ai-mark, .ai-answer, .hero { display: none !important; }
+  .layout, .chat, .chat-body { display: block !important; height: auto !important; overflow: visible !important; }
+  .turn-ai { display: block; }
+  .turn-details, .turn-details[hidden] { display: block !important; border: 0; }
 }

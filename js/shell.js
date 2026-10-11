@@ -1,9 +1,14 @@
-// 画面の枠。旅の一覧（左）・入力欄の下の札・旅の条件のシート・
-// 頼んだことの吹き出し。
+// 画面の枠。旅の一覧（左）・入力欄の「＋」と、そこから開く小さな欄・
+// 入力欄の下の札・こだわりのシート。
 //
 // 旅程づくりそのものには関わりません。条件の値は、これまでどおり
 // 各入力欄（#depart-place など）が持っています。ここはそれを読んで
-// 短い札にし、押されたらシートを開くだけです。
+// 短い札にし、押されたら**その1つだけ**を開きます。
+//
+// 以前は、出発地の札を押しても日時の札を押しても、同じ大きな
+// シート（出発地・日時・移動手段がまとめて並ぶ）が開いていました。
+// 押したものと違う欄まで出てくるので、どこを触ればいいのか迷います。
+// いまは、出発地なら駅名の欄だけ、日時なら日付と時刻だけが出ます。
 
 /** 旅の一覧を、引き出しにする幅か（css/app.css の同じ値と揃えます）。 */
 function isDrawer() {
@@ -77,16 +82,7 @@ export function updatePills() {
   const from = $("#pill-from-tx");
   if (from) from.textContent = place ? `${place}から` : "出発地";
   const when = $("#pill-when-tx");
-  const depV = $("#depart-at")?.value;
-  const arrV = $("#arrive-by")?.value;
-  if (when) when.textContent = whenText(depV, arrV);
-  const mode = $("#mode-pill-tx");
-  if (mode) {
-    const picked = $('#transport-choice button[aria-pressed="true"]')
-      ?? $("#transport-choice .is-selected");
-    const label = picked?.textContent.trim() ?? "";
-    mode.textContent = modeText(nightsBetween(new Date(depV), new Date(arrV)), label);
-  }
+  if (when) when.textContent = whenText($("#depart-at")?.value, $("#arrive-by")?.value);
   const bias = $("#hidden-bias");
   if (bias) syncMix(bias.value);
 }
@@ -99,23 +95,57 @@ function syncMix(value) {
   }
 }
 
-/** 頼んだことの吹き出しを、旅程の上に出します。 */
-export function renderAsk() {
-  const box = $("#ask");
-  if (!box) return;
-  const note = $("#note")?.value.trim();
-  $("#ask-text").textContent = note || "おまかせで組んでください";
-  const chips = $("#ask-chips");
-  chips.replaceChildren();
-  const mix = $('#mix-quick [aria-checked="true"]')?.textContent.trim();
-  for (const t of [$("#pill-from-tx")?.textContent, $("#pill-when-tx")?.textContent,
-                   $("#mode-pill-tx")?.textContent, mix]) {
-    if (!t) continue;
-    const li = document.createElement("li");
-    li.textContent = t;
-    chips.append(li);
+/** 開いた欄で、最初に触ってほしいところ。 */
+const FIRST = {
+  from: "#depart-place",
+  when: "#depart-at",
+  mix: '#mix-quick [aria-checked="true"]',
+  examples: "#panel-examples [data-example]",
+  menu: "#plus-menu .plus-item",
+};
+
+let openedBy = null;
+
+/**
+ * 「＋」の欄を開きます。what は menu・from・when・mix・examples のどれか。
+ * 開いているのは、いつも1つだけです。
+ */
+export function openPop(what = "menu", { focus = true } = {}) {
+  const pop = $("#pop");
+  if (!pop) return;
+  pop.hidden = false;
+  for (const p of pop.querySelectorAll(".pop-panel")) {
+    p.hidden = p.dataset.panel !== what;
   }
-  box.hidden = false;
+  pop.dataset.panel = what;
+  $("#plus")?.setAttribute("aria-expanded", "true");
+  if (focus) $(FIRST[what] ?? FIRST.menu)?.focus();
+}
+
+/** 閉じます。フォーカスは、開いたボタン（無ければ入力欄）へ返します。 */
+export function closePop({ restore = true } = {}) {
+  const pop = $("#pop");
+  if (!pop || pop.hidden) return;
+  pop.hidden = true;
+  delete pop.dataset.panel;
+  $("#plus")?.setAttribute("aria-expanded", "false");
+  if (restore) {
+    const back = openedBy?.isConnected && openedBy.getClientRects().length
+      ? openedBy : $("#note");
+    back?.focus();
+  }
+  openedBy = null;
+}
+
+/** こだわりのシートを開きます（人数・予算・移動手段・宿・食事…）。 */
+export function openTune() {
+  const dlg = $("#cond-dialog");
+  if (!dlg?.showModal) return;
+  closePop({ restore: false });
+  if (!dlg.open) dlg.showModal();
+  const tune = $("#tune");
+  if (tune) tune.open = true;
+  $("#tune > summary")?.focus();
 }
 
 /**
@@ -123,7 +153,7 @@ export function renderAsk() {
  *
  * @param {object} h
  * @param {() => void} h.onNewTrip 「新しい旅」
- * @param {() => void} h.onMake    シートの「この条件で旅程をつくる」
+ * @param {() => void} h.onMake    こだわりのシートの「この条件で旅程をつくる」
  */
 export function wireShell({ onNewTrip, onMake }) {
   // --- 旅の一覧（狭い画面では引き出し） ---
@@ -141,7 +171,9 @@ export function wireShell({ onNewTrip, onMake }) {
   $("#side-close")?.addEventListener("click", () => setSide(false));
   scrim?.addEventListener("click", () => setSide(false));
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && document.body.dataset.side === "open") setSide(false);
+    if (e.key !== "Escape") return;
+    if (!$("#pop")?.hidden) { e.preventDefault(); closePop(); return; }
+    if (document.body.dataset.side === "open") setSide(false);
   });
   // 一覧の中の操作を押したら、引き出しは閉じます（押した先の画面を見せる）。
   side?.addEventListener("click", (e) => {
@@ -151,27 +183,55 @@ export function wireShell({ onNewTrip, onMake }) {
   });
   $("#new-trip")?.addEventListener("click", () => onNewTrip?.());
 
-  // --- 旅の条件のシート ---
-  const dlg = $("#cond-dialog");
-  const focusFor = {
-    from: "#depart-place",
-    when: "#depart-at",
-    tune: "#tune > summary",
-  };
-  const open = (what) => {
-    if (!dlg?.showModal) return;
-    if (!dlg.open) dlg.showModal();
-    if (what === "tune") {
-      const tune = $("#tune");
-      if (tune) tune.open = true;
-    }
-    const to = $(focusFor[what] ?? "#depart-place");
-    to?.focus();
-    to?.scrollIntoView?.({ block: "center" });
-  };
+  // --- 「＋」と、そこから開く欄 ---
+  const pop = $("#pop");
+  $("#plus")?.addEventListener("click", (e) => {
+    if (pop && !pop.hidden) { closePop(); return; }
+    openedBy = e.currentTarget;
+    openPop("menu");
+  });
   for (const btn of document.querySelectorAll("[data-open-cond]")) {
-    btn.addEventListener("click", () => open(btn.dataset.openCond));
+    btn.addEventListener("click", (e) => {
+      const what = btn.dataset.openCond;
+      // 一覧の中から選んだときは、戻る先を「＋」にします。
+      if (!btn.closest("#pop")) openedBy = e.currentTarget;
+      if (what === "tune") { openTune(); return; }
+      openPop(what);
+    });
   }
+  for (const b of document.querySelectorAll("#pop .pop-close, #pop .pop-done")) {
+    b.addEventListener("click", () => closePop());
+  }
+  // 例を選んだら、欄はもう要りません（入力欄が埋まります）。
+  pop?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-example]")) closePop();
+  });
+  // 欄の外を押したら閉じます。入力欄の中の「＋」と札は、自分で開け閉めします。
+  document.addEventListener("pointerdown", (e) => {
+    if (!pop || pop.hidden) return;
+    if (e.target.closest("#pop, #plus, [data-open-cond]")) return;
+    closePop({ restore: false });
+  });
+  // 駅名の欄で Enter を押したら、決めたことにします。
+  $("#depart-place")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) {
+      e.preventDefault();
+      closePop();
+    }
+  });
+  // 一覧の中は、上下の矢印で動けるようにします（menu の作法）。
+  $("#plus-menu")?.addEventListener("keydown", (e) => {
+    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
+    const all = [...document.querySelectorAll("#plus-menu .plus-item")];
+    const i = all.indexOf(document.activeElement);
+    e.preventDefault();
+    const n = e.key === "Home" ? 0 : e.key === "End" ? all.length - 1
+      : (i + (e.key === "ArrowUp" ? -1 : 1) + all.length) % all.length;
+    all[n]?.focus();
+  });
+
+  // --- こだわりのシート ---
+  const dlg = $("#cond-dialog");
   $("#cond-done")?.addEventListener("click", () => dlg.close());
   dlg?.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   $("#cond-make")?.addEventListener("click", () => {
@@ -204,8 +264,8 @@ export function wireShell({ onNewTrip, onMake }) {
   });
   bias?.addEventListener("input", () => syncMix(bias.value));
 
-  // 札は、どこで何が変わっても追いかけます。条件の欄はシートの中にも
-  // 外にもあり、値を入れる道（近道の札・現在地・前につくった旅）が
+  // 札は、どこで何が変わっても追いかけます。条件の欄は「＋」の中にも
+  // シートの中にもあり、値を入れる道（チャット・現在地・前につくった旅）が
   // 多いので、1つずつ繋ぐより取りこぼしがありません。
   let queued = false;
   const later = () => {

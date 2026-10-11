@@ -49,42 +49,75 @@ function assert(cond, message) {
  *
  * page.evaluate は eval を通らないので、こちらで回します。
  */
-async function until(page, fn, { timeout = 90_000, step = 250 } = {}) {
+async function until(page, fn, { timeout = 90_000, step = 250, arg } = {}) {
   const limit = Date.now() + timeout;
   for (;;) {
-    if (await page.evaluate(fn)) return;
+    if (await page.evaluate(fn, arg)) return;
     if (Date.now() > limit) throw new Error("待ち時間を過ぎました");
     await page.waitForTimeout(step);
   }
 }
 
 /**
- * 入力欄の画面へ戻ります（旅程の画面にいるとき）。
+ * 「＋」から開く欄を1つ開きます（2026-10 のチャットの画面）。
  *
- * 2026-10 のリデザインで、旅程を見ているあいだは広い画面でも入力欄を
- * しまうようにしました（中央と右を旅程に渡すため）。戻る道は
- * 「条件を変更する」です。
+ * 出発地・日時は入力欄の下の札からも開けますが、ここではいつも
+ * 「＋」→ 項目、の道を通ります（はじめての人が通る道です）。
+ * name は from・when・mix・examples のどれか。
  */
-async function toForm(pg) {
-  const hidden = await pg.$eval("#form-pane",
-    (e) => getComputedStyle(e).display === "none");
-  if (hidden) await pg.click("#back-to-form");
+async function openPanel(pg, name) {
+  await closeConditions(pg);
+  const open = await pg.$eval("#pop", (e) => !e.hidden && e.dataset.panel);
+  if (open === name) return;
+  if (open) await pg.keyboard.press("Escape");
+  await pg.click("#plus");
+  await pg.click(`#plus-menu [data-open-cond="${name}"]`);
+  await pg.waitForSelector(`#pop .pop-panel[data-panel="${name}"]:not([hidden])`);
+}
+
+/** 「＋」の欄を閉じます。 */
+async function closePanel(pg) {
+  const open = await pg.$eval("#pop", (e) => !e.hidden);
+  if (open) await pg.keyboard.press("Escape");
 }
 
 /**
- * 「旅の条件」のシートを開きます。出発地・日時・移動手段などの欄は、
- * このシートの中にあります（入力欄の下の札から開きます）。
+ * 「こだわり」のシートを開きます（人数・予算・移動手段・宿など）。
+ * 「＋」→「こだわり」から開きます。
  */
 async function openConditions(pg) {
-  await toForm(pg);
   const open = await pg.$eval("#cond-dialog", (d) => d.open);
-  if (!open) await pg.click("#pill-tune");
+  if (open) return;
+  await closePanel(pg);
+  await pg.click("#plus");
+  await pg.click("#pill-tune");
 }
 
 /** シートを閉じます（「完了」）。 */
 async function closeConditions(pg) {
   const open = await pg.$eval("#cond-dialog", (d) => d.open);
   if (open) await pg.click("#cond-done");
+}
+
+/**
+ * 旅程ができるのを待って、「詳細を確認する」を開きます。
+ *
+ * 答えはまず短い文（候補と行程）で出て、地図や旅程の細かい板は
+ * 「詳細を確認する」の奥にあります。旅程の中を触る確認は、開いてから
+ * 行います。
+ */
+async function waitResult(pg, timeout = 120_000) {
+  await pg.waitForSelector("#result:not([hidden])", { state: "attached", timeout });
+  await pg.waitForSelector("#details-toggle", { timeout: 10_000 });
+  const shut = await pg.$eval("#details-toggle",
+    (b) => b.getAttribute("aria-expanded") !== "true");
+  if (shut) await pg.click("#details-toggle");
+}
+
+/** 例を1つ選んで、欄に入れます（「＋」→「旅の例」）。 */
+async function pickExample(pg, prefix) {
+  await openPanel(pg, "examples");
+  await pg.click(`#panel-examples [data-example^="${prefix}"]`);
 }
 
 const browser = await chromium.launch({
@@ -195,10 +228,31 @@ await check("いま何を指定しているかが、文になっている", asyn
   assert(/に\d+:\d+までに(戻る|着く)/.test(help), `読めません: ${help}`);
 });
 
-await check("入力は段に分かれている", async () => {
-  const steps = await page.$$eval(".step-title", (els) =>
-    els.map((e) => e.textContent.trim()));
-  assert(steps.length >= 2, `段が足りません: ${steps.join(" / ")}`);
+await check("出発地・日時は、押したものだけが開く", async () => {
+  // 出発地を押したら駅名の欄だけ、日時を押したらカレンダーだけ。
+  // 押したものと違う欄まで出ると、どこを触ればいいのか迷います。
+  const shown = () => page.$$eval("#pop .pop-panel",
+    (els) => els.filter((e) => !e.hidden).map((e) => e.dataset.panel));
+  await page.click("#pill-from");
+  let got = await shown();
+  assert(got.join() === "from", `出発地を押したら、${got.join("・")} が開きました`);
+  const focused = await page.evaluate(() => document.activeElement?.id);
+  assert(focused === "depart-place", `駅名の欄にフォーカスがありません: ${focused}`);
+  await page.click("#pill-when");
+  got = await shown();
+  assert(got.join() === "when", `日時を押したら、${got.join("・")} が開きました`);
+  const dlg = await page.$eval("#cond-dialog", (d) => d.open);
+  assert(!dlg, "大きな設定のシートまで開いています");
+  await page.keyboard.press("Escape");
+  const closed = await page.$eval("#pop", (e) => e.hidden);
+  assert(closed, "Esc で閉じません");
+  // 「＋」の中に、5つの項目が並ぶこと。
+  await page.click("#plus");
+  const items = await page.$$eval("#plus-menu .plus-item",
+    (els) => els.map((e) => e.querySelector("b")?.textContent.trim()));
+  assert(items.join("・") === "出発地・日時・旅の例・まわる場所・こだわり",
+    `「＋」の中身: ${items.join("・")}`);
+  await page.keyboard.press("Escape");
 });
 
 await check("自分の言葉が先、書きかたの見本はその次", async () => {
@@ -226,9 +280,10 @@ await check("自分の言葉が先、書きかたの見本はその次", async (
   });
 });
 
-await check("旅の好みが、畳まれずに出ている", async () => {
+await check("まわる場所を「＋」から3段で選べる", async () => {
   // 「定番と穴場のまぜかた」は、旅の中身がいちばん変わる設定です。
-  // シートに畳まず、入力欄のすぐ下に3段の切り替えで出します。
+  // 「＋」→「まわる場所」で、3段の切り替えがすぐ出ます。
+  await openPanel(page, "mix");
   const mix = await page.$("#mix-view");
   assert(mix, "定番と穴場のまぜかたが見つかりません");
   const visible = await page.$eval("#mix-quick",
@@ -239,11 +294,12 @@ await check("旅の好みが、畳まれずに出ている", async () => {
   const v = await page.$eval("#hidden-bias", (e) => Number(e.value));
   assert(v === 75, `3段の切り替えが、つまみに届いていません: ${v}`);
   await page.click('#mix-quick [data-mix="40"]');
+  await closePanel(page);
 });
 
 await check("どちらへ寄っているかが、数で分かる", async () => {
-  // 帯と数は「旅の条件」のシートの中にあります。開いて測ります。
-  await openConditions(page);
+  // 帯と数は「＋」→「まわる場所」の中にあります。開いて測ります。
+  await openPanel(page, "mix");
   await page.$eval("#hidden-bias", (e) => {
     e.value = 80; e.dispatchEvent(new Event("input"));
   });
@@ -310,6 +366,7 @@ await check("どちらへ寄っているかが、数で分かる", async () => {
   const quick = await page.$eval('#mix-quick [aria-checked="true"]',
     (e) => e.textContent.trim());
   assert(quick === "穴場多め", `3段の切り替えが追いついていません: ${quick}`);
+  await closePanel(page);
 });
 
 await check("1日のうち、動く時間帯を選べる", async () => {
@@ -336,6 +393,7 @@ await check("1日のうち、動く時間帯を選べる", async () => {
 
 await check("出発日を「明日」「今週末」に飛ばせる", async () => {
   // カレンダーを開いて日を探すより早い近道。時刻は保ち、帰着も一緒に動くこと。
+  await openPanel(page, "when");
   await page.$eval("#depart-at", (e) => { e.value = "2026-09-13T09:30"; });
   await page.$eval("#arrive-by", (e) => { e.value = "2026-09-14T19:00"; });
   await page.click('[data-day-preset="tomorrow"]');
@@ -351,7 +409,7 @@ await check("出発日を「明日」「今週末」に飛ばせる", async () =
   const sat = await page.$('[data-day-preset="saturday"]');
   assert(sat, "今週末の近道がありません");
   // 入力欄の下の札も、明日の日付になっていること。
-  await closeConditions(page);
+  await closePanel(page);
   await page.waitForTimeout(100);
   const pill = await page.$eval("#pill-when-tx", (e) => e.textContent);
   assert(/^明日/.test(pill), `日時の札が追いついていません: ${pill}`);
@@ -367,14 +425,13 @@ await check("何をしてくれるサイトかが書いてある", async () => {
     text: e.textContent.replace(/\s+/g, ""), h: e.getBoundingClientRect().height,
   })).catch(() => null);
   assert(brand && brand.h > 0 && brand.text.includes("旅さき"), "画面に名前が出ていません");
-  const steps = await page.$$eval("#home-hint li", (els) =>
-    els.map((e) => e.textContent.trim()));
-  assert(steps.length >= 3, `つくりかたが ${steps.length} 段しかありません`);
-  assert(steps.some((t) => t.includes("旅程")),
-    `何が出てくるのか書かれていません: ${steps.join(" / ")}`);
-  const visible = await page.$eval("#home-hint",
-    (e) => e.getBoundingClientRect().height > 0);
-  assert(visible, "つくりかたが隠れています");
+  // はじめの画面の見出しの下に、送ると何が返るかを1行で書きます。
+  const sub = await page.$eval(".hero-sub", (e) => ({
+    text: e.textContent.trim(), h: e.getBoundingClientRect().height,
+  }));
+  assert(sub.h > 0, "何をするサイトかの1行が隠れています");
+  assert(/送る/.test(sub.text) && /組みます/.test(sub.text),
+    `何が出てくるのか書かれていません: ${sub.text}`);
 });
 
 await check("停留所の読み解きを、別のスレッドに回している", async () => {
@@ -382,7 +439,7 @@ await check("停留所の読み解きを、別のスレッドに回している"
   // 読んで解くと、低スペックの携帯では400msほど画面が止まり、しかも
   // 2.6MBが本体側の記憶に載り続けます。返すのは「最寄り3件」のような
   // 小さな答えだけなので、本体側に置いておく理由がありません。
-  await openConditions(page);
+  await openPanel(page, "from");
   await page.click("#depart-place");
   await page.fill("#depart-place", "松江");
   await until(page, () =>
@@ -399,7 +456,7 @@ await check("停留所の読み解きを、別のスレッドに回している"
   assert(opts.some((v) => v.includes("松江")),
     `停留所の候補が出ていません: ${opts.slice(0, 5).join("・")}`);
   await page.fill("#depart-place", "東京駅");
-  await closeConditions(page);
+  await closePanel(page);
   await page.waitForTimeout(100);
   const pill = await page.$eval("#pill-from-tx", (e) => e.textContent);
   assert(pill === "東京駅から", `出発地の札が追いついていません: ${pill}`);
@@ -426,7 +483,7 @@ await check("開いただけでは、現在地を聞かない", async () => {
 await page.$eval("#day-start", (e) => { e.value = "09:00"; e.dispatchEvent(new Event("input")); });
 await page.$eval("#day-end", (e) => { e.value = "18:00"; e.dispatchEvent(new Event("input")); });
 await page.$eval("#hidden-bias", (e) => { e.value = 40; e.dispatchEvent(new Event("input")); });
-await page.click('[data-example^="温泉でゆっくり"]');
+await pickExample(page, "温泉でゆっくり");
 await page.click("#make-plan");
 
 await check("待っているあいだ、止まっていないことが分かる", async () => {
@@ -444,8 +501,27 @@ await check("待っているあいだ、止まっていないことが分かる"
   assert(second !== first, `時計が ${first} のまま止まっています`);
 });
 
-await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+await waitResult(page);
 await page.waitForTimeout(1500);
+
+await check("答えが、チャットの形で返る", async () => {
+  // 頼んだことが右の吹き出しに、答えが左に出ます。答えは「どこへ・
+  // 何日」→ 候補 → 行程 → 「詳細を確認する」の順です。
+  const got = await page.evaluate(() => ({
+    bubble: document.querySelector(".turn-user .bubble")?.textContent ?? "",
+    lead: document.querySelector(".turn-ai .ai-lead")?.textContent ?? "",
+    days: document.querySelectorAll(".turn-ai .mini-day").length,
+    rows: document.querySelectorAll(".turn-ai .mini-list li").length,
+    cands: document.querySelectorAll(".turn-ai .cand").length,
+    toggle: document.getElementById("details-toggle")?.textContent ?? "",
+    note: document.getElementById("note").value,
+  }));
+  assert(got.bubble.startsWith("温泉でゆっくり"), `吹き出しが妙です: ${got.bubble}`);
+  assert(/旅を組みました/.test(got.lead), `答えの1行目が妙です: ${got.lead}`);
+  assert(got.days >= 1 && got.rows >= 2, `行程が出ていません（${got.days}日・${got.rows}行）`);
+  assert(got.toggle.includes("詳細"), "「詳細を確認する」がありません");
+  assert(got.note === "", "送ったあとも、入力欄に文が残っています");
+});
 
 await check("旅程ができる", async () => {
   const title = await page.$eval(".itin-head h2", (e) => e.textContent.trim());
@@ -492,17 +568,16 @@ await check("立ち寄りの補足は、畳まれている", async () => {
   assert(!got.some((g) => g.loose), "補足が畳まれずに出ています");
 });
 
-await check("広い画面では、地図が旅程の横に固定される", async () => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.waitForTimeout(300);
-  const got = await page.$eval("#map", (e) => {
-    const cs = getComputedStyle(e);
-    const it = document.getElementById("itinerary").getBoundingClientRect();
-    return { pos: cs.position, left: e.getBoundingClientRect().left, itRight: it.right };
-  });
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  assert(got.pos === "sticky", `地図が固定されていません: ${got.pos}`);
-  assert(got.left >= got.itRight - 1, "地図が旅程の横に並んでいません");
+await check("地図は「詳細を確認する」の中にある", async () => {
+  // はじめの画面には地図を置きません。旅程の地図は、詳細を開いたら出ます。
+  const got = await page.evaluate(() => ({
+    inDetails: Boolean(document.querySelector("#turn-details #map")),
+    h: document.getElementById("map").getBoundingClientRect().height,
+    home: Boolean(document.getElementById("home-map")),
+  }));
+  assert(got.inDetails, "地図が詳細の中にありません");
+  assert(got.h > 150, `詳細を開いても地図が出ていません（高さ ${got.h}）`);
+  assert(!got.home, "はじめの画面の地図が残っています");
 });
 
 await check("要約 → 旅程 → 3案 → 言葉で直す → 詳細 の順に出る", async () => {
@@ -537,16 +612,22 @@ await check("旅程の下の操作が、ほかと同じ部品でできている"
   assert(send, "「旅程を送る / コピー」がありません");
 });
 
-await check("そのまま使える例を押すと、欄が埋まる", async () => {
-  // 自由入力の枠は、何を書いてよいか分からないと空のままです。
-  // 押すと入る一文があれば、書き換えるところから始められます。
-  await toForm(page);
-  const chip = await page.$(".note-examples [data-example]");
-  assert(chip, "例の札がありません");
-  const want = await chip.getAttribute("data-example");
-  await chip.click();
+await check("旅程ができたあとも、例を選んで欄に入れられる", async () => {
+  // はじめの画面の例は、旅程ができたら引っ込めます（続けて書く欄だけに
+  // します）。例は「＋」→「旅の例」からいつでも出せます。
+  const under = await page.$eval(".note-examples",
+    (e) => e.getBoundingClientRect().height);
+  assert(under === 0, "旅程ができたあとも、入力欄の下に例が並んでいます");
+  const want = await page.$eval('#panel-examples [data-example^="鎌倉"]', (e) => e.dataset.example);
+  await pickExample(page, "鎌倉");
   const got = await page.$eval("#note", (e) => e.value);
   assert(got === want, `欄が埋まっていません: ${got}`);
+  const closed = await page.$eval("#pop", (e) => e.hidden);
+  assert(closed, "例を選んだあとも、欄が開いたままです");
+  await page.$eval("#note", (e) => {
+    e.value = "";
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 });
 
 await check("エリアを地図で探して、欄に入れられる", async () => {
@@ -631,7 +712,7 @@ await check("紙には、時刻と場所だけを出す", async () => {
       return e ? getComputedStyle(e).display !== "none" : null;
     };
     return {
-      map: vis(".map"), form: vis(".pane-form"), variants: vis(".variants"),
+      map: vis(".map"), form: vis(".dock"), variants: vis(".variants"),
       actions: vis(".actions"), talk: vis(".panel.talk"),
       days: vis(".days"), head: vis(".itin-head"), checked: vis(".panel.checked"),
     };
@@ -683,7 +764,7 @@ await check("旅程のリンクを開くと、同じ旅程が出る", async () =
   }
   try {
     await other.goto(url, { waitUntil: "domcontentloaded" });
-    await other.waitForSelector("#result:not([hidden])", { timeout: 60_000 });
+    await other.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 60_000 });
     const theirs = await other.evaluate(() => ({
       title: document.querySelector(".itin-head h2")?.textContent.trim(),
       times: [...document.querySelectorAll(".tl .time")].slice(0, 6)
@@ -770,7 +851,7 @@ await check("案を選び直せる", async () => {
   const other = await page.$(".variant:not(.is-selected)");
   if (!other) return;
   await other.click();
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await page.waitForTimeout(1500);
   const sel = await page.$$eval(".variant.is-selected", (els) => els.length);
   assert(sel === 1, `選ばれている案が ${sel} 件あります`);
@@ -785,7 +866,7 @@ await check("立ち寄りを、その場で差し替えられる・外せる", a
 
   const before = await page.$$eval(".tl.spot", (els) => els.length);
   await page.click('.tl.spot .spot-action[data-action="remove"]');
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
     const o = document.querySelector(".talk-out");
     return Boolean(o && !o.hidden && o.textContent.includes("外して"));
@@ -797,7 +878,7 @@ await check("立ち寄りを、その場で差し替えられる・外せる", a
   const back = await page.$(".dropped-back");
   assert(back, "外した場所を戻すボタンがありません");
   await back.click();
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
     const o = document.querySelector(".talk-out");
     // 「戻して、組み直しました」から「戻しました（外す前の旅程です）」に
@@ -909,9 +990,12 @@ await check("一覧から、もう一度つくれる", async () => {
   assert(label.trim().length > 0, "一覧の見出しが空です");
 
   await page.click(".recent-row");
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await waitResult(page);
   const title = await page.$eval(".itin-head h2", (e) => e.textContent.trim());
   assert(title.length > 0, "押しても旅程が出ません");
+  // やりとりは、その旅だけになっていること（前の旅の答えと混ぜない）。
+  const turns = await page.$$eval(".turn-ai", (els) => els.length);
+  assert(turns === 1, `前の旅の答えが残っています（答え ${turns} 件）`);
 });
 
 await check("まとめて消す前に、確認する", async () => {
@@ -1005,7 +1089,7 @@ await check("組み立てを途中でやめられる", async () => {
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    await pg.click('[data-example^="温泉でゆっくり"]');
+    await pickExample(pg, "温泉でゆっくり");
     await pg.click("#make-plan");
     await pg.waitForSelector(".plan-card .plan-cancel", { timeout: 20_000 });
     await pg.click(".plan-card .plan-cancel");
@@ -1034,12 +1118,11 @@ await check("組み立てを途中でやめられる", async () => {
 await check("車を選ぶと、車の旅として組み直す", async () => {
   await openConditions(page);
   await page.click('#transport-choice [data-transport="car"]');
-  // 上の「日帰り・電車」の札も、車になること。
-  await page.waitForTimeout(100);
-  const mode = await page.$eval("#mode-pill-tx", (e) => e.textContent);
-  assert(/車/.test(mode), `旅のかたちの札が追いついていません: ${mode}`);
+  const on = await page.$eval('#transport-choice [data-transport="car"]',
+    (e) => e.getAttribute("aria-pressed"));
+  assert(on === "true", `車が選ばれていません: ${on}`);
   await page.click("#cond-make");
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await waitResult(page);
   await until(page, () => {
     const l = [...document.querySelectorAll(".check-list .ck-label")]
       .map((e) => e.textContent);
@@ -1077,7 +1160,7 @@ await check("電車＋現地の車では、区間ごとに乗るものが変わ�
   await openConditions(page);
   await page.click('#transport-choice [data-transport="transit+car"]');
   await page.click("#cond-make");
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await waitResult(page);
   await until(page, () => document.querySelectorAll(".tl.transit").length > 1,
              { timeout: 120_000 });
 
@@ -1114,7 +1197,7 @@ await check("連泊を選ぶと、宿を動かさない旅になる", async () =
     e.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await page.click("#make-plan");
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await waitResult(page);
   await until(page, () => document.querySelectorAll(".day").length > 1,
              { timeout: 120_000 });
 
@@ -1180,7 +1263,7 @@ await check("回る順を、その場で入れ替えられる", async () => {
   const moves = await page.$$(".day:not([hidden]) .tl.spot .tune-move[data-move='down']");
   assert(moves.length > 0, "順番を動かすボタンがありません");
   await moves[0].click();
-  await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+  await page.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
   await until(page, () => {
     const o = document.querySelector(".talk-out");
     return Boolean(o && !o.hidden && o.textContent.includes("回る順"));
@@ -1338,7 +1421,7 @@ await check("字を大きくすると、実際に大きくなる", async () => {
     };
     return {
       root: parseFloat(getComputedStyle(document.documentElement).fontSize),
-      title: px(".step-title"),
+      title: px(".hero-sub"),
       help: px(".md-field-help"),
       button: px(".cond-pill"),
       // 当たり判定は指の大きさで決まるので、**動かないこと**を見ます。
@@ -1458,17 +1541,26 @@ await check("指で押せる大きさになっている（44pt）", async () => 
       }
       return { coarse, bad };
     }, sels);
-    const home = await measure([".side-open", ".mode-pill", ".cond-pill",
-      "#mix-quick button", ".send-btn", ".note-examples .md-chip"]);
+    const home = await measure([".side-open", "#open-settings", ".plus-btn", ".cond-pill",
+      ".send-btn", ".note-examples .md-chip"]);
+    await pg.click("#plus");
+    const menu = await measure([".plus-item"]);
+    await pg.click('#plus-menu [data-open-cond="mix"]');
+    const mix = await measure(["#mix-quick button", "#panel-mix .pop-close", "#panel-mix .pop-done", ".md-slider"]);
+    await pg.keyboard.press("Escape");
+    await pg.click("#pill-when");
+    const when = await measure([".date-presets .md-chip"]);
+    await pg.keyboard.press("Escape");
+    await pg.click("#plus");
     await pg.click("#pill-tune");
     await pg.waitForTimeout(300);
-    const sheet = await measure(["#cond-dialog .md-icon-btn", ".date-presets .md-chip",
-      "#cond-dialog .md-chip", "#cond-dialog .md-btn", ".md-slider", ".linkish"]);
+    const sheet = await measure(["#cond-dialog .md-chip", "#cond-dialog .md-btn", ".linkish"]);
     await pg.click("#cond-done");
     await pg.click("#side-open");
     await pg.waitForTimeout(400);
     const side = await measure([".side-item", ".side-close"]);
-    const out = { coarse: home.coarse, bad: [...home.bad, ...sheet.bad, ...side.bad] };
+    const out = { coarse: home.coarse,
+                  bad: [...home.bad, ...menu.bad, ...mix.bad, ...when.bad, ...sheet.bad, ...side.bad] };
     assert(out.coarse === true, "指の端末として開けていません");
     assert(out.bad.length === 0, `44pt を下回ります: ${out.bad.join(" / ")}`);
   } finally {
@@ -1502,14 +1594,13 @@ await check("旅程の画面でも、押せるものが 44pt ある", async () =
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    // 携帯では例を6つまで出します（7つめからは畳みます）。見えている例で。
-    await pg.click('[data-example^="湯布院で温泉"]');
+    await pickExample(pg, "湯布院で温泉");
     await pg.click("#make-plan");
-    await pg.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+    await waitResult(pg);
     await pg.waitForTimeout(1000);
     const bad = await pg.evaluate(() => {
       const out = new Set();
-      const sel = "#result button, #result a[href], #result summary, "
+      const sel = "#thread button, #result a[href], #result summary, "
         + "#result input, #result select";
       for (const e of document.querySelectorAll(sel)) {
         if (e.closest("[hidden]")) continue;
@@ -1562,22 +1653,24 @@ await check("携帯で画面が切り替わっても、フォーカスが迷子�
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    // 携帯では例を6つまで出します（7つめからは畳みます）。見えている例で。
-    await pg.click('[data-example^="湯布院で温泉"]');
+    await pickExample(pg, "湯布院で温泉");
     await pg.focus("#make-plan");
     await pg.keyboard.press("Enter");
-    await pg.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+    await pg.waitForSelector("#result:not([hidden])", { state: "attached", timeout: 120_000 });
     await pg.waitForTimeout(500);
+    // 答えが出たら、続けて書けるように入力欄へ戻します（チャットの作法）。
     const after = await where();
-    assert(after.startsWith("h2"), `旅程ができたあと、フォーカスが見出しにありません: ${after}`);
+    assert(after.startsWith("textarea#note"), `旅程ができたあと、フォーカスが入力欄にありません: ${after}`);
     const said = await pg.$eval("#sr-announce", (e) => e.textContent);
     assert(/旅程ができました/.test(said), `できたことが読み上げに届いていません: ${said}`);
-    await pg.focus("#back-to-form");
-    await pg.keyboard.press("Enter");
+    // 「新しい旅」で、はじめの画面と入力欄に戻ること。
+    await pg.click("#side-open");
+    await pg.click("#new-trip");
     await pg.waitForTimeout(300);
     const back = await where();
-    assert(back.startsWith("section#form-pane"),
-      `条件の画面に戻ったあと、フォーカスが条件の画面にありません: ${back}`);
+    const view = await pg.evaluate(() => document.body.dataset.view);
+    assert(view === "form" && back.startsWith("textarea#note"),
+      `新しい旅にしたあと、はじめの画面の入力欄にいません: ${view} ${back}`);
   } finally {
     clearInterval(answer);
     await phone.close();
@@ -1654,10 +1747,9 @@ await check("指で押した跡が、残らない", async () => {
 //
 // **押されてから聞きます。** 開いた瞬間に通知と現在地の許可を求めるのは
 // いちばん断られる聞きかたなので、そうなっていないことも見ます。
-await check("携帯の最初の画面に、例と地図が出る", async () => {
-  // 携帯では結果の面が別の画面なので、初めての人には入力欄しか見えません
-  // でした。何を書けばよいかの例と、どこへ行けるかの地図（エリアの
-  // ピン）を、はじめの画面に出します。入力欄は画面の下に貼り付きます。
+await check("携帯の最初の画面は、見出しと入力欄と例だけ（地図は出さない）", async () => {
+  // 地図があると見づらいので、はじめの画面には置きません。何を書けば
+  // よいかの例（4つ）と、入力欄だけを出します。
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const pg = await ctx.newPage();
   const origin = new URL(BASE).origin;
@@ -1665,19 +1757,20 @@ await check("携帯の最初の画面に、例と地図が出る", async () => {
     (route) => route.abort("connectionrefused"));
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
-    const ex = await pg.$eval(".note-examples .md-chip", (e) => {
+    const ex = await pg.$$eval(".note-examples .md-chip", (els) => els.map((e) => {
       const r = e.getBoundingClientRect();
       return { top: r.top, h: r.height };
-    });
-    assert(ex.h > 0 && ex.top < 844, "例が最初の画面に出ていません");
+    }));
+    assert(ex.length === 4, `例が ${ex.length} 個あります（4つにします）`);
+    assert(ex.every((e) => e.h > 0 && e.top + e.h <= 844), "例が最初の画面に収まっていません");
     const composer = await pg.$eval("#composer", (e) => {
       const r = e.getBoundingClientRect();
-      return { bottom: r.bottom, pos: getComputedStyle(e).position };
+      return { top: r.top, bottom: r.bottom };
     });
-    assert(composer.pos === "fixed" && composer.bottom <= 844,
-      `入力欄が画面の下に貼り付いていません: ${composer.pos}`);
-    const map = await pg.$eval("#home-map", (e) => e.getBoundingClientRect().height);
-    assert(map > 100, `はじめの画面に地図が出ていません（高さ ${map}）`);
+    assert(composer.top > 0 && composer.bottom <= 844, "入力欄が画面に出ていません");
+    const maps = await pg.$$eval(".leaflet-container", (els) =>
+      els.filter((e) => e.getBoundingClientRect().height > 0).length);
+    assert(maps === 0, `はじめの画面に地図が出ています（${maps}枚）`);
     const want = await pg.$eval(".note-examples [data-example]", (e) => e.dataset.example);
     await pg.click(".note-examples .md-chip");
     const got = await pg.$eval("#note", (e) => e.value);
@@ -1750,9 +1843,9 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
     // 日付は画面の「今日」を押します（**利用者と同じ道**。直に書くと
     // change が飛ばず、画面の文が前の日のままになります。実際そう
     // なりました）。
-    await openConditions(day);
+    await openPanel(day, "when");
     await day.click('[data-day-preset="today"]');
-    await closeConditions(day);
+    await closePanel(day);
     // 時刻は、その日のうちに収まる幅にします。
     await day.evaluate(() => {
       const p = (n) => String(n).padStart(2, "0");
@@ -1767,7 +1860,7 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
       }
     });
     await day.click("#make-plan");
-    await day.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
+    await waitResult(day);
     await until(day, () => {
       const t = document.getElementById("today");
       return Boolean(t) && !t.hidden;
@@ -1836,6 +1929,65 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
     clearInterval(answering);
     await ctx.close();
   }
+});
+
+// --- チャットだけで済ませる ------------------------------------------------
+// 設定を開かなくても、書いたことで組めること。書いたことが設定より
+// 勝つこと。旅程の直しも、返信の形で頼めること。
+
+/** 送って、その答えが出るまで待ちます。 */
+async function sendChat(pg, text) {
+  const before = await pg.$$eval(".turn-ai", (els) => els.length);
+  await pg.fill("#note", text);
+  await pg.keyboard.press("Enter");
+  await until(pg, (n) => document.querySelectorAll(".turn-ai").length > n
+    && Boolean(document.querySelector(".thread > .turn-ai:last-child #details-toggle")),
+  { timeout: 120_000, arg: before });
+}
+
+await check("チャットに書いた日付と出発地が、設定より勝つ", async () => {
+  await page.$eval("#depart-place", (e) => {
+    e.value = "東京駅";
+    e.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await sendChat(page, "明後日から1泊2日で、名古屋から。温泉でゆっくり");
+  const got = await page.evaluate(() => ({
+    from: document.getElementById("depart-place").value,
+    dep: document.getElementById("depart-at").value,
+    arr: document.getElementById("arrive-by").value,
+    chips: [...document.querySelectorAll(".thread > .turn-user:nth-last-child(2) .read-chips li")]
+      .map((e) => e.textContent),
+  }));
+  const p = (n) => String(n).padStart(2, "0");
+  const d = new Date(); d.setDate(d.getDate() + 2);
+  const ymd = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  const d2 = new Date(d); d2.setDate(d2.getDate() + 1);
+  const ymd2 = `${d2.getFullYear()}-${p(d2.getMonth() + 1)}-${p(d2.getDate())}`;
+  assert(got.from.startsWith("名古屋"), `出発地が書いたとおりになっていません: ${got.from}`);
+  assert(got.dep.startsWith(ymd), `出発日が明後日になっていません: ${got.dep}`);
+  assert(got.arr.startsWith(ymd2), `1泊2日になっていません: ${got.arr}`);
+  assert(got.chips.some((t) => t.includes("1泊2日")) && got.chips.some((t) => t.includes("名古屋")),
+    `読み取った条件が吹き出しの下に出ていません: ${got.chips.join("・")}`);
+});
+
+await check("返信で、旅程を直せる", async () => {
+  // 条件だけを言い直したら、前の希望のまま組み直します。
+  await sendChat(page, "日帰りにして");
+  const span = await page.evaluate(() => [
+    document.getElementById("depart-at").value.slice(0, 10),
+    document.getElementById("arrive-by").value.slice(0, 10),
+  ]);
+  assert(span[0] === span[1], `日帰りになっていません: ${span.join(" → ")}`);
+  const bubble = await page.$eval(".thread > .turn-ai:last-child .ai-lead", (e) => e.textContent);
+  assert(/日帰り/.test(bubble), `答えが日帰りの旅になっていません: ${bubble}`);
+  // 直す言い方なら、いまの旅程を直します（何をしたかを答えの頭に書きます）。
+  await sendChat(page, "もっとゆっくりにして");
+  const said = await page.$eval(".thread > .turn-ai:last-child .ai-edit", (e) => e.textContent)
+    .catch(() => "");
+  assert(/ゆっくり/.test(said), `直したことが書かれていません: ${said || "なし"}`);
+  // 前の答えは残り、操作できるのはいちばん新しい答えだけ。
+  const past = await page.$$eval(".turn-ai.is-past #details-toggle", (els) => els.length);
+  assert(past === 0, "前の答えにも「詳細を確認する」が残っています");
 });
 
 // 画面に出ている記号が、絵文字でないこと。

@@ -33,12 +33,13 @@ const allCss = fs.readdirSync(path.join(ROOT, "css"))
  * カードや旅程の行を足したくなったら、それは内容の層なので、
  * ガラスではなく標準の材質を使ってください。
  */
-const FLOATING = ["settings-fab", "make", "back-to-form"];
+const FLOATING = ["settings-fab", "make", "back-to-form", "dock"];
 
 test("ガラスは、浮いているものにしか当てていない", () => {
   const found = [...html.matchAll(/class="([^"]*hig-glass[^"]*)"/g)]
     .map((m) => m[1].split(/\s+/));
-  assert.ok(found.length > 0, "ガラスがどこにも当たっていません");
+  // 2026-10 のチャット画面では、どこにも当てていません（入力欄は
+  // Claude と同じく透けない面です）。当てるなら、浮いているものだけ。
   for (const classes of found) {
     assert.ok(classes.some((c) => FLOATING.includes(c)),
       `浮いていないものにガラスが当たっています: ${classes.join(" ")}`);

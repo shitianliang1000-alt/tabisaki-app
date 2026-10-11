@@ -29,7 +29,8 @@
 // v9: Leaflet を vendor/ から配るようにし、地図のタイルを取っておくように
 // しました。
 // v10: 画面の枠を組み替えました（js/shell.js を足し、css を大きく変えています）。
-const VERSION = "tabisaki-v10";
+// v11: チャットの画面にしました（js/chat.js・js/chatread.js を足しています）。
+const VERSION = "tabisaki-v11";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -141,6 +142,8 @@ const SHELL_FILES = [
   "./js/shapes.js",
   "./js/share.js",
   "./js/shell.js",
+  "./js/chat.js",
+  "./js/chatread.js",
   "./js/sketch.js",
   "./js/snapshot.js",
   "./js/stays.js",
