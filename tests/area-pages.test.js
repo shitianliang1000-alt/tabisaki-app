@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
-  examplePrompts, nearbySpots, nextSaturday, pickPrefSpots, readableDescription, shardSlug,
+  examplePrompts, groupByChiho, nearbySpots, nextSaturday, pickPrefSpots, readableDescription, shardSlug,
   sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
 
@@ -330,4 +330,12 @@ test("404.html: どの深さで出ても崩れない絶対URLで、検索には�
   // 相対パス（../ や css/ で始まるもの）が残っていないこと。
   assert.ok(!/(href|src)="(?!https:)/.test(html), "相対リンクが残っています");
   assert.match(html, /script-src 'none'/);
+});
+
+test("都道府県の一覧は地方ごとに分かれ、表に無い名前も落とさない", () => {
+  const prefs = ["沖縄県", "北海道", "東京都", "神奈川県", "どこか県"].map((name) => ({ name }));
+  const g = groupByChiho(prefs);
+  assert.deepEqual(g.map((x) => x.name), ["北海道・東北", "関東", "九州・沖縄", "その他"]);
+  assert.deepEqual(g[1].prefs.map((p) => p.name), ["東京都", "神奈川県"]);
+  assert.equal(g.flatMap((x) => x.prefs).length, prefs.length);
 });

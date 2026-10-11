@@ -16,9 +16,13 @@ body {
 }
 a { color: var(--md-sys-color-primary); }
 
+/* 帯の中身は、本文の列（.area の 760px）と左右の端を揃えます。
+   画面の端に寄せていたころは、広い画面でロゴが左の果て、リンクが
+   右の果てに離れ、本文の列とどちらも揃っていませんでした。 */
 .area-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+  padding: 12px max(16px, env(safe-area-inset-right), calc((100% - 728px) / 2))
+           12px max(16px, env(safe-area-inset-left), calc((100% - 728px) / 2));
   border-bottom: 1px solid var(--hig-separator);
   background: var(--hig-card);
 }
@@ -70,11 +74,29 @@ section {
 .sp-desc { grid-column: 2 / -1; font-size: var(--hig-t-subhead); color: var(--hig-label-2); }
 
 .regions, .prefs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+/* 同じ段のカードは高さを揃えます（説明が2行に折れた1枚だけが
+   伸びて、段がでこぼこになっていました）。右の「›」は、押すと先へ
+   進むカードだと分かるための印です。 */
+.regions li, .prefs li { display: flex; }
 .regions a, .prefs a {
-  display: flex; flex-direction: column; gap: 2px; min-height: 44px;
-  padding: 12px 14px; border-radius: 12px;
+  position: relative; flex: 1;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 44px;
+  padding: 12px 32px 12px 14px; border-radius: 12px;
   background: var(--hig-card); text-decoration: none; color: var(--hig-label);
 }
+.regions a::after, .prefs a::after {
+  content: "›"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: var(--hig-t-title3); line-height: 1;
+  color: var(--md-sys-color-on-surface-variant);
+}
+/* 都道府県の一覧は地方ごとに分けます。47枚を1列に並べると、携帯では
+   画面9枚ぶん指で送らないと九州に届きませんでした。携帯でも2列にして
+   地方の見出しで飛べるようにします。 */
+.chiho { margin: 24px 0 0; padding: 0; background: none; border-radius: 0; }
+.chiho h2 { font-size: var(--hig-t-headline); margin: 0 0 8px; color: var(--hig-label-2); }
+.chiho .prefs { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.chiho .prefs a { padding: 10px 28px 10px 12px; }
+.chiho .prefs a::after { right: 10px; }
 .regions a { background: var(--hig-fill); }
 .regions span, .prefs span { font-size: var(--hig-t-footnote); color: var(--hig-label-2); }
 

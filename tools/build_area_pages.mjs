@@ -534,6 +534,34 @@ ${spotList(hidden)}
            html: page({ title, description, canonical, rel, body, jsonLd }) };
 }
 
+/** 地方の分けかた。北海道は1道で1段になるので東北と、沖縄は九州とまとめます。並びは北から。 */
+const CHIHO = [
+  ["北海道・東北", ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"]],
+  ["関東", ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"]],
+  ["中部", ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"]],
+  ["近畿", ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"]],
+  ["中国", ["鳥取県", "島根県", "岡山県", "広島県", "山口県"]],
+  ["四国", ["徳島県", "香川県", "愛媛県", "高知県"]],
+  ["九州・沖縄", ["福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"]],
+];
+
+/**
+ * 都道府県を地方ごとにまとめます。地方の表に無い名前（収録の書き方が
+ * 変わったときなど）は落とさず、最後の「その他」に入れます。
+ *
+ * @param {{name:string}[]} prefs
+ * @returns {{name:string, prefs:object[]}[]}
+ */
+export function groupByChiho(prefs) {
+  const groups = CHIHO.map(([name, members]) => ({
+    name, prefs: members.map((m) => prefs.find((p) => p.name === m)).filter(Boolean),
+  }));
+  const known = new Set(CHIHO.flatMap(([, m]) => m));
+  const rest = prefs.filter((p) => !known.has(p.name));
+  if (rest.length) groups.push({ name: "その他", prefs: rest });
+  return groups.filter((g) => g.prefs.length);
+}
+
 export function renderIndexPage({ prefs, base }) {
   const rel = "../";
   const canonical = `${base}areas/index.html`;
@@ -543,10 +571,13 @@ export function renderIndexPage({ prefs, base }) {
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
 <p class="lead">都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
+${groupByChiho(prefs).map(({ name, prefs: list }) => `<section class="chiho" aria-labelledby="chiho-${esc(list[0].slug)}">
+<h2 id="chiho-${esc(list[0].slug)}">${esc(name)}</h2>
 <ul class="prefs">
-${prefs.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</b>`
+${list.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</b>`
     + `<span>${p.count.toLocaleString("ja-JP")}か所${p.regions.length ? `・${p.regions.map((r) => esc(r.name)).join("・")}` : ""}</span></a></li>`).join("\n")}
-</ul>`;
+</ul>
+</section>`).join("\n")}`;
   const jsonLd = { "@context": "https://schema.org", ...breadcrumbLd([
     { name: "旅さき", url: base },
     { name: "エリア", url: canonical },

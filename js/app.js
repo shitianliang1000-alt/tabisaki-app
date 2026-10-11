@@ -897,6 +897,16 @@ function pickArea(area) {
   note.setSelectionRange(note.value.length, note.value.length);
 }
 
+/**
+ * 最初の地図で必ず収める枠（南西, 北東）。北九州から道東まで。
+ *
+ * 九州の南端と北海道の北端まで含めると、広い画面でも縮尺が1段
+ * 引かれて大陸が半分を占めます。縮尺を小数にすると（zoomSnap）
+ * タイルの継ぎ目に白い線が出るので、整数のまま、この枠で1段寄せます。
+ * 中心はこの枠の中心なので、寄せたときも端が少し切れるだけです。
+ */
+const JAPAN_HOME_VIEW = [[33, 130.5], [43.5, 145]];
+
 let homeMapStarted = false;
 
 async function startHomeMap() {
@@ -915,10 +925,14 @@ async function startHomeMap() {
     return;
   }
   try {
+    // 最初に見せるのは日本列島です。中心と縮尺を決め打ちにしていた
+    // ころは、広い画面だと大陸と朝鮮半島が半分を占め、外国語の地名が
+    // 日本より目立っていました。本州を囲む枠に合わせ、画面の大きさに
+    // 応じた縮尺を Leaflet に選ばせます。
     const map = window.L.map(box, {
       zoomControl: true, scrollWheelZoom: false,
       attributionControl: true,
-    }).setView([36.2, 138.3], 5);
+    }).fitBounds(JAPAN_HOME_VIEW);
     window.L.tileLayer(TILE_URL,
       { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
     state.homeMap = map;
