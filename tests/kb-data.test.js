@@ -98,6 +98,26 @@ test("名指しで探される場所が落ちていない", { skip: !has && "kb/
   assert.deepEqual(missing, [], `落ちています: ${missing}`);
 });
 
+test("エリアの代表に選んだ場所が、穴場になっていない",
+  { skip: !has && "kb/ が未生成" }, () => {
+  // 手で選んだエリアの見どころ（kamakura-1 など）は、知られている順に
+  // 並べてあります。その知名度が**逆向きに**付いていて、東大寺・平等院・
+  // 姫路城・鶴岡八幡宮が「穴場」（30点）、若草山が「定番」（82点）でした。
+  // 「鎌倉を1日で」の旅程に、鶴岡八幡宮が入らなかった原因です。
+  const curated = spots.filter((s) => /^[a-z]+-1$/.test(s.id)
+    && s.id.startsWith(`${s.regionId}-`) && !s.id.startsWith("csv-"));
+  assert.ok(curated.length > 30, `代表 ${curated.length}件`);
+  const hidden = curated.filter((s) => s.fame_tier === "hidden");
+  assert.deepEqual(hidden.map((s) => s.name), []);
+  for (const id of ["nara-1", "uji-1", "himeji-1", "kamakura-1", "nikko-1"]) {
+    const s = spots.find((x) => x.id === id);
+    const rest = spots.filter((x) => x.regionId === s.regionId
+      && /^[a-z]+-\d+$/.test(x.id) && x.id !== id);
+    assert.ok(rest.every((x) => (x.fame_score ?? 0) <= s.fame_score),
+      `${s.name}（${s.fame_score}）より知られている扱いの場所があります`);
+  }
+});
+
 test("座標が日本の範囲に収まっている", { skip: !has && "kb/ が未生成" }, () => {
   const bad = spots.filter((s) =>
     !(s.lat >= 20 && s.lat <= 46 && s.lng >= 122 && s.lng <= 154));

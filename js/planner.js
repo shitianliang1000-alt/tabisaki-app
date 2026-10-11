@@ -457,9 +457,14 @@ export function buildItinerary(input) {
         costYen: 0, reason: "次の予定まで時間があるため",
       });
     }
+    // 帰りは、**最後に立ち寄った場所から**です。所要時間もそこから
+    // 測っています（backMin）。拠点の駅の名前を出していたので、
+    // 宮島から広島駅へ戻る旅程が「広島駅 → 広島駅 約90分」と出ていました。
+    const backFrom = visits.at(-1)?.spot?.name
+      || lastRegion.station || lastRegion.name;
     const label = returnsToStart(trip)
-      ? `${lastRegion.station || lastRegion.name} → ${end.place.name}`
-      : `${lastRegion.station || lastRegion.name} → ${end.place.name}（最終目的地）`;
+      ? `${backFrom} → ${end.place.name}`
+      : `${backFrom} → ${end.place.name}（最終目的地）`;
     // 帰りの便も、乗る路線の手順を付けます（行きと同じ形）。
     items.push(withTransit({
       id: nextId(), kind: "transit",

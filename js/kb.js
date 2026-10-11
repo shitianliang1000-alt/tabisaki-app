@@ -733,7 +733,16 @@ export function rankRegions(kb, matches, topPerRegion = 8, opts = {}) {
   for (const [regionId, list] of byRegion) {
     const region = kb.regionsById.get(regionId);
     if (!region) continue;
-    list.sort((a, b) => b.score - a.score);
+    // 点が並んだら、知られているほうを上にします。
+    //
+    // 「鎌倉を1日で」のように、地名のほかに希望が書かれていないと、
+    // 一致の点はどれも0で並びます。そのまま切ると、上位8件は収録の
+    // 順番で決まります。鎌倉では「鎌倉市」のエリアの上位が、科学館・
+    // 郷土資料館のように地名で拾われただけの場所になり、知名度の平均で
+    // 鶴岡八幡宮・大仏のある「鎌倉」を上回っていました。旅程は
+    // 佐助稲荷神社・CIAL鎌倉から始まり、八幡宮も大仏も入りません。
+    list.sort((a, b) => (b.score - a.score)
+      || ((b.spot.fame_score ?? 50) - (a.spot.fame_score ?? 50)));
     const top = list.slice(0, topPerRegion);
 
     // 上位の加重和（重みは 1, 0.7, 0.49, … と減衰）。

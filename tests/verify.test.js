@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { REJECT } from "../js/feasibility.js";
-import { issuesToPrompt, keepFeasible, trimToFit, verifyOrder } from "../js/verify.js";
+import { issuesToPrompt, keepFeasible, trimKeepingPicks, trimToFit, verifyOrder }
+  from "../js/verify.js";
 
 const d = (s) => new Date(s);
 const TOKYO = { name: "東京駅", lat: 35.681236, lng: 139.767125 };
@@ -304,6 +305,41 @@ test("trimToFit は、期限に収まるまで後ろから削る", () => {
   assert.ok(dropped.length > 0, "何も削っていない");
   assert.ok(kept.length < many.length);
   assert.ok(result.arriveEnd <= ctx.endBy, "期限を超えている");
+});
+
+test("入りきらないときは、選んだ場所より先に穴埋めを外す", () => {
+  // 「宮島に行きたい」で、案内所（穴埋め）が残って厳島神社が落ちていた形。
+  // 後ろの D が選んだ場所、前の A・B は空き時間を埋めるために足した場所です。
+  const D = spot({ id: "D", name: "館D", category: "神社", lat: 35.33, lng: 139.56 });
+  const many = [A, B, SHRINE, D];
+  const ctx = {
+    start: NEAR, startAt: d("2026-09-12T13:00"),
+    end: TOKYO, endBy: d("2026-09-12T17:00"),
+  };
+  const plain = trimToFit(many, ctx);
+  assert.ok(plain.dropped.some((s) => s.id === "D"),
+    "前提: ふつうに削ると、後ろの選んだ場所が落ちるはず");
+
+  const fillers = new Set(["A", "B"]);
+  const kept = trimKeepingPicks(many, ctx, fillers);
+  assert.equal(kept.result.ok, true, JSON.stringify(kept.result.issues));
+  const ids = kept.result.visits.map((v) => v.spot.id);
+  assert.ok(ids.includes("D"), `選んだ場所が落ちています: ${ids}`);
+  assert.ok(ids.length < many.length);
+  // 外した穴埋めは「時間が合わず外した」に数えません。
+  assert.ok(!kept.dropped.some((s) => fillers.has(s.id)),
+    JSON.stringify(kept.dropped.map((s) => s.id)));
+});
+
+test("穴埋めが無ければ、trimToFit と同じ", () => {
+  const many = [A, B, SHRINE];
+  const ctx = {
+    start: NEAR, startAt: d("2026-09-12T13:00"),
+    end: TOKYO, endBy: d("2026-09-12T17:00"),
+  };
+  const a = trimToFit(many, ctx);
+  const b = trimKeepingPicks(many, ctx, new Set());
+  assert.deepEqual(b.spots.map((s) => s.id), a.spots.map((s) => s.id));
 });
 
 test("trimToFit は、収まる日程では何も削らない", () => {

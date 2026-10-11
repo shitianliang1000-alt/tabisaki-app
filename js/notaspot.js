@@ -148,6 +148,30 @@ export function isNotAPlace(spot) {
 }
 
 /**
+ * 観光案内所。
+ *
+ * 地図やパンフレットをもらう所で、見に行く所ではありません。それが
+ * 旅程の1か所目に、45分・300円の立ち寄りとして入っていました。
+ *
+ *   9:00 広島駅総合案内所（45分）
+ *
+ * 外すのは、名前が「案内所」「インフォメーション（センター）」で
+ * 終わるものだけです。
+ *
+ *   ・ビジターセンターは残します。国立公園のものは展示が見どころです
+ *   ・「観光センター」は残します。物産館や展望台を兼ねたものが多いためです
+ *   ・「倉吉白壁土蔵群・赤瓦観光案内所」のように、見どころの名前と
+ *     「・」でつないだものは残します（建物そのものが見どころです）
+ */
+const INFO_DESK = /(案内所|インフォメーション\s*(センター)?)$/i;
+
+export function isInfoDesk(spot) {
+  const base = outside(spot?.name);
+  if (!base || /ビジターセンター|・/.test(base)) return false;
+  return INFO_DESK.test(base);
+}
+
+/**
  * 1つにまとめられないものを、1つの浜として入れたもの。
  *
  * 「琵琶湖（海水浴場）」「瀬戸内海（海水浴場）」「多摩川（海水浴場）」。
@@ -170,7 +194,7 @@ export function isUmbrella(spot) {
  * 行き先にならない理由。行き先なら null。
  *
  * @param {object} spot
- * @returns {null|"宿"|"場所ではない記事"|"まとめすぎ"}
+ * @returns {null|"宿"|"場所ではない記事"|"まとめすぎ"|"案内所"}
  */
 export function whyNotASpot(spot) {
   // 利用者が足したもの・調べて足したもの（source: "ai"）は、名指しで
@@ -178,6 +202,7 @@ export function whyNotASpot(spot) {
   if (spot?.source === "ai" || spot?.source === "user") return null;
   if (isLodging(spot)) return "宿";
   if (isUmbrella(spot)) return "まとめすぎ";
+  if (isInfoDesk(spot)) return "案内所";
   if (isNotAPlace(spot)) return "場所ではない記事";
   return null;
 }
