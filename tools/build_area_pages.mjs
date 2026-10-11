@@ -50,6 +50,18 @@ const REGION_SPOTS = 24;
  */
 const REGION_RADIUS_KM = 6;
 const REGION_MIN_NEAR = 8;
+/**
+ * モデルコースで寄ってよいのは、エリアの中心からこの距離まで。
+ * 鎌倉のコースが横須賀の記念艦三笠（12km）へ、松本のコースが上高地の
+ * 河童橋（40km 先）へ行っていました。
+ */
+const COURSE_RADIUS_KM = 10;
+
+/** モデルコースに入れるには遠すぎる場所か。座標の無いものは判断せず、遠いとはしません。 */
+export function isFar(region, spot) {
+  if (![region?.lat, region?.lng, spot?.lat, spot?.lng].every(Number.isFinite)) return false;
+  return distanceKm(region.lat, region.lng, spot.lat, spot.lng) > COURSE_RADIUS_KM;
+}
 
 export function esc(text) {
   return String(text ?? "").replace(/[&<>"']/g, (c) => ({
@@ -281,8 +293,13 @@ export function pickPrefSpots(spots, prefName) {
   const list = onlySpots(spots).filter((s) => s?.name && !NOT_DESTINATION.test(s.name))
     .sort(byFame);
   const taken = [];
+  // 「定番」の欄の頭には、本当に定番のもの（major）を先に出します。
+  // 有名さの点だけで並べると、佐賀県の頭が加唐島・加部島になり、
+  // 吉野ヶ里遺跡や虹の松原が下に沈んでいました。
+  const tierRank = (s) => (s.fame_tier === "major" ? 0 : 1);
   const major = pickDistinct(
-    list.filter((s) => s.fame_tier === "major" || s.fame_tier === "known"), PREF_MAJOR, taken);
+    list.filter((s) => s.fame_tier === "major" || s.fame_tier === "known")
+      .sort((a, b) => tierRank(a) - tierRank(b) || byFame(a, b)), PREF_MAJOR, taken);
   const hidden = pickDistinct(
     list.filter((s) => s.fame_tier === "hidden" && readableDescription(s)
                        && !GONE.test(s.description) && !inOtherPrefecture(s, prefName)),
@@ -441,16 +458,35 @@ ${others.map((r) => `  <li><a href="${esc(r.id)}.html"><b>${esc(r.name)}</b>${r.
 </section>`;
 }
 
+/**
+ * 説明文に入れる場所の名前（重なりなし・先頭から n 件）。
+ *
+ * 説明文は検索結果の見出しの下に出ます。どのページも「〇〇（県）を駅から
+ * 1日でまわるモデルコース」の型だけだと、どれも同じに読め、Google が
+ * ページの本文から勝手に抜き出した文に差し替えることもあります。
+ * 実際に寄る場所・有名な場所の名前を入れると、ページごとに違う文になり、
+ * 「長谷寺 鎌倉大仏 1日」のように場所の名前で探した人にも内容が伝わります。
+ */
+export function nameList(names, n = 3) {
+  return [...new Set(names.filter(Boolean))].slice(0, n).join("・");
+}
+
 export function renderRegionPage({ region, prefName, prefSlug, spots, course, date, base,
                                    siblings = [] }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
   const title = `${region.name}の1日モデルコースと観光地｜旅さき`;
-  const description = `${region.name}（${prefName}）を${region.station ?? "駅"}から1日でまわるモデルコース。`
-    + (region.tagline ? `${region.tagline}。` : "")
-    + "行きたいことを書くと、営業時間と移動時間まで合わせた旅程をつくれます。";
   const list = [...nearbySpots(region, spots)].sort(byFame).slice(0, REGION_SPOTS);
   const items = course ? courseItems(course) : null;
+  // 寄る順ではなく、よく知られた順に（鎌倉なら駅ビルより長谷寺と大仏）。
+  const stops = items ? nameList((course.days?.[0]?.items ?? []).filter((i) => i.kind === "spot")
+    .map((i) => ({ name: i.title, fame_score: i.place?.fame_score })).sort(byFame).map((x) => x.name)) : "";
+  const famous = nameList(list.map((s) => s.name));
+  const description = (stops
+    ? `${region.name}（${prefName}）を${region.station ?? "駅"}から1日で、${stops}とまわるモデルコース。`
+    : `${region.name}（${prefName}）の観光地${famous ? `（${famous}など）` : ""}と1日の旅程づくり。`)
+    + (region.tagline ? `${region.tagline}。` : "")
+    + "行きたいことを書くと、営業時間と移動時間まで合わせた旅程をつくれます。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
 <h1>${esc(region.name)}</h1>
 ${region.tagline ? `<p class="lead">${esc(region.tagline)}</p>` : ""}
@@ -500,7 +536,9 @@ export function renderPrefPage({ prefName, prefSlug, spots, regions, base }) {
   const canonical = `${base}areas/${prefSlug}/index.html`;
   const { major, hidden } = pickPrefSpots(spots, prefName);
   const title = `${prefName}の観光地・定番と穴場｜旅さき`;
-  const description = `${prefName}の定番の観光地と、知る人ぞ知る穴場。収録${spots.length.toLocaleString("ja-JP")}か所から、`
+  const famous = nameList(major.map((s) => s.name));
+  const description = `${prefName}の観光地。${famous ? `${famous}などの定番と、` : "定番と、"}`
+    + `知る人ぞ知る穴場。収録${spots.length.toLocaleString("ja-JP")}か所から、`
     + "行きたいことに合わせて旅程をつくれます。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
@@ -513,17 +551,21 @@ ${regions.map((r) => `  <li><a href="${esc(r.id)}.html"><b>${esc(r.name)}</b>${r
 </ul>
 </section>` : ""}
 ${major.length ? `<section>
-<h2>定番の観光地</h2>
+<h2>${esc(prefName)}の定番・主な観光地</h2>
 ${spotList(major)}
 </section>` : ""}
 ${hidden.length ? `<section>
-<h2>穴場</h2>
+<h2>${esc(prefName)}の穴場</h2>
 ${spotList(hidden)}
 </section>` : ""}`;
   const jsonLd = { "@context": "https://schema.org", "@graph": [{
     "@type": "TouristDestination",
     name: prefName,
-    includesAttraction: major.map((s) => ({ "@type": "TouristAttraction", name: s.name })),
+    description,
+    includesAttraction: major.map((s) => ({
+      "@type": "TouristAttraction", name: s.name,
+      ...(Number.isFinite(s.lat) ? { geo: { "@type": "GeoCoordinates", latitude: s.lat, longitude: s.lng } } : {}),
+    })),
     url: canonical,
   }, breadcrumbLd([
     { name: "旅さき", url: base },
@@ -532,6 +574,31 @@ ${spotList(hidden)}
   ])] };
   return { path: `areas/${prefSlug}/index.html`, url: canonical,
            html: page({ title, description, canonical, rel, body, jsonLd }) };
+}
+
+/**
+ * 地方の分け方。エリアの一覧に 47 の県を1列で並べていたのを、地方ごとの
+ * 見出しで区切ります。読む人が自分の行き先を探しやすく、検索エンジンにも
+ * 「関東の観光地」のようなまとまりが見出しで伝わります。
+ */
+const CHIHO = [
+  ["北海道・東北", ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"]],
+  ["関東", ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"]],
+  ["中部", ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"]],
+  ["近畿", ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"]],
+  ["中国・四国", ["鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県"]],
+  ["九州・沖縄", ["福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"]],
+];
+
+/** 県の並びを地方ごとに分けます。どの地方にも無い名前は「その他」に入れます（落としません）。 */
+export function groupByChiho(prefs) {
+  const out = CHIHO.map(([chiho, names]) => ({
+    chiho, list: names.map((n) => prefs.find((p) => p.name === n)).filter(Boolean),
+  }));
+  const known = new Set(CHIHO.flatMap(([, names]) => names));
+  const rest = prefs.filter((p) => !known.has(p.name));
+  if (rest.length) out.push({ chiho: "その他", list: rest });
+  return out.filter((g) => g.list.length);
 }
 
 export function renderIndexPage({ prefs, base }) {
@@ -543,10 +610,13 @@ export function renderIndexPage({ prefs, base }) {
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
 <p class="lead">都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
+${groupByChiho(prefs).map(({ chiho, list }) => `<section>
+<h2>${esc(chiho)}</h2>
 <ul class="prefs">
-${prefs.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</b>`
+${list.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</b>`
     + `<span>${p.count.toLocaleString("ja-JP")}か所${p.regions.length ? `・${p.regions.map((r) => esc(r.name)).join("・")}` : ""}</span></a></li>`).join("\n")}
-</ul>`;
+</ul>
+</section>`).join("\n")}`;
   const jsonLd = { "@context": "https://schema.org", ...breadcrumbLd([
     { name: "旅さき", url: base },
     { name: "エリア", url: canonical },
@@ -636,7 +706,7 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
       const own = spots.filter((s) => s.regionId === region.id);
       let course = null;
       if (planCourse) {
-        try { course = await planCourse(region, date, own); } catch { course = null; }
+        try { course = await planCourse(region, date, own, spots); } catch { course = null; }
       }
       pages.push(renderRegionPage({ region, prefName, prefSlug: slug, spots: own,
                                     course, date, base, siblings: mine }));
@@ -681,16 +751,27 @@ async function main(outDir) {
   const { makeTrip } = await import(join(ROOT, "js/trip.js"));
   const kb = await loadKnowledgeBase();
 
-  const planCourse = async (region, date, own) => {
+  const planCourse = async (region, date, own, prefSpots = []) => {
     const at = (h) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), h);
     // そのエリアでいちばん知られた3か所は、必ず入れます。
     //
     // 入れないと、エンジンは「鎌倉を1日で」を鎌倉市ぜんたいの話として
     // 読み、大仏も八幡宮も無い旅程を組むことがあります（実際に組みました）。
     // アプリでは利用者が直せますが、モデルコースは直す人がいません。
-    const mustIds = [...own].sort(byFame).slice(0, 3).map((s) => s.id);
+    //
+    // 収録のエリア分けは粗く、鎌倉のエリアに横須賀の記念艦三笠（12km 先）が
+    // 入っていて、モデルコースが「移動 約79分」で三笠へ行っていました。
+    // 中心から COURSE_RADIUS_KM より遠いものは「外す」に入れます。
+    // （一覧の REGION_RADIUS_KM では狭すぎます。箱根の大涌谷や彫刻の森まで外れます）
+    const far = new Set(own.filter((s) => isFar(region, s)).map((s) => s.id));
+    // すぐ隣の別のエリア（機械で作った「松本市」など）の場所も外します。
+    // 入ると「よそのエリアへ行った」として courseFits がコースごと捨てるので、
+    // 松本のページは観光案内所に寄るコースが組まれて、コースが出ていませんでした。
+    const neighbors = prefSpots
+      .filter((s) => s.regionId && s.regionId !== region.id && !isFar(region, s)).map((s) => s.id);
+    const mustIds = own.filter((s) => !far.has(s.id)).sort(byFame).slice(0, 3).map((s) => s.id);
     const itin = await planTrip({ kb, trip: makeTrip({
-      must: { spotIds: mustIds },
+      must: { spotIds: mustIds, avoidSpotIds: [...far, ...neighbors] },
       origin: { name: region.station, lat: region.stationLat, lng: region.stationLng },
       departAt: at(9), arriveBy: at(18),
       note: `${region.name}を1日でめぐる`, interests: [],
