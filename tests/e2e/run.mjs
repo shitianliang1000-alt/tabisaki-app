@@ -58,6 +58,35 @@ async function until(page, fn, { timeout = 90_000, step = 250 } = {}) {
   }
 }
 
+/**
+ * 入力欄の画面へ戻ります（旅程の画面にいるとき）。
+ *
+ * 2026-10 のリデザインで、旅程を見ているあいだは広い画面でも入力欄を
+ * しまうようにしました（中央と右を旅程に渡すため）。戻る道は
+ * 「条件を変更する」です。
+ */
+async function toForm(pg) {
+  const hidden = await pg.$eval("#form-pane",
+    (e) => getComputedStyle(e).display === "none");
+  if (hidden) await pg.click("#back-to-form");
+}
+
+/**
+ * 「旅の条件」のシートを開きます。出発地・日時・移動手段などの欄は、
+ * このシートの中にあります（入力欄の下の札から開きます）。
+ */
+async function openConditions(pg) {
+  await toForm(pg);
+  const open = await pg.$eval("#cond-dialog", (d) => d.open);
+  if (!open) await pg.click("#pill-tune");
+}
+
+/** シートを閉じます（「完了」）。 */
+async function closeConditions(pg) {
+  const open = await pg.$eval("#cond-dialog", (d) => d.open);
+  if (open) await pg.click("#cond-done");
+}
+
 const browser = await chromium.launch({
   executablePath: EXE,
   args: ["--no-sandbox"],
@@ -198,16 +227,23 @@ await check("自分の言葉が先、書きかたの見本はその次", async (
 });
 
 await check("旅の好みが、畳まれずに出ている", async () => {
-  // 「定番と穴場のまぜかた」も「混雑」も、旅の中身が変わる設定です。
-  // 「もう少しくわしく決める」の中に隠すようなものではありません。
+  // 「定番と穴場のまぜかた」は、旅の中身がいちばん変わる設定です。
+  // シートに畳まず、入力欄のすぐ下に3段の切り替えで出します。
   const mix = await page.$("#mix-view");
   assert(mix, "定番と穴場のまぜかたが見つかりません");
-  const visible = await page.$eval("#hidden-bias",
+  const visible = await page.$eval("#mix-quick",
     (e) => e.getBoundingClientRect().height > 0);
   assert(visible, "まぜかたが畳まれています");
+  // 3段を押すと、細かいつまみ（シートの中）も同じ値になること。
+  await page.click('#mix-quick [data-mix="75"]');
+  const v = await page.$eval("#hidden-bias", (e) => Number(e.value));
+  assert(v === 75, `3段の切り替えが、つまみに届いていません: ${v}`);
+  await page.click('#mix-quick [data-mix="40"]');
 });
 
 await check("どちらへ寄っているかが、数で分かる", async () => {
+  // 帯と数は「旅の条件」のシートの中にあります。開いて測ります。
+  await openConditions(page);
   await page.$eval("#hidden-bias", (e) => {
     e.value = 80; e.dispatchEvent(new Event("input"));
   });
@@ -270,6 +306,10 @@ await check("どちらへ寄っているかが、数で分かる", async () => {
   assert(keys.every((k) => k.text.length > 0), "点の横に言葉がありません");
   assert(new Set(keys.map((k) => k.dot)).size === 3,
     `3つの色が同じ色になっています: ${keys.map((k) => k.dot).join(" / ")}`);
+  // 入力欄の下の3段も、つまみに合わせて「穴場多め」になっていること。
+  const quick = await page.$eval('#mix-quick [aria-checked="true"]',
+    (e) => e.textContent.trim());
+  assert(quick === "穴場多め", `3段の切り替えが追いついていません: ${quick}`);
 });
 
 await check("1日のうち、動く時間帯を選べる", async () => {
@@ -310,6 +350,11 @@ await check("出発日を「明日」「今週末」に飛ばせる", async () =
   assert(arr === `${ymd2}T19:00`, `帰着が1泊ぶんずれていません: ${arr}`);
   const sat = await page.$('[data-day-preset="saturday"]');
   assert(sat, "今週末の近道がありません");
+  // 入力欄の下の札も、明日の日付になっていること。
+  await closeConditions(page);
+  await page.waitForTimeout(100);
+  const pill = await page.$eval("#pill-when-tx", (e) => e.textContent);
+  assert(/^明日/.test(pill), `日時の札が追いついていません: ${pill}`);
 });
 
 await check("何をしてくれるサイトかが書いてある", async () => {
@@ -337,6 +382,7 @@ await check("停留所の読み解きを、別のスレッドに回している"
   // 読んで解くと、低スペックの携帯では400msほど画面が止まり、しかも
   // 2.6MBが本体側の記憶に載り続けます。返すのは「最寄り3件」のような
   // 小さな答えだけなので、本体側に置いておく理由がありません。
+  await openConditions(page);
   await page.click("#depart-place");
   await page.fill("#depart-place", "松江");
   await until(page, () =>
@@ -353,6 +399,10 @@ await check("停留所の読み解きを、別のスレッドに回している"
   assert(opts.some((v) => v.includes("松江")),
     `停留所の候補が出ていません: ${opts.slice(0, 5).join("・")}`);
   await page.fill("#depart-place", "東京駅");
+  await closeConditions(page);
+  await page.waitForTimeout(100);
+  const pill = await page.$eval("#pill-from-tx", (e) => e.textContent);
+  assert(pill === "東京駅から", `出発地の札が追いついていません: ${pill}`);
 });
 
 await check("開いただけでは、現在地を聞かない", async () => {
@@ -490,6 +540,7 @@ await check("旅程の下の操作が、ほかと同じ部品でできている"
 await check("そのまま使える例を押すと、欄が埋まる", async () => {
   // 自由入力の枠は、何を書いてよいか分からないと空のままです。
   // 押すと入る一文があれば、書き換えるところから始められます。
+  await toForm(page);
   const chip = await page.$(".note-examples [data-example]");
   assert(chip, "例の札がありません");
   const want = await chip.getAttribute("data-example");
@@ -981,9 +1032,13 @@ await check("組み立てを途中でやめられる", async () => {
 // ここだけは条件を変えて、もう一度組み直します。
 
 await check("車を選ぶと、車の旅として組み直す", async () => {
-  await page.evaluate(() => { document.getElementById("tune").open = true; });
+  await openConditions(page);
   await page.click('#transport-choice [data-transport="car"]');
-  await page.click("#make-plan");
+  // 上の「日帰り・電車」の札も、車になること。
+  await page.waitForTimeout(100);
+  const mode = await page.$eval("#mode-pill-tx", (e) => e.textContent);
+  assert(/車/.test(mode), `旅のかたちの札が追いついていません: ${mode}`);
+  await page.click("#cond-make");
   await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
   await until(page, () => {
     const l = [...document.querySelectorAll(".check-list .ck-label")]
@@ -1019,9 +1074,9 @@ await check("車を選ぶと、車の旅として組み直す", async () => {
 await check("電車＋現地の車では、区間ごとに乗るものが変わる", async () => {
   // 新幹線で行って駅でレンタカー。同じ旅程に、便で決まる区間と
   // 道のりで決まる区間が並びます。どちらかに寄せると嘘になります。
-  await page.evaluate(() => { document.getElementById("tune").open = true; });
+  await openConditions(page);
   await page.click('#transport-choice [data-transport="transit+car"]');
-  await page.click("#make-plan");
+  await page.click("#cond-make");
   await page.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
   await until(page, () => document.querySelectorAll(".tl.transit").length > 1,
              { timeout: 120_000 });
@@ -1038,16 +1093,19 @@ await check("電車＋現地の車では、区間ごとに乗るものが変わ�
   // 取れていない区間を、取れたように書かないこと
   assert(!/0区間は確認済み/.test(got.detail), `妙な言い方です: ${got.detail}`);
   // もとに戻します（このあとの確認は、おまかせのままで続けます）
+  await openConditions(page);
   await page.click('#transport-choice [data-transport="any"]');
+  await closeConditions(page);
 });
 
 // --- 泊まりの旅（宿・食事・荷物・代わりの案）-------------------------------
 // 1泊すると出てくるもの。日帰りの旅程には出ません。
 
 await check("連泊を選ぶと、宿を動かさない旅になる", async () => {
-  await page.evaluate(() => { document.getElementById("tune").open = true; });
+  await openConditions(page);
   await page.click('#transport-choice [data-transport="any"]');
   await page.click('#stay-choice [data-stay="base"]');
+  await closeConditions(page);
   // 1泊2日にします（日帰りでは宿の話が出ません）
   await page.$eval("#depart-at", (e) => { e.value = "2026-10-10T09:00"; });
   await page.$eval("#arrive-by", (e) => { e.value = "2026-10-11T19:00"; });
@@ -1282,7 +1340,7 @@ await check("字を大きくすると、実際に大きくなる", async () => {
       root: parseFloat(getComputedStyle(document.documentElement).fontSize),
       title: px(".step-title"),
       help: px(".md-field-help"),
-      button: px(".md-fab-extended"),
+      button: px(".cond-pill"),
       // 当たり判定は指の大きさで決まるので、**動かないこと**を見ます。
       touch: parseFloat(getComputedStyle(
         document.querySelector(".md-btn")).minHeight),
@@ -1381,13 +1439,10 @@ await check("指で押せる大きさになっている（44pt）", async () => 
       if (Date.now() > until) throw new Error("知識ベースの読み込みが終わりません");
       await pg.waitForTimeout(200);
     }
-    await pg.click("#tune > summary").catch(() => {});
-    await pg.waitForTimeout(300);
-    const out = await pg.evaluate(() => {
+    // 入力欄の画面の部品を測ってから、旅の条件のシートを開いて
+    // その中の部品も測ります。
+    const measure = (sels) => pg.evaluate((sels) => {
       const coarse = matchMedia("(pointer: coarse)").matches;
-      const sels = [".md-icon-btn", ".note-examples .md-chip",
-                    ".date-presets .md-chip", ".md-chip", ".md-btn",
-                    ".md-slider", ".linkish", ".md-fab-extended"];
       const bad = [];
       for (const sel of sels) {
         const e = document.querySelector(sel);
@@ -1402,7 +1457,18 @@ await check("指で押せる大きさになっている（44pt）", async () => 
         }
       }
       return { coarse, bad };
-    });
+    }, sels);
+    const home = await measure([".side-open", ".mode-pill", ".cond-pill",
+      "#mix-quick button", ".send-btn", ".note-examples .md-chip"]);
+    await pg.click("#pill-tune");
+    await pg.waitForTimeout(300);
+    const sheet = await measure(["#cond-dialog .md-icon-btn", ".date-presets .md-chip",
+      "#cond-dialog .md-chip", "#cond-dialog .md-btn", ".md-slider", ".linkish"]);
+    await pg.click("#cond-done");
+    await pg.click("#side-open");
+    await pg.waitForTimeout(400);
+    const side = await measure([".side-item", ".side-close"]);
+    const out = { coarse: home.coarse, bad: [...home.bad, ...sheet.bad, ...side.bad] };
     assert(out.coarse === true, "指の端末として開けていません");
     assert(out.bad.length === 0, `44pt を下回ります: ${out.bad.join(" / ")}`);
   } finally {
@@ -1436,7 +1502,8 @@ await check("旅程の画面でも、押せるものが 44pt ある", async () =
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    await pg.click('[data-example^="温泉でゆっくり"]');
+    // 携帯では例を6つまで出します（7つめからは畳みます）。見えている例で。
+    await pg.click('[data-example^="湯布院で温泉"]');
     await pg.click("#make-plan");
     await pg.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
     await pg.waitForTimeout(1000);
@@ -1495,7 +1562,8 @@ await check("携帯で画面が切り替わっても、フォーカスが迷子�
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    await pg.click('[data-example^="温泉でゆっくり"]');
+    // 携帯では例を6つまで出します（7つめからは畳みます）。見えている例で。
+    await pg.click('[data-example^="湯布院で温泉"]');
     await pg.focus("#make-plan");
     await pg.keyboard.press("Enter");
     await pg.waitForSelector("#result:not([hidden])", { timeout: 120_000 });
@@ -1521,7 +1589,11 @@ await check("できなかった理由に、フォーカスが移る", async () =
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
-    await pg.fill("#depart-place", "");
+    // 出発地を空にします（欄は旅の条件のシートの中です）。
+    await pg.$eval("#depart-place", (e) => {
+      e.value = "";
+      e.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     await pg.focus("#make-plan");
     await pg.keyboard.press("Enter");
     await pg.waitForSelector("#form-error:not([hidden])");
@@ -1582,10 +1654,10 @@ await check("指で押した跡が、残らない", async () => {
 //
 // **押されてから聞きます。** 開いた瞬間に通知と現在地の許可を求めるのは
 // いちばん断られる聞きかたなので、そうなっていないことも見ます。
-await check("携帯の最初の画面に、できあがりの見本が出る", async () => {
-  // 携帯では結果の面が隠れるので、初めての人には入力欄しか見えません
-  // でした。見本が欄より上にあり、押すとそのまま試せることを見ます。
-  // 前につくった旅が残っていない、まっさらな画面で見ます。
+await check("携帯の最初の画面に、例と地図が出る", async () => {
+  // 携帯では結果の面が別の画面なので、初めての人には入力欄しか見えません
+  // でした。何を書けばよいかの例と、どこへ行けるかの地図（エリアの
+  // ピン）を、はじめの画面に出します。入力欄は画面の下に貼り付きます。
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const pg = await ctx.newPage();
   const origin = new URL(BASE).origin;
@@ -1593,22 +1665,23 @@ await check("携帯の最初の画面に、できあがりの見本が出る", a
     (route) => route.abort("connectionrefused"));
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
-    const box = await pg.$eval(".preview", (e) => {
+    const ex = await pg.$eval(".note-examples .md-chip", (e) => {
       const r = e.getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, h: r.height };
+      return { top: r.top, h: r.height };
     });
-    assert(box.h > 0, "見本が出ていません");
-    assert(box.bottom < 844, "見本が最初の画面に収まっていません");
-    const noteTop = await pg.$eval("#note", (e) => e.getBoundingClientRect().top);
-    assert(box.top < noteTop, "見本が入力欄より下にあります");
-    const want = await pg.$eval(".preview-try", (e) => e.dataset.example);
-    await pg.click(".preview-try");
+    assert(ex.h > 0 && ex.top < 844, "例が最初の画面に出ていません");
+    const composer = await pg.$eval("#composer", (e) => {
+      const r = e.getBoundingClientRect();
+      return { bottom: r.bottom, pos: getComputedStyle(e).position };
+    });
+    assert(composer.pos === "fixed" && composer.bottom <= 844,
+      `入力欄が画面の下に貼り付いていません: ${composer.pos}`);
+    const map = await pg.$eval("#home-map", (e) => e.getBoundingClientRect().height);
+    assert(map > 100, `はじめの画面に地図が出ていません（高さ ${map}）`);
+    const want = await pg.$eval(".note-examples [data-example]", (e) => e.dataset.example);
+    await pg.click(".note-examples .md-chip");
     const got = await pg.$eval("#note", (e) => e.value);
-    assert(got === want, `見本を押しても欄が埋まりません: ${got}`);
-    // 広い画面では右半分が同じ役目をするので、出しません。
-    await pg.setViewportSize({ width: 1280, height: 900 });
-    const wide = await pg.$eval(".preview", (e) => e.getBoundingClientRect().height);
-    assert(wide === 0, "広い画面にも見本が出ています");
+    assert(got === want, `例を押しても欄が埋まりません: ${got}`);
   } finally {
     await ctx.close();
   }
@@ -1677,7 +1750,9 @@ await check("旅の当日は、次の一手が大きく出る", async () => {
     // 日付は画面の「今日」を押します（**利用者と同じ道**。直に書くと
     // change が飛ばず、画面の文が前の日のままになります。実際そう
     // なりました）。
+    await openConditions(day);
     await day.click('[data-day-preset="today"]');
+    await closeConditions(day);
     // 時刻は、その日のうちに収まる幅にします。
     await day.evaluate(() => {
       const p = (n) => String(n).padStart(2, "0");

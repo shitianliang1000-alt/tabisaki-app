@@ -159,13 +159,13 @@ test("ui.js が呼ぶ名前も、ぜんぶ実在する", () => {
 });
 
 test("index.html に直に書いた形が、icons.js とずれていない", () => {
-  // 画面が出るより先に見える記号（設定・現在地・つくる・地図を広げる・
-  // 戻る・エリアを地図で探す）は、JS を待たせたくないので HTML に直に書いてあります。
+  // 画面が出るより先に見える記号（旅の一覧の操作・入力欄の札と送る・
+  // 現在地・地図を広げる・戻る）は、JS を待たせたくないので HTML に直に書いてあります。
   // **2か所に同じ形がある**ので、ずれていないかをここで見ます。
   const html = read("../index.html");
   const paths = [...html.matchAll(/<svg class="ic[^"]*"[^>]*><path d="([^"]+)"/g)]
     .map((m) => m[1]);
-  assert.equal(paths.length, 6, `直書きの記号が ${paths.length} 個です`);
+  assert.equal(paths.length, 13, `直書きの記号が ${paths.length} 個です`);
   const known = new Set(iconNames().map((n) => iconPath(n)));
   for (const d of paths) {
     assert.ok(known.has(d), `icons.js に無い形が index.html にあります: ${d}`);

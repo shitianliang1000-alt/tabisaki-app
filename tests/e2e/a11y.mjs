@@ -76,7 +76,12 @@ async function audit(name, { dark = false, plan = false, width = 1280,
     // 色の面のカードを押していました）。
     await page.click(".note-examples .md-chip");
     // 旅の当日として組みます。欄に直に書かず、画面の「今日」を押します。
-    if (today) await page.click('[data-day-preset="today"]');
+    // 日付の近道は「旅の条件」のシートの中です。
+    if (today) {
+      await page.click("#pill-when");
+      await page.click('[data-day-preset="today"]');
+      await page.click("#cond-done");
+    }
     await page.click("#make-plan");
     // 「もう少し詳しく調べますか」には、利用者として答え続けます。
     const answering = setInterval(() => {
@@ -92,6 +97,8 @@ async function audit(name, { dark = false, plan = false, width = 1280,
 
   if (areaMap) {
     // エリアを地図で探す画面。ピンを1本押して、吹き出しまで出した形で測ります。
+    // 狭い画面では、入口は旅の一覧（引き出し）の中です。
+    if (width < 1100) await page.click("#side-open");
     await page.click("#open-area-map");
     await page.waitForSelector("#area-dialog .area-pin", { timeout: 15_000 });
     await page.evaluate(() => {
@@ -184,7 +191,8 @@ async function contrast(name, dark) {
   await page.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1200);
   // 畳んであるものを開き、チップを1つ選んで、選ばれた状態も測ります。
-  await page.click("#tune > summary").catch(() => {});
+  // シートを開いて、畳んであるものも開き、チップを1つ選びます。
+  await page.click("#pill-tune").catch(() => {});
   await page.click('[data-genre="onsen"]').catch(() => {});
   await page.waitForTimeout(300);
 
@@ -204,7 +212,8 @@ async function contrast(name, dark) {
       ["まぜかたの帯（定番）", "#mix-seg-major"],
       ["まぜかたの帯（知る人ぞ知る）", "#mix-seg-known"],
       ["まぜかたの帯（穴場）", "#mix-seg-hidden"],
-      ["旅程をつくる", ".md-fab-extended"],
+      ["この条件で旅程をつくる", "#cond-make"],
+      ["旅程をつくる（送る）", ".send-btn"],
       ["塗りつぶしのボタン", ".md-btn--filled"],
       ["選んだチップ", '.md-chip[aria-pressed="true"]'],
       ["手順の番号", ".home-steps li > i"],

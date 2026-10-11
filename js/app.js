@@ -57,6 +57,7 @@ import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
          replaceHistory, savedLabel, thawItinerary } from "./history.js";
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
+import { renderAsk, updatePills, wireShell } from "./shell.js";
 
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
 // と、ファイルの書き出し・読み込み（js/transfer.js）は、開いた直後の
@@ -140,6 +141,7 @@ async function boot() {
   // 落とすのは、移動中の回線ではただの負担です。結果の画面に移った
   // ときに作ります。
   if (!isNarrow()) startHomeMap();
+  else startHomeMapWhenSeen();
 
   configureQuota({ ask: askQuota, onChange: showQuota });
 
@@ -158,6 +160,19 @@ async function boot() {
   wireForm();
   wireKeyPanel();
   wireChrome();
+  wireShell({
+    // 「新しい旅」。書いた希望を空にして、入力欄へ戻ります。出発地や
+    // 日時は残します（同じ人が続けて別の旅を考えるときに、毎回入れ
+    // 直させないため）。
+    onNewTrip: () => {
+      const note = $("#note");
+      note.value = "";
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+      showView("form");
+      note.focus();
+    },
+    onMake: () => $("#make-plan").click(),
+  });
   updateWindowHelp();
 
   // 収録は 29,706件・4.8MB（gzip で約1MB）あります。
@@ -197,6 +212,7 @@ async function boot() {
     state.kb = await state.kbPromise;
     if (state.kb.loadError) setBadge(state.kb.loadError, true);
     const restored = restoreConditions();
+    updatePills();
     if (restored === "url") {
       $("#ph-data").textContent = "共有されたリンクの条件を読み込みました。";
     }
@@ -955,7 +971,47 @@ async function startHomeMap() {
   } catch {
     return;   // 地図が出せなくても、入力はできます
   }
+  pinHomeAreas();
+}
 
+/**
+ * 携帯では、はじめの画面の地図は例の下にあります。開いた瞬間には
+ * 見えていないので、画面に入ってから作ります（見えない地図のために
+ * タイルを落とさない）。
+ */
+function startHomeMapWhenSeen() {
+  const box = document.getElementById("home-map");
+  if (!box || !globalThis.IntersectionObserver) return;
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    io.disconnect();
+    startHomeMap();
+  }, { rootMargin: "120px" });
+  io.observe(box);
+}
+
+/**
+ * はじめの画面の地図に、エリアのピンを立てます。
+ *
+ * 行き先をまだ決めていない人には、日本地図が出ているだけでは手が
+ * かりになりません。収録の主なエリアを並べ、押せば欄に名前が入る
+ * ようにします（「エリアから探す」と同じピンで、勝手に組み始めません）。
+ */
+let homePinned = false;
+async function pinHomeAreas() {
+  if (homePinned || !state.homeMap) return;
+  homePinned = true;
+  try {
+    // 収録の読み込みは起動の少しあとで始まります。始まるまで待ちます。
+    for (let i = 0; !state.kbPromise && i < 100; i += 1) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const [mod, kb] = await Promise.all([import("./areamap.js"), state.kbPromise]);
+    areaModule = mod;
+    mod.pinAreas(state.homeMap, mod.curatedAreas(kb?.regions ?? []), pickArea);
+  } catch {
+    // ピンが立たなくても、地図と入力はそのまま使えます
+  }
 }
 
 /**
@@ -2497,6 +2553,8 @@ async function run(override) {
   // 携帯では、ここから結果の画面に移ります（css の data-view）。
   // 条件のページに留まったままだと、旅程ができても自分でスクロール
   // して探すことになります。
+  updatePills();
+  renderAsk();
   showView("result");
   $("#placeholder").hidden = true;
   $("#result").hidden = true;

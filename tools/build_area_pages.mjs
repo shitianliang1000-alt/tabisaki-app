@@ -357,7 +357,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(description)}">
-<meta name="theme-color" content="#F4F1EB">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="icon" href="${rel}icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="${rel}css/hig-tokens.css">
 <link rel="stylesheet" href="${rel}css/hig.css">
