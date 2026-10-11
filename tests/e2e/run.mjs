@@ -1546,7 +1546,7 @@ await check("指で押せる大きさになっている（44pt）", async () => 
     await pg.click("#plus");
     const menu = await measure([".plus-item"]);
     await pg.click('#plus-menu [data-open-cond="mix"]');
-    const mix = await measure(["#mix-quick button", ".pop-close", ".pop-done", ".md-slider"]);
+    const mix = await measure(["#mix-quick button", "#panel-mix .pop-close", "#panel-mix .pop-done", ".md-slider"]);
     await pg.keyboard.press("Escape");
     await pg.click("#pill-when");
     const when = await measure([".date-presets .md-chip"]);
