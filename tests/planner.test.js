@@ -63,6 +63,16 @@ test("旅程は往路で始まり、復路で終わる", () => {
   assert.ok(items[0].title.includes("東京駅"));
 });
 
+test("帰りの行は、最後に立ち寄った場所から書く", () => {
+  // 拠点の駅の名前を出していたので、宮島から広島駅へ戻る旅程が
+  // 「広島駅 → 広島駅 約90分」と出ていました。所要時間は最後の
+  // 立ち寄りから測っているので、名前もそこからにします。
+  const { itin, verification } = plan();
+  const last = itin.days.flatMap((x) => x.items).at(-1);
+  const lastSpot = verification.visits.at(-1).spot.name;
+  assert.equal(last.title, `${lastSpot} → 東京駅`);
+});
+
 test("項目が時系列に並び、重ならない", () => {
   const { itin } = plan();
   for (const day of itin.days) {

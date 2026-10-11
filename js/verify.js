@@ -582,6 +582,52 @@ export function trimToFit(spots, ctx, maxDrops = 12) {
   return { result, spots: current, dropped, conflicts };
 }
 
+/**
+ * trimToFit と同じですが、**選んだ場所より先に、穴埋めの場所を外します**。
+ *
+ * 旅程は、選んだ場所（AIや検索が希望に合わせて選んだもの）のあとに、
+ * 空いた時間を埋める場所を足して組んでいます。実際の経路で時刻を
+ * 組み直すと、距離の目安より遅れることがあり、そのとき後ろから
+ * 押し出されるのは、選んだ場所のほうでした。実際に出ていた旅程:
+ *
+ *   「宮島に行きたい」（広島駅から日帰り）
+ *     9:00 広島駅総合案内所  ← 空き時間の穴埋め
+ *    14:16 広島東照宮        ← 同じく穴埋め
+ *    16:28 宮島表参道商店街
+ *          厳島神社は、時間が合わずに落ちていました
+ *
+ * 宮島へ行きたい人の旅程から、厳島神社を落として案内所を残すのは逆です。
+ * 選んだ場所が落ちるときは、穴埋めを1つずつ外して組み直し、
+ * 落ちる選んだ場所が減るなら、そちらを採ります。
+ *
+ * 外した穴埋めは dropped に入れません。あとから足した場所なので、
+ * 「時間が合わず外した」と言うものではありません。
+ *
+ * @param {Set<string>} fillerIds 穴埋めで足した場所のID
+ */
+export function trimKeepingPicks(spots, ctx, fillerIds, maxDrops = 12) {
+  let best = trimToFit(spots, ctx, maxDrops);
+  if (!fillerIds?.size) return best;
+  const lostPicks = (t) => t.dropped.filter((s) => !fillerIds.has(s.id));
+  const lost = lostPicks(best);
+  if (!lost.length) return best;
+  // 落ちた選んだ場所より**前にある**穴埋めだけを、後ろから順に外します。
+  // 後ろの穴埋めを外しても、前の場所の時刻は早まりません。
+  // 1つずつ戻して試すのではなく、外したまま次を試します。2つ外して
+  // 初めて入る、ということがあるためです（1つ外しただけでは変わらない）。
+  const lostIds = new Set(lost.map((s) => s.id));
+  const last = spots.findLastIndex((s) => lostIds.has(s.id));
+  let current = spots;
+  for (let i = last - 1; i >= 0; i--) {
+    if (!fillerIds.has(current[i].id)) continue;
+    current = [...current.slice(0, i), ...current.slice(i + 1)];
+    const t = trimToFit(current, ctx, maxDrops);
+    if (lostPicks(t).length < lostPicks(best).length) best = t;
+    if (!lostPicks(best).length) break;
+  }
+  return best;
+}
+
 function lastIndexWhere(arr, pred) {
   for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) return i;
   return -1;
