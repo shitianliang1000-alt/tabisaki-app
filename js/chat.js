@@ -163,6 +163,9 @@ export function answerTurn(itin, h = {}) {
   const where = itin.prefecture && !title.includes(itin.prefecture)
     ? `${title}（${itin.prefecture}）` : title;
 
+  // 見出しの段を飛ばさないよう、答えに見えない見出しを1つ置きます
+  // （日ごとの「1日目」は h3 です）。読み上げで答えの頭へ飛べます。
+  answer.append(el("h2", { class: "sr-only" }, `${where}の旅程`));
   if (itin.editNote) answer.append(el("p", { class: "ai-edit" }, itin.editNote));
   answer.append(el("p", { class: "ai-lead" },
     `${where}への${span}の旅を組みました。`
