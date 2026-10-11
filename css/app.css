@@ -13,16 +13,15 @@
    段は影ではなく、白と、0.5px のヘアラインで出します。
    ===================================================================== */
 
-/* 見出しの字（Noto Sans JP の Medium）。
-   ロゴの「旅さき」と、はじめの画面の挨拶・「どんな旅にしますか？」に
-   使います。端末に無いことが多いので配ります。名前を "Tabisaki Title"
-   にしているのは、本文の字の並び（body の font-family にも Noto Sans JP
-   があります）がこの一部だけの字に当たって、本文の字が混ざらないように
-   するためです。全部の字を持つと数MBに
-   なるので、見出しに出る字が入っている3つの区切りだけを置いています
-   （約60KB。vendor/fonts/、SIL Open Font License）。区切りに無い字は、
-   下に並べた端末の字で出ます。 */
-@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500&display=swap');
+/* 同梱の見出し字（Noto Sans JP の Medium）。
+   ロゴの「旅さき」と、はじめの画面の「どんな旅にしますか？」に使います。
+   挨拶（.hero-greet）だけは Zen Maru Gothic を使います（index.html で読み込み）。
+   名前を "Tabisaki Title" にしているのは、本文の字の並び（body の
+   font-family にも Noto Sans JP があります）がこの一部だけの字に当たって、
+   本文の字が混ざらないようにするためです。全部の字を持つと数MBになるので、
+   見出しに出る字が入っている3つの区切りだけを置いています（約60KB。
+   vendor/fonts/、SIL Open Font License）。区切りに無い字は、下に並べた
+   端末の字で出ます。 */
 @font-face {
   font-family: "Tabisaki Title";
   font-style: normal; font-weight: 500; font-display: swap;
