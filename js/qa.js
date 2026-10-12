@@ -200,9 +200,13 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
     return { ok: true, answer, sources };
   } catch (e) {
     if (opts.signal?.aborted) throw e;
+    // 中継が落ちている・時間切れのときは、言い方を変えても直らない。
+    const relay = ["UPSTREAM_TIMEOUT", "UPSTREAM_ERROR", "NOT_CONFIGURED", "RATE_LIMITED", "UPSTREAM_LIMIT"];
     return {
       ok: false, sources: [],
-      answer: "うまく答えを作れませんでした。少し言い方を変えて、もう一度送ってください。",
+      answer: relay.includes(e?.code)
+        ? "AIからの返事が届きませんでした（混み合っているか、一時的に止まっています）。少し待ってから、同じ文をもう一度送ってください。"
+        : "うまく答えを作れませんでした。少し言い方を変えて、もう一度送ってください。",
     };
   }
 }

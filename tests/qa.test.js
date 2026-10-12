@@ -6,6 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { replyText } from "../js/ai.js";
 import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
@@ -142,4 +143,22 @@ test("モデルが JSON でなく文で答えても、その文を答えにす�
 test("壊れた JSON からも、答えの文だけを拾う", () => {
   assert.equal(readReply('{"answer": "一行目\n二行目です。"}').answer, "一行目\n二行目です。");
   assert.equal(readReply('{"answer": "途中で切れた答え').answer, "途中で切れた答え");
+});
+
+test("考えた過程（thought）は答えに混ぜない", () => {
+  const data = { candidates: [{ content: { parts: [
+    { text: "* Input: こんにちは\n* Option 1", thought: true },
+    { text: "こんにちは！" },
+  ] } }] };
+  assert.equal(replyText(data), "こんにちは！");
+  assert.equal(replyText({ candidates: [{ content: { parts: [{ text: "考えだけ", thought: true }] } }] }), "考えだけ");
+  assert.equal(replyText({}), "");
+});
+
+test("中継が時間切れのときは、言い直しでなく待つよう伝える", async () => {
+  const got = await answerQuestion("こんにちは", {}, {
+    call: async () => { throw Object.assign(new Error("x"), { code: "UPSTREAM_TIMEOUT" }); },
+  });
+  assert.equal(got.ok, false);
+  assert.match(got.answer, /少し待ってから/);
 });
