@@ -149,6 +149,8 @@ export function askTurn(text) {
   });
   return {
     node: ai,
+    /** 質問ではなく旅程の頼みだったとき、この組を消す。 */
+    remove() { user.remove(); ai.remove(); },
     answer(said, sources = []) {
       body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));
       if (sources.length) {
