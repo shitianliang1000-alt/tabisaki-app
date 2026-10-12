@@ -58,7 +58,7 @@ import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
-import { answerQuestion, isQuestion } from "./qa.js";
+import { answerQuestion, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
 
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
@@ -2528,11 +2528,18 @@ async function send(textArg) {
   closePop({ restore: false });
   // 旅の質問なら、文で答えます。旅程は組み直さず、組み立て中でも
   // 止めません（js/qa.js）。
-  if (text && isQuestion(text)) {
+  const route = text ? routeText(text) : "plan";
+  if (route !== "plan") {
     if (textArg == null) clearDraft();
-    ask(text);
+    // 決めきれない文は、AIに「質問か、旅程の頼みか」を聞く。
+    ask(text, { mayPlan: route === "either" && hasApiKey(), textArg });
     return;
   }
+  await plan(text, textArg);
+}
+
+/** 旅程を組む・直す（send から）。 */
+async function plan(text, textArg) {
   const prev = state.shown;
   const read = readChat(text);
   const labels = await applyChat(read);
@@ -2584,11 +2591,17 @@ function remember(q, a) {
 }
 
 /** 質問に答えます（send から）。答えは積んだ順に並びます。 */
-async function ask(text) {
-  count("chat_send", "ask");
+async function ask(text, { mayPlan = false, textArg } = {}) {
   const turn = askTurn(text);
   const history = state.qa ?? (state.qa = []);
-  const got = await answerQuestion(text, { itin: state.shown?.itin, history });
+  const got = await answerQuestion(text, { itin: state.shown?.itin, history }, { mayPlan });
+  if (got.plan) {
+    // 旅程の頼みだった。質問の組は消して、旅程を組む。
+    turn.remove();
+    await plan(text, textArg);
+    return;
+  }
+  count("chat_send", "ask");
   turn.answer(got.answer, got.sources);
   if (got.ok) remember(text, got.answer);
   announce(got.answer);

@@ -38,22 +38,28 @@ const IDEA = /(スポット|デート|アイデア|候補|おすすめ|オスス
 const BUILD = /(泊|日帰り|組んで|旅程|プランを?(?:作|組)|作って|つくって)/;
 
 /**
- * 旅程を組む頼みではないか（＝ふつうのAIとして答える側か）。
+ * 送られた文を、どう扱うか。
+ *   "plan"   … 旅程を組む・直す頼みだと言い切れる（地名だけ、日数つき、など）
+ *   "ask"    … あいさつ。質問として答える
+ *   "either" … 決めきれない。AIに「質問か、旅程の頼みか」を聞いて振り分ける
  *
- * 旅程の頼みだと分かるものだけを組むほうに回し、それ以外は全部
- * 質問・会話として答えます（あいさつ・雑談・知識の質問・旅の質問）。
- * 地名だけの短い入力（「鎌倉」）は、従来どおり旅程の頼みです。
+ * AIにつながらないときは、"either" も質問として答えます（isQuestion）。
  */
-export function isQuestion(text) {
+export function routeText(text) {
   const t = String(text ?? "").normalize("NFKC").trim();
-  if (!t) return false;
-  if (GREETING.test(t)) return true;
-  if (IDEA.test(t) && !BUILD.test(t)) return true;
-  if (PLAN_ASK.test(t)) return false;
-  if (ASK.test(t) || GENERAL.test(t)) return true;
-  if (TRIP_CUES.test(t)) return false;
-  // 地名だけのような短い入力は、旅程の頼み。長い文は、会話として答える。
-  return t.length > 12;
+  if (!t) return "plan";
+  if (GREETING.test(t)) return "ask";
+  if (IDEA.test(t) && !BUILD.test(t)) return "either";
+  if (PLAN_ASK.test(t)) return "plan";
+  if (ASK.test(t) || GENERAL.test(t)) return "either";
+  if (TRIP_CUES.test(t)) return "plan";
+  // 地名だけのような短い入力は、旅程の頼み。長い文は、AIに聞く。
+  return t.length > 12 ? "either" : "plan";
+}
+
+/** 旅程の頼みではない（質問・会話として答える側）か。AIが使えないときの判定。 */
+export function isQuestion(text) {
+  return routeText(text) !== "plan";
 }
 
 /** いまの旅程を、AIに渡す短い文にします。 */
@@ -125,10 +131,20 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
     "",
     `質問: ${question}`,
     "",
-    '出力は {"answer": "答えの文"} の JSON だけ。',
+    ...(opts.mayPlan
+      ? [
+        "まず、この文が旅程づくりの頼みか判断してください。",
+        "旅程づくりの頼み＝行き先・日程・条件を決めて旅程を作る/直す頼み（「箱根へ日帰りで」「もう少しゆっくり」「来週の土曜にして」）。",
+        "それ以外（質問・雑談・知識・案や候補の相談）は頼みではない。",
+        '旅程づくりの頼みなら {"plan": true} だけを出力。そうでなければ {"answer": "答えの文"} を出力。',
+      ]
+      : ['出力は {"answer": "答えの文"} の JSON だけ。']),
   ].join("\n");
   try {
     const out = await call(prompt, { temperature: 0.3, search, signal: opts.signal });
+    if (opts.mayPlan && out?.plan === true && !out?.answer) {
+      return { ok: true, plan: true, answer: "", sources: [] };
+    }
     const answer = String(out?.answer ?? "").trim();
     if (!answer) throw new Error("空の答え");
     const sources = search ? (lastGrounding().sources ?? []).slice(0, 3) : [];

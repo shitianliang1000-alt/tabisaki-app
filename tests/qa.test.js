@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerQuestion, isQuestion, itineraryContext } from "../js/qa.js";
+import { answerQuestion, isQuestion, itineraryContext, routeText } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
   for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
@@ -95,4 +95,23 @@ test("案を求める頼みは、AIが案を挙げる側に回す", () => {
   for (const t of ["箱根へデートで1泊2日", "デートプランを組んで", "鎌倉でデートしたい"]) {
     assert.equal(isQuestion(t), false, t);
   }
+});
+
+test("決めきれない文は、AIに質問か旅程の頼みかを聞く", async () => {
+  assert.equal(routeText("鎌倉"), "plan");
+  assert.equal(routeText("京都で2泊3日"), "plan");
+  assert.equal(routeText("こんにちは"), "ask");
+  assert.equal(routeText("デートスポットを考えて"), "either");
+  assert.equal(routeText("最近疲れていて何もやる気が出ないんだよね"), "either");
+  let seen = "";
+  const asked = await answerQuestion("週末ひとりで静かに過ごしたい気分", {}, {
+    mayPlan: true, call: async (p) => { seen = p; return { plan: true }; },
+  });
+  assert.equal(asked.plan, true);
+  assert.match(seen, /旅程づくりの頼みか判断/);
+  const said = await answerQuestion("東京タワーの高さは？", {}, {
+    mayPlan: true, call: async () => ({ answer: "333mです。" }),
+  });
+  assert.equal(said.plan, undefined);
+  assert.equal(said.answer, "333mです。");
 });
