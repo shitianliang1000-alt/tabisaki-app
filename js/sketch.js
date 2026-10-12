@@ -284,8 +284,8 @@ export function mountSketch(card, ctx = {}) {
         return { x: q.x, y: q.y };
       }
       : project(b, w, h);
-    const ink = color("--tabi-indigo", "#0F4C81");
-    const teal = color("--tabi-teal", "#157A82");
+    const ink = color("--tabi-indigo", "#111111");
+    const teal = color("--tabi-teal", "#333333");
     const faint = color("--hig-label-4", "rgba(60,60,67,.18)");
 
     // 星。読み込まれた収録スポット。多すぎるときは間引きます。

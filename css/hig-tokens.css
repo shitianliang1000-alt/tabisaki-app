@@ -391,3 +391,64 @@
     --chat-mark: #D97757;
   }
 }
+
+/* --- 白黒（2026-10） -------------------------------------------------------
+   色を使わず、白・黒・灰色だけにします。上で決めた色の名前はそのままに、
+   中身をすべて無彩色へ差し替えます（画面側は書き換えません）。
+   文字と地の差は、これまでの色と同じかそれ以上を保ちます。
+   強い色が欲しかった「警告」も、色ではなく黒の濃さと文言で伝えます。 */
+:root {
+  --hig-blue: #111111;       --hig-blue-tint: #EDEDED;
+  --hig-blue-deep: #000000;  --hig-blue-fill: #111111;
+  --hig-green: #333333;      --hig-indigo: #222222;
+  --hig-orange: #444444;     --hig-pink: #333333;
+  --hig-purple: #333333;     --hig-red: #111111;
+  --hig-teal: #333333;       --hig-yellow: #BBBBBB;
+  --hig-brown: #555555;
+  --hig-teal-tint: #EDEDED;  --hig-teal-deep: #000000;
+  --hig-red-tint: #EDEDED;   --hig-red-deep: #000000;
+  --tabi-indigo: #111111;    --tabi-indigo-deep: #000000;
+  --tabi-teal: #333333;      --tabi-teal-deep: #000000;
+  --tabi-amber: #444444;
+  --tabi-sand: #F7F7F7;      --tabi-sand-2: #EEEEEE;
+  --hig-on-accent: #FFFFFF;
+  --chat-bg: #FFFFFF;        --chat-side: #F5F5F5;
+  --chat-bubble: #F0F0F0;    --chat-line: #E0E0E0;
+  --chat-input: #FFFFFF;     --chat-hover: #EBEBEB;
+  --chat-ink: #000000;       --chat-ink-2: #595959;
+  --chat-accent: #000000;    --chat-on-accent: #FFFFFF;
+  --chat-mark: #000000;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hig-blue: #F2F2F2;       --hig-blue-tint: #2A2A2A;
+    --hig-blue-deep: #FFFFFF;  --hig-blue-fill: #F2F2F2;
+    --hig-green: #D0D0D0;      --hig-indigo: #DDDDDD;
+    --hig-orange: #CFCFCF;     --hig-pink: #D0D0D0;
+    --hig-purple: #D0D0D0;     --hig-red: #F2F2F2;
+    --hig-teal: #D0D0D0;       --hig-yellow: #888888;
+    --hig-brown: #AAAAAA;
+    --hig-teal-tint: #2A2A2A;  --hig-teal-deep: #FFFFFF;
+    --hig-red-tint: #2A2A2A;   --hig-red-deep: #FFFFFF;
+    --tabi-indigo: #F2F2F2;    --tabi-indigo-deep: #FFFFFF;
+    --tabi-teal: #D0D0D0;      --tabi-teal-deep: #FFFFFF;
+    --tabi-amber: #CFCFCF;
+    --tabi-sand: #0A0A0A;      --tabi-sand-2: #161616;
+    --hig-grouped-bg: #0A0A0A; --hig-card: #141414;
+    --hig-on-accent: #000000;
+    --chat-bg: #000000;        --chat-side: #0F0F0F;
+    --chat-bubble: #1C1C1C;    --chat-line: #333333;
+    --chat-input: #141414;     --chat-hover: #262626;
+    --chat-ink: #FFFFFF;       --chat-ink-2: #A8A8A8;
+    --chat-accent: #FFFFFF;    --chat-on-accent: #000000;
+    --chat-mark: #FFFFFF;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --hig-blue: #000000; --tabi-indigo: #000000; --tabi-teal: #000000;
+          --hig-green: #000000; --hig-orange: #000000; --hig-red: #000000; }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root { --hig-blue: #FFFFFF; --tabi-indigo: #FFFFFF; --tabi-teal: #FFFFFF;
+          --hig-green: #FFFFFF; --hig-orange: #FFFFFF; --hig-red: #FFFFFF; }
+}

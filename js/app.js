@@ -951,7 +951,7 @@ function locateHere() {
     try {
       state.homeMap?.setView([lat, lng], 11, { animate: true });
       window.L?.circleMarker([lat, lng], {
-        radius: 8, color: "#007AFF", fillColor: "#007AFF", fillOpacity: .85,
+        radius: 8, color: "#111111", fillColor: "#111111", fillOpacity: .85,
         weight: 3, opacity: .35,
       }).addTo(state.homeMap);
       moveBackgroundMap(lat, lng, 10);
@@ -2539,6 +2539,8 @@ async function send(textArg) {
   // 何も書かずに送ったら、はじめは「おまかせ」で、旅程があるときは
   // 「＋」で変えた条件のまま組み直します。
   startTurn(text || (prev ? "いまの条件で組み直してください" : ""), labels);
+  // 旅程を頼んだことも、あとの質問の「さっきの」で通じるよう覚えておきます。
+  if (text) remember(text, "（旅程を組みました。いまの旅程を参照）");
   if (!text && prev) { run(); return; }
   if (textArg == null) clearDraft();
   count("chat_send", prev ? "follow" : "first");
@@ -2574,6 +2576,13 @@ async function send(textArg) {
   run();
 }
 
+/** 会話の記憶（AIに渡す）。新しい8件だけ持ちます。画面を閉じれば消えます。 */
+function remember(q, a) {
+  const history = state.qa ?? (state.qa = []);
+  history.push({ q, a });
+  if (history.length > 8) history.splice(0, history.length - 8);
+}
+
 /** 質問に答えます（send から）。答えは積んだ順に並びます。 */
 async function ask(text) {
   count("chat_send", "ask");
@@ -2581,8 +2590,7 @@ async function ask(text) {
   const history = state.qa ?? (state.qa = []);
   const got = await answerQuestion(text, { itin: state.shown?.itin, history });
   turn.answer(got.answer, got.sources);
-  if (got.ok) history.push({ q: text, a: got.answer });
-  if (history.length > 6) history.splice(0, history.length - 6);
+  if (got.ok) remember(text, got.answer);
   announce(got.answer);
   noticeIfAway("質問に答えました");
 }

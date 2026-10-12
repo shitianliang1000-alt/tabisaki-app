@@ -58,3 +58,22 @@ test("答えが作れなかったら、そう言う（作り話で埋めない�
   assert.equal(got.ok, false);
   assert.match(got.answer, /うまく答えを作れませんでした/);
 });
+
+test("あいさつや旅行以外の質問も、答える側に回す", () => {
+  for (const t of ["こんにちは", "東京タワーの高さは？", "富士山について", "ありがとう", "エベレストの標高"]) {
+    assert.equal(isQuestion(t), true, t);
+  }
+  for (const t of ["鎌倉", "富士山に行きたい", "京都へ2泊3日で"]) {
+    assert.equal(isQuestion(t), false, t);
+  }
+});
+
+test("これまでのやりとりをAIに渡す（8件まで）", async () => {
+  let seen = "";
+  const history = Array.from({ length: 10 }, (_, i) => ({ q: `質問${i}`, a: `答え${i}` }));
+  await answerQuestion("それはいつ建った？", { history }, { call: async (p) => { seen = p; return { answer: "x" }; } });
+  assert.match(seen, /Q: 質問9/);
+  assert.match(seen, /Q: 質問2/);
+  assert.doesNotMatch(seen, /Q: 質問1\n/);
+  assert.match(seen, /旅行以外の質問にも/);
+});
