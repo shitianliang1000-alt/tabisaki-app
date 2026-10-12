@@ -57,14 +57,13 @@ export const LOCAL_BASE_URL = "http://localhost:11434";
 // API で呼べるのは 26B-A4B と 31B です。手元の E2B を使いたい場合は
 // MODEL_PROVIDER を "local" にしてください。
 //
-// 控えには Gemma 3 を置きます。ai.js は 404（そのモデルが無い）を
-// 受けると次の候補へ進むので、Gemma 4 がまだ配信されていない時期でも
-// 旅程は作れます。どれで通ったかは「接続の確認」に出ます。
+// 控えは Gemma 4 だけにします（gemini-2.5-flash は料金が高いので使いません）。
+// ai.js は 404（そのモデルが無い）や 5xx（上流の不調・時間切れ）を受けると
+// 次の候補へ進みます。Gemma 3 と gemini-2.5-flash-lite は上流で終了しました
+// （404）。どれで通ったかは「接続の確認」に出ます。
 export const MODEL = "gemma-4-26b-a4b-it";
 export const FALLBACK_MODELS = [
   "gemma-4-31b-it",
-  "gemma-3-27b-it",
-  "gemma-3-12b-it",
 ];
 export const EMBED_MODEL = "gemini-embedding-001";
 export const EMBED_DIM = 768;
