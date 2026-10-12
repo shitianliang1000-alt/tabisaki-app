@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerQuestion, isQuestion, itineraryContext, routeText } from "../js/qa.js";
+import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
   for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
@@ -114,4 +114,32 @@ test("決めきれない文は、AIに質問か旅程の頼みかを聞く", asy
   });
   assert.equal(said.plan, undefined);
   assert.equal(said.answer, "333mです。");
+});
+
+test("日付・曜日・時刻の質問は、端末の時計で答える", async () => {
+  const now = new Date(2026, 9, 12, 15, 7);
+  assert.equal(dateAnswer("明日の日付は？", now), "明日は2026年10月13日（火曜日）です。");
+  assert.equal(dateAnswer("今日は何曜日？", now), "今日は2026年10月12日（月曜日）です。");
+  assert.equal(dateAnswer("明後日は何日？", now), "明後日は2026年10月14日（水曜日）です。");
+  assert.equal(dateAnswer("今何時？", now), "いまは15時07分です（お使いの端末の時計）。");
+  assert.equal(dateAnswer("鶴岡八幡宮は何時まで？", now), null);
+  assert.equal(dateAnswer("明日は何時に出発すればいい？", now), null);
+  const got = await answerQuestion("明日の日付は？", {}, { call: async () => { throw new Error("AIは呼ばない"); } });
+  assert.equal(got.ok, true);
+  assert.match(got.answer, /^明日は\d+年\d+月\d+日/);
+});
+
+test("モデルが JSON でなく文で答えても、その文を答えにする", async () => {
+  assert.deepEqual(readReply("東京タワーの高さは333mです。"), { answer: "東京タワーの高さは333mです。" });
+  assert.deepEqual(readReply('{"answer":"333mです。"}'), { answer: "333mです。" });
+  assert.deepEqual(readReply('```json\n{"plan":true}\n```'), { plan: true });
+  assert.deepEqual(readReply(""), {});
+  const got = await answerQuestion("こんにちは", {}, { mayPlan: true, call: async () => "こんにちは！今日はどこへ行きますか？" });
+  assert.equal(got.ok, true);
+  assert.equal(got.answer, "こんにちは！今日はどこへ行きますか？");
+});
+
+test("壊れた JSON からも、答えの文だけを拾う", () => {
+  assert.equal(readReply('{"answer": "一行目\n二行目です。"}').answer, "一行目\n二行目です。");
+  assert.equal(readReply('{"answer": "途中で切れた答え').answer, "途中で切れた答え");
 });

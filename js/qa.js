@@ -12,7 +12,7 @@
 // 営業時間のように変わるものは、検索が使えるときは検索させ、出典を
 // 添えます。使えないときは、公式で確かめるよう書かせます。
 
-import { callModelJson, canGround, hasApiKey, lastGrounding } from "./ai.js";
+import { callModel, canGround, extractJson, hasApiKey, lastGrounding } from "./ai.js";
 
 /** 旅程を組む頼みの言い方。これがあれば、質問の形でも組みます。 */
 const PLAN_ASK = /(行きたい|いきたい|行ってみたい|旅程を|プランを|組んで|作って|つくって|考えて|探して|さがして|連れて|にして|変えて|かえて|増やして|減らして|外して|入れて|足して|直して|どこ(?:に|へ)?(?:行|い)(?:け|こう|く)|どこが(?:いい|おすすめ)|おすすめ(?:の|な)?(?:場所|旅|行き先|旅先|所|ところ)|行き先)/;
@@ -36,6 +36,29 @@ const TRIP_CUES = /(日帰り|泊|旅|観光|ドライブ|巡[るり]|周遊|縦
  */
 const IDEA = /(スポット|デート|アイデア|候補|おすすめ|オススメ|穴場|ランキング|定番|名所|場所|ところ).*(考えて|教えて|紹介|提案|挙げて|あげて|知りたい|ない[?？]?$|ある[?？]|どこ)/;
 const BUILD = /(泊|日帰り|組んで|旅程|プランを?(?:作|組)|作って|つくって)/;
+
+const WEEK = "日月火水木金土";
+const ymd = (d) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEK[d.getDay()]}曜日）`;
+const DAYS = [["明々後日", 3], ["しあさって", 3], ["明後日", 2], ["あさって", 2], ["明日", 1], ["あした", 1],
+              ["今日", 0], ["きょう", 0], ["本日", 0], ["昨日", -1], ["きのう", -1], ["一昨日", -2], ["おととい", -2]];
+
+/**
+ * 今日・明日などの日付、曜日、いまの時刻を聞かれたときの答え。
+ * 日付はAIに聞くより、端末の時計で答えるほうが確かなので、AIを使わずに返す。
+ * 当てはまらなければ null。
+ */
+export function dateAnswer(text, now = new Date()) {
+  const t = String(text ?? "").normalize("NFKC").trim();
+  if (/(今何時|いま何時|現在の時刻|今の時刻|何時ですか)/.test(t) && !/(まで|から|に)/.test(t)) {
+    return `いまは${now.getHours()}時${String(now.getMinutes()).padStart(2, "0")}分です（お使いの端末の時計）。`;
+  }
+  if (!/(日付|何日|なんにち|何曜|曜日|日にち|いつ)/.test(t)) return null;
+  const hit = DAYS.find(([w]) => t.includes(w)) ?? (/(日付|今日|何日)/.test(t) ? ["今日", 0] : null);
+  if (!hit) return null;
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + hit[1]);
+  const label = hit[1] === 0 ? "今日" : hit[0];
+  return `${label}は${ymd(d)}です。`;
+}
 
 /**
  * 送られた文を、どう扱うか。
@@ -86,17 +109,43 @@ export function itineraryContext(itin) {
 }
 
 /**
+ * モデルの返事を {answer} / {plan} に読む。
+ *
+ * 雑談や知識の質問では、モデルは JSON ではなく文でそのまま答えることが多い。
+ * 以前は JSON に読めないと「うまく答えを作れませんでした」になっていた。
+ * JSON ならそれを使い、読めなければ返事の文そのものを答えにする。
+ */
+export function readReply(raw) {
+  if (raw && typeof raw === "object") return raw;
+  const text = String(raw ?? "").trim();
+  if (!text) return {};
+  try {
+    const j = extractJson(text);
+    if (j && typeof j === "object" && ("answer" in j || "plan" in j)) return j;
+  } catch { /* 文として扱う */ }
+  // 壊れた JSON（改行が生のまま、途中で切れた、など）は、答えの文だけを拾う。
+  const m = text.match(/"answer"\s*:\s*"([\s\S]*?)"?\s*\}?\s*(?:```)?$/);
+  if (m && /^\s*(?:```[a-z]*\s*)?\{/.test(text)) {
+    return { answer: m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').trim() };
+  }
+  const plain = text.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+  return { answer: plain };
+}
+
+/**
  * 質問に答えます。
  *
  * @param {string} question
  * @param {object} ctx
  * @param {object} [ctx.itin] いま出ている旅程
  * @param {{q: string, a: string}[]} [ctx.history] これまでの質問と答え（新しいものが後ろ）
- * @param {object} [opts] { signal, call } call は試験用（callModelJson の代わり）
+ * @param {object} [opts] { signal, call } call は試験用（callModel の代わり。返り値は文でも {answer}/{plan} でもよい）
  * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean }>}
  */
 export async function answerQuestion(question, ctx = {}, opts = {}) {
-  const call = opts.call ?? ((p, o) => callModelJson(p, o));
+  const local = dateAnswer(question);
+  if (local) return { ok: true, answer: local, sources: [] };
+  const call = opts.call ?? ((p, o) => callModel(p, o));
   if (!opts.call && !hasApiKey()) {
     return {
       ok: false, sources: [],
@@ -121,7 +170,7 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
     "・分からないことを推測で埋めない。分からなければ、分からないと書く。",
     "・旅程を組み直したいときは、そのまま書いて送れば組み直せる、と添えてよい。",
     "",
-    `今日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`,
+    `今日: ${ymd(today)}　明日: ${ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1))}`,
     "",
     "いまの旅程:",
     itineraryContext(ctx.itin),
@@ -141,7 +190,7 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
       : ['出力は {"answer": "答えの文"} の JSON だけ。']),
   ].join("\n");
   try {
-    const out = await call(prompt, { temperature: 0.3, search, signal: opts.signal });
+    const out = readReply(await call(prompt, { temperature: 0.3, search, signal: opts.signal }));
     if (opts.mayPlan && out?.plan === true && !out?.answer) {
       return { ok: true, plan: true, answer: "", sources: [] };
     }
