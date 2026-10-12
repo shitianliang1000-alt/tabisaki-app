@@ -3677,3 +3677,10 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   .turn-ai { display: block; }
   .turn-details, .turn-details[hidden] { display: block !important; border: 0; }
 }
+
+/* --- 旅さきについて（検索エンジンにも読める説明。畳んだままで構いません） --- */
+.about { margin: 8px 0 0; padding: 0 10px; font-size: var(--hig-t-caption1, 12px); color: var(--md-sys-color-on-surface-variant); }
+.about summary { cursor: pointer; padding: 6px 0; }
+.about p { margin: 0 0 8px; line-height: 1.6; }
+.about a { color: var(--md-sys-color-primary); }
+body[data-side="mini"] .side .about { display: none; }
