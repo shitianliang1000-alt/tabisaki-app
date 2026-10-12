@@ -87,3 +87,12 @@ test("旅程の頼みでない文は、話題を問わずふつうの会話と�
     assert.equal(isQuestion(t), false, t);
   }
 });
+
+test("案を求める頼みは、AIが案を挙げる側に回す", () => {
+  for (const t of ["デートスポットを考えて", "東京の穴場を教えて", "雨の日に行ける場所を紹介して"]) {
+    assert.equal(isQuestion(t), true, t);
+  }
+  for (const t of ["箱根へデートで1泊2日", "デートプランを組んで", "鎌倉でデートしたい"]) {
+    assert.equal(isQuestion(t), false, t);
+  }
+});
