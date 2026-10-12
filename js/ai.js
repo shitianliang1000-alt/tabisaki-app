@@ -578,8 +578,7 @@ async function callOnce(model, prompt, opts = {}) {
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));
   const data = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  const text = parts.map((p) => p.text ?? "").join("").trim();
+  const text = replyText(data);
   lastSources = extractSources(data);
   return text;
 }
@@ -598,6 +597,20 @@ export function lastGrounding() {
  * そこで黙って諦めると、AIを設定しているのに語句検索の結果が出ます。
  * 壊れていたら一度だけ、温度を下げて作り直させます。
  */
+/**
+ * Gemini/Gemma の返事から、答えの文だけを取り出す。
+ *
+ * Gemma 4 は考えた過程を `thought: true` の部分として先に返す。以前は全部を
+ * つなげていたので、JSON を探す旅程づくりでは目立たなかったが、雑談や
+ * 知識の質問では考えの途中（「* Input: …」）が答えとして画面に出ていた。
+ * 答えの部分が無いときだけ、考えの部分を使う。
+ */
+export function replyText(data) {
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  const join = (list) => list.map((p) => p.text ?? "").join("").trim();
+  return join(parts.filter((p) => !p.thought)) || join(parts);
+}
+
 export async function callModelJson(prompt, opts = {}) {
   const raw = await callModel(prompt, opts);
   try {
