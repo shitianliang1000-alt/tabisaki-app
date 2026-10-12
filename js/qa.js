@@ -12,7 +12,7 @@
 // 営業時間のように変わるものは、検索が使えるときは検索させ、出典を
 // 添えます。使えないときは、公式で確かめるよう書かせます。
 
-import { callModelJson, canGround, hasApiKey, lastGrounding } from "./ai.js";
+import { callModel, canGround, extractJson, hasApiKey, lastGrounding } from "./ai.js";
 
 /** 旅程を組む頼みの言い方。これがあれば、質問の形でも組みます。 */
 const PLAN_ASK = /(行きたい|いきたい|行ってみたい|旅程を|プランを|組んで|作って|つくって|考えて|探して|さがして|連れて|にして|変えて|かえて|増やして|減らして|外して|入れて|足して|直して|どこ(?:に|へ)?(?:行|い)(?:け|こう|く)|どこが(?:いい|おすすめ)|おすすめ(?:の|な)?(?:場所|旅|行き先|旅先|所|ところ)|行き先)/;
@@ -109,19 +109,43 @@ export function itineraryContext(itin) {
 }
 
 /**
+ * モデルの返事を {answer} / {plan} に読む。
+ *
+ * 雑談や知識の質問では、モデルは JSON ではなく文でそのまま答えることが多い。
+ * 以前は JSON に読めないと「うまく答えを作れませんでした」になっていた。
+ * JSON ならそれを使い、読めなければ返事の文そのものを答えにする。
+ */
+export function readReply(raw) {
+  if (raw && typeof raw === "object") return raw;
+  const text = String(raw ?? "").trim();
+  if (!text) return {};
+  try {
+    const j = extractJson(text);
+    if (j && typeof j === "object" && ("answer" in j || "plan" in j)) return j;
+  } catch { /* 文として扱う */ }
+  // 壊れた JSON（改行が生のまま、途中で切れた、など）は、答えの文だけを拾う。
+  const m = text.match(/"answer"\s*:\s*"([\s\S]*?)"?\s*\}?\s*(?:```)?$/);
+  if (m && /^\s*(?:```[a-z]*\s*)?\{/.test(text)) {
+    return { answer: m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').trim() };
+  }
+  const plain = text.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+  return { answer: plain };
+}
+
+/**
  * 質問に答えます。
  *
  * @param {string} question
  * @param {object} ctx
  * @param {object} [ctx.itin] いま出ている旅程
  * @param {{q: string, a: string}[]} [ctx.history] これまでの質問と答え（新しいものが後ろ）
- * @param {object} [opts] { signal, call } call は試験用（callModelJson の代わり）
+ * @param {object} [opts] { signal, call } call は試験用（callModel の代わり。返り値は文でも {answer}/{plan} でもよい）
  * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean }>}
  */
 export async function answerQuestion(question, ctx = {}, opts = {}) {
   const local = dateAnswer(question);
   if (local) return { ok: true, answer: local, sources: [] };
-  const call = opts.call ?? ((p, o) => callModelJson(p, o));
+  const call = opts.call ?? ((p, o) => callModel(p, o));
   if (!opts.call && !hasApiKey()) {
     return {
       ok: false, sources: [],
@@ -166,7 +190,7 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
       : ['出力は {"answer": "答えの文"} の JSON だけ。']),
   ].join("\n");
   try {
-    const out = await call(prompt, { temperature: 0.3, search, signal: opts.signal });
+    const out = readReply(await call(prompt, { temperature: 0.3, search, signal: opts.signal }));
     if (opts.mayPlan && out?.plan === true && !out?.answer) {
       return { ok: true, plan: true, answer: "", sources: [] };
     }

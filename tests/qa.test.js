@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer } from "../js/qa.js";
+import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
   for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
@@ -127,4 +127,19 @@ test("日付・曜日・時刻の質問は、端末の時計で答える", async
   const got = await answerQuestion("明日の日付は？", {}, { call: async () => { throw new Error("AIは呼ばない"); } });
   assert.equal(got.ok, true);
   assert.match(got.answer, /^明日は\d+年\d+月\d+日/);
+});
+
+test("モデルが JSON でなく文で答えても、その文を答えにする", async () => {
+  assert.deepEqual(readReply("東京タワーの高さは333mです。"), { answer: "東京タワーの高さは333mです。" });
+  assert.deepEqual(readReply('{"answer":"333mです。"}'), { answer: "333mです。" });
+  assert.deepEqual(readReply('```json\n{"plan":true}\n```'), { plan: true });
+  assert.deepEqual(readReply(""), {});
+  const got = await answerQuestion("こんにちは", {}, { mayPlan: true, call: async () => "こんにちは！今日はどこへ行きますか？" });
+  assert.equal(got.ok, true);
+  assert.equal(got.answer, "こんにちは！今日はどこへ行きますか？");
+});
+
+test("壊れた JSON からも、答えの文だけを拾う", () => {
+  assert.equal(readReply('{"answer": "一行目\n二行目です。"}').answer, "一行目\n二行目です。");
+  assert.equal(readReply('{"answer": "途中で切れた答え').answer, "途中で切れた答え");
 });
