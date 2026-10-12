@@ -66,7 +66,9 @@ export function dateAnswer(text, now = new Date()) {
  *   "ask"    … あいさつ。質問として答える
  *   "either" … 決めきれない。AIに「質問か、旅程の頼みか」を聞いて振り分ける
  *
- * AIにつながらないときは、"either" も質問として答えます（isQuestion）。
+ * AIが使えるときは、この判定は使わず、AIが毎回「質問か、旅程の頼みか」を
+ * 決めます（js/app.js の send）。ここは AIが使えないとき、つながらなかった
+ * ときの代わりです。AIがないときは、"either" も質問として答えます（isQuestion）。
  */
 export function routeText(text) {
   const t = String(text ?? "").normalize("NFKC").trim();
