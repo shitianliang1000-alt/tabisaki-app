@@ -247,7 +247,9 @@ export class Stats {
 }
 
 function rand() {
-  return Math.random().toString(36).slice(2, 10);
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function json(obj, status = 200) {

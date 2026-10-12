@@ -55,4 +55,7 @@
 ## 2026-10-11 - Prevent XSS via HTML injection in srcdoc attribute
 **Vulnerability:** The central `el()` DOM helper in `js/ui.js` and `admin/admin.js` prevented injection in attributes like `href`, `src`, `data`, and inline event handlers, but missed the `srcdoc` attribute. If an attacker controlled the attribute name or values, they could inject arbitrary HTML containing `<script>` tags by setting `srcdoc="<script>alert(1)</script>"` on an `<iframe>`.
 **Learning:** The `srcdoc` attribute accepts raw HTML rather than a URI, so validating URI schemes (like checking for `javascript:`) is fundamentally incorrect for preventing XSS in `srcdoc`. Since the overarching design philosophy of this codebase strictly avoids parsing string payloads as HTML (no `innerHTML`), allowing `srcdoc` breaks this guarantee.
-**Prevention:** Added an explicit drop condition `} else if (lowerK === "srcdoc") { /* do nothing */ }` to neutralize the `srcdoc` attribute entirely inside the `el()` DOM helper, ensuring no HTML injection vectors remain.
+**Prevention:** Added an explicit drop condition `} else if (lowerK === "srcdoc") { /* do nothing */ }` to neutralize the `srcdoc` attribute entirely inside the `el()` DOM helper, ensuring no HTML injection vectors remain.## 2026-10-12 - Math.random() Vulnerability
+**Vulnerability:** Found instances of `Math.random()` being used to generate seemingly unique IDs and cryptographic salts.
+**Learning:** `Math.random()` is not cryptographically secure and could lead to predictable outputs, making anonymized IP addresses vulnerable to attacks.
+**Prevention:** Use standard, secure APIs such as `crypto.randomUUID()` for unique identifiers or `crypto.getRandomValues()` for other security-sensitive generation.
