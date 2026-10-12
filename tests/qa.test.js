@@ -77,3 +77,13 @@ test("これまでのやりとりをAIに渡す（8件まで）", async () => {
   assert.doesNotMatch(seen, /Q: 質問1\n/);
   assert.match(seen, /旅行以外の質問にも/);
 });
+
+test("旅程の頼みでない文は、話題を問わずふつうの会話として答える", () => {
+  for (const t of ["最近疲れていて何もやる気が出ないんだよね", "好きな食べ物はありますか", "Pythonでリストを逆順にするには",
+                   "こんにちは、元気？", "日本で一番高い山は富士山です"]) {
+    assert.equal(isQuestion(t), true, t);
+  }
+  for (const t of ["鎌倉", "東京タワー", "来週の土曜にして", "もう少し安く", "京都で2泊3日", "鎌倉でおいしいものを食べたい"]) {
+    assert.equal(isQuestion(t), false, t);
+  }
+});
