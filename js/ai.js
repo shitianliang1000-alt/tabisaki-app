@@ -674,8 +674,8 @@ export async function callModel(prompt, opts = {}) {
         return text;
       } catch (e) {
         lastErr = e;
-        // モデルが存在しない/使えない場合だけ次を試す
-        if (e.status === 404 || e.status === 400) continue;
+        // モデルが存在しない/使えない、または上流が不調（5xx）のときは次を試す
+        if (e.status === 404 || e.status === 400 || e.status >= 500) continue;
         throw e;
       }
     }
