@@ -177,7 +177,7 @@ export function mergeTrips(current, incoming) {
       ...raw,
       id: typeof raw.id === "string" && raw.id ? raw.id
         : `imported-${raw.savedAt ?? ""}-${String(raw.title ?? "")}`.slice(0, 80)
-          || `imported-${Math.random().toString(36).slice(2, 10)}`,
+          || `imported-${crypto.randomUUID()}`,
       // ?? ではなく || です。title が空文字のときも埋めたいので
       // （空文字は null ではないので、?? では素通りします）。
       title: String(raw.title || raw.itin?.title || "読み込んだ旅"),
