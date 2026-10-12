@@ -265,7 +265,7 @@ p, li { text-wrap: pretty; }
   60%  { opacity: 1; transform: scale(1.18) rotate(4deg); }
   to   { opacity: 1; transform: scale(1) rotate(0); }
 }
-.panel.checked.lv-low .checked-stars b { color: var(--hig-orange, #c46a1b); }
+.panel.checked.lv-low .checked-stars b { color: var(--hig-orange, #444444); }
 
 .check-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .check-list li {
@@ -280,7 +280,7 @@ p, li { text-wrap: pretty; }
 .check-list li:first-child { border-top: none; }
 .check-list .ck-ic { flex: none; }
 .check-list li.ok .ck-ic { color: var(--md-sys-color-primary); }
-.check-list li.warn .ck-ic { color: var(--hig-orange, #c46a1b); }
+.check-list li.warn .ck-ic { color: var(--hig-orange, #444444); }
 .check-list .ck-label { color: var(--hig-label); font-weight: 600; }
 .check-list .ck-detail { color: var(--hig-label-2, var(--hig-label)); }
 @media (max-width: 480px) {
@@ -378,7 +378,7 @@ p, li { text-wrap: pretty; }
    動きを減らす設定の人には流しません（下の media query）。 */
 .make .md-fab-extended {
   position: relative; overflow: hidden;
-  box-shadow: 0 2px 10px rgba(15, 76, 129, .28);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
 }
 .make .md-fab-extended::after {
   content: ""; position: absolute; inset: 0;
@@ -1078,7 +1078,7 @@ p, li { text-wrap: pretty; }
 
 /* いま見ている場所。旅程のカードに触れたときに目立ちます。 */
 .trip-pin.hl > span {
-  box-shadow: 0 0 0 3.5px #fff, 0 0 0 9px rgba(11, 95, 191, .35),
+  box-shadow: 0 0 0 3.5px #fff, 0 0 0 9px rgba(0, 0, 0, .35),
               0 4px 12px rgba(0, 0, 0, .45);
 }
 
@@ -1103,7 +1103,7 @@ p, li { text-wrap: pretty; }
    自分のところから配るようにして（vendor/）、画面のテストでも地図が
    出るようになり、ここで引っかかりました。指で使う端末では 44pt にします。
    出どころのリンクは字を小さいままにして、押せる範囲だけ広げます。 */
-/* 出どころの欄は、Leaflet の既定（薄い灰の上に #0078A8）だと字が
+/* 出どころの欄は、Leaflet の既定（薄い灰の上に #222222）だと字が
    読みにくく、暗い配色では背景だけが白く浮きます。札と同じ色にします。 */
 .leaflet-container .leaflet-control-attribution {
   background: var(--hig-card);
@@ -1187,7 +1187,7 @@ p, li { text-wrap: pretty; }
 
 /* 読んでいる行の印（js/follow.js）。触れたとき（.hl）よりは控えめに。 */
 .trip-pin.reading > span {
-  box-shadow: 0 0 0 3px #fff, 0 0 0 7px rgba(21, 122, 130, .45),
+  box-shadow: 0 0 0 3px #fff, 0 0 0 7px rgba(0, 0, 0, .45),
               0 3px 10px rgba(0, 0, 0, .4);
 }
 
@@ -1540,7 +1540,7 @@ body[data-trip-mode="on"] .today { margin-top: 0; min-height: 60vh; }
 /* 「利用できます」「未設定」を色でも示します。文字だけでも読めますが、
    一覧をひと目で追うには色の助けがあるほうが速い。
    明るい配色用の緑は --hig-green そのものが濃いので、ここで上書きしません
-   （以前ここに置いていた #1E8E3E は、紙の上で 4.1:1 しかありませんでした）。 */
+   （以前ここに置いていた #333333 は、紙の上で 4.1:1 しかありませんでした）。 */
 .md-list-support.ok { color: var(--hig-green); }
 .md-list-support.ng { color: var(--hig-label-2); }
 .key-result, .keys-note, .routes-usage {
@@ -1945,10 +1945,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 /* スポットのカードは、写真の代わりに分類の色をごく薄く敷くだけにします
    （--card-hue は js/ui.js が art.js の色相を入れます）。 */
 .tl.spot .body.card-tinted {
-  background: hsl(var(--card-hue) 55% 95%);
+  background: hsl(0 0% 96%);
 }
 @media (prefers-color-scheme: dark) {
-  .tl.spot .body.card-tinted { background: hsl(var(--card-hue) 26% 20%); }
+  .tl.spot .body.card-tinted { background: hsl(0 0% 14%); }
 }
 
 /* ティア。色の粒に、必ず言葉を添えます。 */
@@ -2308,8 +2308,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     background: color-mix(in srgb, var(--hig-label) 14%, transparent);
   }
 }
-.spot-action[data-action="remove"] { color: var(--md-sys-color-error, #b3261e); }
-/* 暗い配色の赤（#FF453A）は、色を敷いたカードの上で 3.6:1 です。
+.spot-action[data-action="remove"] { color: var(--md-sys-color-error, #111111); }
+/* 暗い配色の赤（#F2F2F2）は、色を敷いたカードの上で 3.6:1 です。
    字として使うときは、明るい赤に寄せます。 */
 @media (prefers-color-scheme: dark) {
   .spot-action[data-action="remove"] { color: var(--hig-red-deep); }
@@ -2727,7 +2727,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
             stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 4 3; }
 .pv-start { fill: var(--hig-card); stroke: var(--hig-blue-fill); stroke-width: 2.5; }
 .pv-pin circle { fill: var(--hig-blue-fill); }
-.pv-pin.pv-hidden circle { fill: #9A5B12; }
+.pv-pin.pv-hidden circle { fill: #444444; }
 .pv-pin text { fill: #fff; font-weight: 700; text-anchor: middle; }
 .preview-list {
   list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0;
@@ -3052,7 +3052,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 .area-pop b { color: #1C1C1E; }
 .area-pop span { color: #4A4A4F; font-size: var(--hig-t-footnote); }
 .area-pop .md-btn { margin-top: 6px; min-height: 44px;
-                    background: #0F4C81; color: #fff; }
+                    background: #111111; color: #fff; }
 .area-list { margin-top: 14px; }
 .area-block + .area-block { margin-top: 12px; }
 .area-block-title { margin: 0 0 6px; font-size: var(--hig-t-subhead);

@@ -189,7 +189,7 @@ export class TripMap {
     const isEndpoint = point.kind === "origin" || point.kind === "end";
     // 出発と終点は緑（systemGreen）、立ち寄りは青（systemBlue）。
     // 番号を中に入れます。
-    const bg = isEndpoint ? "#34C759" : "#007AFF";
+    const bg = isEndpoint ? "#555555" : "#111111";
     const label = isEndpoint ? "" : String(index);
 
     // HTML の文字列ではなく、要素そのものを渡します。
