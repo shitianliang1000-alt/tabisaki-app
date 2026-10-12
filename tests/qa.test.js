@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerQuestion, isQuestion, itineraryContext, routeText } from "../js/qa.js";
+import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
   for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
@@ -114,4 +114,17 @@ test("決めきれない文は、AIに質問か旅程の頼みかを聞く", asy
   });
   assert.equal(said.plan, undefined);
   assert.equal(said.answer, "333mです。");
+});
+
+test("日付・曜日・時刻の質問は、端末の時計で答える", async () => {
+  const now = new Date(2026, 9, 12, 15, 7);
+  assert.equal(dateAnswer("明日の日付は？", now), "明日は2026年10月13日（火曜日）です。");
+  assert.equal(dateAnswer("今日は何曜日？", now), "今日は2026年10月12日（月曜日）です。");
+  assert.equal(dateAnswer("明後日は何日？", now), "明後日は2026年10月14日（水曜日）です。");
+  assert.equal(dateAnswer("今何時？", now), "いまは15時07分です（お使いの端末の時計）。");
+  assert.equal(dateAnswer("鶴岡八幡宮は何時まで？", now), null);
+  assert.equal(dateAnswer("明日は何時に出発すればいい？", now), null);
+  const got = await answerQuestion("明日の日付は？", {}, { call: async () => { throw new Error("AIは呼ばない"); } });
+  assert.equal(got.ok, true);
+  assert.match(got.answer, /^明日は\d+年\d+月\d+日/);
 });

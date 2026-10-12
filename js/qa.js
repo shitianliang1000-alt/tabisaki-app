@@ -37,6 +37,29 @@ const TRIP_CUES = /(日帰り|泊|旅|観光|ドライブ|巡[るり]|周遊|縦
 const IDEA = /(スポット|デート|アイデア|候補|おすすめ|オススメ|穴場|ランキング|定番|名所|場所|ところ).*(考えて|教えて|紹介|提案|挙げて|あげて|知りたい|ない[?？]?$|ある[?？]|どこ)/;
 const BUILD = /(泊|日帰り|組んで|旅程|プランを?(?:作|組)|作って|つくって)/;
 
+const WEEK = "日月火水木金土";
+const ymd = (d) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEK[d.getDay()]}曜日）`;
+const DAYS = [["明々後日", 3], ["しあさって", 3], ["明後日", 2], ["あさって", 2], ["明日", 1], ["あした", 1],
+              ["今日", 0], ["きょう", 0], ["本日", 0], ["昨日", -1], ["きのう", -1], ["一昨日", -2], ["おととい", -2]];
+
+/**
+ * 今日・明日などの日付、曜日、いまの時刻を聞かれたときの答え。
+ * 日付はAIに聞くより、端末の時計で答えるほうが確かなので、AIを使わずに返す。
+ * 当てはまらなければ null。
+ */
+export function dateAnswer(text, now = new Date()) {
+  const t = String(text ?? "").normalize("NFKC").trim();
+  if (/(今何時|いま何時|現在の時刻|今の時刻|何時ですか)/.test(t) && !/(まで|から|に)/.test(t)) {
+    return `いまは${now.getHours()}時${String(now.getMinutes()).padStart(2, "0")}分です（お使いの端末の時計）。`;
+  }
+  if (!/(日付|何日|なんにち|何曜|曜日|日にち|いつ)/.test(t)) return null;
+  const hit = DAYS.find(([w]) => t.includes(w)) ?? (/(日付|今日|何日)/.test(t) ? ["今日", 0] : null);
+  if (!hit) return null;
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + hit[1]);
+  const label = hit[1] === 0 ? "今日" : hit[0];
+  return `${label}は${ymd(d)}です。`;
+}
+
 /**
  * 送られた文を、どう扱うか。
  *   "plan"   … 旅程を組む・直す頼みだと言い切れる（地名だけ、日数つき、など）
@@ -96,6 +119,8 @@ export function itineraryContext(itin) {
  * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean }>}
  */
 export async function answerQuestion(question, ctx = {}, opts = {}) {
+  const local = dateAnswer(question);
+  if (local) return { ok: true, answer: local, sources: [] };
   const call = opts.call ?? ((p, o) => callModelJson(p, o));
   if (!opts.call && !hasApiKey()) {
     return {
@@ -121,7 +146,7 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
     "・分からないことを推測で埋めない。分からなければ、分からないと書く。",
     "・旅程を組み直したいときは、そのまま書いて送れば組み直せる、と添えてよい。",
     "",
-    `今日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`,
+    `今日: ${ymd(today)}　明日: ${ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1))}`,
     "",
     "いまの旅程:",
     itineraryContext(ctx.itin),
