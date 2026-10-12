@@ -2528,11 +2528,13 @@ async function send(textArg) {
   closePop({ restore: false });
   // 旅の質問なら、文で答えます。旅程は組み直さず、組み立て中でも
   // 止めません（js/qa.js）。
+  // 質問か旅程の頼みかは、AIが毎回決めます。AIが使えないとき（鍵なし）と、
+  // AIがつながらなかったときだけ、文の形（routeText）で決めます。
   const route = text ? routeText(text) : "plan";
-  if (route !== "plan") {
+  const byAi = Boolean(text) && hasApiKey();
+  if (byAi || route !== "plan") {
     if (textArg == null) clearDraft();
-    // 決めきれない文は、AIに「質問か、旅程の頼みか」を聞く。
-    ask(text, { mayPlan: route === "either" && hasApiKey(), textArg });
+    ask(text, { mayPlan: byAi, textArg, fallbackPlan: route === "plan" });
     return;
   }
   await plan(text, textArg);
@@ -2591,11 +2593,12 @@ function remember(q, a) {
 }
 
 /** 質問に答えます（send から）。答えは積んだ順に並びます。 */
-async function ask(text, { mayPlan = false, textArg } = {}) {
+async function ask(text, { mayPlan = false, textArg, fallbackPlan = false } = {}) {
   const turn = askTurn(text);
   const history = state.qa ?? (state.qa = []);
   const got = await answerQuestion(text, { itin: state.shown?.itin, history }, { mayPlan });
-  if (got.plan) {
+  // AIがつながらず、文の形が旅程の頼みなら、頼みとして組む。
+  if (got.plan || (!got.ok && fallbackPlan)) {
     // 旅程の頼みだった。質問の組は消して、旅程を組む。
     turn.remove();
     await plan(text, textArg);
