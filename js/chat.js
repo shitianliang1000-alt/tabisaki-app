@@ -147,11 +147,18 @@ export function askTurn(text) {
   requestAnimationFrame(() => {
     user.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
   });
+  // AI が混んでいると1分以上かかることがあります。止まって見えないよう、
+  // 待っていることを言い足します。
+  const slow = setTimeout(() => {
+    body.querySelector(".ai-thinking")?.replaceChildren(
+      "考えています…（AIが混み合っています。2分ほどかかることがあります）");
+  }, 15_000);
   return {
     node: ai,
     /** 質問ではなく旅程の頼みだったとき、この組を消す。 */
-    remove() { user.remove(); ai.remove(); },
+    remove() { clearTimeout(slow); user.remove(); ai.remove(); },
     answer(said, sources = []) {
+      clearTimeout(slow);
       body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));
       if (sources.length) {
         body.append(el("ul", { class: "qa-src", "aria-label": "調べた先" },

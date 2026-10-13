@@ -38,6 +38,12 @@ const ROUTES_URL =
 export const REQUEST_TIMEOUT_MS = 60_000;
 
 /**
+ * AI の生成を待つ上限。中継は生成を2分まで待つので（server/worker.js の
+ * AI_TIMEOUT_MS）、その返事（504 を含む）が届くよう、少し長くします。
+ */
+export const AI_REQUEST_TIMEOUT_MS = 135_000;
+
+/**
  * 呼び出し側の中止（signal）と、時間切れを1つの signal にまとめます。
  *
  * AbortSignal.any は新しいブラウザにしか無いので、自前で束ねます。

@@ -90,6 +90,10 @@ export function limitsFrom(env, settings = null) {
 
 const MAX_BODY = 512 * 1024;
 const UPSTREAM_TIMEOUT_MS = 30_000;
+// AI の生成だけは長く待ちます。Gemma 4 は考える時間が長く、混んでいると
+// 30秒を超えることがあります（504 になっていた）。Workers は上流の返事を
+// 待つあいだの時間（CPU 時間ではない）に上限がないので、2分まで待ちます。
+const AI_TIMEOUT_MS = 120_000;
 const GEMINI_ROOT = "https://generativelanguage.googleapis.com/v1beta";
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 // 検索結果のページを読みます。印刷用（/search/print）は1本しか載って
@@ -429,7 +433,8 @@ async function gemini(request, env, method) {
   const res = await fetch(`${GEMINI_ROOT}/models/${encodeURIComponent(model)}:${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-    body: JSON.stringify(payload), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(method === "generateContent" ? AI_TIMEOUT_MS : UPSTREAM_TIMEOUT_MS),
   });
   return passthrough(res, "gemini");
 }
