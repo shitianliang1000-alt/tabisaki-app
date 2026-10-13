@@ -1075,6 +1075,31 @@ await check("一覧をまとめて消せる", async () => {
   assert(hidden, "空なのに枠だけ残っています");
 });
 
+await check("質問だけの短いチャットも、一覧に残って開き直せる", async () => {
+  // 旅程を組まなかったやりとりは、閉じたら消えていました。
+  // 「今日は何曜日？」は端末の時計で答えるので、AIが無くても答えます。
+  await page.fill("#note", "今日は何曜日？");
+  await page.keyboard.press("Enter");
+  await until(page, () => [...document.querySelectorAll(".recent-row .r-title")]
+    .some((e) => e.textContent.includes("今日は何曜日")), { timeout: 15_000 });
+
+  await page.click("#new-trip");
+  await until(page, () => !document.querySelector(".turn-ask"), { timeout: 5000 });
+  await page.click(".recent-row");
+  await until(page, () => {
+    const q = document.querySelector(".turn-ask .bubble");
+    const a = document.querySelector(".turn-qa .ai-answer p");
+    return Boolean(q?.textContent.includes("今日は何曜日")
+      && a && !a.classList.contains("ai-thinking") && /今日は/.test(a.textContent));
+  }, { timeout: 5000 });
+
+  // あとの確認のために、一覧を空に戻しておきます。
+  await page.click("#recent-clear");
+  await page.click("#confirm-yes");
+  await until(page, () => !document.querySelector("#confirm-dialog[open]"),
+             { timeout: 5000 });
+});
+
 await check("電波が無くても開ける（Service Worker）", async () => {
   const ok = await until(page, () =>
     Boolean(navigator.serviceWorker?.controller

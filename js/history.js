@@ -21,8 +21,13 @@
 // 「いまの条件で作り直す」も残します。古い営業時間で案内しないためです。
 
 const KEY = "tabisaki.history";
-/** 覚えておく件数。多すぎると、探すほうが面倒になります。 */
-export const MAX = 10;
+/**
+ * 覚えておく件数。多すぎると、探すほうが面倒になります。
+ * 旅程だけでなく、質問だけのチャットも1件に数えるので、そのぶん多めです。
+ */
+export const MAX = 20;
+/** チャット1件に残すやりとりの数。古いものから落とします。 */
+export const CHAT_MSGS = 30;
 
 function store(storage) {
   return storage ?? globalThis.localStorage ?? null;
@@ -74,6 +79,50 @@ export function addHistory(entry, storage, now = new Date()) {
   const list = [item, ...rest].slice(0, MAX);
   write(list, storage);
   return list;
+}
+
+/**
+ * 質問だけのチャットを、1件として覚えます。
+ *
+ * 「最近のチャット」に旅程しか並ばないと、ちょっとした質問（あいさつ、
+ * 「東京タワーの高さは？」）は閉じたら消えていました。旅程を組まなかった
+ * やりとりも、同じ一覧に残します。
+ *
+ * 同じチャットのあいだは id が同じなので、**1件を上書き**して、いちばん
+ * 上に持ってきます。答えが増えるたびに一覧が埋まることはありません。
+ *
+ * @param {{id:string, msgs:{q:string, a:string, sources?:Array}[]}} entry
+ * @returns {Array} 新しい一覧
+ */
+export function addChat(entry, storage, now = new Date()) {
+  const msgs = (entry?.msgs ?? [])
+    .filter((m) => m && typeof m.q === "string" && typeof m.a === "string")
+    .slice(-CHAT_MSGS)
+    .map((m) => ({
+      q: m.q.slice(0, 400), a: m.a.slice(0, 2000),
+      ...(Array.isArray(m.sources) && m.sources.length
+        ? { sources: m.sources.slice(0, 5).map((x) => ({ title: String(x?.title ?? ""), url: String(x?.url ?? "") })) }
+        : {}),
+    }));
+  if (!entry?.id || !msgs.length) return loadHistory(storage);
+  const oneLine = (t) => String(t).replace(/\s+/g, " ").trim();
+  const item = {
+    id: String(entry.id),
+    kind: "chat",
+    title: oneLine(msgs[0].q).slice(0, 60) || "チャット",
+    subtitle: oneLine(msgs[msgs.length - 1].a).slice(0, 80),
+    savedAt: now.getTime(),
+    msgs,
+  };
+  const rest = loadHistory(storage).filter((x) => x.id !== item.id);
+  const list = [item, ...rest].slice(0, MAX);
+  write(list, storage);
+  return list;
+}
+
+/** 質問だけのチャットか（旅程ではないもの）。 */
+export function isChat(item) {
+  return item?.kind === "chat" && Array.isArray(item.msgs);
 }
 
 /**

@@ -79,6 +79,10 @@ function pickTrip(entry) {
     trip: entry?.trip ?? null,
     // 凍結した旅程そのもの。**これが本体です。**
     itin: entry?.itin ?? null,
+    // 質問だけのチャット（js/history.js addChat）。旅程の代わりにやりとりを持ちます。
+    ...(entry?.kind === "chat"
+      ? { kind: "chat", subtitle: entry.subtitle ?? "", msgs: entry.msgs ?? [] }
+      : {}),
   };
 }
 
@@ -128,6 +132,8 @@ export function readTripFile(text) {
  */
 function isUsable(t) {
   if (!t || typeof t !== "object") return false;
+  // 質問だけのチャットは、やりとりが1つでもあれば読めます。
+  if (t.kind === "chat") return Array.isArray(t.msgs) && t.msgs.length > 0;
   const days = t.itin?.days;
   if (!Array.isArray(days) || !days.length) return false;
   return days.some((d) => Array.isArray(d?.items) && d.items.length > 0);
