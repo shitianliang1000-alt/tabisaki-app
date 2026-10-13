@@ -48,6 +48,20 @@ test("「必ず行く」自体が営業時間に収まらないときは、黙�
   assert.ok(!kept.includes(closed) || true);   // 残っていても外れていてもよい
 });
 
+test("「必ず行く」が閉まったあとに着くなら、前の削ってよい場所を外して間に合わせる", () => {
+  const shrine = spot("shrine", { close: 14 });
+  const { result, conflicts, dropped } = trimToFit(
+    [spot("a"), spot("b"), spot("c"), shrine], {
+      start: BASE, startAt: d("2026-09-05T09:00"),
+      end: BASE, endBy: d("2026-09-05T18:00"), nights: 0,
+      pinnedIds: ["shrine"],
+    });
+  assert.ok(result.visits.some((v) => v.spot.id === "shrine"),
+    `「必ず行く」が入っていません: ${result.visits.map((v) => v.spot.id).join("、")}`);
+  assert.equal(conflicts.length, 0);
+  assert.ok(dropped.length > 0 && !dropped.some((s) => s.id === "shrine"));
+});
+
 test("「必ず行く」と「行かない」に同じ場所は入れられない", () => {
   const trip = makeTrip({
     origin: findPlace("東京駅"),

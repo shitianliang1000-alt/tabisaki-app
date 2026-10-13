@@ -1547,8 +1547,15 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
       // 段階で外した場所（「宮島に行きたい」の弥山・厳島）は数えられず、
       // 実際の経路で組み直すたびに「全スポットが時間内に収まることを
       // 確認」と出ていました。外したのに、外していないと言っていました。
+      //
+      // 「必ず行く」を入れられなかったことも、同じように残します。組み直しは
+      // 前の回で入った場所だけから始まるので、目安の段階で入らなかった
+      // 「必ず行く」（箱根の大涌谷）は、ここで上書きすると誰にも言われずに
+      // 消えていました。
       trimmed = { ...measured.trimmed,
-                  dropped: [...(trimmed.dropped ?? []), ...measured.dropped] };
+                  dropped: [...(trimmed.dropped ?? []), ...measured.dropped],
+                  conflicts: unplacedConflicts(measured.trimmed,
+                    [...(trimmed.conflicts ?? []), ...measured.conflicts]) };
       travelFn = measured.travelFn;
       legDetail = measured.legDetail;
       localRoute = measured.route ?? localRoute;
@@ -1759,6 +1766,20 @@ const MEASURE_ROUNDS = 3;
  * @returns {{trimmed:object, travelFn:Function, legDetail:Function,
  *            route:object}|null} 取れなければ null（そのままにします）
  */
+/**
+ * 入れられなかった「必ず行く」の理由。同じ場所は1回だけ、最後に旅程に
+ * 入ったものは除きます。
+ */
+function unplacedConflicts(trimmed, conflicts) {
+  const placed = new Set((trimmed.result?.visits ?? []).map((v) => v.spot?.id));
+  const seen = new Set();
+  return conflicts.filter((c) => {
+    if (!c?.spotId || placed.has(c.spotId) || seen.has(c.spotId)) return false;
+    seen.add(c.spotId);
+    return true;
+  });
+}
+
 async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
   const { stays, outbound } = ctxIn;
   if (!(trimmed.result?.visits ?? []).length) return null;
@@ -1769,6 +1790,9 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
   // 組み直しの回ごとに外れた場所。最後の回の dropped だけを見ると、
   // 1回目で外れた場所が消えます（2回目は、外れたあとの並びから始まるため）。
   const lostSoFar = [];
+  // 同じく、回ごとの「必ず行く」を入れられなかった理由（2回目からは、
+  // 1回目で入らなかった場所が並びに無いので、理由も出てきません）。
+  const conflictsSoFar = [];
 
   for (let round = 0; round < MEASURE_ROUNDS; round++) {
     const visits = current.result?.visits ?? [];
@@ -1837,6 +1861,7 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
                                    { ...ctx, startAt, travelFn: nextTravel },
                                    ctxIn.fillerIds);
     const settled = again.result?.visits?.length ? again : current;
+    conflictsSoFar.push(...(settled.conflicts ?? []));
     if (settled === again) {
       // 穴埋めは数えません。あとから足した場所です。
       lostSoFar.push(...(again.dropped ?? [])
@@ -1846,6 +1871,7 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
     best = {
       trimmed: settled,
       dropped: [...lostSoFar],
+      conflicts: [...conflictsSoFar],
       travelFn: nextTravel, legDetail: nextDetail, route,
       outbound: measuredOut,
     };

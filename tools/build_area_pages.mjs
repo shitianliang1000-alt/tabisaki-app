@@ -182,6 +182,27 @@ const DESC_MAX = 110;
  * 載せずに、名前と分類だけにします。Wikipedia の書き出しは、読みがな
  * のかっこを落とし、文の切れ目で短くします（途中で切りません）。
  */
+/**
+ * 文に分けます。かっこの中の句点では切りません。
+ *
+ * 「。」だけで切っていたころは、Wikipedia の書き出しのかっこの中で切れて、
+ * 「…豊国神社（「とよくにじんじゃ」または「ほうこくじんじゃ」と読む。」の
+ * ように、閉じないかっこで終わる説明が出ていました。最後まで閉じない
+ * 文は、読めないので捨てます。
+ */
+export function sentencesOf(text) {
+  const out = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of String(text)) {
+    cur += ch;
+    if ("（(「『".includes(ch)) depth++;
+    else if ("）)」』".includes(ch)) depth = Math.max(0, depth - 1);
+    else if (ch === "。" && depth === 0) { out.push(cur); cur = ""; }
+  }
+  return out;
+}
+
 export function readableDescription(spot) {
   const name = String(spot?.name ?? "").trim();
   let d = String(spot?.description ?? "").replace(/\s+/g, " ").trim();
@@ -191,7 +212,7 @@ export function readableDescription(spot) {
   // 書き出しの読みがな:「胎内スキー場（たいないスキーじょう）は、」
   d = d.replace(/^([^（。]{1,40})（[^）]*）(は)/, "$1$2");
   // 句点の無い説明は、国土数値情報の住所の欄です（収録の8,121件がすべてそう）。
-  const parts = d.match(/[^。]+。/g) ?? (spot?.src === "kokudo" ? [] : [d]);
+  const parts = d.includes("。") ? sentencesOf(d) : (spot?.src === "kokudo" ? [] : [d]);
   const sentences = parts
     .map((x) => x.trim())
     // 「型式:gravity 管理者:北海道」のような、項目を並べただけの文。
@@ -475,9 +496,13 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
                                    siblings = [] }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
-  const title = `${region.name}の1日モデルコースと観光地｜旅行プラン作成｜旅さき`;
   const list = [...nearbySpots(region, spots)].sort(byFame).slice(0, REGION_SPOTS);
   const items = course ? courseItems(course) : null;
+  // コースが組めなかったページに「モデルコース」と書くと、検索から来た人が
+  // 探しても無いものを約束することになります。
+  const title = items
+    ? `${region.name}の1日モデルコースと観光地｜旅行プラン作成｜旅さき`
+    : `${region.name}の観光地と1日の旅行プラン｜旅さき`;
   // 寄る順ではなく、よく知られた順に（鎌倉なら駅ビルより長谷寺と大仏）。
   const stops = items ? nameList((course.days?.[0]?.items ?? []).filter((i) => i.kind === "spot")
     .map((i) => ({ name: i.title, fame_score: i.place?.fame_score })).sort(byFame).map((x) => x.name)) : "";
@@ -747,7 +772,7 @@ async function main(outDir) {
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
   };
   const { loadKnowledgeBase } = await import(join(ROOT, "js/kb.js"));
-  const { planTrip } = await import(join(ROOT, "js/pipeline.js"));
+  const { planTrip, dropSamePlace } = await import(join(ROOT, "js/pipeline.js"));
   const { makeTrip } = await import(join(ROOT, "js/trip.js"));
   const kb = await loadKnowledgeBase();
 
@@ -764,12 +789,19 @@ async function main(outDir) {
     // 中心から COURSE_RADIUS_KM より遠いものは「外す」に入れます。
     // （一覧の REGION_RADIUS_KM では狭すぎます。箱根の大涌谷や彫刻の森まで外れます）
     const far = new Set(own.filter((s) => isFar(region, s)).map((s) => s.id));
-    // すぐ隣の別のエリア（機械で作った「松本市」など）の場所も外します。
+    // 同じ県の別のエリア（機械で作った「松本市」など）の場所も外します。
     // 入ると「よそのエリアへ行った」として courseFits がコースごと捨てるので、
     // 松本のページは観光案内所に寄るコースが組まれて、コースが出ていませんでした。
+    // 近いものだけを外していたころは、宮島のコースが広島市内の縮景園へ、
+    // 出雲のコースが隣の市の窯元へ寄り、やはりコースが出ていませんでした
+    // （宮島・出雲・富士山・鳴門・那須の5ページ）。遠くても外します。
     const neighbors = prefSpots
-      .filter((s) => s.regionId && s.regionId !== region.id && !isFar(region, s)).map((s) => s.id);
-    const mustIds = own.filter((s) => !far.has(s.id)).sort(byFame).slice(0, 3).map((s) => s.id);
+      .filter((s) => s.regionId && s.regionId !== region.id).map((s) => s.id);
+    // 必ず入れる3か所は、互いに離れたものから選びます。旅程は120m 以内の
+    // 2か所を同じ場所として1つにまとめるので、佐原の「小野川沿いの町並み」と
+    // 川沿いの伊能忠敬記念館を両方入れると、片方が消えてコースが出ません。
+    const mustIds = dropSamePlace(own.filter((s) => !far.has(s.id)).sort(byFame))
+      .slice(0, 3).map((s) => s.id);
     const itin = await planTrip({ kb, trip: makeTrip({
       must: { spotIds: mustIds, avoidSpotIds: [...far, ...neighbors] },
       origin: { name: region.station, lat: region.stationLat, lng: region.stationLng },

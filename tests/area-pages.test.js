@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
   examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
-  readableDescription, shardSlug, sitemapXml, spotIcon,
+  readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
 
 const BASE = "https://example.test/app/";
@@ -305,7 +305,9 @@ test("共有カード: エリアごとの題と説明を持つ", async () => {
   };
   const { pages } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null });
   const hakone = pages.find((p) => p.path.endsWith("hakone.html")).html;
-  assert.match(hakone, /<meta property="og:title" content="箱根の1日モデルコース/);
+  // コースが組めなかったページは、題で「モデルコース」を約束しません。
+  assert.match(hakone, /<meta property="og:title" content="箱根の観光地と1日の旅行プラン/);
+  assert.doesNotMatch(hakone, /<title>[^<]*モデルコース/);
   assert.match(hakone, /<meta property="og:description" content="箱根（神奈川県）/);
   assert.match(hakone, /<meta name="twitter:title" content="箱根の/);
   assert.match(hakone, /<meta property="og:image" content="https:\/\/example\.test\/app\/og\.png"/);
@@ -395,4 +397,25 @@ test("モデルコースには、エリアの中心から遠い場所（鎌倉�
   assert.equal(isFar(kamakura, { lat: 35.2848, lng: 139.6743 }), true); // 記念艦三笠 約12km
   assert.equal(isFar(kamakura, { lat: 35.3167, lng: 139.5357 }), false); // 長谷寺
   assert.equal(isFar(kamakura, { name: "座標なし" }), false);
+});
+
+test("コースがあるページだけ、題に「モデルコース」と書く", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a"), spot("b"), spot("c")]]]),
+  };
+  const { pages } = await buildAll(kbDoc, { base: BASE,
+    planCourse: async () => itinOf(["a", "b", "c"]) });
+  const hakone = pages.find((p) => p.path.endsWith("hakone.html")).html;
+  assert.match(hakone, /<title>箱根の1日モデルコースと観光地/);
+});
+
+test("説明は、かっこの中の句点では切らない", () => {
+  assert.deepEqual(sentencesOf("A（「あ」と読む。）はB。C。"), ["A（「あ」と読む。）はB。", "C。"]);
+  // 閉じないまま終わる文は、文として返しません。
+  assert.deepEqual(sentencesOf("A。B（「い」と読む。"), ["A。"]);
+  const d = readableDescription({ name: "千畳閣",
+    description: "千畳閣は、厳島にある神社建築であり、豊国神社（「とよくにじんじゃ」と読む。）の本殿である。豊臣秀吉が建てた。" });
+  assert.equal((d.match(/（/g) ?? []).length, (d.match(/）/g) ?? []).length);
 });
