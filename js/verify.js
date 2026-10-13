@@ -579,7 +579,38 @@ export function trimToFit(spots, ctx, maxDrops = 12) {
     current = [...current.slice(0, idx), ...current.slice(idx + 1)];
     result = verifyOrder(current, ctx);
   }
-  return { result, spots: current, dropped, conflicts };
+  // 「必ず行く」が、閉まったあとに着くことがあります。前にある削ってよい
+  // 場所に時間を取られているためです。実際に出ていた旅程（箱根を1日で）:
+  //
+  //   箱根湯本温泉 → 生命の星・地球博物館 → 早雲寺 → 石垣山 → 箱根神社
+  //   箱根神社は17:00に閉まりますが、到着は17:27になります。
+  //
+  // 必ず行くと言った箱根神社と大涌谷が落ちて、穴埋めの石垣山が残っていました。
+  // その前にある削ってよい場所を、後ろから1つずつ外して組み直し、間に合う
+  // 「必ず行く」が増えたときだけ採ります（増えないなら、何も外しません）。
+  const latePinned = (r) => r.issues.filter((x) => x.spotId && pinned.has(x.spotId));
+  let late = latePinned(result);
+  let trial = current;
+  const removed = [];
+  for (let i = 0; late.length && i < maxDrops; i++) {
+    const lateIds = new Set(late.map((x) => x.spotId));
+    const first = trial.findIndex((s) => lateIds.has(s.id));
+    const idx = lastIndexWhere(trial.slice(0, Math.max(0, first)), (s) => !pinned.has(s.id));
+    if (idx < 0) break;
+    removed.push(trial[idx]);
+    trial = [...trial.slice(0, idx), ...trial.slice(idx + 1)];
+    const r = verifyOrder(trial, ctx);
+    if (latePinned(r).length < late.length) {
+      current = trial;
+      result = r;
+      dropped.push(...removed.splice(0));
+      late = latePinned(r);
+    }
+  }
+  // 途中で間に合うようになった「必ず行く」は、入れられなかったとは言いません。
+  const placed = new Set((result.visits ?? []).map((v) => v.spot?.id));
+  return { result, spots: current, dropped,
+           conflicts: conflicts.filter((c) => !placed.has(c.spotId)) };
 }
 
 /**
