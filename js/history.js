@@ -100,8 +100,8 @@ export function addChat(entry, storage, now = new Date()) {
     .slice(-CHAT_MSGS)
     .map((m) => ({
       q: m.q.slice(0, 400), a: m.a.slice(0, 2000),
-      ...(Array.isArray(m.sources) && m.sources.length
-        ? { sources: m.sources.slice(0, 5).map((x) => ({ title: String(x?.title ?? ""), url: String(x?.url ?? "") })) }
+      ...(httpsSources(m.sources).length
+        ? { sources: httpsSources(m.sources).slice(0, 5) }
         : {}),
     }));
   if (!entry?.id || !msgs.length) return loadHistory(storage);
@@ -118,6 +118,20 @@ export function addChat(entry, storage, now = new Date()) {
   const list = [item, ...rest].slice(0, MAX);
   write(list, storage);
   return list;
+}
+
+/**
+ * 答えの下に並べる「調べた先」のうち、https のものだけを残します。
+ *
+ * 控えのファイル（.json）を読み込むと、ほかの人が作った中身が
+ * そのまま履歴に入ります。javascript: などのリンクが混ざっていても
+ * 押せる形で出さないよう、ここで落とします（js/links.js と同じ考え）。
+ */
+export function httpsSources(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((x) => ({ title: String(x?.title ?? ""), url: String(x?.url ?? "").trim() }))
+    .filter((x) => /^https:\/\//i.test(x.url));
 }
 
 /** 質問だけのチャットか（旅程ではないもの）。 */

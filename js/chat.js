@@ -21,6 +21,7 @@
 import { el, fmtDay, fmtTime, scrollBehavior } from "./ui.js";
 import { icon } from "./icons.js";
 import { VARIANTS } from "./variants.js";
+import { httpsSources } from "./history.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -160,9 +161,10 @@ export function askTurn(text) {
     answer(said, sources = []) {
       clearTimeout(slow);
       body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));
-      if (sources.length) {
+      const links = httpsSources(sources);
+      if (links.length) {
         body.append(el("ul", { class: "qa-src", "aria-label": "調べた先" },
-          ...sources.map((s) => el("li", {},
+          ...links.map((s) => el("li", {},
             el("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.title)))));
       }
     },
