@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MAX, addChat, addHistory, clearHistory, isChat, loadHistory, removeHistory, savedLabel,
+import { MAX, addChat, httpsSources, addHistory, clearHistory, isChat, loadHistory, removeHistory, savedLabel,
          thawItinerary } from "../js/history.js";
 
 /** localStorage の代わり。テストのあいだだけ持ちます。 */
@@ -213,4 +213,18 @@ test("やりとりが空のチャットは残さない", () => {
   addChat({ id: "chat-1", msgs: [] }, s);
   addChat({ msgs: [{ q: "a", a: "b" }] }, s);
   assert.deepEqual(loadHistory(s), []);
+});
+
+test("調べた先は https のものだけを残す（読み込んだ控えに javascript: が混ざっていても）", () => {
+  assert.deepEqual(httpsSources([
+    { title: "公式", url: "https://example.com" },
+    { title: "悪い", url: "javascript:alert(1)" },
+    { title: "平文", url: "http://example.com" },
+    { title: "空", url: "" },
+    null,
+  ]), [{ title: "公式", url: "https://example.com" }]);
+  assert.deepEqual(httpsSources(undefined), []);
+  const s = fakeStore();
+  addChat({ id: "chat-x", msgs: [{ q: "q", a: "a", sources: [{ title: "x", url: "javascript:alert(1)" }] }] }, s);
+  assert.equal(loadHistory(s)[0].msgs[0].sources, undefined);
 });
