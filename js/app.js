@@ -53,7 +53,7 @@ import { clearTripMode, loadTripMode, saveTripMode } from "./tripmode.js";
 import { searchYahooTransit } from "./yahoo-transit.js";
 import { yahooFlags } from "./modes.js";
 import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
-import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
+import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory, removeHistory,
          replaceHistory, savedLabel, thawItinerary } from "./history.js";
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
@@ -173,6 +173,7 @@ async function boot() {
       state.shown = null;
       resetThread();
       state.qa = [];
+      newChat();
       setTopTitle("");
       showView("form");
       note.focus();
@@ -316,7 +317,8 @@ function renderRecent() {
   for (const item of items) {
     const row = el("button", {
       type: "button", class: "recent-row",
-      title: item.itin ? "保存した旅程を開く" : "この条件でもう一度つくる",
+      title: isChat(item) ? "このチャットを開く"
+        : item.itin ? "保存した旅程を開く" : "この条件でもう一度つくる",
       onclick: () => openHistory(item),
     },
       el("span", { class: "r-body" },
@@ -344,6 +346,8 @@ function openHistory(item) {
   // やりとりは、その旅のものだけにします（前の旅の答えと混ぜない）。
   resetThread();
   state.qa = [];
+  newChat();
+  if (isChat(item)) { openChat(item); return; }
   state.sentNote = item.state?.note || "";
   startTurn(item.state?.note || item.title, []);
   if (!item.itin) { replayHistory(item); return; }
@@ -356,6 +360,37 @@ function openHistory(item) {
   itin.onRebuild = () => replayHistory(item);
   state.trip = trip ?? state.trip;
   show(itin, trip ?? state.trip);
+}
+
+/**
+ * 質問だけのチャットを開き直します。やりとりを並べ直し、AIの記憶も
+ * 戻すので、そのまま続きを話せます（続きは同じ1件に足されます）。
+ */
+function openChat(item) {
+  state.chatId = item.id;
+  state.chatLog = item.msgs.map((m) => ({ ...m }));
+  for (const m of item.msgs) {
+    askTurn(m.q).answer(m.a, m.sources ?? []);
+    remember(m.q, m.a);
+  }
+  setTopTitle(item.title);
+}
+
+/** 新しいチャットを始めます（「最近のチャット」で別の1件になる）。 */
+function newChat() {
+  state.chatId = null;
+  state.chatLog = [];
+}
+
+/**
+ * 質問への答えを、いまのチャットとして一覧に残します。あいさつのような
+ * 短いやりとりでも残します。
+ */
+function saveChat(q, a, sources = []) {
+  if (!state.chatId) state.chatId = `chat-${Date.now().toString(36)}`;
+  (state.chatLog ??= []).push({ q, a, ...(sources.length ? { sources } : {}) });
+  addChat({ id: state.chatId, msgs: state.chatLog });
+  renderRecent();
 }
 
 /** 条件を入力欄に戻して、そのまま組み直します。 */
@@ -2619,7 +2654,10 @@ async function ask(text, { mayPlan = false, textArg, fallbackPlan = false } = {}
   }
   count("chat_send", "ask");
   turn.answer(got.answer, got.sources);
-  if (got.ok) remember(text, got.answer, got.place);
+  if (got.ok) {
+    remember(text, got.answer, got.place);
+    saveChat(text, got.answer, got.sources ?? []);
+  }
   // 答えで行き先の話をしたら、そのままプランに進めるボタンを添えます。
   if (got.ok && got.place) {
     turn.offer(`${got.place}へ行くプランを作る`,

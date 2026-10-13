@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MAX, addHistory, clearHistory, loadHistory, removeHistory, savedLabel,
+import { MAX, addChat, addHistory, clearHistory, isChat, loadHistory, removeHistory, savedLabel,
          thawItinerary } from "../js/history.js";
 
 /** localStorage の代わり。テストのあいだだけ持ちます。 */
@@ -177,4 +177,40 @@ test("端末の空きが足りないときは、古いものから落として�
     kind: "spot", title: `場所${i}`, detail: "x".repeat(50) })) }] };
   // 落ちずに戻ってくれば十分です（保存できなくても旅程は作れます）。
   assert.doesNotThrow(() => addHistory({ ...entry("大阪"), itin: big }, store));
+});
+
+// 「些細なチャットでも履歴に残して」（2026-10-13）。旅程を組まなかった
+// やりとり（あいさつ・ちょっとした質問）も、「最近のチャット」に残します。
+test("質問だけのチャットも一覧に残る", () => {
+  const s = fakeStore();
+  addHistory(entry("鎌倉"), s);
+  addChat({ id: "chat-1", msgs: [{ q: "こんにちは", a: "こんにちは！どこへ行きたいですか？" }] }, s);
+  const list = loadHistory(s);
+  assert.equal(list.length, 2);
+  assert.equal(list[0].title, "こんにちは");
+  assert.ok(isChat(list[0]));
+  assert.ok(!isChat(list[1]), "旅程はチャット扱いしないはずです");
+  assert.match(list[0].subtitle, /どこへ行きたい/);
+});
+
+test("同じチャットの続きは、1件のまま上書きされる", () => {
+  const s = fakeStore();
+  const msgs = [{ q: "東京タワーの高さは？", a: "333mです。" }];
+  addChat({ id: "chat-1", msgs }, s);
+  addHistory(entry("箱根"), s);
+  msgs.push({ q: "スカイツリーは？", a: "634mです。", sources: [{ title: "公式", url: "https://example.com" }] });
+  addChat({ id: "chat-1", msgs }, s);
+  const list = loadHistory(s);
+  assert.equal(list.length, 2);
+  assert.equal(list[0].id, "chat-1", "続きを話したら、いちばん上に来るはずです");
+  assert.equal(list[0].title, "東京タワーの高さは？", "題は最初の質問のままのはずです");
+  assert.equal(list[0].msgs.length, 2);
+  assert.equal(list[0].msgs[1].sources[0].url, "https://example.com");
+});
+
+test("やりとりが空のチャットは残さない", () => {
+  const s = fakeStore();
+  addChat({ id: "chat-1", msgs: [] }, s);
+  addChat({ msgs: [{ q: "a", a: "b" }] }, s);
+  assert.deepEqual(loadHistory(s), []);
 });

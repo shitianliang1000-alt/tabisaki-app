@@ -129,3 +129,13 @@ test("ファイル名に、日本語を使わない", () => {
   assert.match(name, /\.json$/);
   assert.match(name, /2026-09-20/);
 });
+
+test("控えのファイルに、質問だけのチャットも入って戻せる", () => {
+  const chat = { id: "chat-1", kind: "chat", title: "こんにちは", subtitle: "こんにちは！",
+                 savedAt: 1, msgs: [{ q: "こんにちは", a: "こんにちは！" }] };
+  const doc = toBackupFile([chat]);
+  const back = readTripFile(JSON.stringify(doc));
+  assert.equal(back.ok, true);
+  assert.equal(back.trips[0].kind, "chat");
+  assert.equal(back.trips[0].msgs[0].q, "こんにちは");
+});
