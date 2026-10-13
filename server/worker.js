@@ -101,7 +101,7 @@ const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 // 全部読んで、選べるようにします。
 const YAHOO_TRANSIT_URL = "https://transit.yahoo.co.jp/search/result";
 // 中継が通すモデル。ここに無いものは 400 で返します（高いモデルを
-// 勝手に呼ばれないため）。埋め込みは Gemma に無いので Gemini のままです。
+// 勝手に呼ばれないため）。
 // Cloudflare の Workers AI で動かすモデル。**Googleのキーは要りません。**
 // 中継（このWorker）の中で走ります。E2B は Workers AI には無いので、
 // Gemma 4 のうち配信されているものを使います。
@@ -110,11 +110,13 @@ const ALLOWED_CF_MODELS = new Set([
   "@cf/zai-org/glm-4.7-flash",
 ]);
 
+// Gemini は通しません（Gemma だけ）。Gemini は Gemma と同じキーでも
+// 1分あたりの枠（TPM）が別で、料金もかかります。画面の側も Gemma しか
+// 呼びませんが、中継でも止めておきます。埋め込み（gemini-embedding-001）も
+// 使わないので外しました（検索は語句検索で行います）。
 const ALLOWED_MODELS = new Set([
   "gemma-4-e2b-it", "gemma-4-26b-a4b-it", "gemma-4-31b-it",
   "gemma-3-27b-it", "gemma-3-12b-it", "gemma-3-4b-it",
-  "gemini-3.7-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite",
-  "gemini-embedding-001",
 ]);
 
 export default {
@@ -471,7 +473,8 @@ async function geminiModels(env) {
     .filter((m) => Array.isArray(m?.supportedGenerationMethods)
       && m.supportedGenerationMethods.includes("generateContent"))
     .map((m) => String(m?.name ?? "").replace(/^models\//, ""))
-    .filter(Boolean);
+    // 通すのは Gemma だけなので、一覧も Gemma だけにします。
+    .filter((n) => /gemma/i.test(n));
   return json({ models: names });
 }
 

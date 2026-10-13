@@ -363,7 +363,7 @@ const SYSTEM = [
  */
 export function buildModelRequest(prompt, {
   temperature = 0.4, search = false, schema = null, topP, thinking,
-  model = MODEL,
+  model = MODEL, system = true,
 } = {}) {
   // Gemma には構造化出力（responseSchema）がありません。付けて投げると
   // 400 が返り、モデルの候補を1つ落として次へ行ってしまいます。
@@ -392,7 +392,13 @@ export function buildModelRequest(prompt, {
   // モデルの候補を順に落として、最後は「AIに聞けませんでした」になる——
   // Gemma に切り替えたのに使われていなかったのは、これです。
   // 役割の指示は、本文の先頭に置きます。
-  if (gemma) {
+  //
+  // 質問への答え（js/qa.js）は旅程づくりの指示が要らないので、
+  // system: false で外します（「候補の中からだけ選ぶ」が雑談に効いて
+  // しまうのと、Gemma では毎回その分のトークンを送ることになるため）。
+  if (!system) {
+    // 付けません。
+  } else if (gemma) {
     text = `${SYSTEM}\n\n---\n\n${text}`;
   } else {
     body.systemInstruction = { parts: [{ text: SYSTEM }] };
@@ -441,12 +447,12 @@ export function extractSources(data) {
  * 形の保証にはならないので、読めなければ callModelJson が聞き直します。
  */
 async function callLocal(prompt, opts = {}) {
-  const { signal, temperature = 0.4, topP, schema } = opts;
+  const { signal, temperature = 0.4, topP, schema, system = true } = opts;
   const url = endpointFor("local:generate", {}, net());
   const body = {
     model: LOCAL_MODEL,
     messages: [
-      { role: "system", content: SYSTEM },
+      ...(system ? [{ role: "system", content: SYSTEM }] : []),
       { role: "user", content: prompt },
     ],
     temperature,
@@ -502,7 +508,7 @@ async function callCloudflare(model, prompt, opts = {}) {
       // 候補が多い旅程で途中で切れ、壊れたJSONになります。
       max_tokens: schema ? 4096 : 2048,
       messages: [
-        { role: "system", content: SYSTEM },
+        ...(opts.system === false ? [] : [{ role: "system", content: SYSTEM }]),
         { role: "user", content: text },
       ],
     }),
@@ -684,7 +690,9 @@ export async function callModel(prompt, opts = {}) {
     //（Google のエラー文が「ListModels を呼べ」と言っています）。
     if (askedForModels) break;
     askedForModels = true;
-    discovered = await listModels(opts);
+    // 聞いた一覧に Gemini があっても、使うのは Gemma だけです
+    // （Gemini は使わない、と決めています。枠も料金も別ものです）。
+    discovered = (await listModels(opts)).filter((m) => isGemma(m));
     if (!discovered.length) break;
     console.info(`[ai] 使えるモデルを聞き直しました: ${discovered.slice(0, 5).join(", ")}`);
   }

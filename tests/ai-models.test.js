@@ -113,7 +113,7 @@ async function askWorker(reply, { key = "k" } = {}) {
   }
 }
 
-test("中継は、文を作れるモデルの名前だけを返す", async () => {
+test("中継は、文を作れる Gemma の名前だけを返す（Gemini は使わない）", async () => {
   const { doc, calls } = await askWorker(new Response(JSON.stringify({ models: [
     { name: "models/gemini-2.5-flash",
       supportedGenerationMethods: ["generateContent", "countTokens"] },
@@ -122,7 +122,7 @@ test("中継は、文を作れるモデルの名前だけを返す", async () =>
     { name: "models/gemma-3-12b-it",
       supportedGenerationMethods: ["generateContent"] },
   ] }), { status: 200, headers: { "Content-Type": "application/json" } }));
-  assert.deepEqual(doc.models, ["gemini-2.5-flash", "gemma-3-12b-it"]);
+  assert.deepEqual(doc.models, ["gemma-3-12b-it"]);
   // 鍵は本文に出しません（見出しで渡します）。
   assert.match(calls[0].url, /generativelanguage\.googleapis\.com/);
   assert.equal(calls[0].init.headers["x-goog-api-key"], "k");
@@ -143,4 +143,26 @@ test("答えが壊れていても、落ちない", async () => {
   const { res, doc } = await askWorker(new Response("なにか", { status: 200 }));
   assert.equal(res.status, 200);
   assert.deepEqual(doc.models, []);
+});
+
+test("中継は Gemini のモデルを通さない（Gemma だけ）", async () => {
+  const real = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (input) => { calls.push(String(input?.url ?? input)); return new Response("{}", { status: 200 }); };
+  try {
+    for (const [model, path, status] of [
+      ["gemini-2.5-flash", "generate", 400], ["gemini-embedding-001", "embed", 400],
+      ["gemma-4-26b-a4b-it", "generate", 200],
+    ]) {
+      const res = await worker.fetch(new Request(`${ORIGIN}/gemini/${path}`, {
+        method: "POST",
+        headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, contents: [] }),
+      }), { ALLOW_ORIGIN: ORIGIN, GEMINI_API_KEY: "k" });
+      assert.equal(res.status, status, model);
+    }
+    assert.equal(calls.length, 1, "Gemini を上流へ投げています");
+  } finally {
+    globalThis.fetch = real;
+  }
 });
