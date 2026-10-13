@@ -166,6 +166,17 @@ export function askTurn(text) {
             el("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.title)))));
       }
     },
+    /**
+     * 答えの下に、そのまま次へ進むボタンを1つ置きます
+     * （「富士山へ行くプランを作る」）。押したら消えます。
+     */
+    offer(label, onClick) {
+      const btn = el("button", { type: "button", class: "md-chip md-chip--assist md-state qa-next" },
+        icon("sparkle"), label);
+      btn.addEventListener("click", () => { box.remove(); onClick(); }, { once: true });
+      const box = el("div", { class: "chip-set follow-ups", role: "group", "aria-label": "続けて頼む" }, btn);
+      body.append(box);
+    },
   };
 }
 

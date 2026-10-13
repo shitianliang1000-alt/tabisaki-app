@@ -7,7 +7,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { replyText } from "../js/ai.js";
-import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply } from "../js/qa.js";
+import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply,
+  rememberQa, resolveRef, MEMORY_SIZE } from "../js/qa.js";
 
 test("旅の質問は、質問として読む", () => {
   for (const t of ["鶴岡八幡宮は何時まで？", "雨だったらどうする？", "この旅の費用はいくら",
@@ -69,14 +70,55 @@ test("あいさつや旅行以外の質問も、答える側に回す", () => {
   }
 });
 
-test("これまでのやりとりをAIに渡す（8件まで）", async () => {
+test("これまでのやりとりをAIに渡す（10件まで・長い答えは切る）", async () => {
   let seen = "";
-  const history = Array.from({ length: 10 }, (_, i) => ({ q: `質問${i}`, a: `答え${i}` }));
+  const history = Array.from({ length: 12 }, (_, i) => ({ q: `質問${i}`, a: `答え${i}` }));
+  history[11].a = "長".repeat(500);
   await answerQuestion("それはいつ建った？", { history }, { call: async (p) => { seen = p; return { answer: "x" }; } });
-  assert.match(seen, /Q: 質問9/);
+  assert.match(seen, /Q: 質問11/);
   assert.match(seen, /Q: 質問2/);
   assert.doesNotMatch(seen, /Q: 質問1\n/);
-  assert.match(seen, /旅行以外の質問にも/);
+  assert.doesNotMatch(seen, /長{200}/, "長い答えをそのまま渡しています");
+  assert.match(seen, /旅行以外の質問/);
+});
+
+test("覚えるのは新しい10件だけ。行き先も一緒に覚える", () => {
+  const h = [];
+  for (let i = 0; i < 13; i++) rememberQa(h, `質問${i}`, `答え${i}`, i === 12 ? "富士山" : "");
+  assert.equal(h.length, MEMORY_SIZE);
+  assert.equal(h[0].q, "質問3");
+  assert.equal(h.at(-1).place, "富士山");
+  assert.equal("place" in h[0], false);
+});
+
+test("「そこ行ってみたい」の「そこ」を、前の話の行き先にする", () => {
+  const h = [];
+  rememberQa(h, "富士山って初心者でも登れる？", "吉田ルートなら…", "富士山");
+  assert.equal(resolveRef("そこ行ってみたい", h), "富士山行ってみたい");
+  assert.equal(resolveRef("さっきの所へ1泊2日で", h), "富士山へ1泊2日で");
+  assert.equal(resolveRef("箱根へ日帰りで", h), "箱根へ日帰りで");
+  assert.equal(resolveRef("そこ行ってみたい", []), "そこ行ってみたい");
+  assert.equal(routeText("そこ行ってみたい"), "plan");
+});
+
+test("質問のあと「そこ行ってみたい」で、行き先を補った頼みとしてプランに進む", async () => {
+  const history = [{ q: "富士山って初心者でも登れる？", a: "吉田ルートなら登れます。", place: "富士山" }];
+  let seen = "";
+  const got = await answerQuestion("そこ行ってみたい", { history }, {
+    mayPlan: true, call: async (p) => { seen = p; return '{"plan": true, "note": "富士山へ行ってみたい"}'; },
+  });
+  assert.equal(got.plan, true);
+  assert.equal(got.note, "富士山へ行ってみたい");
+  assert.match(seen, /Q: 富士山って初心者でも登れる？/);
+});
+
+test("答えで話した行き先を返す（「ここへ行くプランを作る」用）", async () => {
+  const got = await answerQuestion("富士山って初心者でも登れる？", {}, {
+    call: async () => '{"answer": "夏の吉田ルートなら登れます。", "place": "富士山"}',
+  });
+  assert.equal(got.place, "富士山");
+  const none = await answerQuestion("こんにちは", {}, { call: async () => '{"answer": "こんにちは！", "place": ""}' });
+  assert.equal(none.place, undefined);
 });
 
 test("旅程の頼みでない文は、話題を問わずふつうの会話として答える", () => {
@@ -109,7 +151,8 @@ test("決めきれない文は、AIに質問か旅程の頼みかを聞く", asy
     mayPlan: true, call: async (p) => { seen = p; return { plan: true }; },
   });
   assert.equal(asked.plan, true);
-  assert.match(seen, /旅程づくりの頼みか判断/);
+  assert.match(seen, /旅程づくりの頼み/);
+  assert.match(seen, /"plan": true/);
   const said = await answerQuestion("東京タワーの高さは？", {}, {
     mayPlan: true, call: async () => ({ answer: "333mです。" }),
   });

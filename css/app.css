@@ -3586,6 +3586,35 @@ body[data-trip-mode="on"] .turn-details { display: none !important; }
 /* --- 質問への答え --- */
 .ai-qa > p { margin: 0 0 8px; line-height: 1.75; }
 .ai-qa .ai-thinking { color: var(--chat-ink-2); }
+.qa-next .ic { width: 16px; height: 16px; margin-right: 4px; color: var(--chat-mark); }
+
+/* --- 考えているあいだの印（Claude の、答えを待つあいだに動く印に合わせます） ---
+   質問の答えを待つあいだ（.ai-thinking がある）と、旅程を組んでいるあいだ
+   （#progress が出ている）だけ、左の印をゆっくり回して脈打たせ、
+   「考えています…」の字に光を流します。答えが出たら止まります。
+   色は既存の白黒（--chat-mark / --chat-ink）のままです。 */
+.turn-ai:has(.ai-thinking) .ai-mark .ic,
+.turn-ai:has(#progress:not([hidden])) .ai-mark .ic {
+  animation: ai-mark-think 2.4s cubic-bezier(.45, 0, .55, 1) infinite;
+  transform-origin: 50% 50%;
+}
+@keyframes ai-mark-think {
+  0%   { transform: rotate(0deg) scale(1);    opacity: 1; }
+  50%  { transform: rotate(180deg) scale(.72); opacity: .55; }
+  100% { transform: rotate(360deg) scale(1);  opacity: 1; }
+}
+.ai-qa .ai-thinking {
+  background: linear-gradient(90deg, var(--chat-ink-2) 0%, var(--chat-ink) 45%, var(--chat-ink-2) 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: chat-shimmer 2.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-ai:has(.ai-thinking) .ai-mark .ic,
+  .turn-ai:has(#progress:not([hidden])) .ai-mark .ic { animation: none; }
+  .ai-qa .ai-thinking { animation: none; -webkit-text-fill-color: currentColor; background: none; }
+}
 .qa-src { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
 .qa-src a {
   display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px;

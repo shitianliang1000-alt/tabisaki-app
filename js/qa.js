@@ -15,7 +15,7 @@
 import { callModel, canGround, extractJson, hasApiKey, lastGrounding } from "./ai.js";
 
 /** 旅程を組む頼みの言い方。これがあれば、質問の形でも組みます。 */
-const PLAN_ASK = /(行きたい|いきたい|行ってみたい|旅程を|プランを|組んで|作って|つくって|考えて|探して|さがして|連れて|にして|変えて|かえて|増やして|減らして|外して|入れて|足して|直して|どこ(?:に|へ)?(?:行|い)(?:け|こう|く)|どこが(?:いい|おすすめ)|おすすめ(?:の|な)?(?:場所|旅|行き先|旅先|所|ところ)|行き先)/;
+const PLAN_ASK = /(行きたい|いきたい|行ってみたい|行ってみる|行ってみよう|行こう|行きます|旅程を|プランを|組んで|作って|つくって|考えて|探して|さがして|連れて|にして|変えて|かえて|増やして|減らして|外して|入れて|足して|直して|どこ(?:に|へ)?(?:行|い)(?:け|こう|く)|どこが(?:いい|おすすめ)|おすすめ(?:の|な)?(?:場所|旅|行き先|旅先|所|ところ)|行き先)/;
 /** あいさつ・お礼。旅の頼みではなく、ふつうに話しかけられたものとして返す。 */
 const GREETING = /^(こんにちは|こんにちわ|こんばんは|おはよう(?:ございます)?|やあ|どうも|はじめまして|初めまして|ありがとう(?:ございます)?|ありがと|助かった|お疲れ(?:様|さま)?|hello|hi|hey|thanks?)[!！。.、\s]*$/i;
 /** 旅に限らない質問の言い方（「富士山について」「東京タワーの高さ」）。 */
@@ -87,6 +87,42 @@ export function isQuestion(text) {
   return routeText(text) !== "plan";
 }
 
+/** 覚えておくやりとりの数（ryo の頼み：前の10件ほど）。 */
+export const MEMORY_SIZE = 10;
+/** AIに渡すとき、1件をこの字数で切ります（枠＝TPMを食わないため）。 */
+const MEMORY_CLIP = 140;
+
+const clip = (t, n) => {
+  const s = String(t ?? "").replace(/\s+/g, " ").trim();
+  return s.length > n ? `${s.slice(0, n)}…` : s;
+};
+
+/**
+ * やりとりを1件覚えます（新しいものが後ろ、MEMORY_SIZE 件まで）。
+ * place は、その答えで話していた行き先（「富士山」など）。あとで
+ * 「そこ行ってみたい」と言われたときの「そこ」に使います。
+ */
+export function rememberQa(history, q, a, place = "") {
+  history.push({ q: clip(q, 200), a: clip(a, 400), ...(place ? { place } : {}) });
+  if (history.length > MEMORY_SIZE) history.splice(0, history.length - MEMORY_SIZE);
+  return history;
+}
+
+/** 「そこ」「さっきの所」のように、前の話の場所を指す言い方。 */
+const REF = /(そこ|あそこ|そちら|さっきの(?:場所|所|ところ|山|町|街|島)?|その(?:場所|山|町|街|島|辺り|あたり)|ここ)/;
+
+/**
+ * 「そこ行ってみたい」の「そこ」を、前の話の行き先に置き換えます。
+ * AIが使えないとき（AIが行き先を補えないとき）の代わりです。
+ * 指す言い方が無い、または覚えている行き先が無ければ、そのまま返します。
+ */
+export function resolveRef(text, history = []) {
+  const t = String(text ?? "").trim();
+  if (!REF.test(t)) return t;
+  const place = [...history].reverse().find((h) => h?.place)?.place;
+  return place ? t.replace(REF, place) : t;
+}
+
 /** いまの旅程を、AIに渡す短い文にします。 */
 export function itineraryContext(itin) {
   if (!itin) return "（まだ旅程はありません）";
@@ -134,15 +170,25 @@ export function readReply(raw) {
   return { answer: plain };
 }
 
+/** AIが返した行き先の名前を、ボタンに載せられる形にします（長すぎ・空は捨てる）。 */
+function placeName(raw) {
+  const t = String(raw ?? "").replace(/[「」『』"]/g, "").trim();
+  if (!t || t.length > 20 || /^(なし|無し|ない|空|none|null)$/i.test(t)) return "";
+  return t;
+}
+
 /**
  * 質問に答えます。
  *
  * @param {string} question
  * @param {object} ctx
  * @param {object} [ctx.itin] いま出ている旅程
- * @param {{q: string, a: string}[]} [ctx.history] これまでの質問と答え（新しいものが後ろ）
+ * @param {{q: string, a: string, place?: string}[]} [ctx.history] これまでの質問と答え（新しいものが後ろ）
  * @param {object} [opts] { signal, call } call は試験用（callModel の代わり。返り値は文でも {answer}/{plan} でもよい）
- * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean }>}
+ * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean,
+ *   place?: string, plan?: boolean, note?: string }>}
+ *   place … 答えで話した行き先（「ここへ行くプランを作る」に使う）
+ *   note  … 旅程の頼みだったとき、「そこ」を行き先に置き換えた頼みの文
  */
 export async function answerQuestion(question, ctx = {}, opts = {}) {
   const local = dateAnswer(question);
@@ -157,49 +203,43 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
   }
   const search = !opts.call && canGround();
   const today = new Date();
+  // 枠（TPM）が少ないので、指示は短く、やりとりは字数を切って渡します。
   const prompt = [
-    "あなたは旅行に強い、なんでも答えられるアシスタントです。日本語で答えてください。",
-    "旅行の質問だけでなく、あいさつや雑談、地名・建物・歴史・食べ物など旅行以外の質問にも、ふつうのAIのように答えます。",
-    "守ること:",
-    "・2〜5文で、まず答えを言う。あいさつには、あいさつを返す。前置きはしない。",
-    "・「デートスポットを考えて」のように案や候補を求められたら、あなた自身が具体的な場所を3〜5つ、一言の理由つきで挙げる。"
-      + "最後に、気に入った場所があれば「◯◯へ日帰りで」と送れば旅程にできる、と添える。",
-    "・旅行と関わりのある話題（場所・名所・食べ物など）なら、答えのあとに旅の一言を添えてよい。無理にこじつけない。",
-    "・これまでのやりとりを覚えているものとして、「それ」「さっきの」も前の話から読み取る。",
-    "・下の旅程に関わる質問なら、旅程の時刻や場所をもとに答える。",
+    "あなたは旅行に強い、なんでも答えられるアシスタントです。日本語で答えます。",
+    "旅行以外の質問・あいさつ・雑談にも、ふつうのAIのように答えます。",
+    "・2〜5文で、まず答えを言う。前置きはしない。",
+    "・案や候補を求められたら、具体的な場所を3〜5つ、一言の理由つきで挙げる。",
+    "・これまでのやりとりを覚えているものとして、「それ」「そこ」「さっきの」を前の話から読み取る。",
     "・料金・営業時間・運行のように変わるものは、"
       + (search ? "検索で確かめ、確かめられなければそう書く。" : "確かでなければ「公式で確かめてください」と書く。"),
-    "・分からないことを推測で埋めない。分からなければ、分からないと書く。",
-    "・旅程を組み直したいときは、そのまま書いて送れば組み直せる、と添えてよい。",
-    "",
-    `今日: ${ymd(today)}　明日: ${ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1))}`,
-    "",
-    "いまの旅程:",
-    itineraryContext(ctx.itin),
+    "・分からないことを推測で埋めない。",
+    `今日: ${ymd(today)}`,
+    ...(ctx.itin ? ["いまの旅程:", itineraryContext(ctx.itin)] : []),
     ...(ctx.history?.length
-      ? ["", "これまでのやりとり（古い順）:", ...ctx.history.slice(-8).flatMap((h) => [`Q: ${h.q}`, `A: ${h.a}`])]
+      ? ["これまでのやりとり（古い順）:",
+         ...ctx.history.slice(-MEMORY_SIZE).flatMap((h) => [`Q: ${clip(h.q, MEMORY_CLIP)}`, `A: ${clip(h.a, MEMORY_CLIP)}`])]
       : []),
-    "",
     `質問: ${question}`,
     "",
     ...(opts.mayPlan
       ? [
-        "まず、この文が旅程づくりの頼みか判断してください。",
-        "旅程づくりの頼み＝行き先・日程・条件を決めて旅程を作る/直す頼み（「箱根へ日帰りで」「もう少しゆっくり」「来週の土曜にして」）。",
-        "それ以外（質問・雑談・知識・案や候補の相談）は頼みではない。",
-        '旅程づくりの頼みなら {"plan": true} だけを出力。そうでなければ {"answer": "答えの文"} を出力。',
+        "この文が旅程づくりの頼み（行き先・日程・条件を決めて旅程を作る/直す。「箱根へ日帰りで」「そこ行ってみたい」「来週の土曜にして」）なら、",
+        '{"plan": true, "note": "頼みの文"} だけを出力。note は「そこ」「さっきの」を前のやりとりの行き先に置き換えた頼みの文（例: 前の話が箱根なら「箱根へ行ってみたい」）。',
+        '頼みでなければ（質問・雑談・知識・案の相談）{"answer": "答えの文", "place": "答えで話した行き先の地名。無ければ空"} を出力。',
       ]
-      : ['出力は {"answer": "答えの文"} の JSON だけ。']),
+      : ['出力は {"answer": "答えの文", "place": "答えで話した行き先の地名。無ければ空"} の JSON だけ。']),
   ].join("\n");
   try {
-    const out = readReply(await call(prompt, { temperature: 0.3, search, signal: opts.signal }));
+    const out = readReply(await call(prompt, { temperature: 0.3, search, system: false, signal: opts.signal }));
     if (opts.mayPlan && out?.plan === true && !out?.answer) {
-      return { ok: true, plan: true, answer: "", sources: [] };
+      const note = String(out?.note ?? "").trim();
+      return { ok: true, plan: true, answer: "", sources: [], ...(note ? { note } : {}) };
     }
     const answer = String(out?.answer ?? "").trim();
     if (!answer) throw new Error("空の答え");
     const sources = search ? (lastGrounding().sources ?? []).slice(0, 3) : [];
-    return { ok: true, answer, sources };
+    const place = placeName(out?.place);
+    return { ok: true, answer, sources, ...(place ? { place } : {}) };
   } catch (e) {
     if (opts.signal?.aborted) throw e;
     // 中継が落ちている・時間切れのときは、言い方を変えても直らない。

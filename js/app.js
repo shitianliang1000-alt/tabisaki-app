@@ -58,7 +58,7 @@ import { addHistory, clearHistory, freezeItinerary, loadHistory, removeHistory,
 import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
-import { answerQuestion, routeText } from "./qa.js";
+import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
 
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
@@ -2540,14 +2540,22 @@ async function send(textArg) {
   await plan(text, textArg);
 }
 
-/** 旅程を組む・直す（send から）。 */
-async function plan(text, textArg) {
+/**
+ * 旅程を組む・直す（send から）。
+ *
+ * @param {string} said 吹き出しに出す、書いたままの文
+ * @param {string} [textArg]
+ * @param {string} [note] 組むのに使う文。「そこ行ってみたい」の「そこ」を
+ *   前の質問の行き先（「富士山」）に置き換えたもの。無ければ said のまま。
+ */
+async function plan(said, textArg, note) {
+  const text = note || said;
   const prev = state.shown;
   const read = readChat(text);
   const labels = await applyChat(read);
   // 何も書かずに送ったら、はじめは「おまかせ」で、旅程があるときは
   // 「＋」で変えた条件のまま組み直します。
-  startTurn(text || (prev ? "いまの条件で組み直してください" : ""), labels);
+  startTurn(said || (prev ? "いまの条件で組み直してください" : ""), labels);
   // 旅程を頼んだことも、あとの質問の「さっきの」で通じるよう覚えておきます。
   if (text) remember(text, "（旅程を組みました。いまの旅程を参照）");
   if (!text && prev) { run(); return; }
@@ -2585,11 +2593,13 @@ async function plan(text, textArg) {
   run();
 }
 
-/** 会話の記憶（AIに渡す）。新しい8件だけ持ちます。画面を閉じれば消えます。 */
-function remember(q, a) {
-  const history = state.qa ?? (state.qa = []);
-  history.push({ q, a });
-  if (history.length > 8) history.splice(0, history.length - 8);
+/**
+ * 会話の記憶（AIに渡す）。新しい10件だけ持ちます（js/qa.js MEMORY_SIZE）。
+ * 「新しい旅」や画面を閉じれば消えます。place は答えで話した行き先で、
+ * あとの「そこ行ってみたい」をその行き先のプランにするのに使います。
+ */
+function remember(q, a, place = "") {
+  rememberQa(state.qa ?? (state.qa = []), q, a, place);
 }
 
 /** 質問に答えます（send から）。答えは積んだ順に並びます。 */
@@ -2600,13 +2610,21 @@ async function ask(text, { mayPlan = false, textArg, fallbackPlan = false } = {}
   // AIがつながらず、文の形が旅程の頼みなら、頼みとして組む。
   if (got.plan || (!got.ok && fallbackPlan)) {
     // 旅程の頼みだった。質問の組は消して、旅程を組む。
+    // 「そこ行ってみたい」は、前の質問の行き先へのプランにします
+    // （AIが補った文があればそれを、無ければ覚えている行き先で置き換え）。
     turn.remove();
-    await plan(text, textArg);
+    const note = got.note || resolveRef(text, history);
+    await plan(text, textArg, note !== text ? note : undefined);
     return;
   }
   count("chat_send", "ask");
   turn.answer(got.answer, got.sources);
-  if (got.ok) remember(text, got.answer);
+  if (got.ok) remember(text, got.answer, got.place);
+  // 答えで行き先の話をしたら、そのままプランに進めるボタンを添えます。
+  if (got.ok && got.place) {
+    turn.offer(`${got.place}へ行くプランを作る`,
+      () => plan(`${got.place}へ行くプランを作って`, "", `${got.place}へ行きたい`));
+  }
   announce(got.answer);
   noticeIfAway("質問に答えました");
 }

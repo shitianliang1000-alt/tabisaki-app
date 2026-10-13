@@ -65,7 +65,13 @@ export const MODEL = "gemma-4-26b-a4b-it";
 export const FALLBACK_MODELS = [
   "gemma-4-31b-it",
 ];
-export const EMBED_MODEL = "gemini-embedding-001";
+// 埋め込み（検索用のベクトル）は使いません。
+//
+// 埋め込みのモデルは Gemini（gemini-embedding-001）しかなく、Gemma には
+// ありません。AIは Gemma だけにする（Gemini は使わない）と決めたので、
+// 空にして、検索は語句検索で行います（embedQuery が null を返します）。
+// 旅程を作るたびの1往復ぶん、枠（TPM）も空きます。
+export const EMBED_MODEL = "";
 export const EMBED_DIM = 768;
 
 // --- 4. 知識ベースの公開URL -------------------------------------------------
