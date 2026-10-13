@@ -64,7 +64,18 @@ async function audit(name, { dark = false, plan = false, width = 1280,
   await page.route((u) => u.origin !== origin,
     (route) => route.abort("connectionrefused"));
 
+  // 旅の当日を測るときは、画面の時計をきょうの10時に合わせます
+  // （tests/e2e/run.mjs と同じやりかた）。CI の時計は UTC なので、
+  // 19時を過ぎて回すと「今日 9:00–19:00」がもう終わっていて旅程が
+  // できず、待ち続けて落ちていました（日本時間の朝4〜9時に回すと
+  // 落ちる）。時計は止めません。
+  if (today) {
+    const tenAm = new Date();
+    tenAm.setHours(10, 0, 0, 0);
+    await page.clock.install({ time: tenAm });
+  }
   await page.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+  if (today) await page.clock.resume();
   const until = Date.now() + 90_000;
   while (await page.$eval("#make-plan", (e) => e.disabled)) {
     if (Date.now() > until) throw new Error("知識ベースの読み込みが終わりません");
