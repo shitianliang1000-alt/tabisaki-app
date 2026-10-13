@@ -1235,7 +1235,13 @@ await check("連泊を選ぶと、宿を動かさない旅になる", async () =
     e.value = "松江と出雲をゆっくり。神社と海";
     e.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  // 前の旅程の「詳細」が、組み直すまで画面に残っています。それを掴むと、
+  // 直後に組み直しで消えて「見つからない」になります。消えるのを待ちます。
+  await page.$eval("#details-toggle", (b) => { b.dataset.old = "1"; })
+    .catch(() => {});
   await page.click("#make-plan");
+  await page.waitForSelector("#details-toggle[data-old]",
+    { state: "detached", timeout: 120_000 });
   await waitResult(page);
   await until(page, () => document.querySelectorAll(".day").length > 1,
              { timeout: 120_000 });
