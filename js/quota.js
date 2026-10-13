@@ -8,7 +8,7 @@
 // 止めても旅程は作れます（距離からの推定と語句検索に落ちます）。
 // 精度は下がりますが、黙って課金し続けるよりはるかにましです。
 
-import { requestSignal } from "./endpoints.js";
+import { AI_REQUEST_TIMEOUT_MS, requestSignal } from "./endpoints.js";
 
 const DEFAULT_EVERY = 50;
 const KEY = "tabisaki.apiQuota";
@@ -163,7 +163,9 @@ export async function meteredFetch(kind, url, init = {}, deps = {}) {
   const gate = deps.quota ?? quota;
   const send = deps.fetchImpl ?? globalThis.fetch;
   if (!(await gate.take(kind))) throw new QuotaBlockedError(kind);
-  const signal = requestSignal(init.signal, deps.timeoutMs);
+  // AI の生成は長くかかるので、待つ上限も長くします。
+  const signal = requestSignal(init.signal,
+    deps.timeoutMs ?? (kind === "gemini" ? AI_REQUEST_TIMEOUT_MS : undefined));
   return send(url, signal ? { ...init, signal } : init);
 }
 
