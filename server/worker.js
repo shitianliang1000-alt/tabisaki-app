@@ -349,12 +349,11 @@ const TAVILY_URL = "https://api.tavily.com/search";
 
 /** 検索の抜き書きを、渡せる形に整えます（タグ・空白を落とし、字数を切る）。 */
 export function cleanSnippet(s, max = WEB_SNIPPET) {
-  // タグを落としたあとに残る < と > は、すべて消します（&lt;script と
-  // 書かれていたものを戻して、タグにしてしまわないように）。
-  const t = String(s ?? "")
-    .replace(/<[^>]*>/g, "")
+  // < と > で切り、その内側（タグ）を捨てます。< と > は1つも残りません
+  // （&lt;script のようなものも、戻さずに消します）。&amp; は最後に戻します。
+  const t = String(s ?? "").split(/[<>]/).filter((_, i) => i % 2 === 0).join("")
+    .replace(/&lt;|&gt;/g, " ")
     .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, "&")
-    .replace(/&lt;|&gt;|[<>]/g, " ")
     .replace(/\s+/g, " ").trim();
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
@@ -373,8 +372,14 @@ export function tavilyResults(data) {
   return (data?.results ?? [])
     .filter((r) => /^https:\/\//i.test(String(r?.url ?? "")))
     .slice(0, WEB_RESULTS)
-    .map((r) => ({ title: cleanSnippet(r.title || r.url, 80), url: String(r.url),
-                   snippet: cleanSnippet(r.content) }));
+    // Tavily の本文はタグの無い文なので、< と > は字として消すだけにします
+    // （タグとして切ると、「A > B」の後ろが消えます）。
+    .map((r) => ({ title: cleanSnippet(plain(r.title || r.url), 80), url: String(r.url),
+                   snippet: cleanSnippet(plain(r.content)) }));
+}
+
+function plain(s) {
+  return String(s ?? "").replace(/[<>]/g, " ");
 }
 
 async function webSearch(request, env, ctx) {
