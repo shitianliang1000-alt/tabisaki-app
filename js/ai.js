@@ -78,6 +78,38 @@ export function canGround() {
   return !usingLocalModel() && !usingCloudflare() && !isGemma();
 }
 
+/**
+ * Gemma のかわりに、中継（Worker）がネットを検索できるか。
+ *
+ * Gemma は google_search を受け取らないので、検索は中継の /web/search に
+ * 頼み、短い抜き書きだけを本文に入れて渡します（js/qa.js）。中継を
+ * 使っていないとき（キーをブラウザに置く）は、検索先が CSP で止まるので
+ * 使いません。Gemini（canGround）なら、そちらで検索します。
+ */
+export function canWebSearch() {
+  return !usingLocalModel() && !canGround() && usingProxy(net());
+}
+
+/**
+ * 中継にネット検索を頼みます。
+ *
+ * @param {string} q 検索語
+ * @param {{signal?: AbortSignal}} [opts]
+ * @returns {Promise<{title: string, url: string, snippet: string}[]>}
+ */
+export async function webSearch(q, opts = {}) {
+  const cfg = net();
+  const res = await fetch(endpointFor("web:search", {}, cfg), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: String(q ?? "").slice(0, 80) }),
+    signal: requestSignal(opts.signal),
+  });
+  if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));
+  const data = await res.json();
+  return (data?.results ?? []).filter((r) => /^https:\/\//i.test(String(r?.url ?? "")));
+}
+
 let resolved = null;      // 実際に使えたモデルID
 let triedOnce = false;
 

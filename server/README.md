@@ -47,6 +47,8 @@ npx wrangler secret put ALLOW_ORIGIN
 # https://example.github.io,http://localhost:8000
 npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put MAPS_API_KEY
+# 任意: チャットのネット検索をウェブ全体にする（無ければ Wikipedia だけ）
+npx wrangler secret put TAVILY_API_KEY
 npx wrangler deploy
 ```
 

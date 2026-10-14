@@ -51,6 +51,9 @@ const COST = {
   // 使えるモデルの一覧。取りに行くだけで、生成はしません。
   "/gemini/models": 1,
   "/cf/generate": 5,
+  // ネット検索（Gemma に渡す下調べ）。Wikipedia なら無料、Tavily でも
+  // 月1,000回までは無料なので、軽く数えます。
+  "/web/search": 1,
   // 使われかたの件数（js/metrics.js）。外へは取りに行きません。
   "/metrics": 1,
 };
@@ -130,7 +133,7 @@ export default {
         overview: () => overviewFor(env, url.origin),
       });
     }
-    const res = await relay(request, env);
+    const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
     if (request.method === "POST") {
       const work = record(env, usageOf(request, url, res.status));
@@ -168,6 +171,7 @@ async function overviewFor(env, selfOrigin) {
       GEMINI_API_KEY: hasSecret(env, "GEMINI_API_KEY"),
       MAPS_API_KEY: hasSecret(env, "MAPS_API_KEY"),
       GITHUB_TOKEN: hasSecret(env, "GITHUB_TOKEN"),
+      TAVILY_API_KEY: hasSecret(env, "TAVILY_API_KEY"),
     },
     bindings: {
       AI: Boolean(env?.AI), RATE: Boolean(env?.RATE),
@@ -182,7 +186,7 @@ async function overviewFor(env, selfOrigin) {
   };
 }
 
-async function relay(request, env) {
+async function relay(request, env, ctx) {
   {
     const origin = request.headers.get("Origin") ?? "";
     // この Worker 自身が配る管理画面からの「接続を確かめる」も通します。
@@ -226,6 +230,7 @@ async function relay(request, env) {
       if (path.endsWith("/cf/generate")) return cors(await cfGenerate(request, env), origin, allow);
       if (path.endsWith("/yahoo/transit")) return cors(await yahooTransit(request), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
+      if (path.endsWith("/web/search")) return cors(await webSearch(request, env, ctx), origin, allow);
       // 鍵が入っているかどうかだけを答えます（値は返しません）。
       // 「キーが無効です」と「中継に鍵が置かれていない」は別のことで、
       // 直す場所も違います。画面がそれを言い分けられるようにします。
@@ -323,6 +328,93 @@ export function metricRecord(event, detail, extra = {}) {
       ? { error: { code: "旅程を組めなかった", detail: detail || "理由不明", path: "app" } }
       : {}),
   };
+}
+
+// --- ネット検索 -------------------------------------------------------
+//
+// Gemma は Google 検索の道具（google_search）を受け取りません。そこで、
+// 検索はこの中継が代わりにして、短い抜き書きだけを Gemma に渡します。
+//
+//   TAVILY_API_KEY があれば … Tavily（ふつうのウェブ検索。月1,000回まで無料、
+//                              カード登録なし。https://app.tavily.com）
+//   無ければ               … 日本語版 Wikipedia の検索（キー不要・無料）
+//
+// 枠（TPM）が少ないので、返すのは3件・1件あたり200字までです。
+// 同じ語は1日のあいだ覚えておき、取りに行きません。
+const WEB_RESULTS = 3;
+const WEB_SNIPPET = 200;
+const WEB_QUERY_MAX = 80;
+const WIKI_API = "https://ja.wikipedia.org/w/api.php";
+const TAVILY_URL = "https://api.tavily.com/search";
+
+/** 検索の抜き書きを、渡せる形に整えます（タグ・空白を落とし、字数を切る）。 */
+export function cleanSnippet(s, max = WEB_SNIPPET) {
+  const t = String(s ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
+/** Wikipedia の返事を {title, url, snippet} に。 */
+export function wikiResults(data) {
+  return (data?.query?.search ?? []).slice(0, WEB_RESULTS).map((r) => ({
+    title: cleanSnippet(r.title, 80),
+    url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(String(r.title).replace(/ /g, "_"))}`,
+    snippet: cleanSnippet(r.snippet),
+  }));
+}
+
+/** Tavily の返事を {title, url, snippet} に。https のものだけ。 */
+export function tavilyResults(data) {
+  return (data?.results ?? [])
+    .filter((r) => /^https:\/\//i.test(String(r?.url ?? "")))
+    .slice(0, WEB_RESULTS)
+    .map((r) => ({ title: cleanSnippet(r.title || r.url, 80), url: String(r.url),
+                   snippet: cleanSnippet(r.content) }));
+}
+
+async function webSearch(request, env, ctx) {
+  const body = await readJson(request);
+  const q = cleanSnippet(body?.q, WEB_QUERY_MAX).replace(/…$/, "");
+  if (!q) return text("検索語がありません", 400);
+  const engine = hasSecret(env, "TAVILY_API_KEY") ? "tavily" : "wikipedia";
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const key = new Request(`https://web.search/${engine}?q=${encodeURIComponent(q)}`);
+  const hit = cache ? await cache.match(key) : null;
+  if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json" } });
+
+  let res;
+  if (engine === "tavily") {
+    res = await fetch(TAVILY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.TAVILY_API_KEY}` },
+      body: JSON.stringify({ query: q, max_results: WEB_RESULTS, search_depth: "basic",
+                             include_answer: false, include_images: false }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } else {
+    const u = new URL(WIKI_API);
+    for (const [k, v] of Object.entries({ action: "query", list: "search", srsearch: q,
+      srlimit: String(WEB_RESULTS), format: "json", utf8: "1", origin: "*" })) u.searchParams.set(k, v);
+    res = await fetch(u, {
+      // Wikimedia は、名乗らない呼び出しを断ることがあります。
+      headers: { "User-Agent": "tabisaki/1.0 (https://shitianliang1000-alt.github.io/tabisaki.github.io/)" },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  }
+  if (!res.ok) return passthrough(res, engine);
+  const data = await res.json();
+  const out = JSON.stringify({ ok: true, engine, q,
+    results: engine === "tavily" ? tavilyResults(data) : wikiResults(data) });
+  const resp = new Response(out, { headers: { "Content-Type": "application/json",
+                                               "Cache-Control": "max-age=86400" } });
+  if (cache) {
+    const put = cache.put(key, resp.clone());
+    if (ctx?.waitUntil) ctx.waitUntil(put); else await put;
+  }
+  return resp;
 }
 
 /** 鍵が入っているか（値は見せません）。 */

@@ -252,6 +252,7 @@ async function settings() {
       row("件数の置き場（STATS）", ov.bindings.STATS ? pill("有効", "ok") : pill("無い", "ng")),
       row("Analytics Engine（METRICS）", ov.bindings.METRICS ? pill("有効", "ok") : el("span", {}, pill("未設定", "warn"), " 使わなくても、件数は STATS に貯まります")),
       row("GitHub への書き込み", ov.secrets.GITHUB_TOKEN ? pill("GITHUB_TOKEN あり", "ok") : el("span", {}, pill("GITHUB_TOKEN なし", "warn"), " スポットの変更は JSON で書き出します")),
+      row("ネット検索", ov.secrets.TAVILY_API_KEY ? pill("Tavily（TAVILY_API_KEY あり）", "ok") : el("span", {}, pill("Wikipedia だけ", "warn"), " TAVILY_API_KEY を入れると、ふつうのウェブ検索になります")),
       row("呼び出しを許すサイト", ov.allowOrigin.join(", "), "mono"))));
 
   // 入口の入り切り

@@ -114,7 +114,8 @@ export function endpointFor(what, args = {}, cfg = {}) {
                         "cf:generate": "cf/generate",
                         "routes": "routes",
                         "status": "status",
-                        "yahoo:transit": "yahoo/transit" }[what] ?? what}`;
+                        "yahoo:transit": "yahoo/transit",
+                        "web:search": "web/search" }[what] ?? what}`;
   }
   if (what === "local:generate") {
     const raw = String(cfg.localBaseUrl ?? "").trim().replace(/\/+$/, "");

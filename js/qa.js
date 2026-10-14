@@ -12,7 +12,8 @@
 // 営業時間のように変わるものは、検索が使えるときは検索させ、出典を
 // 添えます。使えないときは、公式で確かめるよう書かせます。
 
-import { callModel, canGround, extractJson, hasApiKey, lastGrounding } from "./ai.js";
+import { callModel, canGround, canWebSearch, extractJson, hasApiKey, lastGrounding,
+         webSearch } from "./ai.js";
 
 /** 旅程を組む頼みの言い方。これがあれば、質問の形でも組みます。 */
 const PLAN_ASK = /(行きたい|いきたい|行ってみたい|行ってみる|行ってみよう|行こう|行きます|旅程を|プランを|組んで|作って|つくって|考えて|探して|さがして|連れて|にして|変えて|かえて|増やして|減らして|外して|入れて|足して|直して|どこ(?:に|へ)?(?:行|い)(?:け|こう|く)|どこが(?:いい|おすすめ)|おすすめ(?:の|な)?(?:場所|旅|行き先|旅先|所|ところ)|行き先)/;
@@ -159,7 +160,7 @@ export function readReply(raw) {
   if (!text) return {};
   try {
     const j = extractJson(text);
-    if (j && typeof j === "object" && ("answer" in j || "plan" in j)) return j;
+    if (j && typeof j === "object" && ("answer" in j || "plan" in j || "search" in j)) return j;
   } catch { /* 文として扱う */ }
   // 壊れた JSON（改行が生のまま、途中で切れた、など）は、答えの文だけを拾う。
   const m = text.match(/"answer"\s*:\s*"([\s\S]*?)"?\s*\}?\s*(?:```)?$/);
@@ -168,6 +169,21 @@ export function readReply(raw) {
   }
   const plain = text.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
   return { answer: plain };
+}
+
+/**
+ * 検索の抜き書きを、本文に入れる形にします。枠（TPM）のため、3件・各200字まで。
+ * 何も見つからなかったときも、そう伝えます（推測で埋めさせないため）。
+ */
+export function searchContext(found) {
+  if (!found?.length) {
+    return ["検索結果: 見つかりませんでした。知っていることで答え、確かでない点はそう書く。"];
+  }
+  return [
+    "検索結果（これを根拠に答える。合わなければ使わない）:",
+    ...found.slice(0, 3).map((r, i) =>
+      `[${i + 1}] ${clip(r.title, 60)}: ${clip(r.snippet, 200)}`),
+  ];
 }
 
 /** AIが返した行き先の名前を、ボタンに載せられる形にします（長すぎ・空は捨てる）。 */
@@ -184,7 +200,10 @@ function placeName(raw) {
  * @param {object} ctx
  * @param {object} [ctx.itin] いま出ている旅程
  * @param {{q: string, a: string, place?: string}[]} [ctx.history] これまでの質問と答え（新しいものが後ろ）
- * @param {object} [opts] { signal, call } call は試験用（callModel の代わり。返り値は文でも {answer}/{plan} でもよい）
+ * @param {object} [opts] { signal, call, webSearch, onSearch }
+ *   call      … 試験用（callModel の代わり。返り値は文でも {answer}/{plan} でもよい）
+ *   webSearch … 試験用（検索の代わり。(q) => [{title, url, snippet}]）
+ *   onSearch  … 検索を始めるときに呼ぶ（画面に「調べています」を出す）
  * @returns {Promise<{ answer: string, sources: {title: string, url: string}[], ok: boolean,
  *   place?: string, plan?: boolean, note?: string }>}
  *   place … 答えで話した行き先（「ここへ行くプランを作る」に使う）
@@ -202,16 +221,21 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
     };
   }
   const search = !opts.call && canGround();
+  // Gemma は検索の道具を持たないので、要るときだけ中継に検索を頼み、
+  // 抜き書きを渡して答え直させます（1回の質問につき検索は1回まで）。
+  const web = search ? null
+    : (opts.webSearch ?? (!opts.call && canWebSearch() ? webSearch : null));
   const today = new Date();
   // 枠（TPM）が少ないので、指示は短く、やりとりは字数を切って渡します。
-  const prompt = [
+  const build = (found) => [
     "あなたは旅行に強い、なんでも答えられるアシスタントです。日本語で答えます。",
     "旅行以外の質問・あいさつ・雑談にも、ふつうのAIのように答えます。",
     "・2〜5文で、まず答えを言う。前置きはしない。",
     "・案や候補を求められたら、具体的な場所を3〜5つ、一言の理由つきで挙げる。",
     "・これまでのやりとりを覚えているものとして、「それ」「そこ」「さっきの」を前の話から読み取る。",
     "・料金・営業時間・運行のように変わるものは、"
-      + (search ? "検索で確かめ、確かめられなければそう書く。" : "確かでなければ「公式で確かめてください」と書く。"),
+      + (search || found?.length ? "検索で確かめ、確かめられなければそう書く。"
+        : "確かでなければ「公式で確かめてください」と書く。"),
     "・分からないことを推測で埋めない。",
     `今日: ${ymd(today)}`,
     ...(ctx.itin ? ["いまの旅程:", itineraryContext(ctx.itin)] : []),
@@ -219,8 +243,12 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
       ? ["これまでのやりとり（古い順）:",
          ...ctx.history.slice(-MEMORY_SIZE).flatMap((h) => [`Q: ${clip(h.q, MEMORY_CLIP)}`, `A: ${clip(h.a, MEMORY_CLIP)}`])]
       : []),
+    ...(found ? searchContext(found) : []),
     `質問: ${question}`,
     "",
+    ...(web && !found
+      ? ['最新の情報（料金・営業時間・運行・イベント・ニュースなど）が要り、知っていることだけでは確かでないときは、{"search": "検索語（短く、単語2〜4つ）"} だけを出力。']
+      : []),
     ...(opts.mayPlan
       ? [
         "この文が旅程づくりの頼み（行き先・日程・条件を決めて旅程を作る/直す。「箱根へ日帰りで」「そこ行ってみたい」「来週の土曜にして」）なら、",
@@ -229,15 +257,30 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
       ]
       : ['出力は {"answer": "答えの文", "place": "答えで話した行き先の地名。無ければ空"} の JSON だけ。']),
   ].join("\n");
+  const ask = async (found) => readReply(await call(build(found),
+    { temperature: 0.3, search, system: false, signal: opts.signal }));
   try {
-    const out = readReply(await call(prompt, { temperature: 0.3, search, system: false, signal: opts.signal }));
+    let out = await ask(null);
+    let found = null;
+    const q = web && !out?.answer && !out?.plan ? String(out?.search ?? "").trim() : "";
+    if (q) {
+      opts.onSearch?.(q);
+      try {
+        found = (await web(q.slice(0, 80), { signal: opts.signal })) ?? [];
+      } catch (e) {
+        if (opts.signal?.aborted) throw e;
+        found = [];  // 検索できなかった。知っていることで答えさせます。
+      }
+      out = await ask(found);
+    }
     if (opts.mayPlan && out?.plan === true && !out?.answer) {
       const note = String(out?.note ?? "").trim();
       return { ok: true, plan: true, answer: "", sources: [], ...(note ? { note } : {}) };
     }
     const answer = String(out?.answer ?? "").trim();
     if (!answer) throw new Error("空の答え");
-    const sources = search ? (lastGrounding().sources ?? []).slice(0, 3) : [];
+    const sources = search ? (lastGrounding().sources ?? []).slice(0, 3)
+      : (found ?? []).slice(0, 3).map((r) => ({ title: r.title || r.url, url: r.url }));
     const place = placeName(out?.place);
     return { ok: true, answer, sources, ...(place ? { place } : {}) };
   } catch (e) {

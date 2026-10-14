@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 /** 止められる入口。これ以外は受け付けません。 */
 export const SWITCHABLE = ["/gemini/generate", "/gemini/embed", "/gemini/models",
-  "/routes", "/cf/generate", "/yahoo/transit", "/metrics"];
+  "/routes", "/cf/generate", "/yahoo/transit", "/web/search", "/metrics"];
 
 export function dayOf(ms = Date.now()) {
   return new Date(ms).toISOString().slice(0, 10);
