@@ -38,6 +38,7 @@ async function search(q, env = {}, reply = {}) {
 
 test("抜き書きはタグを落とし、200字で切る", () => {
   assert.equal(cleanSnippet('<span class="searchmatch">箱根</span>は&amp;温泉'), "箱根は&温泉");
+  assert.doesNotMatch(cleanSnippet("&lt;script&gt;x&lt;/script&gt; <<script>b>"), /[<>]/);
   assert.equal(cleanSnippet("あ".repeat(300)).length, 201);
 });
 

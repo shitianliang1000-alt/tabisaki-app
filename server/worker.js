@@ -349,10 +349,12 @@ const TAVILY_URL = "https://api.tavily.com/search";
 
 /** 検索の抜き書きを、渡せる形に整えます（タグ・空白を落とし、字数を切る）。 */
 export function cleanSnippet(s, max = WEB_SNIPPET) {
+  // タグを落としたあとに残る < と > は、すべて消します（&lt;script と
+  // 書かれていたものを戻して、タグにしてしまわないように）。
   const t = String(s ?? "")
     .replace(/<[^>]*>/g, "")
-    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, "&")
+    .replace(/&lt;|&gt;|[<>]/g, " ")
     .replace(/\s+/g, " ").trim();
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
