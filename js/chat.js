@@ -158,6 +158,10 @@ export function askTurn(text) {
     node: ai,
     /** 質問ではなく旅程の頼みだったとき、この組を消す。 */
     remove() { clearTimeout(slow); user.remove(); ai.remove(); },
+    /** ネットを調べているあいだ、そう出します。 */
+    searching(q) {
+      body.querySelector(".ai-thinking")?.replaceChildren(`「${q}」をネットで調べています…`);
+    },
     answer(said, sources = []) {
       clearTimeout(slow);
       body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));

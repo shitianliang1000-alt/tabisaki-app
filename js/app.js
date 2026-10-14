@@ -2641,7 +2641,8 @@ function remember(q, a, place = "") {
 async function ask(text, { mayPlan = false, textArg, fallbackPlan = false } = {}) {
   const turn = askTurn(text);
   const history = state.qa ?? (state.qa = []);
-  const got = await answerQuestion(text, { itin: state.shown?.itin, history }, { mayPlan });
+  const got = await answerQuestion(text, { itin: state.shown?.itin, history },
+                                   { mayPlan, onSearch: (q) => turn.searching(q) });
   // AIがつながらず、文の形が旅程の頼みなら、頼みとして組む。
   if (got.plan || (!got.ok && fallbackPlan)) {
     // 旅程の頼みだった。質問の組は消して、旅程を組む。
