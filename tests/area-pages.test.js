@@ -12,8 +12,10 @@ import assert from "node:assert/strict";
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
   examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
-  readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
+  latestDay, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
+import { boundsOf, CARD_H, CARD_W, renderAreaCard } from "../tools/area_card.mjs";
+import { inflateSync } from "node:zlib";
 
 const BASE = "https://example.test/app/";
 
@@ -238,9 +240,54 @@ test("モデルコースが組めなかったエリアも、観光地の一覧�
   assert.match(region, /箱根の観光地/);
 });
 
-test("sitemap は日付つき", () => {
+test("sitemap: 日の分からないページだけ、作った日になる", () => {
   const xml = sitemapXml(BASE, [`${BASE}areas/index.html`], new Date("2026-10-09T00:00:00Z"));
   assert.match(xml, /<lastmod>2026-10-09<\/lastmod>/);
+});
+
+test("sitemap: lastmod はページごとの更新日（全部が作った日にならない）", () => {
+  const xml = sitemapXml(BASE, [
+    { url: `${BASE}areas/kanagawa/index.html`, lastmod: "2026-10-03" },
+    { url: `${BASE}areas/nagano/index.html`, lastmod: "2026-10-11" },
+  ], new Date("2026-10-14T00:00:00Z"), { rootLastmod: "2026-10-12" });
+  const rows = [...xml.matchAll(/<loc>([^<]+)<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(rows, [
+    [BASE, "2026-10-12"],
+    [`${BASE}areas/kanagawa/index.html`, "2026-10-03"],
+    [`${BASE}areas/nagano/index.html`, "2026-10-11"],
+  ]);
+  assert.ok(!xml.includes("2026-10-14"));
+});
+
+test("sitemap: 県とエリアはその県の収録の日、一覧はいちばん新しい日", async () => {
+  const kbDoc = {
+    index: { shards: [
+      { file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" },
+      { file: "spots-jp20-nagano.json", prefecture: "長野県" },
+    ] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a")]], ["spots-jp20-nagano.json", []]]),
+  };
+  const updated = new Map([
+    ["spots-jp14-kanagawa.json", "2026-10-03"],
+    ["spots-jp20-nagano.json", "2026-10-11"],
+    ["regions.json", "2026-10-05"],
+  ]);
+  const { pages, sitemap } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null,
+    updated, siteUpdated: "2026-10-12", now: new Date("2026-10-14T00:00:00Z") });
+  const day = (path) => new RegExp(`<loc>${BASE}${path}</loc>\\s*<lastmod>([^<]+)`).exec(sitemap)?.[1];
+  assert.equal(day("areas/kanagawa/index.html"), "2026-10-03");
+  assert.equal(day("areas/kanagawa/hakone.html"), "2026-10-03");
+  assert.equal(day("areas/nagano/index.html"), "2026-10-11");
+  assert.equal(day("areas/index.html"), "2026-10-11");
+  assert.equal(day(""), "2026-10-12");
+  assert.ok(!sitemap.includes("2026-10-14"));
+  assert.equal(pages.find((p) => p.path === "areas/kanagawa/hakone.html").lastmod, "2026-10-03");
+});
+
+test("いちばん新しい日を選ぶ（日でないものは無視）", () => {
+  assert.equal(latestDay(["2026-10-03", "2026-10-11", "2026-09-30"]), "2026-10-11");
+  assert.equal(latestDay([null, "", "x"]), null);
 });
 
 test("エリアの観光地には、中心から遠いもの（同じ市町村の別の街）を並べない", () => {
@@ -310,7 +357,58 @@ test("共有カード: エリアごとの題と説明を持つ", async () => {
   assert.doesNotMatch(hakone, /<title>[^<]*モデルコース/);
   assert.match(hakone, /<meta property="og:description" content="箱根（神奈川県）/);
   assert.match(hakone, /<meta name="twitter:title" content="箱根の/);
-  assert.match(hakone, /<meta property="og:image" content="https:\/\/example\.test\/app\/og\.png"/);
+  // 共有の絵はエリアごと（箱根を貼っても金沢を貼っても同じ絵、にしない）。
+  assert.match(hakone, /<meta property="og:image" content="https:\/\/example\.test\/app\/areas\/kanagawa\/hakone\.png"/);
+  assert.match(hakone, /<meta property="og:image:alt" content="箱根（神奈川県）の場所を示す地図"/);
+  const pref = pages.find((p) => p.path === "areas/kanagawa/index.html").html;
+  assert.match(pref, /<meta property="og:image" content="https:\/\/example\.test\/app\/areas\/kanagawa\/index\.png"/);
+  // 一覧は全国のページなので、いつもの絵のまま。
+  const index = pages.find((p) => p.path === "areas/index.html").html;
+  assert.match(index, /<meta property="og:image" content="https:\/\/example\.test\/app\/og\.png"/);
+  // 絵を描く元（どの県の、どのエリアか）をページが持つ。
+  const page = pages.find((p) => p.path === "areas/kanagawa/hakone.html");
+  assert.equal(page.image, "areas/kanagawa/hakone.png");
+  assert.equal(page.card.shard, "spots-jp14-kanagawa.json");
+  assert.equal(page.card.region.id, "hakone");
+});
+
+function readPng(buf) {
+  assert.deepEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  const chunks = [];
+  for (let i = 8; i < buf.length;) {
+    const len = buf.readUInt32BE(i);
+    chunks.push({ type: buf.toString("ascii", i + 4, i + 8), data: buf.subarray(i + 8, i + 8 + len) });
+    i += 12 + len;
+  }
+  const ihdr = chunks.find((c) => c.type === "IHDR").data;
+  const idat = Buffer.concat(chunks.filter((c) => c.type === "IDAT").map((c) => c.data));
+  return { w: ihdr.readUInt32BE(0), h: ihdr.readUInt32BE(4), chunks, raw: inflateSync(idat) };
+}
+
+test("共有カード: 1200×630 の PNG で、エリアの印が描かれる", () => {
+  const all = [];
+  for (let i = 0; i < 400; i++) all.push({ id: `x${i}`, lat: 33 + (i % 20) * 0.5, lng: 131 + Math.floor(i / 20) * 0.6 });
+  const pref = Array.from({ length: 40 }, (_, i) => ({ id: `k${i}`, lat: 35.2 + (i % 8) * 0.06, lng: 139.0 + Math.floor(i / 8) * 0.1, regionId: i < 5 ? "hakone" : "x" }));
+  const png = renderAreaCard({ all: [...all, ...pref], pref, region: REGION,
+                               regionSpots: pref.filter((s) => s.regionId === "hakone") });
+  const { w, h, chunks, raw } = readPng(png);
+  assert.equal(w, CARD_W);
+  assert.equal(h, CARD_H);
+  assert.deepEqual(chunks.map((c) => c.type), ["IHDR", "PLTE", "IDAT", "IEND"]);
+  assert.equal(raw.length, (w + 1) * h);
+  // 下地だけの絵ではない（点と輪が描かれている）。色番号 5 は輪の色。
+  assert.ok(raw.includes(5));
+  assert.ok(raw.includes(4));
+  // 小さく保つ（95枚を公開するので）。
+  assert.ok(png.length < 80_000, `${png.length} bytes`);
+});
+
+test("共有カード: 離島の外れ値で県の地図が小さくならない", () => {
+  const main = Array.from({ length: 100 }, (_, i) => ({ id: `m${i}`, lat: 35.6 + (i % 10) * 0.01, lng: 139.5 + Math.floor(i / 10) * 0.03 }));
+  const islands = [{ id: "o1", lat: 27.1, lng: 142.2 }, { id: "o2", lat: 27.0, lng: 142.1 }];
+  const b = boundsOf([...main, ...islands]);
+  assert.ok(b.minLat > 35, JSON.stringify(b));
+  assert.equal(boundsOf([]), null);
 });
 
 test("404.html: どの深さで出ても崩れない絶対URLで、検索には載せない", async () => {
