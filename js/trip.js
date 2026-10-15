@@ -9,6 +9,8 @@
 // と形が違うので、終点を独立させます。ここが分かれていないと、
 // スケジューラは「帰りの便」を必ず入れてしまい、片道旅行が作れません。
 
+import { normalizePurposes } from "./purpose.js";
+
 /** @typedef {{name:string, lat:number, lng:number}} Place */
 
 /**
@@ -253,6 +255,14 @@ export function makeTrip(init = {}) {
      * 分類だけです。だから**外しはせず**、選ぶときに後ろへ回して、
      * 「何がつらいか」と「公式で確かめて」を書きます（js/access.js）。
      */
+    /**
+     * 旅の目的。"date" | "active" | "relax" | "kids" | "learn"。
+     *
+     * 興味（温泉・歴史…）は「何が見たいか」、目的は「どう過ごしたいか」
+     * です。同じ箱根でも、デートとアクティブでは回る場所が違います。
+     * 選ぶときの重みだけで、外しはしません（js/purpose.js）。
+     */
+    purposes: normalizePurposes(init.purposes),
     companions: (Array.isArray(init.companions) ? init.companions : [])
       .filter((c, i, a) => ["stroller", "wheelchair", "senior"].includes(c)
         && a.indexOf(c) === i),
