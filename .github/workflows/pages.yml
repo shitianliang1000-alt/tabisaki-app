@@ -5,17 +5,26 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+# 書き込みの権限は公開のジョブだけに渡します（下の deploy）。
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
+  # 単体テスト・画面のテスト・読み上げと色のテストを先に走らせます。
+  # どれかが赤なら、公開はしません（前に公開したものがそのまま残ります）。
+  test:
+    uses: ./.github/workflows/test.yml
+
   deploy:
+    needs: test
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
