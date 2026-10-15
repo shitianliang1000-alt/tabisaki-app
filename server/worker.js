@@ -53,6 +53,13 @@ const COST = {
   "/cf/generate": 5,
   // ネット検索（Gemma に渡す下調べ）。Wikipedia なら無料、Tavily でも
   // 月1,000回までは無料なので、軽く数えます。
+  //
+  // paid 側で数えるのは、検索した質問では Gemma をもう1回呼ぶからです。
+  // 検索した質問1つ = 生成5 + 検索1 + 生成5 = 11点、しない質問は5点。
+  // 1分60点・1時間400点なら、検索した質問は1分に5つ・1時間に36まで
+  // 続けて聞けます（tests/websearch.test.js で数えています）。1人の
+  // 相談には足ります。点の大半は Gemma の2回目なので、検索だけを別の
+  // 枠に出しても、空く点は1点だけです。
   "/web/search": 1,
   // 使われかたの件数（js/metrics.js）。外へは取りに行きません。
   "/metrics": 1,
@@ -386,22 +393,28 @@ async function webSearch(request, env, ctx) {
   const body = await readJson(request);
   const q = cleanSnippet(body?.q, WEB_QUERY_MAX).replace(/…$/, "");
   if (!q) return text("検索語がありません", 400);
-  const engine = hasSecret(env, "TAVILY_API_KEY") ? "tavily" : "wikipedia";
+  const want = hasSecret(env, "TAVILY_API_KEY") ? "tavily" : "wikipedia";
   const cache = typeof caches !== "undefined" ? caches.default : null;
-  const key = new Request(`https://web.search/${engine}?q=${encodeURIComponent(q)}`);
-  const hit = cache ? await cache.match(key) : null;
+  const keyOf = (engine) => new Request(`https://web.search/${engine}?q=${encodeURIComponent(q)}`);
+  const hit = cache ? await cache.match(keyOf(want)) : null;
   if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json" } });
 
-  let res;
-  if (engine === "tavily") {
+  // Tavily の無料枠（月1,000回）は、使う人全員で1つです。人ごとの枠
+  // （/web/search は paid 側で1点）では守れないので、使い切った・断られた・
+  // 落ちているときは、Wikipedia に切り替えて答えます。
+  let engine = want;
+  let res = null;
+  if (want === "tavily") {
     res = await fetch(TAVILY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.TAVILY_API_KEY}` },
       body: JSON.stringify({ query: q, max_results: WEB_RESULTS, search_depth: "basic",
                              include_answer: false, include_images: false }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
-  } else {
+    }).catch(() => null);
+    if (!res?.ok) { engine = "wikipedia"; res = null; }
+  }
+  if (!res) {
     const u = new URL(WIKI_API);
     for (const [k, v] of Object.entries({ action: "query", list: "search", srsearch: q,
       srlimit: String(WEB_RESULTS), format: "json", utf8: "1", origin: "*" })) u.searchParams.set(k, v);
@@ -417,8 +430,9 @@ async function webSearch(request, env, ctx) {
     results: engine === "tavily" ? tavilyResults(data) : wikiResults(data) });
   const resp = new Response(out, { headers: { "Content-Type": "application/json",
                                                "Cache-Control": "max-age=86400" } });
-  if (cache) {
-    const put = cache.put(key, resp.clone());
+  // 切り替えたときの答えは、覚えておきません（Tavily が戻れば、そちらで聞き直します）。
+  if (cache && engine === want) {
+    const put = cache.put(keyOf(engine), resp.clone());
     if (ctx?.waitUntil) ctx.waitUntil(put); else await put;
   }
   return resp;
