@@ -1398,6 +1398,15 @@ function wireForm() {
   // アレルギー・ハラール・子ども向けがどこにも入りませんでした。
   // 店は持っていないので変わるのは地図へ渡す言葉までですが、
   // そこが変われば店選びは変わります。
+  // 旅の目的（デート・アクティブ…）。どう過ごしたいか（js/purpose.js）。
+  for (const btn of document.querySelectorAll("#purpose-choice [data-purpose]")) {
+    btn.addEventListener("click", () => {
+      const on = btn.getAttribute("aria-pressed") !== "true";
+      setPurposeChip(btn, on);
+      saveConditions();
+      updatePills();
+    });
+  }
   // 同行者。足の話です（食事の条件は上の diet が持ちます）。
   for (const btn of document.querySelectorAll("#companions-choice button")) {
     btn.addEventListener("click", () => {
@@ -1623,6 +1632,8 @@ async function readTrip() {
     companions: [...document.querySelectorAll(
       '#companions-choice button[aria-pressed="true"]')]
       .map((b) => b.dataset.companion),
+    // 旅の目的。希望文に書いてあるぶんは pipeline.js が足します。
+    purposes: chosenPurposes(),
     // 宿の取りかた。連泊か、泊まるたびに移動か。
     // 宿が決まっているなら連泊です。予約したホテルがあるのに
     // 「泊まり歩く」で組むと、別の街に宿が置かれます。
@@ -1657,6 +1668,7 @@ function formState() {
     arr: $("#arrive-by").value,
     genres: [...document.querySelectorAll(
       '.md-chip[data-genre][aria-pressed="true"]')].map((c) => c.dataset.genre),
+    purposes: chosenPurposes(),
     crowd: $("#avoid-crowds").checked,
     bias: Number($("#hidden-bias")?.value ?? 40),
     dayStart: $("#day-start")?.value ?? "09:00",
@@ -1699,9 +1711,23 @@ function applyFormState(v) {
     chip.setAttribute("aria-pressed", String(on));
     chip.classList.toggle("is-selected", on);
   }
+  for (const chip of document.querySelectorAll("#purpose-choice [data-purpose]")) {
+    setPurposeChip(chip, (v.purposes ?? []).includes(chip.dataset.purpose));
+  }
   if (v.pinned?.length) state.pinsReady = restorePinned(v.pinned, v.pinR);
   renderPinned();
   updateWindowHelp();
+}
+
+/** こだわりの「旅の目的」で押されているもの。 */
+function chosenPurposes() {
+  return [...document.querySelectorAll(
+    '#purpose-choice [data-purpose][aria-pressed="true"]')].map((b) => b.dataset.purpose);
+}
+
+function setPurposeChip(chip, on) {
+  chip.setAttribute("aria-pressed", String(on));
+  chip.classList.toggle("is-selected", on);
 }
 
 /**
@@ -2411,6 +2437,9 @@ function syncFormTo(t) {
     chip.setAttribute("aria-pressed", String(on));
     chip.classList.toggle("is-selected", on);
   }
+  for (const chip of document.querySelectorAll("#purpose-choice [data-purpose]")) {
+    setPurposeChip(chip, (t.purposes ?? []).includes(chip.dataset.purpose));
+  }
   state.avoidIds = t.must.avoidSpotIds;
   state.removedIds = t.must.removedSpotIds ?? [];
   state.spotCap = t.must.spotCap ?? null;
@@ -2545,6 +2574,13 @@ async function applyChat(read) {
       sel.value = String(Math.min(6, read.people));
       sel.dispatchEvent(new Event("change", { bubbles: true }));
     }
+  }
+  // 書いてあった目的（デート・アクティブ…）は、こだわりの欄でも押します。
+  // 「デート向けにして」とだけ返したときも、前の希望のまま目的を変えて
+  // 組み直せます。足すだけで、ほかの目的は外しません。
+  for (const id of read.purposes ?? []) {
+    const chip = document.querySelector(`#purpose-choice [data-purpose="${id}"]`);
+    if (chip) setPurposeChip(chip, true);
   }
   if (read.budgetYen) {
     // 選べる額（1万・2万・3万）に無いときも、その額をそのまま使います。

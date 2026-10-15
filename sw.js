@@ -111,6 +111,7 @@ const SHELL_FILES = [
   "./js/ical.js",
   "./js/icons.js",
   "./js/intent.js",
+  "./js/purpose.js",
   "./js/journeys.js",
   "./js/kb.js",
   "./js/keywords.js",
