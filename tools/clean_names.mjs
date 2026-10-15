@@ -47,8 +47,9 @@ if (!write) {
 for (const [file, doc] of shards) writeFileSync(join(KB, file), dump(doc));
 
 // 件数は kb/index.json と kb/regions.json にあります（tools/drop_not_spots.mjs と同じ）。
-// エリアのページもアプリも README もここから引くので、外したら必ず書き直します。
-if (twins.size) {
+// エリアのページもアプリも README もここから引くので、毎回中身から数え直します
+// （main を取り込んだときに index.json だけ向こうの版になる、ということがあります）。
+{
   const perRegion = new Map();
   for (const s of all) perRegion.set(s.regionId, (perRegion.get(s.regionId) ?? 0) + 1);
   const regionsPath = join(KB, "regions.json");
@@ -67,7 +68,7 @@ if (twins.size) {
   }
   if (index.counts) index.counts.spots = all.length;
   writeFileSync(indexPath, dump(index));
-  console.log(`収録 ${all.length}件になりました（README の件数の表も直してください）。`);
+  console.log(`収録 ${all.length}件（README の件数の表と合わせてください）。`);
 }
 
 // 名前の索引（tools/reshard_kb.py・tools/drop_not_spots.mjs と同じ作り）。
