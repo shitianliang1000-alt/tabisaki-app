@@ -365,7 +365,7 @@ PROXY_URL
 
 ## 🚀 公開する（GitHub Pages）
 
-`.github/workflows/pages.yml` が、`main` への push ごとに GitHub Pages へ配置します。ビルド工程はエリア別のページ（`node tools/build_area_pages.mjs dist`）だけで、**公開するのはブラウザが読むものだけ**です（`index.html`・`css/`・`js/`・`kb/`と、アイコン・manifest・robots・sitemap・sw.js）。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`pages.yml` の「Stage site files」にも足してください。
+`.github/workflows/pages.yml` が、`main` への push ごとに、先に `test.yml` のテストを全部走らせ、通ったときだけ GitHub Pages へ配置します（赤なら公開せず、前の版が残ります）。ビルド工程はエリア別のページ（`node tools/build_area_pages.mjs dist`）だけで、**公開するのはブラウザが読むものだけ**です（`index.html`・`css/`・`js/`・`kb/`と、アイコン・manifest・robots・sitemap・sw.js）。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`pages.yml` の「Stage site files」にも足してください。
 
 ### 管理画面を開く
 
@@ -387,7 +387,7 @@ PROXY_URL
 
 公開する URL を変えたら、`index.html` の OGP（`og:url` / `og:image` / canonical）と `sitemap.xml`・`robots.txt` の絶対 URL も合わせて書き換えてください。
 
-`.github/workflows/test.yml` は push / pull request ごとに単体テストと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
+`.github/workflows/test.yml` は pull request ごとに（`main` への push では `pages.yml` から呼ばれて）単体テストと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
 
 エリア別のページを手元で見るときは、作ってから開きます。
 
