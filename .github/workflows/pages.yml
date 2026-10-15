@@ -32,6 +32,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # sitemap.xml の lastmod に、県ごとの収録ファイルが最後に変わった日を
+          # 入れます（tools/build_area_pages.mjs）。浅い clone では全部が
+          # 同じ日になるので、履歴ごと取ります。
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
