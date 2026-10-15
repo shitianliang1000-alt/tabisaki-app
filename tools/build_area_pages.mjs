@@ -31,6 +31,7 @@ import { renderAreaCard } from "./area_card.mjs";
 import { artFor } from "../js/art.js";
 import { sameThing } from "../js/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
+import { fitsHiddenList, gemScore } from "./gem.mjs";
 import { onlySpots } from "../js/notaspot.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
@@ -41,6 +42,8 @@ const DEFAULT_BASE = "https://shitianliang1000-alt.github.io/tabisaki.github.io/
 /** 1ページに並べる数。多すぎると読まれず、少なすぎると探しに来た場所がありません。 */
 const PREF_MAJOR = 12;
 const PREF_HIDDEN = 12;
+/** 穴場の欄が、これより少なくならないように足す数（見どころの語の無い説明から）。 */
+const PREF_HIDDEN_MIN = 6;
 const REGION_SPOTS = 24;
 /**
  * エリアのページに「〇〇の観光地」として並べるのは、エリアの中心からこの距離まで。
@@ -163,6 +166,16 @@ export function breadcrumbLd(trail) {
 
 function byFame(a, b) {
   return (b.fame_score ?? 0) - (a.fame_score ?? 0)
+    || String(a.name).localeCompare(String(b.name), "ja");
+}
+
+/**
+ * 有名な順。有名さの点が同じもの（点の無い収録の大半）は、名前の順ではなく
+ * 説明から見どころが読み取れる順（tools/gem.mjs）にします。
+ */
+function byFameThenGem(a, b) {
+  return (b.fame_score ?? 0) - (a.fame_score ?? 0)
+    || gemScore(b, readableDescription(b)) - gemScore(a, readableDescription(a))
     || String(a.name).localeCompare(String(b.name), "ja");
 }
 
@@ -323,10 +336,26 @@ export function pickPrefSpots(spots, prefName) {
   const major = pickDistinct(
     list.filter((s) => s.fame_tier === "major" || s.fame_tier === "known")
       .sort((a, b) => tierRank(a) - tierRank(b) || byFame(a, b)), PREF_MAJOR, taken);
-  const hidden = pickDistinct(
-    list.filter((s) => s.fame_tier === "hidden" && readableDescription(s)
-                       && !GONE.test(s.description) && !inOtherPrefecture(s, prefName)),
-    PREF_HIDDEN, taken);
+  // 穴場は、説明から見どころが読み取れる順（tools/gem.mjs）。以前は有名さの
+  // 点の無いものが名前の順に並び、長野県の穴場がスキー場・温水プール・
+  // 中央道のトンネル、神奈川県が横穴墓群と準用河川になっていました。
+  //
+  // 点が1以上のものを先に並べます。それが PREF_HIDDEN_MIN に満たない県
+  // （説明の短い収録が多い県）だけ、点が0のもの（悪い語も無いもの）を
+  // 説明の長い順に足します。点が負のものは並べません。
+  const scored = list
+    .filter((s) => s.fame_tier === "hidden" && fitsHiddenList(s)
+                   && !GONE.test(s.description) && !inOtherPrefecture(s, prefName))
+    .map((s) => ({ s, text: readableDescription(s) }))
+    .filter((x) => x.text)
+    .map((x) => ({ ...x, score: gemScore(x.s, x.text) }))
+    .filter((x) => x.score >= 0)
+    .sort((a, b) => b.score - a.score || b.text.length - a.text.length || byFame(a.s, b.s));
+  const hidden = pickDistinct(scored.filter((x) => x.score > 0).map((x) => x.s), PREF_HIDDEN, taken);
+  if (hidden.length < PREF_HIDDEN_MIN) {
+    hidden.push(...pickDistinct(scored.filter((x) => x.score === 0).map((x) => x.s),
+      PREF_HIDDEN_MIN - hidden.length, taken));
+  }
   return { major, hidden };
 }
 
@@ -499,7 +528,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
                                    siblings = [] }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
-  const list = [...nearbySpots(region, spots)].sort(byFame).slice(0, REGION_SPOTS);
+  const list = [...nearbySpots(region, spots)].sort(byFameThenGem).slice(0, REGION_SPOTS);
   const items = course ? courseItems(course) : null;
   // コースが組めなかったページに「モデルコース」と書くと、検索から来た人が
   // 探しても無いものを約束することになります。

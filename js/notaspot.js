@@ -191,10 +191,67 @@ export function isUmbrella(spot) {
 }
 
 /**
+ * 通り抜けるだけの道路・鉄道のトンネル。
+ *
+ *   恵那山トンネル … 中央自動車道の園原IC - 中津川IC間にあり…
+ *   冠着トンネル   … 篠ノ井線姨捨駅 - 冠着駅間にある鉄道トンネル
+ *
+ * 長野県の穴場の欄に、中央道のトンネルが出ていました。車で通るもので、
+ * 降りて見る所ではありません。
+ *
+ * 外すのは、説明に道路・鉄道の語があるものだけです。説明の無いものは
+ * 見分けられないので残します。
+ *
+ *   ・旧天城トンネル・清津峡渓谷トンネル・関門人道トンネル … 歩いて見る所
+ *   ・「かつて供用」「文化財」のあるもの … 使われなくなった古いトンネル
+ */
+const TUNNEL = /(トンネル|隧道)$/;
+const ROAD_OR_RAIL = /自動車道|国道|県道|道路|林道|鉄道|本線|線の|間にある|IC/;
+const OLD_TUNNEL = /^旧|かつて|文化財|遺産|遺構|廃|人道|歩道|遊歩道|渓谷|見学|公園/;
+
+export function isPassage(spot) {
+  const base = outside(spot?.name);
+  if (!base || !TUNNEL.test(base) || OLD_TUNNEL.test(base)) return false;
+  const d = String(spot?.description ?? "");
+  return ROAD_OR_RAIL.test(d) && !OLD_TUNNEL.test(d);
+}
+
+/**
+ * 地元の人が使う設備。旅の行き先として勧めるものではありません。
+ *
+ *   ラーラ松本   … 松本市島内にある温水プール
+ *   各務原市民プール ／ 小牧市温水プール ／ 静岡市蒲原体育館(プール含む)
+ *   姥川         … 相模原市を流れる相模川水系の準用河川
+ *
+ * 体育館・スポーツセンターも同じです。遊園地のプール（一万人プール・
+ * ジャンボ海水プール）、海辺のプール、遊園地のサイクルスポーツセンター、
+ * 温泉の欄のもの（室内温泉プール）は残します。
+ */
+const LOCAL_POOL = /(温水|市民|町民|村民|市立|町立|県営|県立|屋内|室内|総合|ふれあい)プール|体育館|スポーツセンター|海洋センター/;
+const POOL_LEAD = /^[^。]{0,60}(にある|にあった)[^。]{0,8}(温水プール|市営の[^。]{0,6}プール|水泳場)/;
+const MINOR_RIVER = /準用河川|普通河川/;
+
+// サイクルスポーツセンター（日本・関西）は遊園地です。
+const KEEP_FACILITY = /サイクル|アウトドア/;
+const PLAY_CATEGORY = new Set(["温泉", "遊園地", "テーマパーク"]);
+
+export function isLocalFacility(spot) {
+  if (PLAY_CATEGORY.has(spot?.category)) return false;
+  const base = outside(spot?.name);
+  if (!base || KEEP_FACILITY.test(base)) return false;
+  const d = String(spot?.description ?? "");
+  if (/プール/.test(base) && LOCAL_POOL.test(base)) return true;
+  if (/体育館|スポーツセンター/.test(base)) return true;
+  if (POOL_LEAD.test(d)) return true;
+  if (MINOR_RIVER.test(d) && /川$/.test(base)) return true;
+  return false;
+}
+
+/**
  * 行き先にならない理由。行き先なら null。
  *
  * @param {object} spot
- * @returns {null|"宿"|"場所ではない記事"|"まとめすぎ"|"案内所"}
+ * @returns {null|"宿"|"場所ではない記事"|"まとめすぎ"|"案内所"|"通り道"|"地元の設備"}
  */
 export function whyNotASpot(spot) {
   // 利用者が足したもの・調べて足したもの（source: "ai"）は、名指しで
@@ -203,6 +260,8 @@ export function whyNotASpot(spot) {
   if (isLodging(spot)) return "宿";
   if (isUmbrella(spot)) return "まとめすぎ";
   if (isInfoDesk(spot)) return "案内所";
+  if (isPassage(spot)) return "通り道";
+  if (isLocalFacility(spot)) return "地元の設備";
   if (isNotAPlace(spot)) return "場所ではない記事";
   return null;
 }

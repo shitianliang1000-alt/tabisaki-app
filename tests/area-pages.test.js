@@ -141,6 +141,34 @@ test("穴場: 同じ分類は3つまで", () => {
   assert.ok(hidden.some((s) => s.id === "f"));
 });
 
+test("穴場: 名前の順ではなく、説明から見どころが読み取れる順", () => {
+  // 以前は有名さの点の無いものが あいうえお順 で並び、長野県の穴場が
+  // スキー場・温水プール・中央道のトンネル・山塊になっていました。
+  const wiki = (id, name, category, description) =>
+    spot(id, { name, category, description, fame_score: undefined });
+  const { hidden } = pickPrefSpots([
+    wiki("a", "あの横穴墓群", "史跡", "あの横穴墓群は、横浜市栄区にある古代横穴墓群遺跡。"),
+    wiki("b", "いの川", "川", "いの川は、相模原市を流れる相模川水系の一級河川。"),
+    wiki("c", "うの山地", "山", "うの山地は、県の北部に広がる山地である。"),
+    wiki("d", "えのスキー場", "スキー場", "えのスキー場は、山ノ内町にあるスキー場。2010年に改名された。"),
+    wiki("e", "おの花火大会", "観光名所", "おの花火大会は、毎年夏に開かれる花火大会。"),
+    wiki("f", "OSC", "観光名所", "OSCは、平塚市にある複合商業施設・ショッピングセンター。"),
+    wiki("y", "八島ヶ原湿原", "観光名所", "八島ヶ原湿原は、霧ヶ峰の北西にある標高約1632mの高層湿原。夏は花が咲き、木道を散策できる。"),
+    wiki("z", "御射鹿池", "観光名所", "御射鹿池は、茅野市にあるため池。水面に森が映る景観で知られる。"),
+  ], "長野県");
+  assert.deepEqual(hidden.map((s) => s.id), ["y", "z"]);
+});
+
+test("穴場: 見どころの語が無くても、悪い語も無いものは6件まで足す", () => {
+  const list = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) =>
+    spot(id, { category: id < "e" ? "寺院" : "神社", fame_score: undefined,
+      description: `場所${id}は、谷あいにある寺。${"本堂は江戸時代の建物。".repeat(id.charCodeAt(0) % 3)}` }));
+  const { hidden } = pickPrefSpots(list, "神奈川県");
+  assert.equal(hidden.length, 6);
+  // 説明の長いものから。
+  assert.ok(hidden.slice(0, 2).every((s) => s.description.length >= hidden.at(-1).description.length));
+});
+
 test("分類の記号は、読み上げない線の SVG", () => {
   const svg = spotIcon({ category: "温泉" });
   assert.match(svg, /^<svg class="sp-ic"[^>]*aria-hidden="true"/);
