@@ -419,3 +419,48 @@ test("説明は、かっこの中の句点では切らない", () => {
     description: "千畳閣は、厳島にある神社建築であり、豊国神社（「とよくにじんじゃ」と読む。）の本殿である。豊臣秀吉が建てた。" });
   assert.equal((d.match(/（/g) ?? []).length, (d.match(/）/g) ?? []).length);
 });
+
+test("同じ名前は離れていても1つだけ、別名の浜も1つだけ並べる", async () => {
+  const { major } = pickPrefSpots([
+    spot("a", { name: "諏訪大社", fame_tier: "major", fame_score: 90, lat: 36.0, lng: 138.12 }),
+    spot("b", { name: "諏訪大社", fame_tier: "major", fame_score: 90, lat: 36.08, lng: 138.09 }),
+    spot("c", { name: "善光寺", fame_tier: "major", fame_score: 80 }),
+  ], "長野県");
+  assert.deepEqual(major.map((s) => s.name), ["諏訪大社", "善光寺"]);
+
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県", count: 2 }],
+             counts: { spots: 2 } },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [
+      spot("a", { name: "江之浦海水浴場", category: "海水浴場", lat: 35.1924, lng: 139.1375 }),
+      spot("b", { name: "市営江之浦海水浴場", category: "海水浴場", lat: 35.1906, lng: 139.1389 }),
+    ]]]),
+  };
+  const { pages } = await buildAll(kbDoc, { base: BASE, now: new Date(2026, 9, 9) });
+  const hakone = pages.find((p) => p.path.endsWith("hakone.html")).html;
+  assert.equal((hakone.match(/江之浦海水浴場<\/span>/g) ?? []).length, 1);
+});
+
+test("件数は kb/index.json から引き、エリアの一覧に全国の合計を書く", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県", count: 1 }],
+             counts: { spots: 1 } },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a")]]]),
+  };
+  const { pages } = await buildAll(kbDoc, { base: BASE, now: new Date(2026, 9, 9) });
+  assert.match(pages[0].html, /全国の収録 1 か所/);
+  kbDoc.index.counts.spots = 2;
+  await assert.rejects(buildAll(kbDoc, { base: BASE, now: new Date(2026, 9, 9) }), /counts\.spots/);
+});
+
+test("同じ名前の2件目の近くにある、その別名も並べない", () => {
+  const { major } = pickPrefSpots([
+    spot("a", { name: "諏訪大社", fame_tier: "major", fame_score: 90, lat: 36.075, lng: 138.091 }),
+    spot("b", { name: "諏訪大社", fame_tier: "major", fame_score: 90, lat: 35.998, lng: 138.119 }),
+    spot("c", { name: "諏訪大社 上社本宮", fame_tier: "major", fame_score: 85, lat: 35.996, lng: 138.12 }),
+    spot("d", { name: "善光寺", fame_tier: "major", fame_score: 80 }),
+  ], "長野県");
+  assert.deepEqual(major.map((s) => s.name), ["諏訪大社", "善光寺"]);
+});

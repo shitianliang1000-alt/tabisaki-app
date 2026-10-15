@@ -27,7 +27,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { artFor } from "../js/art.js";
-import { sameThing } from "../js/dedupe.js";
+import { normalizeName, sameThing } from "../js/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
 import { onlySpots } from "../js/notaspot.js";
 
@@ -279,9 +279,15 @@ const GONE = /^[^。]*(にあった|に存在した)[^。]{0,24}。|かつて(�
 /** 同じ分類を、1つの欄にいくつまで並べるか。穴場がスキー場と資料館だけになっていました。 */
 const PER_CATEGORY = 3;
 
-/** 2つが同じ場所の別名か。名前が同じことを言っていて、2km 以内（座標が無ければ名前だけ）。 */
+/**
+ * 2つが同じ場所の別名か。名前が同じことを言っていて、2km 以内（座標が無ければ名前だけ）。
+ * 名前がまったく同じものは、離れていても1つしか並べません。長野県の定番に
+ * 「諏訪大社」が2件（上社と下社の座標の2件）並んでいました。読む人には
+ * 同じ名前が2回出ているだけに見えます。
+ */
 function sameSpot(a, b) {
   if (a.id && a.id === b.id) return true;
+  if (normalizeName(a.name) === normalizeName(b.name)) return true;
   // 同じ記事を、別の名前の2件が持っていることがあります（「住金鉱業」と「八戸鉱山」）。
   if (a.description && a.description === b.description) return true;
   if (!sameThing(a.name, b.name)) return false;
@@ -290,14 +296,20 @@ function sameSpot(a, b) {
 }
 
 /** 有名な順に、同じ場所の別名と、同じ分類の出すぎを除いて n 件。 */
-function pickDistinct(list, n, taken) {
+function pickDistinct(list, n, taken, perCategory = PER_CATEGORY) {
   const out = [];
   const perCat = new Map();
   for (const s of list) {
     if (out.length >= n) break;
-    if (taken.some((t) => sameSpot(t, s))) continue;
+    if (taken.some((t) => sameSpot(t, s))) {
+      // 外したものも「出したもの」の別名として覚えます。下社の座標の「諏訪大社」を
+      // 出したあと、上社の座標の「諏訪大社」を外しても、その隣の「諏訪大社 上社本宮」が
+      // 同じ神社として並んでいました。
+      taken.push(s);
+      continue;
+    }
     const cat = s.category ?? "";
-    if ((perCat.get(cat) ?? 0) >= PER_CATEGORY) continue;
+    if ((perCat.get(cat) ?? 0) >= perCategory) continue;
     perCat.set(cat, (perCat.get(cat) ?? 0) + 1);
     out.push(s);
     taken.push(s);
@@ -496,7 +508,10 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
                                    siblings = [] }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
-  const list = [...nearbySpots(region, spots)].sort(byFame).slice(0, REGION_SPOTS);
+  // 同じ浜が「江之浦海水浴場」と「市営江之浦海水浴場」の2件で並んでいました。
+  // 別名は1つにします（分類の数は絞りません。エリアの一覧は分類で選ぶ欄ではありません）。
+  const list = pickDistinct([...nearbySpots(region, spots)].sort(byFame), REGION_SPOTS, [],
+    Infinity);
   const items = course ? courseItems(course) : null;
   // コースが組めなかったページに「モデルコース」と書くと、検索から来た人が
   // 探しても無いものを約束することになります。
@@ -556,18 +571,18 @@ ${siblingLinks(region, siblings)}
            html: page({ title, description, canonical, rel, body, jsonLd }) };
 }
 
-export function renderPrefPage({ prefName, prefSlug, spots, regions, base }) {
+export function renderPrefPage({ prefName, prefSlug, spots, regions, base, count = spots.length }) {
   const rel = "../../";
   const canonical = `${base}areas/${prefSlug}/index.html`;
   const { major, hidden } = pickPrefSpots(spots, prefName);
   const title = `${prefName}の観光地・定番と穴場｜旅行プラン作成｜旅さき`;
   const famous = nameList(major.map((s) => s.name));
   const description = `${prefName}の観光地。${famous ? `${famous}などの定番と、` : "定番と、"}`
-    + `知る人ぞ知る穴場。収録${spots.length.toLocaleString("ja-JP")}か所から、`
+    + `知る人ぞ知る穴場。収録${count.toLocaleString("ja-JP")}か所から、`
     + "行きたいことに合わせて旅行プランを作成できます。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
-<p class="lead">収録 ${spots.length.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
+<p class="lead">収録 ${count.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
 <p><a class="cta primary" href="${esc(appLink(rel, `${prefName}で、定番と穴場をまぜて1日まわる`))}">${esc(prefName)}で旅程をつくる</a></p>
 ${regions.length ? `<section>
 <h2>エリアのモデルコース</h2>
@@ -626,7 +641,7 @@ export function groupByChiho(prefs) {
   return out.filter((g) => g.list.length);
 }
 
-export function renderIndexPage({ prefs, base }) {
+export function renderIndexPage({ prefs, base, total = null }) {
   const rel = "../";
   const canonical = `${base}areas/index.html`;
   const title = "エリアから探す — 都道府県の観光地と旅行プランのモデルコース｜旅さき";
@@ -634,7 +649,7 @@ export function renderIndexPage({ prefs, base }) {
     + "行きたいことを書くと、旅さきが営業時間と移動時間まで合わせた旅行プランを作成します。";
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
-<p class="lead">都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
+<p class="lead">${total !== null ? `全国の収録 ${total.toLocaleString("ja-JP")} か所。` : ""}都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
 ${groupByChiho(prefs).map(({ chiho, list }) => `<section>
 <h2>${esc(chiho)}</h2>
 <ul class="prefs">
@@ -703,6 +718,35 @@ export function courseFits(itin, region, mustIds = []) {
   return mustIds.length === 0 || kept >= Math.min(2, mustIds.length);
 }
 
+/**
+ * ページに書く件数。**kb/index.json の counts と shards[].count だけから**引きます。
+ *
+ * エリアの一覧（都道府県の合計）・県のページ・アプリ・README が、それぞれ
+ * 別の経路で数えていて、合計が kb/index.json と102件ずれていたことがあります。
+ * 数字の出どころを1つにし、それが収録の中身と合わないときは公開を止めます
+ * （tools/drop_not_spots.mjs や tools/reshard_kb.py が書き直し忘れた、ということです）。
+ *
+ * @returns {{perFile: Map<string, number>, total: number|null}}
+ */
+export function kbCounts(index, shards) {
+  const perFile = new Map();
+  let sum = 0;
+  for (const sh of index?.shards ?? []) {
+    const actual = shards?.get(sh.file)?.length ?? 0;
+    const n = Number.isFinite(sh.count) ? sh.count : actual;
+    if (n !== actual) {
+      throw new Error(`kb/index.json の ${sh.file} は ${n}件ですが、中身は ${actual}件です`);
+    }
+    perFile.set(sh.file, n);
+    sum += n;
+  }
+  const total = Number.isFinite(index?.counts?.spots) ? index.counts.spots : null;
+  if (total !== null && total !== sum) {
+    throw new Error(`kb/index.json の counts.spots は ${total}件ですが、県ごとの合計は ${sum}件です`);
+  }
+  return { perFile, total };
+}
+
 /** 名所として紹介できるエリア（説明を持つもの）。機械で作ったエリア名は「村」などで、見出しに使えません。 */
 export function curatedRegions(regions) {
   return (regions ?? []).filter((r) => r?.tagline && r?.description && r?.station);
@@ -716,6 +760,7 @@ export function curatedRegions(regions) {
  */
 export async function buildAll(kbDoc, { base, now = new Date(), planCourse = null } = {}) {
   const date = nextSaturday(now);
+  const counts = kbCounts(kbDoc.index, kbDoc.shards);
   const regions = curatedRegions(kbDoc.regions);
   const pages = [];
   const prefs = [];
@@ -725,8 +770,9 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
     const spots = kbDoc.shards.get(shard.file) ?? [];
     const prefName = shard.prefecture;
     const mine = regions.filter((r) => r.prefecture === prefName);
-    prefs.push({ name: prefName, slug, count: spots.length, regions: mine });
-    pages.push(renderPrefPage({ prefName, prefSlug: slug, spots, regions: mine, base }));
+    const count = counts.perFile.get(shard.file);
+    prefs.push({ name: prefName, slug, count, regions: mine });
+    pages.push(renderPrefPage({ prefName, prefSlug: slug, spots, regions: mine, base, count }));
     for (const region of mine) {
       const own = spots.filter((s) => s.regionId === region.id);
       let course = null;
@@ -737,7 +783,7 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
                                     course, date, base, siblings: mine }));
     }
   }
-  pages.unshift(renderIndexPage({ prefs, base }));
+  pages.unshift(renderIndexPage({ prefs, base, total: counts.total }));
   return { pages, notFound: renderNotFoundPage({ prefs, base }),
            sitemap: sitemapXml(base, pages.map((p) => p.url), now) };
 }
