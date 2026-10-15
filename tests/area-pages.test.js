@@ -419,3 +419,24 @@ test("説明は、かっこの中の句点では切らない", () => {
     description: "千畳閣は、厳島にある神社建築であり、豊国神社（「とよくにじんじゃ」と読む。）の本殿である。豊臣秀吉が建てた。" });
   assert.equal((d.match(/（/g) ?? []).length, (d.match(/）/g) ?? []).length);
 });
+
+// 「松本・上高地」で1つのエリアにしていたころ、上高地（河童橋）は松本駅から
+// 30km 先で、モデルコースにも一覧にも出ないのに、題名と紹介文だけが
+// 上高地を約束していました。上高地は別のエリアです。
+test("上高地は自分のエリアを持ち、河童橋がそのコース圏内にある", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const read = async (p) => JSON.parse(await readFile(new URL(`../kb/${p}`, import.meta.url), "utf8"));
+  const regions = curatedRegions((await read("regions.json")).regions);
+  const byId = new Map(regions.map((r) => [r.id, r]));
+  const kamikochi = byId.get("kamikochi");
+  assert.ok(kamikochi, "上高地のエリアがない");
+  assert.equal(kamikochi.prefecture, "長野県");
+  assert.ok(!/上高地/.test(byId.get("matsumoto").name + byId.get("matsumoto").description),
+    "松本のエリアが上高地を約束している");
+  const { spots } = await read("spots-jp20-nagano.json");
+  const kappa = spots.find((s) => s.name === "河童橋" && s.regionId === "kamikochi");
+  assert.ok(kappa, "河童橋が上高地のエリアにない");
+  assert.equal(isFar(kamikochi, kappa), false);
+  assert.ok(nearbySpots(kamikochi, spots.filter((s) => s.regionId === "kamikochi"))
+    .some((s) => s.id === kappa.id));
+});
