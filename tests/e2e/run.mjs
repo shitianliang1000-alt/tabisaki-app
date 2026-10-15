@@ -457,6 +457,15 @@ await check("何をしてくれるサイトかが書いてある", async () => {
   // 文書としての h1 も残っていること。
   const h1 = await page.$eval("h1", (e) => e.textContent.trim()).catch(() => "");
   assert(h1.includes("旅さき"), "h1 がありません");
+  // h1 は画面に出ている名前の行そのもの（sr-only の別の見出しではない）。
+  // 一覧を畳んだ狭い画面でも、読み上げから消えないこと。
+  const head = await page.evaluate(() => {
+    const all = document.querySelectorAll("h1");
+    return { n: all.length, brand: all[0]?.classList.contains("brand-line") ?? false,
+             vis: all[0] ? getComputedStyle(all[0]).visibility : "" };
+  });
+  assert(head.n === 1 && head.brand, `h1 が名前の行になっていません: ${JSON.stringify(head)}`);
+  assert(head.vis === "visible", "h1 が読み上げから外れています");
   const brand = await page.$eval(".brand-line", (e) => ({
     text: e.textContent.replace(/\s+/g, ""), h: e.getBoundingClientRect().height,
   })).catch(() => null);
@@ -2066,6 +2075,25 @@ await check("返信で、旅程を直せる", async () => {
   // 前の答えは残り、操作できるのはいちばん新しい答えだけ。
   const past = await page.$$eval(".turn-ai.is-past #details-toggle", (els) => els.length);
   assert(past === 0, "前の答えにも「詳細を確認する」が残っています");
+});
+
+// 旅の目的（デート・アクティブ…）を、返信だけで足せること。
+// 前の希望のまま、こだわりの「旅の目的」が押されて組み直されます。
+await check("返信の「デート向けにして」で、目的が押されて組み直す", async () => {
+  await sendChat(page, "デート向けにして");
+  const got = await page.evaluate(() => ({
+    pressed: document.querySelector('#purpose-choice [data-purpose="date"]')
+      ?.getAttribute("aria-pressed"),
+    chips: [...document.querySelectorAll(".thread > .turn-user:nth-last-child(2) .read-chips li")]
+      .map((e) => e.textContent),
+    notes: document.querySelector(".thread > .turn-ai:last-child")?.textContent ?? "",
+  }));
+  assert(got.pressed === "true", "こだわりの「デート」が押されていません");
+  assert(got.chips.some((t) => t.includes("デート")),
+    `読み取った条件に目的が出ていません: ${got.chips.join("・")}`);
+  assert(/デート向けに/.test(got.notes), "旅程に、目的で選んだことが書かれていません");
+  // 次の確認に持ち越さないよう、外しておきます。
+  await page.$eval('#purpose-choice [data-purpose="date"]', (b) => b.click());
 });
 
 // 画面に出ている記号が、絵文字でないこと。

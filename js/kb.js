@@ -7,6 +7,7 @@
 import { KB_INDEX_URL } from "./config.js";
 import { drivingAppeal } from "./touring.js";
 import { accessAppeal } from "./access.js";
+import { purposeAppeal } from "./purpose.js";
 import { genresForCategory } from "./feasibility.js";
 import { betterOf, dedupeSpots, samePoint, sameThing } from "./dedupe.js";
 import { whyNotASpot } from "./notaspot.js";
@@ -562,7 +563,7 @@ export function cosineToQuantized(query, q) {
  */
 export function searchSpots(kb, queryVector,
                             { limit = 260, hiddenBias = 0, touring = false,
-                              companions = [] } = {}) {
+                              companions = [], purposes = [] } = {}) {
   const out = [];
   for (const spot of kb.spots) {
     if (!spot.v) continue;
@@ -570,10 +571,23 @@ export function searchSpots(kb, queryVector,
     const obscurity = 1 - Math.min(100, Math.max(0, spot.fame_score ?? 50)) / 100;
     out.push({ spot,
       score: sim + hiddenBias * 0.12 * obscurity + touringBonus(spot, touring)
-        + accessBonus(spot, companions) });
+        + accessBonus(spot, companions) + purposeBonus(spot, purposes) });
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, limit);
+}
+
+/**
+ * 旅の目的（デート・アクティブ…）があるときだけ足す重み（js/purpose.js）。
+ *
+ * 車や同行者の重み（0.12）より少し大きくしてあります。目的は、書いた
+ * 人がいちばん大事にしていることのひとつです。それでも、希望との一致
+ * （0〜1）を覆すほどにはしません。「城が見たい、デートで」と書いた人の
+ * 旅程から、城が消えてはいけません。**外しません。**並びを変えるだけです。
+ */
+export function purposeBonus(spot, purposes) {
+  if (!purposes?.length) return 0;
+  return (purposeAppeal(spot, purposes) - 0.5) * 0.3;
 }
 
 /**
@@ -618,18 +632,27 @@ const FIELD_WEIGHT = {
 };
 
 export function searchSpotsByKeyword(kb, keywords,
-  { limit = 260, hiddenBias = 0, touring = false, companions = [] } = {}) {
+  { limit = 260, hiddenBias = 0, touring = false, companions = [],
+    purposes = [] } = {}) {
   const terms = (keywords ?? []).map((k) => String(k).trim()).filter(Boolean);
   // 語が無いときは、知名度の高い順に返します。
   //
   // 読み込んだ順の先頭を返していたので、県の並び（北海道から）がそのまま
   // 出ていました。「最長往復切符で旅したい」のように探す語が残らない
   // 希望で、候補が北海道と青森だけになっていました。
+  //
+  // 目的（デート・アクティブ…）があれば、知名度に目的の重みを足して
+  // 並べます。「箱根でデート」は、探す語が残りません（地名は絞り込みに、
+  // 「デート」は目的に回るため）。知名度だけで並べると、目的がどこにも
+  // 効きません。
   if (!terms.length) {
     return kb.spots
-      .map((spot, i) => ({ spot, i, fame: spot.fame_score ?? 50 }))
-      .sort((a, b) => b.fame - a.fame || a.i - b.i)
-      .slice(0, limit).map(({ spot }) => ({ spot, score: 0.1 }));
+      .map((spot, i) => {
+        const bonus = purposeBonus(spot, purposes);
+        return { spot, i, bonus, key: (spot.fame_score ?? 50) / 100 + 2 * bonus };
+      })
+      .sort((a, b) => b.key - a.key || a.i - b.i)
+      .slice(0, limit).map(({ spot, bonus }) => ({ spot, score: 0.1 + bonus }));
   }
   const out = [];
   for (const spot of kb.spots) {
@@ -655,7 +678,7 @@ export function searchSpotsByKeyword(kb, keywords,
     const obscurity = 1 - fame / 100;
     out.push({ spot,
       score: score + hiddenBias * 0.12 * obscurity + touringBonus(spot, touring)
-        + accessBonus(spot, companions) });
+        + accessBonus(spot, companions) + purposeBonus(spot, purposes) });
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, limit);

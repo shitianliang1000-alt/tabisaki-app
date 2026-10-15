@@ -13,6 +13,7 @@
 // 並べます。何を拾ったのかが見えないと、直しようがありません。
 
 import { readWish } from "./sunny.js";
+import { purposeLabel, readPurposes, stripPurposeWords } from "./purpose.js";
 
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -64,7 +65,7 @@ const PLACE = `((?:${KANA_PLACES})駅?|[一-龯々〆ヵヶァ-ヴー]{1,12}?駅
  *   start: Date|null, nights: number|null,
  *   departHour: number|null, returnHour: number|null,
  *   origin: string|null, mix: number|null, avoidCrowds: boolean|null, sunny: boolean,
- *   people: number|null, budgetYen: number|null,
+ *   people: number|null, budgetYen: number|null, purposes: string[],
  *   labels: string[], rest: string, found: boolean,
  * }}
  */
@@ -73,7 +74,7 @@ export function readChat(text, now = new Date()) {
   const out = {
     start: null, nights: null, departHour: null, returnHour: null,
     origin: null, mix: null, avoidCrowds: null, people: null, budgetYen: null,
-    labels: [], rest: src, found: false,
+    purposes: [], labels: [], rest: src, found: false,
   };
   let rest = src;
   const take = (re) => {
@@ -190,6 +191,11 @@ export function readChat(text, now = new Date()) {
   if (out.avoidCrowds === true) L.push("混雑を避ける");
   if (out.avoidCrowds === false) L.push("混雑は気にしない");
   if (out.people) L.push(`${out.people}人`);
+  // 旅の目的（デート・アクティブ…）も js/pipeline.js が文から読みます。
+  // 設定（こだわりの「旅の目的」）にも書き込みます（js/app.js の applyChat）。
+  out.purposes = readPurposes(src);
+  if (out.purposes.length) rest = stripPurposeWords(rest);
+  for (const id of out.purposes) L.push(`目的: ${purposeLabel(id)}`);
   // 乗り物と旅の形は js/pipeline.js が読みます（文が設定に勝ちます）。
   // ここでは、読んだことが見えるように札だけ出します。
   if (/青春18|18きっぷ|鈍行|各駅停車|普通列車(?:のみ|だけ|で)/.test(src)) L.push("普通列車のみ");

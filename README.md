@@ -65,7 +65,7 @@ AIが返したスポットIDも候補集合と照合し、**存在しない場�
 
 ### エリア別のページ
 
-`areas/` に、都道府県ごとの定番・穴場と、主なエリアの1日モデルコースのページを置きます（検索から場所の名前で来る人の入口です）。モデルコースはアプリと同じエンジンで組み、移動時間は距離からの目安です。公開のたびに `tools/build_area_pages.mjs` が `kb/` から作るので、リポジトリには入っていません。
+`areas/` に、都道府県ごとの定番・穴場と、主なエリアの1日モデルコースのページを置きます（検索から場所の名前で来る人の入口です）。モデルコースはアプリと同じエンジンで組み、移動時間は距離からの目安です。公開のたびに `tools/build_area_pages.mjs` が `kb/` から作るので、リポジトリには入っていません。共有したときの絵（`og:image`）も県・エリアごとに `tools/area_card.mjs` が収録の点だけで描きます（写真や地図タイルは使いません）。`sitemap.xml` の `lastmod` は、そのページの元になった県の収録ファイルが git で最後に変わった日です。
 
 ---
 
@@ -199,6 +199,7 @@ AI                     プログラム
 ├── tools/
 │   ├── build_kb.py            # 知識ベース生成
 │   ├── build_area_pages.mjs   # エリア別のページと sitemap.xml（公開のたびに実行）
+│   ├── area_card.mjs          # エリアのページの共有カード（収録の点で描く地図の PNG）
 │   ├── clean_kb.py            # 不要・重複データの除去
 │   ├── import_p27.py          # 国土数値情報「文化施設」の追加
 │   ├── build_sample_data.py   # 同梱サンプルデータ生成
@@ -365,7 +366,7 @@ PROXY_URL
 
 ## 🚀 公開する（GitHub Pages）
 
-`.github/workflows/pages.yml` が、`main` への push ごとに GitHub Pages へ配置します。ビルド工程はエリア別のページ（`node tools/build_area_pages.mjs dist`）だけで、**公開するのはブラウザが読むものだけ**です（`index.html`・`css/`・`js/`・`kb/`と、アイコン・manifest・robots・sitemap・sw.js）。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`pages.yml` の「Stage site files」にも足してください。
+`.github/workflows/pages.yml` が、`main` への push ごとに、先に `test.yml` のテストを全部走らせ、通ったときだけ GitHub Pages へ配置します（赤なら公開せず、前の版が残ります）。ビルド工程はエリア別のページ（`node tools/build_area_pages.mjs dist`）だけで、**公開するのはブラウザが読むものだけ**です（`index.html`・`css/`・`js/`・`kb/`と、アイコン・manifest・robots・sitemap・sw.js）。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`pages.yml` の「Stage site files」にも足してください。
 
 ### 管理画面を開く
 
@@ -387,7 +388,7 @@ PROXY_URL
 
 公開する URL を変えたら、`index.html` の OGP（`og:url` / `og:image` / canonical）と `sitemap.xml`・`robots.txt` の絶対 URL も合わせて書き換えてください。
 
-`.github/workflows/test.yml` は push / pull request ごとに単体テストと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
+`.github/workflows/test.yml` は pull request ごとに（`main` への push では `pages.yml` から呼ばれて）単体テストと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
 
 エリア別のページを手元で見るときは、作ってから開きます。
 

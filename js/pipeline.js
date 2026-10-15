@@ -24,13 +24,15 @@ import { isTouring } from "./touring.js";
 import { journeyNote, pickJourney, stripJourney } from "./journeys.js";
 import { stripOriginPhrase } from "./chatread.js";
 import { readIntent } from "./intent.js";
+import { isPurposeWord, purposeGenres, purposeHint, purposeNotes,
+         purposePace, readPurposes } from "./purpose.js";
 import { readWish, stripNear, wishScope } from "./sunny.js";
 import { nightTrainLeg } from "./trains.js";
 import { TUNING } from "./config.js";
 import { discoverArea, resolveDestination } from "./discover.js";
 import { atHour, estimateMinutes, haversineKm } from "./feasibility.js";
 import {
-  ensureAllSpots, ensureNames, ensureRegions, mergeIntoKb, rankRegions,
+  ensureAllSpots, ensureNames, ensureRegions, mergeIntoKb, purposeBonus, rankRegions,
   reachableRegions, searchSpots, searchSpotsByKeyword,
 } from "./kb.js";
 import { extractKeywords } from "./keywords.js";
@@ -202,6 +204,12 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 移動そのものを楽しみたいか（画面で選んだか、希望文に書いてあるか）。
   // 「青春18きっぷで」と書いた人に、移動の少ない近場の旅程を返さないためです。
   let enjoyTravel = trip.enjoyTravel === true || intent.enjoyTravel === true;
+  // 旅の目的（デート・アクティブ…）。こだわりの欄で選んだものと、
+  // 希望文に書いてあるものを合わせます（js/purpose.js）。
+  const purposes = [...new Set([...(trip.purposes ?? []), ...readPurposes(trip.note)])];
+  // AIへ渡す希望文。欄で選んだ目的は文に入っていないので、書き足します。
+  const aiNote = purposes.length ? `${trip.note ?? ""}\n${purposeHint(purposes)}`.trim()
+    : trip.note;
   // 前回の失敗を持ち越さないようにします（3案を作るときは
   // 読み取りを使い回すので、最初の1回だけ数え直します）。
   if (!opts.query) resetAiStatus();
@@ -216,6 +224,9 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 希望文からの推測で上書きすると、「もっとゆっくり」を押したのに
   // 何も変わらない、ということが起きます（実際に起きていました）。
   if (!trip.paceChosen) trip.pace = query.pace;
+  // 目的からのペース（デート・のんびりはゆっくり、アクティブは多め）。
+  // 希望文からの推測より、目的のほうを信じます。
+  if (!trip.paceChosen && purposePace(purposes)) trip.pace = purposePace(purposes);
 
   // 名前のある旅のしかた（「最長往復切符」「国道1号線の旅」）。
   // 行き先ではなく旅の形なので、乗り物・移動の楽しみかた・沿う道に
@@ -250,6 +261,8 @@ export async function planTrip({ trip, kb, onProgress = () => {},
     // 「さん都心」から取り出された「都心」は、呼び名の一部です。
     .filter((w) => w.length < 2 || ![...areaWords].some((t) => t.length > w.length && t.includes(w)))
     .filter((w) => !(enjoyTravel && JOURNEY_WORDS.test(w)))
+    // 「デート」「子連れ」は目的で、探す語ではありません（js/purpose.js）。
+    .filter((w) => !isPurposeWord(w))
     .filter((w) => !journey || !isJourneyWord(w, journey));
 
   // 必要なぶんの収録を、ここで読みます。
@@ -272,17 +285,18 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   const companions = trip.companions ?? [];
   let matches = vector
     ? searchSpots(kb, vector,
-                  { limit: 160, hiddenBias: trip.hiddenBias, touring, companions })
+                  { limit: 160, hiddenBias: trip.hiddenBias, touring, companions,
+                    purposes })
     : searchSpotsByKeyword(kb, searchWords,
                            { limit: 160, hiddenBias: trip.hiddenBias, touring,
-                             companions });
+                             companions, purposes });
 
   // 一致が無いときにエラーで止めない。「その希望には応えられないが、
   // 行ける範囲でこういう案はある」と示したほうが役に立ちます。
   // 応えられなかったことは、あとで coverage が明示します。
   if (!matches.length) {
     matches = searchSpotsByKeyword(kb, trip.interests,
-      { limit: 160, hiddenBias: trip.hiddenBias, touring });
+      { limit: 160, hiddenBias: trip.hiddenBias, touring, purposes });
   }
   if (!matches.length) {
     matches = kb.spots.map((spot) => ({ spot, score: 0 }));
@@ -596,7 +610,8 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   const ranked = rankRegions(kb, inRange, 12, {
     oneWayByRegion: travelByRegion,
     totalMinutes: Math.round((trip.arriveBy - trip.departAt) / 60000),
-    wantedGenres: [...new Set([...trip.interests, ...query.interests])],
+    wantedGenres: [...new Set([...trip.interests, ...query.interests,
+                               ...purposeGenres(purposes)])],
     days, enjoyTravel,
   });
   const spreadGroups = scope.spread ? scope.groupById : null;
@@ -607,9 +622,14 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   }).map((c) => {
     const matched = new Map(c.spots.map((s) => [s.spot.id, s]));
     const all = kb.spotsByRegion.get(c.region.id) ?? [];
+    // 当たらなかった残りも、目的があれば目的に合う順に並べます
+    // （収録の順のままだと、目的が残りの選びかたに効きません）。
+    const rest = all.filter((s) => !matched.has(s.id))
+      .map((s) => ({ spot: s, score: 0, bonus: purposeBonus(s, purposes) }));
+    if (purposes.length) rest.sort((a, b) => b.bonus - a.bonus);
     const pool = [
       ...c.spots,
-      ...all.filter((s) => !matched.has(s.id)).map((s) => ({ spot: s, score: 0 })),
+      ...rest.map(({ spot, score }) => ({ spot, score })),
     ];
     // モデルに見せる候補。16件では、選ぶ前から選択肢が尽きていました。
     const shown = balanceByTier(pool, Math.min(28, pool.length),
@@ -655,7 +675,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
     }
     return out.length ? { ...p, regionIds: out, regionId: out[0] } : p;
   };
-  let proposal = fillStops(await proposePlan(candidates, query, trip.note,
+  let proposal = fillStops(await proposePlan(candidates, query, aiNote,
                                              maxSpots, targets, "", planOpts));
   stop();
 
@@ -701,7 +721,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
           : `予定の空きが多いため、${round - 1}回目の作り直しです`);
       let next;
       try {
-        next = fillStops(await proposePlan(candidates, query, trip.note, maxSpots,
+        next = fillStops(await proposePlan(candidates, query, aiNote, maxSpots,
                                            targets, issuesToPrompt(best.checked.result),
                                            planOpts));
       } catch (e) {
@@ -1077,6 +1097,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
 
   itin.warnings = [
     ...intent.notes,
+    ...purposeNotes(purposes),
     ...journeyNotes,
     ...poolNote(kb, candidates),
     ...earlyStartNote(itin, trip),

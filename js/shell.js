@@ -123,7 +123,7 @@ const FIRST = {
   when: "#depart-at",
   mix: '#mix-quick [aria-checked="true"]',
   tune: "#panel-tune .plus-item",
-  "tune-time": "#day-start",
+  "tune-time": "#purpose-choice [data-purpose]",
   "tune-move": "#people-choice",
   "tune-stay": '#companions-choice [data-companion]',
   "tune-food": "#food-choice",

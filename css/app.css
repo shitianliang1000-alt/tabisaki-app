@@ -3100,7 +3100,8 @@ body { background: var(--chat-bg); }
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 0 8px 6px;
 }
-.side .brand-line { margin: 0; padding: 0; flex-wrap: nowrap; }
+/* h1 ですが、見た目は名前の1行のままです（字の大きさは .brand-name）。 */
+.side .brand-line { margin: 0; padding: 0; flex-wrap: nowrap; font-size: inherit; font-weight: inherit; }
 .side .brand-name {
   font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   font-size: var(--hig-t-title3, 1.25rem); font-weight: 500; letter-spacing: .04em;
@@ -3630,7 +3631,11 @@ body[data-trip-mode="on"] .turn-details { display: none !important; }
   body[data-side="mini"] .layout { grid-template-columns: 60px minmax(0, 1fr); }
   body[data-side="mini"] .side { padding-left: 8px; padding-right: 8px; align-items: center; }
   body[data-side="mini"] .side-head { flex-direction: column; gap: 6px; padding: 0 0 8px; }
-  body[data-side="mini"] .side .brand-name,
+  /* 名前は畳んでも見出しに残します（display: none だと h1 が空になる）。 */
+  body[data-side="mini"] .side .brand-name {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
   body[data-side="mini"] .side-item > span,
   body[data-side="mini"] .side .recent,
   body[data-side="mini"] .side .credits { display: none; }
@@ -3655,6 +3660,9 @@ body[data-trip-mode="on"] .turn-details { display: none !important; }
     transition: transform var(--hig-mid, .3s) var(--hig-ease, ease);
     box-shadow: 0 0 40px rgba(0, 0, 0, .18);
   }
+  /* 畳んだ一覧（画面の外・visibility: hidden）の中でも、h1 だけは
+     読み上げと文書の構造に残します。画面の外にあるので、目には見えません。 */
+  .side .brand-line { visibility: visible; }
   .side-scrim { display: block; position: fixed; inset: 0; z-index: 890; background: var(--hig-scrim); }
   .side-scrim[hidden] { display: none !important; }
   .side-close, .side-open { display: inline-flex; }
