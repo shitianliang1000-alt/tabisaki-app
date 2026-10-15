@@ -11,8 +11,8 @@ import test from "node:test";
 
 import { namedSpotAreas } from "../js/areas.js";
 import { insideOf } from "../js/shapes.js";
-import { isInfoDesk, isLodging, isNotAPlace, isUmbrella, whyNotASpot }
-  from "../js/notaspot.js";
+import { isInfoDesk, isLocalFacility, isLodging, isNotAPlace, isPassage, isUmbrella,
+  whyNotASpot } from "../js/notaspot.js";
 
 const at = (name, category = "観光名所", extra = {}) =>
   ({ id: name, name, category, lat: 35, lng: 136, ...extra });
@@ -165,4 +165,46 @@ test("定番の広い場所は、名前を含む岸の行き先を挙げる", ()
   ];
   const names = insideOf(lake, spots).map((x) => x.spot.name);
   assert.deepEqual(names.sort(), ["奥琵琶湖パークウェイ", "滋賀県立琵琶湖博物館"]);
+});
+
+test("道路・鉄道のトンネルは、行き先にしない", () => {
+  // 長野県の穴場の欄に、中央道のトンネルが出ていました。
+  const ena = at("恵那山トンネル", "峠", { description:
+    "恵那山トンネルは、中央自動車道の園原IC - 中津川IC間にあり、木曽山脈を貫く長大トンネルである。" });
+  assert.equal(whyNotASpot(ena), "通り道");
+  assert.equal(isPassage(at("冠着トンネル", "峠", { description:
+    "冠着トンネルは、篠ノ井線姨捨駅 - 冠着駅間にある全長2,656 mの鉄道トンネルである。" })), true);
+});
+
+test("歩いて見るトンネル・古いトンネル・説明の無いトンネルは残す", () => {
+  for (const s of [
+    at("旧天城トンネル"),
+    at("清津峡渓谷トンネル", "渓谷", { description: "峡谷を見るために掘られたトンネル。" }),
+    at("関門人道トンネル", "観光名所", { description: "関門海峡の下を歩いて渡れる国道2号の人道。" }),
+    at("三国トンネル (国道17号)", "峠", { description: "かつて供用されていた国道17号のトンネルである。" }),
+    at("塩嶺トンネル", "峠"),
+  ]) {
+    assert.equal(isPassage(s), false, s.name);
+  }
+});
+
+test("市民プール・体育館・準用河川は、行き先にしない", () => {
+  for (const s of [
+    at("ラーラ松本", "観光名所", { description: "ラーラ松本は、長野県松本市島内7412にある温水プール。波のプール、ウォータースライダーもある。" }),
+    at("各務原市民プール"), at("小牧市温水プール"), at("静岡市蒲原体育館(プール含む)"),
+    at("枚方市立総合スポーツセンター", "公園"),
+    at("姥川", "川", { description: "姥川は、神奈川県相模原市を流れる相模川水系の準用河川。" }),
+  ]) {
+    assert.equal(whyNotASpot(s), "地元の設備", s.name);
+  }
+});
+
+test("遊園地のプール・サイクルスポーツセンター・温泉のプールは残す", () => {
+  for (const s of [
+    at("一万人プール"), at("ジャンボ海水プール", "テーマパーク"),
+    at("日本サイクルスポーツセンター", "遊園地"), at("室内温泉プール ゆ~みんぐ", "温泉"),
+    at("四万十川", "川", { description: "四万十川は、高知県西部を流れる渡川水系の本川で、一級河川。" }),
+  ]) {
+    assert.equal(isLocalFacility(s), false, s.name);
+  }
 });
