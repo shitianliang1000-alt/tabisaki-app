@@ -9,7 +9,7 @@
 import { KB_INDEX_URL, TILE_ATTRIBUTION, TILE_URL } from "./config.js";
 import { clearSettings, cspAllows, effectiveConfig, loadSettings, maskKey,
          saveSettings } from "./settings.js";
-import { callModel, canGround, describeSpot, diagnoseGeminiKey, hasApiKey }
+import { callModel, canGround, canWebSearch, describeSpot, diagnoseGeminiKey, hasApiKey }
   from "./ai.js";
 import { proxyStatus } from "./endpoints.js";
 import { discoverArea } from "./discover.js";
@@ -601,6 +601,16 @@ function wireKeyPanel() {
     const routesOn = viaProxy || Boolean(cfg.mapsKey);
     mark($("#key-gemini"), aiOn,
          aiOn ? "利用できます" : "使わない設定です（収録データから提案します）");
+    // 調べものは、外へ出るものなので、何がどこへ行くかまで書きます。
+    // 送るのは、AIが質問から作った短い検索語だけです（js/qa.js）。
+    const webOn = aiOn && canWebSearch();
+    const grounded = aiOn && canGround();
+    mark($("#key-websearch"), webOn || grounded,
+         webOn ? "質問によっては、AIが作った短い検索語だけを、中継を通して"
+               + " Wikipedia（または Tavily）へ送ります。質問の文・名前・"
+               + "場所・旅程は、検索先へ送りません。"
+               : grounded ? "AI（Google）の中で Google 検索を使います。"
+               : "使っていません（AIが知っていることだけで答えます）");
     mark($("#key-maps"), routesOn,
          routesOn ? "利用できます" : "使わない設定です（距離から推定します）");
 

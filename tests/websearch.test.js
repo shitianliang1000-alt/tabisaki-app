@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import worker, { cleanSnippet, tavilyResults, wikiResults } from "../server/worker.js";
+import worker, { LIMITS, RateLimiter, cleanSnippet, costOf, poolOf, tavilyResults, wikiResults }
+  from "../server/worker.js";
 import { answerQuestion, searchContext } from "../js/qa.js";
 
 const ORIGIN = "https://shitianliang1000-alt.github.io";
@@ -75,6 +76,76 @@ test("TAVILY_API_KEY があれば、Tavily でウェブを検索する（キー�
     { title: "箱根ロープウェイ", url: "https://www.hakoneropeway.co.jp/", snippet: "運行状況" },
   ]);
   assert.doesNotMatch(JSON.stringify(doc), /tvly-x/);
+});
+
+test("Tavily の枠を使い切ったら、Wikipedia に切り替えて答える", async () => {
+  // Tavily の無料枠（月1,000回）は全員で1つ。人ごとの枠では守れません。
+  const calls = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input?.url ?? input);
+    calls.push(url);
+    if (url.startsWith("https://api.tavily.com/")) {
+      return new Response('{"detail":"usage limit exceeded"}', { status: 432 });
+    }
+    return new Response(JSON.stringify({ query: { search: [{ title: "箱根", snippet: "町" }] } }),
+                        { headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const res = await worker.fetch(new Request(`${ORIGIN}/web/search`, {
+      method: "POST",
+      headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: "箱根" }),
+    }), { ALLOW_ORIGIN: ORIGIN, TAVILY_API_KEY: "tvly-x" });
+    const doc = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(doc.engine, "wikipedia");
+    assert.equal(doc.results[0].title, "箱根");
+    assert.equal(calls.length, 2);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+// 利用枠の見積もり。検索は paid 側（Gemini・Routes と同じ枠）で数えます。
+// 検索した質問1つ = 生成 + 検索 + 生成。既定の枠で何問続けて聞けるかを
+// 数えておきます（server/worker.js の COST の注記と同じ数）。
+test("検索した質問は、既定の枠で1分に5つ・1時間に36まで聞ける", async () => {
+  assert.equal(poolOf("/web/search"), "paid");
+  const one = costOf("/gemini/generate") * 2 + costOf("/web/search");
+  assert.equal(one, 11);
+  const fakeState = () => {
+    const map = new Map();
+    return { storage: { get: async (k) => map.get(k), put: async (k, v) => void map.set(k, v),
+                        deleteAll: async () => map.clear(), setAlarm: async () => {} },
+             blockConcurrencyWhile: (fn) => fn() };
+  };
+  const lim = `&limits=${encodeURIComponent(JSON.stringify(LIMITS))}`;
+  const ask = async (rl) => {
+    for (const path of ["/gemini/generate", "/web/search", "/gemini/generate"]) {
+      const r = await (await rl.fetch(new Request(
+        `https://rate/check?cost=${costOf(path)}&pool=${poolOf(path)}${lim}`))).json();
+      if (!r.ok) return false;
+    }
+    return true;
+  };
+  const realNow = Date.now;
+  try {
+    // 続けざまに聞くと、1分の枠で止まります。
+    let t = 1_000_000_000_000;
+    Date.now = () => t;
+    const burst = new RateLimiter(fakeState());
+    let n = 0;
+    while (n < 20 && await ask(burst)) n++;
+    assert.equal(n, Math.floor(LIMITS.paid.minute / one));
+    // 1分おきに聞くと、1時間の枠で止まります。
+    const steady = new RateLimiter(fakeState());
+    let m = 0;
+    while (m < 100 && await ask(steady)) { m++; t += 61_000; }
+    assert.equal(m, Math.floor(LIMITS.paid.hour / one));
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("検索語が空なら断る", async () => {
