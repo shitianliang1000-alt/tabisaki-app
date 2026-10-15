@@ -59,3 +59,8 @@
 **Vulnerability:** Found instances of `Math.random()` being used to generate seemingly unique IDs and cryptographic salts.
 **Learning:** `Math.random()` is not cryptographically secure and could lead to predictable outputs, making anonymized IP addresses vulnerable to attacks.
 **Prevention:** Use standard, secure APIs such as `crypto.randomUUID()` for unique identifiers or `crypto.getRandomValues()` for other security-sensitive generation.
+
+## 2026-10-14 - Add Content-Security-Policy header to admin endpoints
+**Vulnerability:** The admin proxy endpoint (`server/admin.js`) returned HTML and API responses without enforcing a Content Security Policy via HTTP headers, making it more susceptible to cross-site scripting (XSS) attacks or framing.
+**Learning:** Returning security headers like `Content-Security-Policy` directly from the server is necessary for defense in depth, even if a `<meta>` tag exists in the HTML, because HTTP headers apply to all responses (including API JSON responses) and prevent framing (`frame-ancestors`) effectively.
+**Prevention:** Applied a strict `Content-Security-Policy` matching the application's required permissions within the shared `guarded(res)` response wrapper in `server/admin.js`.
