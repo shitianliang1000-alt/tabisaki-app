@@ -24,8 +24,10 @@
 // どこにも送りません。読むのは kb/ だけです。
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 
+import { renderAreaCard } from "./area_card.mjs";
 import { artFor } from "../js/art.js";
 import { sameThing } from "../js/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
@@ -56,7 +58,7 @@ const REGION_MIN_NEAR = 8;
 /**
  * モデルコースで寄ってよいのは、エリアの中心からこの距離まで。
  * 鎌倉のコースが横須賀の記念艦三笠（12km）へ、松本のコースが上高地の
- * 河童橋（40km 先）へ行っていました。
+ * 河童橋（40km 先）へ行っていました（上高地は今は別のエリアです）。
  */
 const COURSE_RADIUS_KM = 10;
 
@@ -383,8 +385,9 @@ function fmtTime(d) {
  * どの深さの URL でも同じものが出るので、`rel` に公開URLの根（絶対URL）を
  * 渡し、`canonical` を持たせず `noindex` にします。
  */
-function page({ title, description, canonical, rel, body, jsonLd, noindex = false }) {
+function page({ title, description, canonical, rel, body, jsonLd, noindex = false, image = null }) {
   const ogUrl = canonical ?? rel;
+  const img = image ?? { path: "og.png", alt: "旅さき — 行きたい、から旅程をつくる。" };
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -400,10 +403,10 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(ogUrl)}">
-<meta property="og:image" content="${esc(new URL(`${rel}og.png`, ogUrl).href)}">
+<meta property="og:image" content="${esc(new URL(`${rel}${img.path}`, ogUrl).href)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="旅さき — 行きたい、から旅程をつくる。">
+<meta property="og:image:alt" content="${esc(img.alt)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(description)}">
@@ -581,8 +584,10 @@ ${siblingLinks(region, siblings)}
     { name: prefName, url: `${base}areas/${prefSlug}/index.html` },
     { name: region.name, url: canonical },
   ])] };
-  return { path: `areas/${prefSlug}/${region.id}.html`, url: canonical,
-           html: page({ title, description, canonical, rel, body, jsonLd }) };
+  const image = { path: `areas/${prefSlug}/${region.id}.png`,
+                  alt: `${region.name}（${prefName}）の場所を示す地図` };
+  return { path: `areas/${prefSlug}/${region.id}.html`, url: canonical, image: image.path,
+           html: page({ title, description, canonical, rel, body, jsonLd, image }) };
 }
 
 export function renderPrefPage({ prefName, prefSlug, spots, regions, base }) {
@@ -626,8 +631,9 @@ ${spotList(hidden)}
     { name: "エリア", url: `${base}areas/index.html` },
     { name: prefName, url: canonical },
   ])] };
-  return { path: `areas/${prefSlug}/index.html`, url: canonical,
-           html: page({ title, description, canonical, rel, body, jsonLd }) };
+  const image = { path: `areas/${prefSlug}/index.png`, alt: `${prefName}の場所と観光地の分布を示す地図` };
+  return { path: `areas/${prefSlug}/index.html`, url: canonical, image: image.path,
+           html: page({ title, description, canonical, rel, body, jsonLd, image }) };
 }
 
 /**
@@ -703,15 +709,53 @@ ${prefs.map((p) => `  <li><a href="${esc(base)}areas/${esc(p.slug)}/index.html">
            html: page({ title, description, rel: base, body, noindex: true }) };
 }
 
-export function sitemapXml(base, urls, date) {
-  const day = date.toISOString().slice(0, 10);
-  const row = (loc, pri) => `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${day}</lastmod>\n    <priority>${pri}</priority>\n  </url>`;
+/**
+ * sitemap.xml。`entries` は URL か `{ url, lastmod }` です。
+ *
+ * lastmod は「そのページの中身が最後に変わった日」です。全部を作った日に
+ * すると、検索エンジンは lastmod を当てにならないものとして無視します
+ * （公開のたびに全ページが「今日変わった」ことになるので）。
+ * 日の分からないものだけ `date`（作った日）にします。トップ（base）は
+ * `rootLastmod` です。
+ */
+export function sitemapXml(base, entries, date, { rootLastmod = null } = {}) {
+  const fallback = date.toISOString().slice(0, 10);
+  const row = (loc, day, pri) => `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${esc(day ?? fallback)}</lastmod>\n    <priority>${pri}</priority>\n  </url>`;
+  const rows = entries.map((e) => (typeof e === "string" ? { url: e } : e))
+    .map(({ url, lastmod }) => row(url, lastmod, url.endsWith("areas/index.html") ? "0.8" : "0.6"));
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!-- tools/build_area_pages.mjs が公開のたびに作ります。手で直さないでください。 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${[row(base, "1.0"), ...urls.map((u) => row(u, u.endsWith("areas/index.html") ? "0.8" : "0.6"))].join("\n")}
+${[row(base, rootLastmod, "1.0"), ...rows].join("\n")}
 </urlset>
 `;
+}
+
+/** `YYYY-MM-DD` の中でいちばん新しいもの（無ければ null）。 */
+export function latestDay(days) {
+  const ok = days.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d ?? ""));
+  return ok.length ? ok.sort().at(-1) : null;
+}
+
+/**
+ * kb/ の各ファイルが最後に変わった日（git の記録から）。
+ *
+ * 県とエリアのページは、その県の収録（spots-jpNN-*.json）から作るので、
+ * その日を lastmod にします。浅い clone では全ファイルが同じ1件の記録の
+ * 日になってしまうので、そのときは何も返しません（作った日になります）。
+ * 公開の作業（.github/workflows/pages.yml）は履歴ごと取ってきます。
+ */
+export function gitDays(root, files) {
+  const days = new Map();
+  try {
+    const run = (args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (run(["rev-parse", "--is-shallow-repository"]) !== "false") return days;
+    for (const f of files) {
+      const day = run(["log", "-1", "--format=%cs", "--", f]);
+      if (day) days.set(f, day);
+    }
+  } catch { /* git の無いところでは、作った日にします */ }
+  return days;
 }
 
 /**
@@ -741,9 +785,14 @@ export function curatedRegions(regions) {
  * 全ページを作ります。
  *
  * @param {{index:object, regions:object[], shards:Map<string,object[]>}} kbDoc
- * @param {{base:string, now:Date, planCourse?:(region)=>Promise<object|null>}} opts
+ * `updated` は kb/ のファイル名 → 最後に変わった日（`YYYY-MM-DD`）、
+ * `siteUpdated` はアプリのトップが最後に変わった日です（sitemap の lastmod）。
+ *
+ * @param {{base:string, now:Date, planCourse?:(region)=>Promise<object|null>,
+ *          updated?:Map<string,string>, siteUpdated?:string|null}} opts
  */
-export async function buildAll(kbDoc, { base, now = new Date(), planCourse = null } = {}) {
+export async function buildAll(kbDoc, { base, now = new Date(), planCourse = null,
+                                        updated = new Map(), siteUpdated = null } = {}) {
   const date = nextSaturday(now);
   const regions = curatedRegions(kbDoc.regions);
   const pages = [];
@@ -755,20 +804,26 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
     const prefName = shard.prefecture;
     const mine = regions.filter((r) => r.prefecture === prefName);
     prefs.push({ name: prefName, slug, count: spots.length, regions: mine });
-    pages.push(renderPrefPage({ prefName, prefSlug: slug, spots, regions: mine, base }));
+    const lastmod = updated.get(shard.file) ?? null;
+    pages.push({ ...renderPrefPage({ prefName, prefSlug: slug, spots, regions: mine, base }),
+                 lastmod, card: { shard: shard.file } });
     for (const region of mine) {
       const own = spots.filter((s) => s.regionId === region.id);
       let course = null;
       if (planCourse) {
         try { course = await planCourse(region, date, own, spots); } catch { course = null; }
       }
-      pages.push(renderRegionPage({ region, prefName, prefSlug: slug, spots: own,
-                                    course, date, base, siblings: mine }));
+      pages.push({ ...renderRegionPage({ region, prefName, prefSlug: slug, spots: own,
+                                         course, date, base, siblings: mine }),
+                   lastmod, card: { shard: shard.file, region } });
     }
   }
-  pages.unshift(renderIndexPage({ prefs, base }));
+  // 一覧は、どこかの県が変わるか、エリアの分けかたが変わると変わります。
+  const indexDay = latestDay([...updated.values()]);
+  pages.unshift({ ...renderIndexPage({ prefs, base }), lastmod: indexDay });
   return { pages, notFound: renderNotFoundPage({ prefs, base }),
-           sitemap: sitemapXml(base, pages.map((p) => p.url), now) };
+           sitemap: sitemapXml(base, pages.map((p) => ({ url: p.url, lastmod: p.lastmod })), now,
+                               { rootLastmod: siteUpdated }) };
 }
 
 async function readJson(path) {
@@ -841,12 +896,28 @@ async function main(outDir) {
     return courseFits(itin, region, mustIds) ? itin : null;
   };
 
+  const kbFiles = [...(index.shards ?? []).map((s) => s.file), index.regionsFile ?? "regions.json"];
+  const days = gitDays(ROOT, kbFiles.map((f) => `kb/${f}`));
+  const updated = new Map(kbFiles.filter((f) => days.has(`kb/${f}`)).map((f) => [f, days.get(`kb/${f}`)]));
+  // トップ（アプリ）の日は、アプリを作っているファイルが最後に変わった日です。
+  const siteUpdated = latestDay([...gitDays(ROOT, ["index.html", "js", "css"]).values()]);
+
   const { pages, notFound, sitemap } = await buildAll({ index, regions, shards },
-    { base, now: new Date(), planCourse });
+    { base, now: new Date(), planCourse, updated, siteUpdated });
   for (const p of [...pages, notFound]) {
     const file = join(outDir, p.path);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, p.html);
+  }
+  // 共有カード（og:image）。収録の点で描いた地図です（tools/area_card.mjs）。
+  const all = [...shards.values()].flat();
+  for (const p of pages) {
+    if (!p.card || !p.image) continue;
+    const pref = shards.get(p.card.shard) ?? [];
+    const region = p.card.region ?? null;
+    const png = renderAreaCard({ all, pref, region,
+                                 regionSpots: region ? pref.filter((s) => s.regionId === region.id) : [] });
+    await writeFile(join(outDir, p.image), png);
   }
   await writeFile(join(outDir, "sitemap.xml"), sitemap);
   const withCourse = pages.filter((p) => p.html.includes('class="course"')).length;

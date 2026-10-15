@@ -1,9 +1,11 @@
 name: Unit tests
 
+# main への push では、公開（pages.yml）がこのテストを呼び出して、
+# 通ったときだけ公開します。ここで push にも反応させると二重に走るので、
+# push では動かしません。
 on:
-  push:
-    branches: ["main"]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read

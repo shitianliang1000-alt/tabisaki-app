@@ -457,6 +457,15 @@ await check("何をしてくれるサイトかが書いてある", async () => {
   // 文書としての h1 も残っていること。
   const h1 = await page.$eval("h1", (e) => e.textContent.trim()).catch(() => "");
   assert(h1.includes("旅さき"), "h1 がありません");
+  // h1 は画面に出ている名前の行そのもの（sr-only の別の見出しではない）。
+  // 一覧を畳んだ狭い画面でも、読み上げから消えないこと。
+  const head = await page.evaluate(() => {
+    const all = document.querySelectorAll("h1");
+    return { n: all.length, brand: all[0]?.classList.contains("brand-line") ?? false,
+             vis: all[0] ? getComputedStyle(all[0]).visibility : "" };
+  });
+  assert(head.n === 1 && head.brand, `h1 が名前の行になっていません: ${JSON.stringify(head)}`);
+  assert(head.vis === "visible", "h1 が読み上げから外れています");
   const brand = await page.$eval(".brand-line", (e) => ({
     text: e.textContent.replace(/\s+/g, ""), h: e.getBoundingClientRect().height,
   })).catch(() => null);

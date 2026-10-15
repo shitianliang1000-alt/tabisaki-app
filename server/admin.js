@@ -191,6 +191,7 @@ function guarded(res) {
   h.set("X-Frame-Options", "DENY");
   h.set("Referrer-Policy", "no-referrer");
   h.set("X-Content-Type-Options", "nosniff");
+  h.set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com https://routes.googleapis.com https://api.open-meteo.com https://tabisaki-github-io.shitianliang1000.workers.dev; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'none'");
   h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
 }
