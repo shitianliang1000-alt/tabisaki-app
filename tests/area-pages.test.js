@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
   examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
-  latestDay, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
+  latestDay, pickFeatured, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
 import { boundsOf, CARD_H, CARD_W, renderAreaCard } from "../tools/area_card.mjs";
 import { inflateSync } from "node:zlib";
@@ -565,4 +565,48 @@ test("上高地は自分のエリアを持ち、河童橋がそのコース圏�
   assert.equal(isFar(kamikochi, kappa), false);
   assert.ok(nearbySpots(kamikochi, spots.filter((s) => s.regionId === "kamikochi"))
     .some((s) => s.id === kappa.id));
+});
+
+test("紹介ページ: 組めたコースを例に載せ、エリアへつなぎ、sitemap に入る", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [
+      spot("a", { name: "大涌谷", fame_tier: "major", fame_score: 80 }),
+    ]]]),
+  };
+  const { pages, intro, sitemap } = await buildAll(kbDoc,
+    { base: BASE, now: new Date(2026, 9, 9), planCourse: async () => itinOf(["a"]),
+      siteUpdated: "2026-10-20" });
+  assert.equal(intro.path, "about.html");
+  assert.ok(!pages.includes(intro));
+  const html = intro.html;
+  assert.match(html, /<link rel="canonical" href="https:\/\/example\.test\/app\/about\.html">/);
+  assert.match(html, /実際に組んだ例: 箱根の1日/);
+  assert.match(html, /class="course"/);
+  assert.match(html, /href="areas\/kanagawa\/hakone\.html"/);
+  assert.match(html, /href="index\.html"/);
+  assert.match(html, /script-src 'none'/);
+  assert.match(sitemap, /<loc>https:\/\/example\.test\/app\/about\.html<\/loc>\s*<lastmod>2026-10-20<\/lastmod>\s*<priority>0\.8/);
+  // どのページの下にも、紹介ページへのリンクがあること。
+  for (const p of pages) assert.match(p.html, /about\.html">旅さきとは</);
+});
+
+test("紹介ページ: コースが1つも組めなくても、例の欄を出さずに作れる", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a")]]]),
+  };
+  const { intro } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null });
+  assert.ok(!intro.html.includes('class="course"'));
+  assert.ok(!intro.html.includes("実際に組んだ例"));
+  assert.match(intro.html, /旅さきで旅程をつくる/);
+});
+
+test("pickFeatured: 名の知れたエリアを先に、8件まで", () => {
+  const f = (id) => ({ region: { id } });
+  const got = pickFeatured([f("zzz"), f("kamakura"), f("hakone"), ...Array.from({ length: 10 }, (_, i) => f(`x${i}`))]);
+  assert.deepEqual(got.slice(0, 2).map((x) => x.region.id), ["hakone", "kamakura"]);
+  assert.equal(got.length, 8);
 });
