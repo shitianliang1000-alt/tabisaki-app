@@ -11,8 +11,7 @@ export function parseCourse(html) {
   // 文字参照は1回だけ戻します（&amp;lt; を < にしてしまわないように）。
   // 取り出した字は、ひな形に入れるときに改めて HTML として安全にします。
   const ENT = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&#039;": "'" };
-  const strip = (t) => t.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]*>?/g, "").replace(/[<>]/g, "")
-    .replace(/&(?:amp|lt|gt|quot|#0?39);/g, (e) => ENT[e]).trim();
+  const strip = (t) => textOnly(t).replace(/&(?:amp|lt|gt|quot|#0?39);/g, (e) => ENT[e]).trim();
   const items = [];
   for (const m of ol.matchAll(/<li class="c-([a-z]+)">([\s\S]*?)<\/li>/g)) {
     const kind = m[1];
@@ -24,4 +23,16 @@ export function parseCourse(html) {
     if (time && title) items.push({ kind, time, title, min, text });
   }
   return items;
+}
+
+/** タグの中（< から > まで）を1字ずつ読み飛ばし、外の字だけを残します。< や > そのものは残しません。 */
+function textOnly(html) {
+  let out = "";
+  let inTag = false;
+  for (const ch of html) {
+    if (ch === "<") inTag = true;
+    else if (ch === ">") inTag = false;
+    else if (!inTag) out += ch;
+  }
+  return out;
 }
