@@ -65,7 +65,7 @@ test("トップは、ひな形に今日の中身を入れて返す", async () =>
   assert.match(res.headers.get("Content-Security-Policy") ?? "", /connect-src 'self' https:\/\/api\.open-meteo\.com/);
   const html = await res.text();
   for (const id of ['id="stage"', 'id="rail"', 'id="scrub"', 'id="ask-q"', 'class="how"']) assert.ok(html.includes(id), id);
-  assert.ok(!/\{\{/.test(html.replace(/<!--[\s\S]*?-->/g, "")), "入れ忘れた {{…}} があります");
+  assert.ok(!/\{\{\{?[#^/]?\w+\}\}/.test(html), "入れ忘れた {{…}} があります");
   assert.match(html, /Cloudflare Worker/);
   assert.match(html, /54,115か所/);
   // 字は HTML として安全に入ります。
