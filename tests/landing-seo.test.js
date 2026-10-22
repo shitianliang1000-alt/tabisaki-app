@@ -15,7 +15,13 @@ const base = "https://tabisaki.example/";
 const html = renderTpl(tpl, landingView(new Date("2026-10-22T03:00:00Z"),
   { areas: [], news: [], spotCount: 54115, prefCount: 47 }, base, "test"));
 
-const text = (s) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+// 画面の字だけを取り出します（試験の中で比べるためだけ。ページには使いません）。
+// 1回で消しきれない入れ子（<<a>a>）も残さないよう、変わらなくなるまで繰り返します。
+const text = (s) => {
+  let prev;
+  do { prev = s; s = s.replace(/<[^<>]*>/g, ""); } while (s !== prev);
+  return s.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+};
 
 test("トップの構造化データは JSON として読め、サイトの根を指す", () => {
   const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html);
