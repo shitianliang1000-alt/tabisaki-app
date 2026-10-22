@@ -133,7 +133,7 @@ let openedBy = null;
 
 /**
  * 「＋」の欄を開きます。what は menu・from・when・mix と、
- * 入力欄の下に並ぶこだわりの4つの欄（tune-time など）のどれか。
+ * 「＋」の一覧に並ぶこだわりの4つの欄（tune-time など）のどれか。
  * 開いているのは、いつも1つだけです。
  */
 export function openPop(what = "menu", { focus = true } = {}) {
@@ -145,7 +145,6 @@ export function openPop(what = "menu", { focus = true } = {}) {
   }
   pop.dataset.panel = what;
   pop.scrollTop = 0;
-  markTuneRow(what);
   fitPop(pop);
   $("#plus")?.setAttribute("aria-expanded", "true");
   if (focus) $(FIRST[what] ?? FIRST.menu)?.focus();
@@ -166,20 +165,12 @@ function fitPop(pop) {
   if (room > 120 && (!Number.isFinite(css) || room < css)) pop.style.maxHeight = `${Math.floor(room)}px`;
 }
 
-/** 入力欄の下のこだわりの列で、いま開いている欄の札に印を付けます。 */
-function markTuneRow(what) {
-  for (const b of document.querySelectorAll("#tune-row [data-open-cond]")) {
-    b.setAttribute("aria-expanded", String(b.dataset.openCond === what));
-  }
-}
-
 /** 閉じます。フォーカスは、開いたボタン（無ければ入力欄）へ返します。 */
 export function closePop({ restore = true } = {}) {
   const pop = $("#pop");
   if (!pop || pop.hidden) return;
   pop.hidden = true;
   delete pop.dataset.panel;
-  markTuneRow(null);
   $("#plus")?.setAttribute("aria-expanded", "false");
   if (restore) {
     const back = openedBy?.isConnected && openedBy.getClientRects().length
