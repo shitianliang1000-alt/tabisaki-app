@@ -214,7 +214,8 @@ async function contrast(name, dark) {
   await page.waitForTimeout(1200);
   // 畳んであるものを開き、チップを1つ選んで、選ばれた状態も測ります。
   // シートを開いて、畳んであるものも開き、チップを1つ選びます。
-  await page.click('#tune-row [data-open-cond="tune-time"]').catch(() => {});
+  await page.click("#plus").catch(() => {});
+  await page.click('#plus-menu [data-open-cond="tune-time"]').catch(() => {});
   await page.click('[data-genre="onsen"]').catch(() => {});
   await page.waitForTimeout(300);
 

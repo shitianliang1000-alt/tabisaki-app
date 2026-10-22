@@ -20,9 +20,15 @@ export { Stats };
 //   https://shitianliang1000-alt.github.io,http://localhost:8000
 const DEFAULT_ALLOW_ORIGIN = "https://shitianliang1000-alt.github.io";
 
+// このサイト自身の置き場（InfinityFree の PHP 版）。ALLOW_ORIGIN を Cloudflare
+// 側で設定していても、ここは常に通します（足し忘れで、AI・電車・バスが
+// 「このサイトからは呼べません」になるのを防ぎます）。
+const OWN_ORIGINS = ["https://tabisaki.site.je", "http://tabisaki.site.je"];
+
 function allowList(env) {
   const raw = String(env?.ALLOW_ORIGIN ?? "").trim();
-  return (raw || DEFAULT_ALLOW_ORIGIN).split(/[,\s]+/).filter(Boolean);
+  const list = (raw || DEFAULT_ALLOW_ORIGIN).split(/[,\s]+/).filter(Boolean);
+  return [...new Set([...list, ...OWN_ORIGINS])];
 }
 // 重み付きの回数制限。
 //

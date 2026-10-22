@@ -48,3 +48,13 @@ test("断るときも、なぜ断ったかが読める", async () => {
   assert.match(body.error.message, /example\.org/);
   assert.match(body.error.message, /ALLOW_ORIGIN/);
 });
+
+test("PHP 版の置き場（tabisaki.site.je）は、ALLOW_ORIGIN に書いていなくても通す", async () => {
+  for (const origin of ["https://tabisaki.site.je", "http://tabisaki.site.je"]) {
+    const res = await worker.fetch(new Request("https://example.com/yahoo/transit", {
+      method: "OPTIONS", headers: { Origin: origin },
+    }), { ALLOW_ORIGIN: A });
+    assert.equal(res.status, 204, origin);
+    assert.equal(acao(res), origin);
+  }
+});

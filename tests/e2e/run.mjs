@@ -82,7 +82,7 @@ async function closePanel(pg) {
 }
 
 /**
- * 「こだわり」の欄を1つ開きます（入力欄の下の列 → 区切り）。
+ * 「こだわり」の欄を1つ開きます（「＋」→ 一覧の下のほうの項目。1段）。
  * section は tune-time（時間と興味）・tune-move（人数・予算・移動）・
  * tune-stay（同行者と宿）・tune-food（食事と旅の終わり）のどれか。
  */
@@ -90,7 +90,8 @@ async function openConditions(pg, section = "tune-move") {
   const open = await pg.$eval("#pop", (e) => !e.hidden && e.dataset.panel);
   if (open === section) return;
   if (open) await pg.keyboard.press("Escape");
-  await pg.click(`#tune-row [data-open-cond="${section}"]`);
+  await pg.click("#plus");
+  await pg.click(`#plus-menu [data-open-cond="${section}"]`);
   await pg.waitForSelector(`#pop .pop-panel[data-panel="${section}"]:not([hidden])`);
 }
 
@@ -279,25 +280,20 @@ await check("出発地・日時は、押したものだけが開く", async () =
   await page.keyboard.press("Escape");
   const closed = await page.$eval("#pop", (e) => e.hidden);
   assert(closed, "Esc で閉じません");
-  // 「＋」の中に、3つの項目が並ぶこと（こだわりは入力欄の下の列へ出しました）。
+  // 「＋」の中に、出発地・日時・まわる場所と、その下に「こだわり」の4つ、
+  // 最後に「条件をリセット」が、1つの一覧として平らに並ぶこと（入れ子にしない）。
   await page.click("#plus");
   const items = await page.$$eval("#plus-menu .plus-item",
     (els) => els.map((e) => e.querySelector("b")?.textContent.trim()));
-  await page.keyboard.press("Escape");
-  assert(items.join("・") === "出発地・日時・まわる場所",
+  assert(items.join("・") === "出発地・日時・まわる場所・目的・時間・興味・人数・予算・移動・同行者と宿・食事と旅の終わり・条件をリセット",
     `「＋」の中身: ${items.join("・")}`);
-  // こだわりの4つは、入力欄の下に並び、押せばその欄が1段で開くこと。
-  const row = await page.$$eval("#tune-row .tune-chip", (els) => els.map((e) => e.textContent.trim()));
-  assert(row.join("・") === "目的・時間・興味・人数・予算・移動・同行者と宿・食事と旅の終わり",
-    `入力欄の下のこだわり: ${row.join("・")}`);
-  const noteBottom = await page.$eval("#composer", (e) => e.getBoundingClientRect().bottom);
-  const rowTop = await page.$eval("#tune-row", (e) => e.getBoundingClientRect().top);
-  assert(rowTop >= noteBottom - 1, "こだわりの列が入力欄の下にありません");
-  await page.click('#tune-row [data-open-cond="tune-stay"]');
+  const sep = await page.$eval("#plus-sep-tune", (e) => e.textContent.trim());
+  assert(sep === "こだわり", `区切りの見出し: ${sep}`);
+  assert(!(await page.$("#tune-row")), "入力欄の下に、こだわりの列が残っています");
+  // 押せば、その欄が1段で開くこと。
+  await page.click('#plus-menu [data-open-cond="tune-stay"]');
   got = await shown();
   assert(got.join() === "tune-stay", `同行者と宿を押したら、${got.join("・")} が開きました`);
-  const pressed = await page.$eval('#tune-row [data-open-cond="tune-stay"]', (e) => e.getAttribute("aria-expanded"));
-  assert(pressed === "true", "開いている欄の札に印が付きません");
   await page.keyboard.press("Escape");
 });
 
@@ -1641,8 +1637,9 @@ await check("指で押せる大きさになっている（44pt）", async () => 
     await pg.click("#pill-when");
     const when = await measure([".date-presets .md-chip"]);
     await pg.keyboard.press("Escape");
-    const tuneMenu = await measure(["#tune-row .tune-chip", "#reset-form"]);
-    await pg.click('#tune-row [data-open-cond="tune-move"]');
+    await pg.click("#plus");
+    const tuneMenu = await measure(["#plus-menu .plus-item"]);
+    await pg.click('#plus-menu [data-open-cond="tune-move"]');
     await pg.waitForTimeout(200);
     const sheet = await measure(["#panel-tune-move .md-chip", "#panel-tune-move .pop-close",
       "#panel-tune-move .pop-done"]);

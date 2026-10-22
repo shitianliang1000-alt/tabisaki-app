@@ -204,25 +204,16 @@
   </section>
 
     <div class="side-fill"></div>
-    <footer class="credits">
+    <!-- 紹介・都道府県の一覧・著作権表記へのリンクは、トップ（/）に置いています。
+         チャットの画面には並べません。 -->
     <p id="ph-data" hidden></p>
-    <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
-         まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
-         後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
-    <!-- 検索エンジンが辿れるように、エリアのページ（areas/）への普通のリンクを
-         置いています。画面の「エリアから探す」は地図を開くボタンで、
-         リンクではないため、これが無いと areas/ は誰からもリンクされません。 -->
-    <p><a href="about.html">旅さきについて（使いかたと組んだ例）</a></p>
-    <p><a href="areas/index.html">都道府県別の観光地・旅行プラン</a></p>
-    <p><a href="credits.html">著作権表記</a></p>
-  </footer>
   </nav>
   <div class="side-scrim" id="side-scrim" hidden></div>
 
   <!-- ===================== 旅の相談（チャット） =====================
        AIに話しかける画面です。書いて送ると、下に答え（旅程）が返ります。
        返ってきた旅程は、続けて書けば直せます（「もっとゆっくり」など）。
-       出発地・日時・まわる場所は欄の左の「＋」から、こだわりは欄の下の列から足します。
+       出発地・日時・まわる場所は欄の左の「＋」から、こだわり（目的・人数・宿・食事）も「＋」の下のほうから足します。
        書いたことは、ここで決めた設定より勝ちます（js/chatread.js）。 -->
   <section class="pane chat" id="form-pane" aria-label="旅の相談">
     <div class="topbar">
@@ -314,6 +305,22 @@
           </button>
           <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="mix">
             <svg class="ic" data-icon="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 10l6.1-.9Z"/></svg><span class="plus-tx"><b>まわる場所</b><small>定番中心・バランス・穴場多め</small></span>
+          </button>
+          <p class="plus-sep" id="plus-sep-tune" role="presentation">こだわり</p>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-time">
+            <svg class="ic" data-icon="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 7.5V12l3 2"/></svg><span class="plus-tx"><b>目的・時間・興味</b><small>旅の目的・ゆとり・好きなもの</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-move">
+            <svg class="ic" data-icon="crowd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 9.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4ZM4.5 19v-2.5a4.5 4.5 0 0 1 9 0V19M16.5 9.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4M15.5 12.4A4.3 4.3 0 0 1 20 16.5V19"/></svg><span class="plus-tx"><b>人数・予算・移動</b><small>人数・予算・移動のしかた</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-stay">
+            <svg class="ic" data-icon="lodging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M6.5 11a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2Z"/></svg><span class="plus-tx"><b>同行者と宿</b><small>同行者と、泊まるところ</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-food">
+            <svg class="ic" data-icon="meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M9.5 3v5M17 3c-1.5 1-2 3-2 5s1 3 2 3v10"/></svg><span class="plus-tx"><b>食事と旅の終わり</b><small>食事の希望と、旅の終わりかた</small></span>
+          </button>
+          <button type="button" class="plus-item plus-item--quiet md-state" role="menuitem" id="reset-form">
+            <svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg><span class="plus-tx"><b>条件をリセット</b><small>入力した条件を最初に戻す</small></span>
           </button>
         </div>
         <div class="pop-panel" id="panel-from" data-panel="from" role="group" aria-labelledby="panel-from-title" hidden>
@@ -772,26 +779,6 @@
           <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
         </div>
         </div>
-      </div>
-
-      <!-- こだわり。以前は「＋」→「こだわり」→ 4つの区切り、と2段で
-           開いていました。入力欄のすぐ下に4つを並べ、押せばその欄が
-           1段で開きます（2026-10-22 のご依頼）。 -->
-      <div class="tune-row" id="tune-row" role="group" aria-label="こだわり">
-        <span class="tune-row-label" aria-hidden="true">こだわり</span>
-        <button type="button" class="tune-chip md-state" data-open-cond="tune-time" aria-haspopup="dialog">
-          <svg class="ic" data-icon="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 7.5V12l3 2"/></svg><span>目的・時間・興味</span>
-        </button>
-        <button type="button" class="tune-chip md-state" data-open-cond="tune-move" aria-haspopup="dialog">
-          <svg class="ic" data-icon="crowd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 9.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4ZM4.5 19v-2.5a4.5 4.5 0 0 1 9 0V19M16.5 9.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4M15.5 12.4A4.3 4.3 0 0 1 20 16.5V19"/></svg><span>人数・予算・移動</span>
-        </button>
-        <button type="button" class="tune-chip md-state" data-open-cond="tune-stay" aria-haspopup="dialog">
-          <svg class="ic" data-icon="lodging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M6.5 11a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2Z"/></svg><span>同行者と宿</span>
-        </button>
-        <button type="button" class="tune-chip md-state" data-open-cond="tune-food" aria-haspopup="dialog">
-          <svg class="ic" data-icon="meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M9.5 3v5M17 3c-1.5 1-2 3-2 5s1 3 2 3v10"/></svg><span>食事と旅の終わり</span>
-        </button>
-        <button type="button" class="linkish tune-reset" id="reset-form">条件をリセット</button>
       </div>
 
       <!-- はじめての人のための、そのまま使える例（4つ）。押すと欄が埋まります。

@@ -3265,43 +3265,13 @@ body[data-view="form"] .composer textarea { min-height: 5.6em; }
 .send-btn .ic { width: 20px; height: 20px; }
 .send-btn:disabled { opacity: .45; cursor: progress; }
 .composer:has(textarea:placeholder-shown) .send-btn:not(:disabled) { opacity: .7; }
-/* こだわり（入力欄の下に並べる4つ）。「＋」の中から出しました。 */
-.tune-row {
-  display: flex; align-items: center; gap: 6px;
-  margin: 8px 0 0; padding: 0 4px;
-  overflow-x: auto; scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
-          mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
-}
-.tune-row::-webkit-scrollbar { display: none; }
-.tune-row-label {
-  flex: none; margin-right: 2px;
+/* こだわり（「＋」の中の一覧の下に、区切りを付けて平らに並べます）。 */
+.plus-sep {
+  margin: 8px 10px 2px; padding-top: 10px; border-top: 1px solid var(--chat-line);
   font-size: var(--hig-t-caption1); font-weight: 600; letter-spacing: .04em;
   color: var(--chat-ink-2);
 }
-.tune-chip {
-  flex: none; display: inline-flex; align-items: center; gap: 6px;
-  min-height: 32px; padding: 0 12px;
-  border: 1px solid var(--chat-line); border-radius: 999px;
-  background: transparent; color: var(--chat-ink-2);
-  font: inherit; font-size: var(--hig-t-footnote); font-weight: 500;
-  white-space: nowrap; cursor: pointer;
-  transition: background-color .2s, color .2s, border-color .2s, transform .2s;
-}
-.tune-chip .ic { width: 15px; height: 15px; flex: none; }
-.tune-chip[aria-expanded="true"] {
-  background: var(--chat-ink); border-color: var(--chat-ink); color: var(--chat-bg);
-}
-@media (hover: hover) and (pointer: fine) {
-  .tune-chip:hover { background: var(--chat-hover); color: var(--chat-ink); transform: translateY(-1px); }
-  .tune-chip[aria-expanded="true"]:hover { background: var(--chat-ink); color: var(--chat-bg); }
-}
-.tune-reset { flex: none; margin-left: 4px; padding-right: 20px; font-size: var(--hig-t-caption1); white-space: nowrap; }
-body[data-view="form"] .tune-row { margin-top: 12px; }
-@media (min-width: 861px) {
-  body[data-view="form"] .tune-row { justify-content: center; flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
-  body[data-view="form"] .tune-reset { padding-right: 0; }
-}
+.plus-item--quiet .plus-tx b { font-weight: 400; color: var(--chat-ink-2); }
 .note-examples {
   justify-content: center; margin: 14px 0 0; gap: 8px;
 }
@@ -3730,7 +3700,6 @@ body[data-trip-mode="on"] .turn-details { display: none !important; }
 }
 @media (pointer: coarse) {
   .cond-pill, .plus-btn, .send-btn { min-height: 44px; min-width: 44px; }
-  .tune-chip, .tune-reset { min-height: 44px; }
   .pop .mix-quick > button, .note-examples .md-chip, .follow-ups .md-chip,
   .details-toggle, .pop .pop-done, .plus-item { min-height: 44px; }
 }
@@ -3766,7 +3735,7 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   .stream-ch { animation: stream-in .32s ease-out both; }
   .rise { animation: rise-up .5s cubic-bezier(.2, .8, .2, 1) both; }
   .follow-ups .md-chip { transition: transform .2s, background-color .2s; }
-  .follow-ups .md-chip:active, .tune-chip:active, .send-btn:active, .plus-btn:active { transform: scale(.96); }
+  .follow-ups .md-chip:active, .send-btn:active, .plus-btn:active { transform: scale(.96); }
   .cand { transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s, background-color .2s; }
   .send-btn { transition: transform .2s, opacity .2s, background-color .2s; }
   body[data-view="form"] .hero-greet { animation: greet-in .8s cubic-bezier(.2, .8, .2, 1) both; }
