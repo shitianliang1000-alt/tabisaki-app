@@ -38,7 +38,7 @@ import { onlySpots } from "../js/notaspot.js";
 const ROOT = new URL("../", import.meta.url).pathname;
 
 /** 公開URLの根。sitemap.xml の1件目から読みます（無ければこれ）。 */
-const DEFAULT_BASE = "https://shitianliang1000-alt.github.io/tabisaki.github.io/";
+const DEFAULT_BASE = "https://tabisaki-github-io.shitianliang1000.workers.dev/";
 
 /** 1ページに並べる数。多すぎると読まれず、少なすぎると探しに来た場所がありません。 */
 const PREF_MAJOR = 12;

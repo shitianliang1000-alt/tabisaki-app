@@ -17,6 +17,7 @@ Thumbs.db
 # ローカルで生成するもの
 /tmp/
 /dist/
+/.site/
 
 # ウィキペディアから落とした素データ。**収録そのものではありません。**
 # tools/fetch_wikipedia_lists.py が落とし、tools/import_wikipedia_lists.py が

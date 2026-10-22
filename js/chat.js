@@ -22,6 +22,7 @@ import { el, fmtDay, fmtTime, scrollBehavior } from "./ui.js";
 import { icon } from "./icons.js";
 import { VARIANTS } from "./variants.js";
 import { httpsSources } from "./history.js";
+import { riseIn, streamText } from "./motion.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -164,7 +165,11 @@ export function askTurn(text) {
     },
     answer(said, sources = []) {
       clearTimeout(slow);
-      body.replaceChildren(...String(said).split(/\n{2,}/).map((t) => el("p", {}, t)));
+      const paras = String(said).split(/\n{2,}/).map((t) => el("p", {}, t));
+      body.replaceChildren(...paras);
+      // 字が流れるように出します（js/motion.js）。段落は前の段落が出終わってから。
+      let at = 0;
+      for (const p of paras) at = streamText(p, at);
       const links = httpsSources(sources);
       if (links.length) {
         body.append(el("ul", { class: "qa-src", "aria-label": "調べた先" },
@@ -380,6 +385,16 @@ export function answerTurn(itin, h = {}) {
     h.onShareText && ["message", "文字で送る / コピー", h.onShareText],
   ].filter(Boolean);
   if (shares.length) answer.append(shareBar(shares));
+
+  // 動き（js/motion.js）。その答えを初めて出すときだけです。候補の
+  // 選び直しや1か所の差し替えのたびに字が流れ直すと、読みにくくなります。
+  if (!current.shown) {
+    current.shown = true;
+    const lead = answer.querySelector(".ai-lead");
+    const done = streamText(lead);
+    riseIn([...answer.children].filter((n) => n !== lead && !n.classList.contains("sr-only")),
+      Math.min(done, 500));
+  }
 }
 
 /**

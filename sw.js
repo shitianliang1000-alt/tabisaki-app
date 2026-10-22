@@ -33,7 +33,8 @@
 // v12: 質問に答える js/qa.js、晴れ・近場で選ぶ js/sunny.js、見出しの字
 //      （vendor/fonts/）、地を塗らないしるし（mark.svg）を足しました。
 // v13: ホームを挨拶と入力欄だけにし、当日の札と共有を答えに出しました。
-const VERSION = "tabisaki-v19";
+// v20: こだわりを入力欄の下へ出し、答えに動き（js/motion.js）を足しました。
+const VERSION = "tabisaki-v20";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -152,6 +153,7 @@ const SHELL_FILES = [
   "./js/share.js",
   "./js/shell.js",
   "./js/chat.js",
+  "./js/motion.js",
   "./js/chatread.js",
   "./js/qa.js",
   "./js/sunny.js",
