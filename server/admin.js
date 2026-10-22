@@ -8,7 +8,12 @@
 // /private/ の下は、リポジトリの一番上と同じ並びです。
 //   /private/admin/…  … Worker に同梱した admin/ のファイル（ADMIN_FILES）
 //   /private/js/… /private/css/… /private/kb/…
-//                     … 公開中のサイト（GitHub Pages）から取ってきて渡します
+//                     … 同じ Worker が配っているサイトのファイル（ASSETS）を渡します
+//
+// 2026-10-22 から、サイトも管理画面も同じ Worker の静的ファイル（ASSETS、
+// tools/build_worker.sh が組み立てる .site/）から配ります。管理画面の
+// ファイルは .site/__admin/ にあり、Worker が合言葉を確かめてからしか
+// 渡しません（wrangler.jsonc の run_worker_first）。
 // admin/index.html は ../js/ や ../kb/ を相対で読むので、手元で
 // `python3 -m http.server` から開いたときと同じ書きかたのまま動きます。
 //
@@ -25,8 +30,10 @@ import { openKbPullRequest } from "./github.js";
 
 export const ADMIN_PREFIX = "/private/";
 const API_PREFIX = `${ADMIN_PREFIX}api/`;
-export const SITE_ORIGIN = "https://shitianliang1000-alt.github.io";
-export const SITE_ROOT = `${SITE_ORIGIN}/tabisaki.github.io/`;
+export const SITE_ORIGIN = "https://tabisaki-github-io.shitianliang1000.workers.dev";
+export const SITE_ROOT = `${SITE_ORIGIN}/`;
+/** 静的ファイルの中で、管理画面のファイルを置いている場所（直には配りません）。 */
+export const ADMIN_ASSET_DIR = "/__admin/";
 
 // 公開サイトから取ってきてよい場所。これ以外は取りに行きません
 // （どこでも中継する入口にはしません）。
@@ -80,13 +87,20 @@ export async function serveAdmin(request, env, { onBadPassword, overview } = {})
   }
   if (isApi) return guarded(await serveApi(request, env, url, rest.slice("api/".length), overview));
   if (ADMIN_FILE.test(rest)) {
-    if (!env.ADMIN_FILES) return plain("管理画面のファイルが Worker に入っていません", 503);
     const name = rest.slice("admin/".length) || "index.html";
-    const res = await env.ADMIN_FILES.fetch(new Request(`https://admin.files/${name}`,
+    // ADMIN_FILES は、admin/ だけを Worker に入れていたころの名前です。
+    const files = env.ADMIN_FILES ?? env.ASSETS;
+    if (!files) return plain("管理画面のファイルが Worker に入っていません", 503);
+    const path = env.ADMIN_FILES ? `/${name}` : `${ADMIN_ASSET_DIR}${name}`;
+    const res = await files.fetch(new Request(`https://assets.local${path}`,
       { method: request.method }));
     return guarded(res);
   }
   if (MIRRORED.test(rest)) {
+    if (env.ASSETS) {
+      return guarded(await env.ASSETS.fetch(new Request(`https://assets.local/${rest}${url.search}`,
+        { method: request.method, headers: { Accept: request.headers.get("Accept") ?? "*/*" } })));
+    }
     const res = await fetch(`${SITE_ROOT}${rest}${url.search}`, {
       method: request.method,
       headers: { Accept: request.headers.get("Accept") ?? "*/*" },

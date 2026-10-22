@@ -122,7 +122,6 @@ const FIRST = {
   from: "#depart-place",
   when: "#depart-at",
   mix: '#mix-quick [aria-checked="true"]',
-  tune: "#panel-tune .plus-item",
   "tune-time": "#purpose-choice [data-purpose]",
   "tune-move": "#people-choice",
   "tune-stay": '#companions-choice [data-companion]',
@@ -133,8 +132,8 @@ const FIRST = {
 let openedBy = null;
 
 /**
- * 「＋」の欄を開きます。what は menu・from・when・mix・tune（こだわりの
- * 一覧）・tune-time などのこだわりの4つの欄のどれか。
+ * 「＋」の欄を開きます。what は menu・from・when・mix と、
+ * 入力欄の下に並ぶこだわりの4つの欄（tune-time など）のどれか。
  * 開いているのは、いつも1つだけです。
  */
 export function openPop(what = "menu", { focus = true } = {}) {
@@ -146,6 +145,7 @@ export function openPop(what = "menu", { focus = true } = {}) {
   }
   pop.dataset.panel = what;
   pop.scrollTop = 0;
+  markTuneRow(what);
   fitPop(pop);
   $("#plus")?.setAttribute("aria-expanded", "true");
   if (focus) $(FIRST[what] ?? FIRST.menu)?.focus();
@@ -166,12 +166,20 @@ function fitPop(pop) {
   if (room > 120 && (!Number.isFinite(css) || room < css)) pop.style.maxHeight = `${Math.floor(room)}px`;
 }
 
+/** 入力欄の下のこだわりの列で、いま開いている欄の札に印を付けます。 */
+function markTuneRow(what) {
+  for (const b of document.querySelectorAll("#tune-row [data-open-cond]")) {
+    b.setAttribute("aria-expanded", String(b.dataset.openCond === what));
+  }
+}
+
 /** 閉じます。フォーカスは、開いたボタン（無ければ入力欄）へ返します。 */
 export function closePop({ restore = true } = {}) {
   const pop = $("#pop");
   if (!pop || pop.hidden) return;
   pop.hidden = true;
   delete pop.dataset.panel;
+  markTuneRow(null);
   $("#plus")?.setAttribute("aria-expanded", "false");
   if (restore) {
     const back = openedBy?.isConnected && openedBy.getClientRects().length
@@ -181,9 +189,9 @@ export function closePop({ restore = true } = {}) {
   openedBy = null;
 }
 
-/** こだわりの一覧を開きます（人数・予算・移動手段・宿・食事…）。 */
-export function openTune() {
-  openPop("tune");
+/** こだわりの欄を開きます（既定は人数・予算・移動）。 */
+export function openTune(section = "tune-move") {
+  openPop(section);
 }
 
 /**
@@ -271,7 +279,7 @@ export function wireShell({ onNewTrip }) {
     }
   });
   // 一覧の中は、上下の矢印で動けるようにします（menu の作法）。
-  for (const box of document.querySelectorAll("#plus-menu, #panel-tune .tune-menu")) {
+  for (const box of document.querySelectorAll("#plus-menu")) {
     box.addEventListener("keydown", (e) => {
       if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
       const all = [...box.querySelectorAll(".plus-item")];

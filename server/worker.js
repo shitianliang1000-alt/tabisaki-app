@@ -1,11 +1,16 @@
-import { isAdminPath, serveAdmin } from "./admin.js";
+import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
 import { currentSettings, record, Stats, SWITCHABLE } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
+import { servePage } from "./landing.js";
 
 // 管理画面の件数・設定の置き場（Durable Object）。wrangler.jsonc の STATS。
 export { Stats };
 
 // 呼び出しを許すページの出どころ。
+//
+// 2026-10-22 から、サイトはこの Worker 自身が配っています（同じ出どころ
+// なので、下の一覧に無くても通ります）。github.io は、引っ越す前のページを
+// 開いたままの人のために残しています。
 //
 // Worker の変数 ALLOW_ORIGIN で上書きできます（カンマ区切りで複数）。
 // ここを直に書き換えると、公開先を増やすたびに Worker を作り直すことに
@@ -139,6 +144,20 @@ export default {
         onBadPassword: () => rateCheck(env, ip, 5, "paid"),
         overview: () => overviewFor(env, url.origin),
       });
+    }
+    // 管理画面のファイルの置き場は、直には見せません（合言葉は上で聞きます）。
+    if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
+      return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+    // トップ（/）とチャットの画面（/app）は、開いたときに作ります（server/landing.js）。
+    if (env?.ASSETS) {
+      const page = await servePage(request, env);
+      if (page) return page;
+    }
+    // サイトのページ（GET）。ふつうは Cloudflare がこの Worker を通さずに
+    // 静的ファイルを返します。ここに来るのは、無いファイルを開いたときです。
+    if ((request.method === "GET" || request.method === "HEAD") && env?.ASSETS) {
+      return env.ASSETS.fetch(request);
     }
     const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
@@ -420,7 +439,7 @@ async function webSearch(request, env, ctx) {
       srlimit: String(WEB_RESULTS), format: "json", utf8: "1", origin: "*" })) u.searchParams.set(k, v);
     res = await fetch(u, {
       // Wikimedia は、名乗らない呼び出しを断ることがあります。
-      headers: { "User-Agent": "tabisaki/1.0 (https://shitianliang1000-alt.github.io/tabisaki.github.io/)" },
+      headers: { "User-Agent": "tabisaki/1.0 (https://tabisaki-github-io.shitianliang1000.workers.dev/)" },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   }

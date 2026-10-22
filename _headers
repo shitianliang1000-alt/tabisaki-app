@@ -1,0 +1,8 @@
+# Cloudflare の静的ファイルに付ける見出し（tools/build_worker.sh が .site/ へ写します）。
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+
+/vendor/*
+  Cache-Control: public, max-age=86400

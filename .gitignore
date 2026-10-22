@@ -17,6 +17,7 @@ Thumbs.db
 # ローカルで生成するもの
 /tmp/
 /dist/
+/.site/
 
 # ウィキペディアから落とした素データ。**収録そのものではありません。**
 # tools/fetch_wikipedia_lists.py が落とし、tools/import_wikipedia_lists.py が
@@ -33,3 +34,6 @@ Thumbs.db
 # 数百MBあり、取り直せば同じものが手に入ります。収録に入るのは、
 # 突き合わせたあとのほうだけです。
 /data/overture/
+/.php-site/
+/tabisaki-php.zip
+/.env.deploy
