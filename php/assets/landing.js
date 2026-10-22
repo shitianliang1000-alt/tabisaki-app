@@ -348,3 +348,10 @@ function sky(code) {
   if (code <= 77 || code === 85 || code === 86) return "雪";
   return "雷雨";
 }
+
+// --- 足もと ------------------------------------------------------------
+// 広い画面では3列を開いたまま見せます（CSS が開け閉めの印を消します）。
+const wide = matchMedia("(min-width: 761px)");
+const footOpen = () => $$(".foot-acc details").forEach((d) => { d.open = wide.matches; });
+footOpen();
+wide.addEventListener?.("change", footOpen);
