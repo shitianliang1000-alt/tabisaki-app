@@ -64,12 +64,14 @@ function newsFromGit() {
       { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   } catch { return []; }
   const skip = /テスト|試験|注釈|CodeQL|Sentinel|^Update |^Merge |取り込|作り直す|^main |CI|lint/i;
+  // 置き場所や組み立ての話（js・Worker・PHP・GitHub など）は、使う人には分からないので載せません。
+  const backstage = /\bjs\b|\.js|\.html|ファイル|GitHub|Worker|Cloudflare|InfinityFree|PHP|ひな形|起動|sw\b|ビルド|組み立て|sitemap|lastmod|\bh1\b|https|中継/i;
   const seen = new Set();
   const out = [];
   for (const line of log.split("\n")) {
     const [date, ...rest] = line.split("|");
     const title = rest.join("|").trim();
-    if (!date || !title || skip.test(title) || seen.has(title)) continue;
+    if (!date || !title || skip.test(title) || backstage.test(title) || seen.has(title)) continue;
     seen.add(title);
     const tag = /PHP|Cloudflare|公開|ページ|sitemap/.test(title) ? "サイト"
       : /チャット|AI|Gemma|質問/.test(title) ? "チャット"
