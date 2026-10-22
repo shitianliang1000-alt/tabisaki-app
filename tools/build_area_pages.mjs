@@ -15,7 +15,7 @@
 // 中継（AI・経路検索）へは出ないので、移動時間は距離からの目安です。
 // ページにもそう書きます。
 //
-// リポジトリには入れません。公開のたびに .github/workflows/pages.yml が
+// リポジトリには入れません。公開のたびに tools/build_site.sh（Cloudflare・PHP 版の組み立て）が
 // 作ります（収録が変わるたびに作り直し忘れる、ということが起きません）。
 // 手元で見るときは:
 //
@@ -744,7 +744,7 @@ export function latestDay(days) {
  * 県とエリアのページは、その県の収録（spots-jpNN-*.json）から作るので、
  * その日を lastmod にします。浅い clone では全ファイルが同じ1件の記録の
  * 日になってしまうので、そのときは何も返しません（作った日になります）。
- * 公開の作業（.github/workflows/pages.yml）は履歴ごと取ってきます。
+ * 公開の作業（Cloudflare の Workers Builds）では履歴が浅いことがあり、そのときは同じ日付になります。
  */
 export function gitDays(root, files) {
   const days = new Map();

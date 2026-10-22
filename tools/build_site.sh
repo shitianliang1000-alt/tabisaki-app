@@ -1,7 +1,7 @@
 #!/bin/sh
 # 公開するもの（dist/）を組み立てます。
 #
-# .github/workflows/pages.yml（公開）と test.yml（画面のテスト）の両方が
+# tools/build_worker.sh（Cloudflare）・tools/build_php.sh（PHP 版）と test.yml（画面のテスト）が
 # これを呼びます。テストが見るのは、公開するのと同じ dist/ です。
 #
 #     sh tools/build_site.sh dist

@@ -1,0 +1,189 @@
+/* 旅さき — 紹介のページ（about.php）。
+   Anthropic のサイトの構えを手本にしています: 生成りの地、墨の字、
+   明朝の大きな見出し、広い余白、細い罫、粘土色のアクセント。
+   動きは「下からふわっと出る」と「名前が流れる帯」だけです。 */
+:root {
+  --ivory: #faf9f5;
+  --paper: #f0eee6;
+  --ink: #141413;
+  --ink-2: #5e5d59;
+  --line: #e3dfd3;
+  --clay: #c96442;
+  --clay-ink: #ffffff;
+  --card: #ffffff;
+  --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
+  --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --wrap: 1180px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ivory: #1f1e1d; --paper: #262624; --ink: #f5f4ef; --ink-2: #b7b5a9;
+    --line: #3a3936; --clay: #d97757; --card: #2b2a27;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--ivory); color: var(--ink);
+  font-family: var(--sans); font-size: 1rem; line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+img { max-width: 100%; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: 8px; padding: 8px 12px; background: var(--ink); color: var(--ivory); z-index: 99; }
+.skip:focus { left: 8px; }
+:focus-visible { outline: 2px solid var(--clay); outline-offset: 3px; border-radius: 4px; }
+
+/* --- 上の帯 --- */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 24px;
+  max-width: var(--wrap); margin: 0 auto; padding: 14px 24px;
+  background: color-mix(in srgb, var(--ivory) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px);
+  transition: box-shadow .3s;
+}
+.nav.is-scrolled { box-shadow: 0 1px 0 var(--line); }
+.brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; letter-spacing: .04em; }
+.nav nav { display: flex; gap: 22px; margin-left: auto; font-size: .9rem; }
+.nav nav a { text-decoration: none; color: var(--ink-2); transition: color .2s; }
+.nav nav a:hover { color: var(--ink); }
+@media (max-width: 760px) { .nav nav { display: none; } .nav .btn { margin-left: auto; } }
+
+/* --- ボタン --- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 48px; padding: 0 22px; border-radius: 999px; border: 1px solid transparent;
+  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+  transition: transform .25s var(--ease), background-color .2s, box-shadow .25s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(.98); }
+.btn-sm { min-height: 40px; padding: 0 16px; font-size: .9rem; }
+.btn-dark { background: var(--ink); color: var(--ivory); }
+.btn-accent { background: var(--clay); color: var(--clay-ink); }
+.btn-accent:hover { box-shadow: 0 8px 24px color-mix(in srgb, var(--clay) 35%, transparent); }
+.btn-light { background: var(--ivory); color: var(--ink); }
+
+/* --- はじめの面 --- */
+.hero { max-width: var(--wrap); margin: 0 auto; padding: clamp(56px, 11vw, 140px) 24px 56px; }
+.eyebrow { margin: 0 0 18px; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.display {
+  margin: 0; font-family: var(--serif); font-weight: 500;
+  font-size: clamp(2.3rem, 6.4vw, 5.2rem); line-height: 1.18; letter-spacing: -.01em;
+}
+.display .line { display: block; }
+.display em { font-style: normal; color: var(--clay); }
+.lead { max-width: 40em; margin: 28px 0 0; font-size: clamp(1.02rem, 1.6vw, 1.2rem); color: var(--ink-2); }
+.fine { margin: 14px 0 0; font-size: .82rem; color: var(--ink-2); }
+
+.demo {
+  display: flex; gap: 8px; align-items: center;
+  max-width: 720px; margin: 40px 0 0; padding: 8px 8px 8px 22px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, .04), 0 12px 40px rgba(20, 20, 19, .06);
+  transition: box-shadow .3s, border-color .3s;
+}
+.demo:focus-within { border-color: color-mix(in srgb, var(--ink) 40%, var(--line)); box-shadow: 0 16px 48px rgba(20, 20, 19, .1); }
+.demo input {
+  flex: 1; min-width: 0; min-height: 44px; border: 0; outline: none; background: transparent;
+  color: var(--ink); font: inherit; font-size: 1.05rem;
+}
+.demo input::placeholder { color: var(--ink-2); opacity: 1; }
+@media (max-width: 560px) {
+  .demo { flex-direction: column; align-items: stretch; border-radius: 22px; padding: 12px; }
+  .demo input { padding: 0 8px; }
+  .demo .btn { justify-content: center; }
+}
+
+/* --- 名前が流れる帯 --- */
+.ticker { overflow: hidden; border-block: 1px solid var(--line); padding: 18px 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ticker-track { display: flex; gap: 44px; width: max-content; animation: ticker 60s linear infinite; }
+.ticker span { font-family: var(--serif); font-size: 1.35rem; white-space: nowrap; }
+.ticker small { margin-left: 8px; font-family: var(--sans); font-size: .75rem; color: var(--ink-2); }
+@keyframes ticker { to { transform: translateX(-50%); } }
+
+/* --- 区切り --- */
+.band { max-width: var(--wrap); margin: 0 auto; padding: clamp(64px, 9vw, 120px) 24px; }
+.band-soft { max-width: none; background: var(--paper); }
+.band-soft > * { max-width: calc(var(--wrap) - 48px); margin-left: auto; margin-right: auto; }
+.band-head { margin-bottom: 48px; }
+.title { margin: 0; font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.6vw, 2.8rem); line-height: 1.3; }
+.sub { max-width: 36em; margin: 16px 0 0; color: var(--ink-2); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--ink); }
+.steps li { padding: 28px 28px 8px 0; }
+.steps li + li { padding-left: 28px; border-left: 1px solid var(--line); }
+.num { font-family: var(--serif); font-size: .95rem; color: var(--clay); }
+.steps h3, .principle h3 { margin: 10px 0 10px; font-size: 1.15rem; font-weight: 600; }
+.steps p, .principle p { margin: 0; color: var(--ink-2); }
+@media (max-width: 860px) {
+  .steps { grid-template-columns: 1fr; }
+  .steps li, .steps li + li { padding: 24px 0; border-left: 0; border-bottom: 1px solid var(--line); }
+}
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 960px) { .cards { grid-template-columns: 1fr; } }
+.card {
+  display: flex; flex-direction: column; padding: 28px;
+  border: 1px solid var(--line); border-radius: 18px; background: var(--card);
+  transition: transform .35s var(--ease), box-shadow .35s var(--ease);
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 18px 48px rgba(20, 20, 19, .08); }
+.card-pref { margin: 0; font-size: .8rem; letter-spacing: .1em; color: var(--ink-2); }
+.card-name { margin: 4px 0 6px; font-family: var(--serif); font-weight: 500; font-size: 2rem; }
+.card-tag { margin: 0 0 12px; font-weight: 600; }
+.card-desc { flex: 1; margin: 0 0 20px; color: var(--ink-2); font-size: .95rem; }
+.card-foot { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.link-arrow { font-weight: 600; text-decoration: none; color: var(--clay); }
+.link-arrow::after { content: " →"; display: inline-block; transition: transform .25s var(--ease); }
+.link-arrow:hover::after { transform: translateX(4px); }
+.link-quiet { font-size: .9rem; color: var(--ink-2); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.stat { border-top: 1px solid var(--ink); padding-top: 18px; }
+.stat b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2.4rem, 6vw, 4.4rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--ink-2); }
+@media (max-width: 760px) { .stats { grid-template-columns: 1fr; } }
+
+.principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.principle { border-top: 1px solid var(--line); padding-top: 18px; }
+@media (max-width: 860px) { .principles { grid-template-columns: 1fr; gap: 28px; } }
+
+.faq { border-top: 1px solid var(--ink); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  min-height: 64px; cursor: pointer; list-style: none; font-size: 1.1rem; font-weight: 600;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-family: var(--serif); font-size: 1.6rem; font-weight: 400; transition: transform .3s var(--ease); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { margin: 0 0 22px; max-width: 44em; color: var(--ink-2); }
+
+.cta-band { background: var(--ink); color: var(--ivory); text-align: center; padding: clamp(80px, 12vw, 160px) 24px; }
+.cta-band .display { font-size: clamp(2rem, 5vw, 4rem); }
+.cta-band p { margin: 36px 0 0; }
+@media (prefers-color-scheme: dark) {
+  .cta-band { background: var(--paper); color: var(--ink); }
+  .cta-band .btn-light { background: var(--ink); color: var(--ivory); }
+}
+
+.foot { max-width: var(--wrap); margin: 0 auto; padding: 40px 24px 56px; font-size: .9rem; color: var(--ink-2); }
+.foot p { margin: 0 0 6px; }
+
+/* --- 動き（JS が .reveal に .is-in を付けます） --- */
+@media (prefers-reduced-motion: no-preference) {
+  .js .reveal { opacity: 0; transform: translateY(22px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+  .js .reveal.is-in { opacity: 1; transform: none; }
+  .js .cards .reveal:nth-child(2), .js .steps .reveal:nth-child(2), .js .principles .reveal:nth-child(2), .js .stats .reveal:nth-child(2) { transition-delay: .1s; }
+  .js .cards .reveal:nth-child(3), .js .steps .reveal:nth-child(3), .js .principles .reveal:nth-child(3), .js .stats .reveal:nth-child(3) { transition-delay: .2s; }
+  .js .display .line { opacity: 0; transform: translateY(.4em); animation: line-in 1s var(--ease) forwards; }
+  .js .display .line:nth-child(2) { animation-delay: .15s; }
+}
+@media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; flex-wrap: wrap; width: auto; } }
+@keyframes line-in { to { opacity: 1; transform: none; } }
