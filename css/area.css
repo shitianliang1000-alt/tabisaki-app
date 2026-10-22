@@ -138,3 +138,35 @@ section {
   font-size: var(--hig-t-caption1); line-height: 1.5;
   background: var(--hig-fill); padding: 12px; border-radius: 12px; margin: 8px 0 0;
 }
+
+/* 紹介ページ（about.html）。 */
+.hero { padding: 16px 0 8px; }
+.hero h1 { font-size: var(--hig-t-large-title); line-height: 1.35; }
+.hero .lead { font-size: var(--hig-t-title3); color: var(--hig-label); }
+/* 見出しは句の途中で折らず、句ごとに次の行へ送ります（「で」「に。」だけが残らないように）。 */
+.hero .nw { display: inline-block; }
+@media (max-width: 480px) {
+  .hero h1 { font-size: var(--hig-t-title1); }
+  .hero .lead { font-size: var(--hig-t-body); }
+}
+.steps, .points { margin: 0; padding: 0; list-style: none; }
+.steps { counter-reset: step; }
+.steps li, .points li {
+  display: grid; gap: 4px; padding: 12px 0;
+  border-top: 1px solid var(--hig-separator);
+}
+.steps li:first-child, .points li:first-child { border-top: 0; }
+.steps li { grid-template-columns: 36px 1fr; column-gap: 12px; }
+.steps li::before {
+  counter-increment: step; content: counter(step);
+  grid-row: 1 / span 2; align-self: start;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700;
+  background: var(--tabi-indigo); color: var(--hig-on-accent);
+}
+.steps span, .points span { font-size: var(--hig-t-subhead); color: var(--hig-label-2); }
+.steps span { grid-column: 2; }
+.faq { margin: 0; }
+.faq dt { font-weight: 700; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--hig-separator); }
+.faq dt:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.faq dd { margin: 4px 0 0; color: var(--hig-label-2); }

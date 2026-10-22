@@ -273,6 +273,9 @@ await audit("エリアを地図で探す画面（携帯の幅）", { width: 390,
 await audit("エリアを地図で探す画面（暗い配色）", { dark: true, areaMap: true });
 
 await auditStatic("著作権表記のページ（明るい配色）", "credits.html");
+await auditStatic("紹介のページ（明るい配色）", "about.html");
+await auditStatic("紹介のページ（暗い配色・携帯の幅）", "about.html",
+                  { dark: true, width: 390 });
 await auditStatic("著作権表記のページ（暗い配色・携帯の幅）", "credits.html",
                   { dark: true, width: 390 });
 
