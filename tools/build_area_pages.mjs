@@ -382,12 +382,20 @@ function fmtTime(d) {
 }
 
 /**
- * 1ページの枠。`rel` はページから根までの相対パスです。404.html だけは
- * どの深さの URL でも同じものが出るので、`rel` に公開URLの根（絶対URL）を
- * 渡し、`canonical` を持たせず `noindex` にします。
+ * 「旅さき」（ロゴ・パンくず）の行き先。トップ（/。紹介と入口のページ）です。
+ * チャットの画面は「旅程をつくる」のリンク（index.html）から開きます。
  */
-function page({ title, description, canonical, rel, body, jsonLd, noindex = false, image = null }) {
-  const ogUrl = canonical ?? rel;
+function home(rel) {
+  return rel || "./";
+}
+
+/**
+ * 1ページの枠。`rel` はページから根までの相対パスです。404.html だけは
+ * どの深さの URL でも同じものが出るので、`rel` に根（"/"）を渡し、
+ * `canonical` を持たせず `noindex` にします（OGP の絵の URL は `origin` から作ります）。
+ */
+function page({ title, description, canonical, rel, body, jsonLd, noindex = false, image = null, origin = null }) {
+  const ogUrl = canonical ?? origin ?? rel;
   const img = image ?? { path: "og.png", alt: "旅さき — 行きたい、から旅程をつくる。" };
   return `<!doctype html>
 <html lang="ja">
@@ -404,7 +412,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(ogUrl)}">
-<meta property="og:image" content="${esc(new URL(`${rel}${img.path}`, ogUrl).href)}">
+<meta property="og:image" content="${esc((origin ? new URL(img.path, origin) : new URL(`${rel}${img.path}`, ogUrl)).href)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="${esc(img.alt)}">
@@ -419,7 +427,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>\n` : ""}</head>
 <body>
 <header class="area-bar">
-  <a class="brand" href="${rel}index.html"><img src="${rel}icon.svg" alt="" width="22" height="22">旅さき</a>
+  <a class="brand" href="${home(rel)}"><img src="${rel}icon.svg" alt="" width="22" height="22">旅さき</a>
   <a class="bar-link" href="${rel}areas/index.html">エリアから探す</a>
 </header>
 <main class="area">
@@ -427,7 +435,7 @@ ${body}
 </main>
 <footer class="area-foot">
   <p>収録データ: 国土数値情報・OpenStreetMap・Wikipedia ほか（出典は<a href="${rel}credits.html">著作権表記</a>のページにまとめています）。営業時間や料金は変わることがあります。お出かけ前に公式の情報をご確認ください。</p>
-  <p><a href="${rel}index.html">旅さき</a> — 行きたいことから旅程をつくる・<a href="${rel}about.html">旅さきとは</a></p>
+  <p><a href="${home(rel)}">旅さき</a> — 行きたいことから旅程をつくる・<a href="${rel}about.html">旅さきとは</a></p>
 </footer>
 </body>
 </html>
@@ -545,7 +553,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
     : `${region.name}（${prefName}）の観光地${famous ? `（${famous}など）` : ""}と1日の旅程づくり。`)
     + (region.tagline ? `${region.tagline}。` : "")
     + "行きたいことを書くと、営業時間と移動時間まで合わせた旅行プランを作成できます。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
 <h1>${esc(region.name)}</h1>
 ${region.tagline ? `<p class="lead">${esc(region.tagline)}</p>` : ""}
 ${region.description ? `<p>${esc(region.description)}</p>` : ""}
@@ -600,7 +608,7 @@ export function renderPrefPage({ prefName, prefSlug, spots, regions, base }) {
   const description = `${prefName}の観光地。${famous ? `${famous}などの定番と、` : "定番と、"}`
     + `知る人ぞ知る穴場。収録${spots.length.toLocaleString("ja-JP")}か所から、`
     + "行きたいことに合わせて旅行プランを作成できます。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
 <p class="lead">収録 ${spots.length.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
 <p><a class="cta primary" href="${esc(appLink(rel, `${prefName}で、定番と穴場をまぜて1日まわる`))}">${esc(prefName)}で旅程をつくる</a></p>
@@ -668,7 +676,7 @@ export function renderIndexPage({ prefs, base }) {
   const title = "エリアから探す — 都道府県の観光地と旅行プランのモデルコース｜旅さき";
   const description = "47都道府県の定番の観光地と穴場、主なエリアの1日モデルコース。"
     + "行きたいことを書くと、旅さきが営業時間と移動時間まで合わせた旅行プランを作成します。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
 <p class="lead">都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
 ${groupByChiho(prefs).map(({ chiho, list }) => `<section>
@@ -689,25 +697,28 @@ ${list.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</
 /**
  * 公開URLの下に無いページを開いたときに出る 404.html。
  *
- * GitHub Pages は、無い URL にはこのファイルを（その URL のまま）返します。
- * どの深さで出ても崩れないよう、リンクとスタイルは公開URLの根からの
- * 絶対URLで書きます。検索結果には載せません（noindex）。
+ * Cloudflare（wrangler.jsonc の not_found_handling）と PHP 版（.htaccess の
+ * ErrorDocument）は、無い URL にはこのファイルを（その URL のまま）返します。
+ * どの深さで出ても崩れないよう、リンクとスタイルは根（/）から書きます。
+ * 公開URLを丸ごと書くと、PHP 版（別のホスト）ではスタイルが CSP で
+ * 止まって崩れます。検索結果には載せません（noindex）。
  */
 export function renderNotFoundPage({ prefs, base }) {
+  const root = "/";
   const title = "ページが見つかりません｜旅さき";
   const description = "お探しのページは見つかりませんでした。旅さきのトップか、エリアの一覧からお探しください。";
   const body = `<h1>ページが見つかりません</h1>
 <p class="lead">お探しのページは、移動したか、無くなったようです。</p>
-<p><a class="cta primary" href="${esc(base)}index.html">旅さきで旅程をつくる</a></p>
-<p><a class="cta" href="${esc(base)}areas/index.html">エリアから探す</a></p>
+<p><a class="cta primary" href="${root}index.html">旅さきで旅程をつくる</a></p>
+<p><a class="cta" href="${root}areas/index.html">エリアから探す</a></p>
 ${prefs.length ? `<section>
 <h2>都道府県から探す</h2>
 <ul class="prefs">
-${prefs.map((p) => `  <li><a href="${esc(base)}areas/${esc(p.slug)}/index.html"><b>${esc(p.name)}</b></a></li>`).join("\n")}
+${prefs.map((p) => `  <li><a href="${root}areas/${esc(p.slug)}/index.html"><b>${esc(p.name)}</b></a></li>`).join("\n")}
 </ul>
 </section>` : ""}`;
   return { path: "404.html", url: null,
-           html: page({ title, description, rel: base, body, noindex: true }) };
+           html: page({ title, description, rel: root, origin: base, body, noindex: true }) };
 }
 
 /**
@@ -812,7 +823,7 @@ export function renderIntroPage({ base, featured = [], prefCount = 0, spotCount 
   const description = "「温泉と海をゆっくり」と書くだけで、行き先・まわる順・移動時間まで組んだ旅程が届く無料のウェブアプリ。"
     + `全国${prefCount}都道府県・${spotCount.toLocaleString("ja-JP")}か所の観光地から、営業時間と移動時間を照らし合わせて組みます。`;
   const sample = featured[0] ?? null;
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › 旅さきとは</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › 旅さきとは</nav>
 <div class="hero">
 <h1><span class="nw">行きたい、を</span><span class="nw">書くだけで</span><span class="nw">そのまま行ける</span><span class="nw">旅程に。</span></h1>
 <p class="lead">旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くと、行き先・まわる順・移動時間まで組んだ旅行プランを作る、無料のウェブアプリです。行き先がまだ決まっていなくても始められます。</p>

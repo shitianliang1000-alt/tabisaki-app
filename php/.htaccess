@@ -4,11 +4,17 @@ Options -Indexes
 AddDefaultCharset UTF-8
 AddType application/manifest+json .webmanifest
 AddType application/javascript .js .mjs
+# 無い URL には、エリアの一覧などへの道があるページを出します（状態は 404 のまま）。
+ErrorDocument 404 /404.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   # チャットの画面は /app で開けます（app.php）。?q= などはそのまま渡します。
   RewriteRule ^app/?$ app.php [L,QSA]
+  # /index.html もチャットの画面です（ホーム画面に置いたアプリと、エリアのページの
+  # 「旅程をつくる」が開く場所）。静的なままだと、挨拶が時刻に合わず、canonical も
+  # トップ（/）を指してしまうので、/app と同じく app.php が返します。
+  RewriteRule ^index\.html$ app.php [L,QSA]
   # 前の紹介のページ（/about）は、トップ（index.php）にまとめました。
   RewriteRule ^about/?$ ./ [R=301,L]
   # PHP の部品と、組み立てたデータの元は、直には見せません。

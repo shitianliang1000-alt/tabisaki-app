@@ -77,7 +77,8 @@ function newsFromGit() {
       : /チャット|AI|Gemma|質問/.test(title) ? "チャット"
       : /エリア|収録|穴場|上高地|県/.test(title) ? "行き先"
       : "改善";
-    out.push({ date, title, tag });
+    // 「チャット：〜」のように頭に分類が書いてあるものは、札と重なるので外します。
+    out.push({ date, title: title.replace(/^[^：:、。\s]{1,8}[：:]\s*/, ""), tag });
     if (out.length >= 6) break;
   }
   return out;

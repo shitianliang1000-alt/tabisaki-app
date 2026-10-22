@@ -163,7 +163,7 @@ export default {
     // サイトのページ（GET）。ふつうは Cloudflare がこの Worker を通さずに
     // 静的ファイルを返します。ここに来るのは、無いファイルを開いたときです。
     if ((request.method === "GET" || request.method === "HEAD") && env?.ASSETS) {
-      return env.ASSETS.fetch(request);
+      return withNotFoundPage(request, env, await env.ASSETS.fetch(request));
     }
     const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
@@ -174,6 +174,28 @@ export default {
     return res;
   },
 };
+
+/**
+ * 無いページを開いた人には、空の 404 ではなく 404.html（エリアの一覧などへの
+ * 道があるページ）を見せます。状態は 404 のままです（検索に載らないように）。
+ * 画像や JS など、ページでないものは、そのまま返します。
+ * wrangler.jsonc の not_found_handling は "none" のままにしています。
+ * 変えると、中継の入口（POST）まで静的ファイルの側で止まりかねないからです。
+ */
+export async function withNotFoundPage(request, env, res) {
+  if (res.status !== 404) return res;
+  const accept = request.headers.get("Accept") ?? "";
+  if (!accept.includes("text/html")) return res;
+  // html_handling が auto-trailing-slash なので、/404.html は /404 へ回されます。先に /404 を見ます。
+  let page = await env.ASSETS.fetch(new Request(new URL("/404", request.url)));
+  if (!page.ok) page = await env.ASSETS.fetch(new Request(new URL("/404.html", request.url)));
+  if (!page.ok) return res;
+  return new Response(request.method === "HEAD" ? null : page.body, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300",
+               "X-Content-Type-Options": "nosniff" },
+  });
+}
 
 /** その入口の名前（数えるとき・止めるときの鍵）。 */
 export function endpointOf(path) {

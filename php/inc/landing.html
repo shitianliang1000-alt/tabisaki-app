@@ -23,6 +23,21 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
+<!-- 検索エンジン向けの「これは何か」。サイトの根なので WebSite もここに書きます。
+     よくある質問は、下の #faq に出している字と同じにしてください（違うと載りません）。
+     この種類の script は動かないので、CSP（script-src 'self'）にかかりません。 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"WebSite","name":"旅さき","alternateName":["たびさき","Tabisaki"],"url":"{{base}}","inLanguage":"ja"},
+{"@type":"WebApplication","name":"旅さき","url":"{{base}}app","applicationCategory":"TravelApplication","operatingSystem":"Web","inLanguage":"ja","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"無料で使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。登録もいりません。ブラウザで開くだけで使えます。"}},
+{"@type":"Question","name":"どこまで正しいですか？","acceptedAnswer":{"@type":"Answer","text":"電車の時刻と営業時間は目安です。出かける前に、公式の情報も確かめてください。"}},
+{"@type":"Question","name":"行き先が決まっていなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"使えます。「晴れているところ」「2時間以内で行ける温泉」のように書けば、出発地からの距離と天気を見て選びます。"}},
+{"@type":"Question","name":"実際に組んだ例はありますか？","acceptedAnswer":{"@type":"Answer","text":"組んだ例のページと、都道府県ごとのモデルコースで読めます。"}}
+]}
+]}
+</script>
 <link rel="stylesheet" href="assets/landing.css?v={{build}}">
 <script type="module" src="assets/landing.js?v={{build}}"></script>
 </head>
@@ -228,7 +243,7 @@
       <div class="about-text reveal">
         <p>旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くだけで、旅行プランを作成する無料のウェブアプリです。行き先を決めていなくても、出発地と日時から、行き先・まわる順・移動時間まで考えた1日または複数日の旅程を組みます。</p>
         <p>観光地の営業時間と定休日、駅や停留所のあいだの移動時間を実際に照らし合わせるので、「着いたら閉まっていた」を減らせます。組んだ旅程は、「もっとゆっくり」「昼は海鮮で」のように話しかけて直せます。</p>
-        <p>行き先の候補は、全国47都道府県の観光地から選びます。都道府県ごとの定番と穴場、1日のモデルコースは、右の一覧から読めます。実際に組んだ例は<a href="about.html">組んだ例のページ</a>にまとめています。</p>
+        <p>行き先の候補は、全国47都道府県の観光地から選びます。都道府県ごとの定番と穴場、1日のモデルコースは、都道府県の一覧から読めます。実際に組んだ例は<a href="about.html">組んだ例のページ</a>にまとめています。</p>
       </div>
       <div class="pref-list" aria-label="都道府県別の観光地・旅行プラン">
         <div class="pref-row reveal"><h3>北海道・東北</h3><p><a href="areas/hokkaido/index.html">北海道</a><a href="areas/aomori/index.html">青森県</a><a href="areas/iwate/index.html">岩手県</a><a href="areas/miyagi/index.html">宮城県</a><a href="areas/akita/index.html">秋田県</a><a href="areas/yamagata/index.html">山形県</a><a href="areas/fukushima/index.html">福島県</a></p></div>

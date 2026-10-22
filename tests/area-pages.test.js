@@ -359,8 +359,9 @@ test("県とエリアのページは、トップ › エリア › 県 › エ�
   assert.match(pref, /href="hakone\.html"/);
   assert.match(pref, /href="enoshima\.html"/);
   const hakone = html("areas/kanagawa/hakone.html");
-  // パンくずの頭はアプリのトップ。県のページへも戻れる。
-  assert.match(hakone, /class="crumbs"[^>]*><a href="\.\.\/\.\.\/index\.html">旅さき<\/a>/);
+  // パンくずの頭はサイトのトップ（/。構造化データのパンくずと同じ）。県のページへも戻れる。
+  assert.match(hakone, /class="crumbs"[^>]*><a href="\.\.\/\.\.\/">旅さき<\/a>/);
+  assert.match(hakone, /class="brand" href="\.\.\/\.\.\/"/);
   assert.match(hakone, /href="\.\.\/\.\.\/areas\/kanagawa\/index\.html"/);
   // 同じ県のほかのエリアへ。自分自身は並べない。
   assert.match(hakone, /同じ県のほかのエリア[\s\S]*href="enoshima\.html"/);
@@ -439,7 +440,7 @@ test("共有カード: 離島の外れ値で県の地図が小さくならない
   assert.equal(boundsOf([]), null);
 });
 
-test("404.html: どの深さで出ても崩れない絶対URLで、検索には載せない", async () => {
+test("404.html: どの深さで出ても、どちらのホストでも崩れない根からのリンクで、検索には載せない", async () => {
   const kbDoc = {
     index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
     regions: [REGION],
@@ -452,11 +453,14 @@ test("404.html: どの深さで出ても崩れない絶対URLで、検索には�
   const html = notFound.html;
   assert.match(html, /<meta name="robots" content="noindex">/);
   assert.ok(!html.includes('rel="canonical"'));
-  assert.match(html, /href="https:\/\/example\.test\/app\/css\/area\.css"/);
-  assert.match(html, /href="https:\/\/example\.test\/app\/index\.html"/);
-  assert.match(html, /href="https:\/\/example\.test\/app\/areas\/kanagawa\/index\.html"/);
-  // 相対パス（../ や css/ で始まるもの）が残っていないこと。
-  assert.ok(!/(href|src)="(?!https:)/.test(html), "相対リンクが残っています");
+  // 公開URLを丸ごと書くと、PHP 版（別のホスト）では CSP でスタイルが止まります。
+  assert.match(html, /href="\/css\/area\.css"/);
+  assert.match(html, /href="\/index\.html"/);
+  assert.match(html, /href="\/areas\/kanagawa\/index\.html"/);
+  assert.ok(!/(href|src)="(?!\/|https:)/.test(html), "相対リンクが残っています");
+  assert.ok(!/(href|src)="https:\/\/example/.test(html), "公開URLのリンクが残っています");
+  // OGP の絵だけは、よそから読まれるので絶対URLです。
+  assert.match(html, /og:image" content="https:\/\/example\.test\/app\/og\.png"/);
   assert.match(html, /script-src 'none'/);
 });
 
