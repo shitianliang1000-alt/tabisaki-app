@@ -132,3 +132,14 @@ test("PHP 版と Cloudflare 版のトップが、1字も違わない", { skip: !
     }
   });
 });
+
+test("モデルコースの読み取りは、字だけを取り出し、文字参照は1回だけ戻す", async () => {
+  const { parseCourse } = await import("../tools/course.mjs");
+  const html = '<ol class="course"><li class="c-spot"><b class="c-time">10:00</b>'
+    + '<span class="c-title">A &amp;lt;b&amp;gt; &amp; <scr<script>ipt>x<small>30分</small></span>'
+    + '<span class="c-text">t</span></li></ol>';
+  const [c] = parseCourse(html);
+  assert.equal(c.title, "A &lt;b&gt; & iptx");
+  assert.ok(!/[<>]/.test(c.title));
+  assert.equal(c.min, "30分");
+});
