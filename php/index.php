@@ -1,58 +1,35 @@
 <?php
-// チャットの画面（index.html）を、開いたときの時刻と季節に合わせて返します。
+// トップ（/）。Anthropic・OpenAI のサイトを手本にした、動く紹介のページです。
+// チャットの画面は /app（app.php）にあります。
 //
-// 中身は静的な index.html と同じです。PHP が差し替えるのは次のものだけで、
-// JavaScript が動く前から正しい字が出ます（あとから字が変わるちらつきが無い）。
+// 開くたびに作るもの（inc/site.php の landing_view）:
+//   ・日付・時刻の挨拶・季節のひとこと
+//   ・今日のおすすめ（季節に合うエリアを日替わりで）。天気はブラウザが Open-Meteo から取ります
+//   ・動く見本（旅さきのエンジンが実際に組んだモデルコースを、チャットの形で再生）
+//   ・お知らせ（リポジトリの履歴から、使う人に関わる変更だけ）と、収録の数
 //
-//   ・挨拶（おはようございます／こんにちは／こんばんは）
-//   ・書きかたの見本の札（4つのうち、うしろの2つを季節のものに）
-//   ・canonical と OGP の URL（いま開いているホストに合わせる）
-//   ・紹介のページへのリンク（about.php へ）
+// 見た目は inc/landing.html（Cloudflare 版の server/landing.js と同じひな形）です。
 declare(strict_types=1);
 require __DIR__ . '/inc/site.php';
 
-$html = @file_get_contents(__DIR__ . '/index.html');
-if ($html === false) {
-    http_response_code(500);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo 'index.html が見つかりません。サイトのファイルを全部上げてください。';
+// 前のトップ（チャットの画面）あてに送られた旅程のリンク（/?p=…）は、/app へ渡します。
+if (isset($_GET['p'])) {
+    header('Location: app?' . (string) ($_SERVER['QUERY_STRING'] ?? ''), true, 302);
     exit;
 }
 
-$now = new DateTimeImmutable('now');
-$season = season($now);
-$base = site_base();
-
-// 挨拶
-$html = str_replace('<span id="hero-greet">こんにちは</span>',
-    '<span id="hero-greet">' . h(greeting($now)) . '</span>', $html);
-
-// 書きかたの見本: 3つ目と4つ目を、季節のものに替えます。
-$chips = '';
-foreach (array_slice($season['examples'], 0, 2) as [$label, $text]) {
-    $chips .= '<button type="button" class="md-chip md-chip--assist md-state" data-example="'
-        . h($text) . '">' . h($label) . '</button>';
+$tpl = @file_get_contents(__DIR__ . '/inc/landing.html');
+if ($tpl === false) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'inc/landing.html が見つかりません。サイトのファイルを全部上げてください。';
+    exit;
 }
-$html = preg_replace_callback(
-    '#(<div class="chip-set note-examples"[^>]*>)(.*?)(</div>)#s',
-    function (array $m) use ($chips): string {
-        preg_match_all('#<button\b.*?</button>#s', $m[2], $btn);
-        $keep = implode('', array_slice($btn[0], 0, 2));
-        return $m[1] . $keep . $chips . $m[3];
-    },
-    $html,
-    1
-) ?? $html;
-
-// 紹介のページは、PHP 版では /about（about.php）です。
-$html = str_replace('href="about.html">旅さきとは（使いかたと組んだ例）', 'href="about">旅さきとは（使いかたと組んだ例）', $html);
-
-// URL は、いま開いているホストのものにします（引っ越しても直さずに済みます）。
-$html = str_replace(PROXY_ORIGIN . '/og.png', $base . 'og.png', $html);
-$html = preg_replace('#(<link rel="canonical" href=")[^"]*(")#', '$1' . h($base) . '$2', $html, 1) ?? $html;
-$html = preg_replace('#(<meta property="og:url" content=")[^"]*(")#', '$1' . h($base) . '$2', $html, 1) ?? $html;
+$view = landing_view(new DateTimeImmutable('now'), load_areas(), site_base(), 'PHP');
 
 header('Content-Type: text/html; charset=utf-8');
-// 挨拶が時刻で変わるので、長くは持たせません。
 header('Cache-Control: public, max-age=300');
-echo $html;
+header("Content-Security-Policy: " . LANDING_CSP);
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+echo render_tpl($tpl, $view);

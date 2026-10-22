@@ -61,6 +61,9 @@ import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeS
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
 
+// ここまで読めたら、画面の部品はそろっています（js/boot-check.js が見ます）。
+document.documentElement.dataset.booted = "1";
+
 // 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
 // と、ファイルの書き出し・読み込み（js/transfer.js）は、開いた直後の
 // フォームには要りません。静的に import すると、画面が出る前に全部を

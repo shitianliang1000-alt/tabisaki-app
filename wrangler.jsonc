@@ -29,6 +29,12 @@
   //
   //   .site/            … サイト（tools/build_site.sh と同じもの）
   //   .site/__admin/    … 管理画面（admin/）。**直には配りません。**
+  //   .site/__site/     … トップのひな形（php/inc/landing.html と同じもの）
+  //   .site/assets/     … トップの CSS・JS（php/assets/ と同じもの）
+  //   .site/data/       … トップが読むエリアのデータ（tools/build_php_data.mjs）
+  //
+  // トップ（/）とチャットの画面（/app・/index.html）は、開いたときに Worker が
+  // 作ります（server/landing.js。PHP 版の index.php・app.php と同じ中身）。
   //
   // admin/ には認証が無いので、/__admin/ と /admin・/private/ は必ず
   // Worker を先に通します（run_worker_first）。Worker は合言葉
@@ -37,7 +43,7 @@
   //
   //     npx wrangler secret put ADMIN_PASSWORD
   //
-  // それ以外のファイル（index.html・js/・kb/…）は、Worker を通さずに
+  // それ以外のファイル（js/・kb/・areas/…）は、Worker を通さずに
   // Cloudflare がそのまま返します（無料枠の回数を使いません）。
   "build": {
     "command": "sh tools/build_worker.sh .site"
@@ -45,7 +51,8 @@
   "assets": {
     "directory": "./.site",
     "binding": "ASSETS",
-    "run_worker_first": ["/__admin/*", "/admin", "/admin/*", "/private", "/private/*"],
+    "run_worker_first": ["/", "/index.html", "/app", "/app/", "/__site/*",
+                         "/__admin/*", "/admin", "/admin/*", "/private", "/private/*"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },

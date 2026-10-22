@@ -36,3 +36,4 @@ Thumbs.db
 /data/overture/
 /.php-site/
 /tabisaki-php.zip
+/.env.deploy

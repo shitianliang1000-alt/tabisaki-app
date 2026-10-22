@@ -3749,13 +3749,6 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   .turn-details, .turn-details[hidden] { display: block !important; border: 0; }
 }
 
-/* --- 旅さきについて（検索エンジンにも読める説明。畳んだままで構いません） --- */
-.about { margin: 8px 0 0; padding: 0 10px; font-size: var(--hig-t-caption1, 12px); color: var(--md-sys-color-on-surface-variant); }
-.about summary { cursor: pointer; padding: 6px 0; }
-.about p { margin: 0 0 8px; line-height: 1.6; }
-.about a { color: var(--md-sys-color-primary); }
-body[data-side="mini"] .side .about { display: none; }
-
 /* --- 答えの動き（2026-10-22。js/motion.js） ---
    頼んだことは右から、答えは下から、すっと入ります。答えの最初の1文は
    字が流れるように出て、そのあと候補・地図・行程が上から順に出ます。
@@ -3795,3 +3788,16 @@ body[data-side="mini"] .side .about { display: none; }
 @keyframes dock-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 /* 紙・動きを減らす設定では、出し終わった形だけを見せます。 */
 @media print { .stream-ch, .rise { animation: none !important; opacity: 1 !important; } }
+
+/* 画面が動かないときの案内（js/boot-check.js）。 */
+.boot-fail {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1000;
+  max-width: 560px; margin: 0 auto; padding: 16px 18px;
+  border-radius: 16px; background: #141413; color: #faf9f5;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .3); line-height: 1.7;
+}
+.boot-fail p { margin: 6px 0 0; font-size: var(--hig-t-footnote); color: #d9d7cf; }
+.boot-fail button {
+  margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
+  background: #faf9f5; color: #141413; font: inherit; font-weight: 600; cursor: pointer;
+}

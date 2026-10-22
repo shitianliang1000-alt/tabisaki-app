@@ -1,0 +1,82 @@
+#!/bin/sh
+# 旅さき — 組み立て・試し・公開を、コマンド1つで（端末・SSH から使う道具）。
+#
+#     ./tabisaki help
+#
+# サイトの置き場は2つです。GitHub には、この道具とプログラムだけを置きます。
+#   ・Cloudflare Worker … AI の中継・管理画面・サイト（トップは開いたときに作る）
+#   ・InfinityFree（PHP） … 同じサイトの PHP 版（トップと /app は PHP が作る）
+#
+# 合言葉やパスワードは、このファイルにもリポジトリにも書きません。
+# 環境変数か、.env.deploy（.gitignore 済み）に書きます:
+#     FTP_HOST=ftpupload.net
+#     FTP_USER=if0_12345678
+#     FTP_PASS=…
+#     FTP_DIR=htdocs
+set -eu
+cd "$(dirname "$0")"
+[ -f .env.deploy ] && . ./.env.deploy
+
+usage() {
+  cat <<'TXT'
+使いかた: ./tabisaki <コマンド>
+
+  build              Cloudflare 用を .site/ に組み立てる
+  php [--zip]        PHP 版を .php-site/ に組み立てる（--zip で tabisaki-php.zip も）
+  serve [php|cf]     手元で開く（php: http://127.0.0.1:8090/  cf: 静的ファイルだけ）
+  test               試験（単体・PHP の書きまちがい）
+  deploy cf          Cloudflare に上げる（npx wrangler deploy。ログインか CLOUDFLARE_API_TOKEN が要ります）
+  deploy ftp         PHP 版を FTP で InfinityFree に上げる（FTP_HOST・FTP_USER・FTP_PASS が要ります）
+  help               これを出す
+TXT
+}
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "$1 が見つかりません。$2" >&2; exit 1; }; }
+
+ftp_upload() {
+  : "${FTP_HOST:?FTP_HOST を入れてください（InfinityFree の「FTP Details」に書いてあります）}"
+  : "${FTP_USER:?FTP_USER を入れてください}"
+  : "${FTP_PASS:?FTP_PASS を入れてください}"
+  dir="${FTP_DIR:-htdocs}"
+  sh tools/build_php.sh .php-site
+  if command -v lftp >/dev/null 2>&1; then
+    # 変わったファイルだけを上げます。サーバーにしか無いファイルは消しません。
+    lftp -u "$FTP_USER,$FTP_PASS" "$FTP_HOST" -e "set ftp:ssl-allow no; set net:max-retries 3; mirror -R --only-newer --parallel=4 --exclude-glob tests/ .php-site $dir; bye"
+  else
+    need curl "curl か lftp を入れてください。"
+    echo "lftp が無いので curl で1つずつ上げます（全部で数分かかります）。"
+    (cd .php-site && find . -type f ! -path './tests/*' | sed 's#^\./##') | while read -r f; do
+      curl -sS --ftp-create-dirs -T ".php-site/$f" "ftp://$FTP_HOST/$dir/$f" --user "$FTP_USER:$FTP_PASS"
+    done
+  fi
+  echo "上げました: ftp://$FTP_HOST/$dir/"
+}
+
+cmd="${1:-help}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  build) sh tools/build_worker.sh .site ;;
+  php) sh tools/build_php.sh .php-site "${1:-}" ;;
+  serve)
+    case "${1:-php}" in
+      php) need php "PHP 8.1 以上を入れてください。"
+           sh tools/build_php.sh .php-site
+           echo "http://127.0.0.1:8090/ （止めるときは Ctrl+C）"
+           php -S 127.0.0.1:8090 -t .php-site tools/php_router.php ;;
+      cf) sh tools/build_worker.sh .site
+          echo "Worker も動かすときは: npx wrangler dev"
+          (cd .site && python3 -m http.server 8000) ;;
+      *) usage; exit 2 ;;
+    esac ;;
+  test)
+    node --test tests/*.test.js
+    if command -v php >/dev/null 2>&1; then for f in php/*.php php/inc/*.php; do php -l "$f" >/dev/null; done; echo "php -l ok"; fi ;;
+  deploy)
+    case "${1:-}" in
+      cf|cloudflare) npx --yes wrangler@4 deploy ;;
+      ftp|php|infinityfree) ftp_upload ;;
+      *) echo "deploy cf か deploy ftp を選んでください。" >&2; exit 2 ;;
+    esac ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 2 ;;
+esac

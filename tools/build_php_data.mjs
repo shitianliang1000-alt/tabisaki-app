@@ -1,12 +1,16 @@
-// PHP 版の about.php が読むデータ（data/areas.json）を作ります。
+// トップ（PHP 版の index.php と、Cloudflare 版の server/landing.js）が読む
+// データ（data/areas.json）を作ります。
 //
-//     node tools/build_php_data.mjs <組み立てたサイトの場所>
+//     node tools/build_php_data.mjs <組み立てたサイトの場所> [書き出す先]
+//
+// 書き出す先を省くと <組み立てたサイトの場所>/data/areas.json です。
 //
 // 紹介できるエリア（説明を持つもの）と、収録の数だけを書きます。
 // エリアのページ（areas/<県>/<エリア>.html）があれば、その場所も添えます。
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { curatedRegions } from "./build_area_pages.mjs";
 
 const out = process.argv[2] ?? ".php-site";
@@ -31,14 +35,76 @@ if (existsSync(areasDir)) {
   }
 }
 
-const areas = curatedRegions(regions).map((r) => ({
-  id: r.id, name: r.name, prefecture: r.prefecture,
-  tagline: r.tagline, description: r.description,
-  genres: r.genres ?? [], station: r.station,
-  page: pageOf.get(r.id) ?? null,
-}));
+/**
+ * エリアのページに載せた「1日のモデルコース」（旅さきのエンジンが組んだ本物）を
+ * 読み取ります。トップの「動く見本」は、これをそのまま順に見せます。
+ */
+export function parseCourse(html) {
+  const ol = /<ol class="course">([\s\S]*?)<\/ol>/.exec(html)?.[1];
+  if (!ol) return [];
+  const strip = (t) => t.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+  const items = [];
+  for (const m of ol.matchAll(/<li class="c-([a-z]+)">([\s\S]*?)<\/li>/g)) {
+    const kind = m[1];
+    const time = strip(/<b class="c-time">([\s\S]*?)<\/b>/.exec(m[2])?.[1] ?? "");
+    const titleHtml = /<span class="c-title">([\s\S]*?)<\/span>/.exec(m[2])?.[1] ?? "";
+    const min = strip(/<small>([\s\S]*?)<\/small>/.exec(titleHtml)?.[1] ?? "");
+    const title = strip(titleHtml.replace(/<small>[\s\S]*?<\/small>/, ""));
+    const text = strip(/<span class="c-text">([\s\S]*?)<\/span>/.exec(m[2])?.[1] ?? "");
+    if (time && title) items.push({ kind, time, title, min, text });
+  }
+  return items;
+}
 
-await mkdir(join(out, "data"), { recursive: true });
-await writeFile(join(out, "data", "areas.json"),
-  JSON.stringify({ prefCount, spotCount, areas }, null, 0));
-console.log(`php data: ${areas.length} areas, ${spotCount} spots → ${out}/data/areas.json`);
+const areas = [];
+for (const r of curatedRegions(regions)) {
+  const page = pageOf.get(r.id) ?? null;
+  let course = [];
+  if (page) course = parseCourse(await readFile(join(out, page), "utf8"));
+  const image = page && existsSync(join(out, page.replace(/\.html$/, ".png"))) ? page.replace(/\.html$/, ".png") : null;
+  areas.push({
+    id: r.id, name: r.name, prefecture: r.prefecture,
+    tagline: r.tagline, description: r.description,
+    genres: r.genres ?? [], station: r.station,
+    lat: r.lat ?? null, lng: r.lng ?? null,
+    page, image, course,
+  });
+}
+
+/**
+ * お知らせ。リポジトリの履歴から、使う人に関わる変更だけを拾います
+ * （テスト・注釈・取り込みのような、中の作業は載せません）。
+ * 履歴が無い組み立て（浅い clone など）では空のままです。
+ */
+function newsFromGit() {
+  let log = "";
+  try {
+    log = execFileSync("git", ["log", "-n", "120", "--no-merges", "--pretty=%ad|%s", "--date=short"],
+      { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch { return []; }
+  const skip = /テスト|試験|注釈|CodeQL|Sentinel|^Update |^Merge |取り込|作り直す|^main |CI|lint/i;
+  const seen = new Set();
+  const out = [];
+  for (const line of log.split("\n")) {
+    const [date, ...rest] = line.split("|");
+    const title = rest.join("|").trim();
+    if (!date || !title || skip.test(title) || seen.has(title)) continue;
+    seen.add(title);
+    const tag = /PHP|Cloudflare|公開|ページ|sitemap/.test(title) ? "サイト"
+      : /チャット|AI|Gemma|質問/.test(title) ? "チャット"
+      : /エリア|収録|穴場|上高地|県/.test(title) ? "行き先"
+      : "改善";
+    out.push({ date, title, tag });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+const dest = process.argv[3] ?? join(out, "data", "areas.json");
+await mkdir(dirname(dest), { recursive: true });
+// build は組み立てた時刻です。トップの CSS・JS の ?v= に使い、古いものが残らないようにします。
+await writeFile(dest,
+  JSON.stringify({ build: Date.now().toString(36), prefCount, spotCount, areas, news: newsFromGit() }, null, 0));
+const withCourse = areas.filter((a) => a.course.length).length;
+console.log(`php data: ${areas.length} areas (${withCourse} with course), ${spotCount} spots → ${dest}`);

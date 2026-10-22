@@ -7,8 +7,10 @@ AddType application/javascript .js .mjs
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  # 紹介のページは /about で開けます（about.php）。
-  RewriteRule ^about/?$ about.php [L]
+  # チャットの画面は /app で開けます（app.php）。?q= などはそのまま渡します。
+  RewriteRule ^app/?$ app.php [L,QSA]
+  # 前の紹介のページ（/about）は、トップ（index.php）にまとめました。
+  RewriteRule ^about/?$ ./ [R=301,L]
   # PHP の部品と、組み立てたデータの元は、直には見せません。
   RewriteRule ^inc(/|$) - [F,L]
 </IfModule>

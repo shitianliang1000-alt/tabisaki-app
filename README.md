@@ -366,10 +366,22 @@ PROXY_URL
 
 ## 🚀 公開する（Cloudflare と PHP 版）
 
-2026-10-22 から、GitHub Pages では公開しません。GitHub はコードの置き場とテスト（`test.yml`）だけです。
+2026-10-22 から、GitHub Pages では公開しません。GitHub はプログラムの置き場とテスト（`test.yml`）だけです。
+組み立て・試し・公開は、端末（SSH でも）から `./tabisaki` 1つでできます。
 
-- **Cloudflare Worker**（`wrangler.jsonc`）: AIの中継・管理画面に加えて、サイトそのものも配ります。Workers Builds が push ごとに `tools/build_worker.sh` で `.site/` を組み立てて上げます。管理画面のファイルは `.site/__admin/` に入り、合言葉を通ったときだけ見えます。
-- **PHP 版**（InfinityFree など）: `sh tools/build_php.sh .php-site --zip` で `tabisaki-php.zip` ができます。中身をサーバーの `htdocs/` に上げれば動きます。`index.php`（時刻の挨拶・季節の例）と `about.php`（紹介のページ。今日のおすすめを日替わりで作る）が PHP で、ほかは静的なファイルです。PHP 版のアドレスは、Worker の `ALLOW_ORIGIN` に足してください（AIを呼べるようにするため）。
+    ./tabisaki help          # 使いかた
+    ./tabisaki serve php     # 手元で PHP 版を開く（http://127.0.0.1:8090/）
+    ./tabisaki test          # 試験
+    ./tabisaki deploy cf     # Cloudflare に上げる
+    ./tabisaki deploy ftp    # InfinityFree に FTP で上げる（FTP_HOST などは .env.deploy に）
+
+トップ（`/`）は Anthropic・OpenAI のサイトのような、動く紹介のページです。チャットの画面は `/app` です。
+どちらも開いたときにサーバーが作ります（挨拶・季節・日替わりのおすすめ・実際に組んだコースの再生）。
+トップのひな形は `php/inc/landing.html` の1つだけで、PHP 版（`php/inc/site.php`）と Cloudflare 版（`server/landing.js`）が同じ中身を入れます。
+`tests/landing.test.js` が、両方の HTML が1字も違わないことを確かめます。
+
+- **Cloudflare Worker**（`wrangler.jsonc`）: AIの中継・管理画面に加えて、サイトそのものも配ります。Workers Builds が push ごとに `tools/build_worker.sh` で `.site/` を組み立てて上げます。`/`・`/app`・`/index.html` は Worker が作り、ほかは静的なファイルをそのまま返します。管理画面のファイルは `.site/__admin/` に入り、合言葉を通ったときだけ見えます。
+- **PHP 版**（InfinityFree など）: `./tabisaki php --zip` で `tabisaki-php.zip` ができます。中身をサーバーの `htdocs/` に上げれば動きます。`index.php`（トップ）と `app.php`（チャットの画面）が PHP で、ほかは静的なファイルです。PHP 版のアドレスは、Worker の `ALLOW_ORIGIN` に足してください（AIを呼べるようにするため）。
 
 どちらも `tools/build_site.sh` を通るので、**公開するのはブラウザが読むものだけ**です。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`tools/build_site.sh` に足してください。
 

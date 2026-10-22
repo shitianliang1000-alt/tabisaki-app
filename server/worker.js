@@ -1,6 +1,7 @@
 import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
 import { currentSettings, record, Stats, SWITCHABLE } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
+import { servePage } from "./landing.js";
 
 // 管理画面の件数・設定の置き場（Durable Object）。wrangler.jsonc の STATS。
 export { Stats };
@@ -147,6 +148,11 @@ export default {
     // 管理画面のファイルの置き場は、直には見せません（合言葉は上で聞きます）。
     if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
       return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+    // トップ（/）とチャットの画面（/app）は、開いたときに作ります（server/landing.js）。
+    if (env?.ASSETS) {
+      const page = await servePage(request, env);
+      if (page) return page;
     }
     // サイトのページ（GET）。ふつうは Cloudflare がこの Worker を通さずに
     // 静的ファイルを返します。ここに来るのは、無いファイルを開いたときです。
