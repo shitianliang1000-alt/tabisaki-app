@@ -9,14 +9,19 @@ ErrorDocument 404 /404.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
+  # /app/ のままだと、画面の部品（css/・js/ への相対の道）が /app/css/… を探して
+  # 見つからず、画面が崩れます。/app へ移ってもらいます（?q= などはそのまま）。
+  RewriteRule ^app/$ /app [R=301,L,QSA]
   # チャットの画面は /app で開けます（app.php）。?q= などはそのまま渡します。
-  RewriteRule ^app/?$ app.php [L,QSA]
+  RewriteRule ^app$ app.php [L,QSA]
   # /index.html もチャットの画面です（ホーム画面に置いたアプリと、エリアのページの
   # 「旅程をつくる」が開く場所）。静的なままだと、挨拶が時刻に合わず、canonical も
   # トップ（/）を指してしまうので、/app と同じく app.php が返します。
   RewriteRule ^index\.html$ app.php [L,QSA]
   # 前の紹介のページ（/about）は、トップ（index.php）にまとめました。
-  RewriteRule ^about/?$ ./ [R=301,L]
+  # （「./」と書くと、Apache がサーバーの中の置き場の道を付けてしまいます。）
+  RewriteRule ^about/?$ / [R=301,L]
   # PHP の部品と、組み立てたデータの元は、直には見せません。
   RewriteRule ^inc(/|$) - [F,L]
 </IfModule>

@@ -92,6 +92,12 @@ test("/app と /index.html は、挨拶と見本を替えたチャットの画�
   }
 });
 
+test("/app/ は /app へ移す（相対の道で css/・js/ が見つからなくなるため）", async () => {
+  const res = await servePage(new Request(`${W}/app/?q=abc`), env);
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get("Location"), `${W}/app?q=abc`);
+});
+
 test("ひな形の置き場は、直には見せない", async () => {
   const res = await worker.fetch(new Request(`${W}/__site/landing.html`), env);
   assert.equal(res.status, 404);

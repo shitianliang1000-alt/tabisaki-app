@@ -54,6 +54,7 @@ import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory
          savedLabel, thawItinerary } from "./history.js";
 import { initTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
+import { introGreeting, typePlaceholder, watchReveal } from "./motion.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
@@ -180,6 +181,11 @@ async function boot() {
     },
   });
   updateWindowHelp();
+  // 動き（js/motion.js）。挨拶・入力欄の見本の文・旅程の行。
+  introGreeting($("#hero-greet"));
+  typePlaceholder($("#note"),
+    [...document.querySelectorAll(".note-examples [data-example]")].map((b) => b.dataset.example));
+  watchReveal($("#chat-body"));
 
   // 収録は 29,706件・4.8MB（gzip で約1MB）あります。
   // **要るぶんだけ読みます。**

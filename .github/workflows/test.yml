@@ -35,6 +35,8 @@ jobs:
           curl -sSf http://127.0.0.1:8090/ | grep -q 'id="stage"'
           curl -sSf http://127.0.0.1:8090/app | grep -q 'id="plus-sep-tune"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/inc/landing.html)" = 403
+          # /app/ は /app へ移す（そのままだと css/・js/ が /app/ の下を探して崩れる）
+          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' 'http://127.0.0.1:8090/app/?q=x')" = "301 http://127.0.0.1:8090/app?q=x"
       # Cloudflare 用の組み立て（トップのひな形・データ・管理画面が入るか）
       - name: Cloudflare site build
         run: |
