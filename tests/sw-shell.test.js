@@ -72,11 +72,17 @@ test("画面と見た目も、先に入っている", () => {
   }
   // 入口そのもの（"./"）も。ホーム画面から開くとここに来ます。
   assert.match(sw, /"\.\/",/);
+  // チャットの画面の正式なアドレスと、ホーム画面のアプリの入口。
+  assert.ok(listed.includes("app"), "./app が入っていません");
+  const manifest = JSON.parse(read("manifest.webmanifest"));
+  assert.equal(manifest.start_url, "./app",
+    "ホーム画面から開く先は、チャットの画面（/app）にします");
 });
 
 test("並べたものは、ぜんぶ実在する", () => {
   for (const f of listed) {
-    if (f === "") continue;
+    // "app" はファイルではなく、Worker・PHP 版が返す画面です。
+    if (f === "" || f === "app") continue;
     assert.ok(fs.existsSync(new URL(f, root)), `${f} がありません`);
   }
 });

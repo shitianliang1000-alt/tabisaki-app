@@ -2,7 +2,7 @@
   "name": "旅さき — 行きたい、から旅程をつくる",
   "short_name": "旅さき",
   "description": "「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。",
-  "start_url": "./index.html",
+  "start_url": "./app",
   "scope": "./",
   "display": "standalone",
   "background_color": "#FFFFFF",

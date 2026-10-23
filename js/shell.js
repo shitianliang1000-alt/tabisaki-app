@@ -196,11 +196,22 @@ export function wireShell({ onNewTrip }) {
   const side = $("#side");
   const scrim = $("#side-scrim");
   const opener = $("#side-open");
+  // トップへ戻る名前のリンク。h1 は畳んだ引き出しの中でも読み上げに残すので、
+  // 引き出しが閉じているあいだは Tab で画面の外へ迷い込まないようにします。
+  const home = side?.querySelector(".brand-home");
+  const syncHome = () => {
+    if (!home) return;
+    const reachable = !isDrawer() || document.body.dataset.side === "open";
+    if (reachable) home.removeAttribute("tabindex");
+    else home.setAttribute("tabindex", "-1");
+  };
+  globalThis.matchMedia?.("(max-width: 1099px)")?.addEventListener?.("change", syncHome);
   const setSide = (open) => {
     document.body.dataset.side = open ? "open" : "";
     if (scrim) scrim.hidden = !open;
     opener?.setAttribute("aria-expanded", String(open));
-    if (open) side?.querySelector("button, a")?.focus();
+    syncHome();
+    if (open) side?.querySelector("button")?.focus();
     else if (isDrawer() && side?.contains(document.activeElement)) opener?.focus();
   };
   opener?.addEventListener("click", () => setSide(true));
@@ -221,6 +232,7 @@ export function wireShell({ onNewTrip }) {
   try {
     if (!isDrawer() && localStorage.getItem(SIDE_KEY) === "mini") setMini(true);
   } catch { /* 読めなくても広げたまま */ }
+  syncHome();
   scrim?.addEventListener("click", () => setSide(false));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
@@ -231,7 +243,7 @@ export function wireShell({ onNewTrip }) {
   side?.addEventListener("click", (e) => {
     // 畳んだ帯の「最近の旅」などは見えないので、しるしを押したら広げます。
     if (!isDrawer() && document.body.dataset.side === "mini"
-        && e.target.closest(".brand-line")) { setMini(false); return; }
+        && e.target.closest(".brand-line")) { e.preventDefault(); setMini(false); return; }
     if (!isDrawer()) return;
     if (e.target.closest("#side-close")) return;
     if (e.target.closest(".side-item, .recent-row")) setSide(false);

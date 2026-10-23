@@ -10,7 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
+  appLink, breadcrumbLd, buildAll, courseFits, courseRadiusKm, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
   examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
   latestDay, pickFeatured, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
@@ -65,7 +65,7 @@ test("例の日付は、次の土曜", () => {
 
 test("アプリへのリンクは、文を ?q= で運ぶ", () => {
   assert.equal(appLink("../../", "箱根で温泉 & 美術館"),
-    "../../index.html?q=%E7%AE%B1%E6%A0%B9%E3%81%A7%E6%B8%A9%E6%B3%89%20%26%20%E7%BE%8E%E8%A1%93%E9%A4%A8");
+    "../../app?q=%E7%AE%B1%E6%A0%B9%E3%81%A7%E6%B8%A9%E6%B3%89%20%26%20%E7%BE%8E%E8%A1%93%E9%A4%A8");
 });
 
 test("書きかたの例は、そのエリアの分類から作る", () => {
@@ -217,12 +217,12 @@ test("モデルコースの最後は、着く駅と時刻で終わる", () => {
 test("モデルコースをアプリで開くリンクに、寄る場所とエリアが入る", () => {
   assert.deepEqual(courseSpotIds(itinOf(["a", "b", "a"])), ["a", "b"]);
   const url = courseLink("../../", "箱根を1日でめぐる", "hakone", ["a", "b"]);
-  assert.match(url, /^\.\.\/\.\.\/index\.html\?/);
+  assert.match(url, /^\.\.\/\.\.\/app\?/);
   const q = new URLSearchParams(url.split("?")[1]);
   assert.equal(q.get("q"), "箱根を1日でめぐる");
   assert.equal(q.get("pin"), "a,b");
   assert.equal(q.get("area"), "hakone");
-  assert.equal(courseLink("", "x", "hakone", []), "index.html?q=x");
+  assert.equal(courseLink("", "x", "hakone", []), "app?q=x");
 });
 
 test("全ページ: 一覧・県・エリアができ、名前は逃がしてある", async () => {
@@ -248,7 +248,7 @@ test("全ページ: 一覧・県・エリアができ、名前は逃がしてあ
   const region = pages[2].html;
   assert.match(region, /1日のモデルコース/);
   assert.match(region, /10月10日（土）/);
-  assert.match(region, /index\.html\?q=/);
+  assert.match(region, /app\?q=/);
   // JSON-LD の中でも、< は逃がしてあること。
   assert.ok(!/<\/script>alert/.test(region));
   assert.match(sitemap, /<loc>https:\/\/example\.test\/app\/<\/loc>/);
@@ -455,7 +455,7 @@ test("404.html: どの深さで出ても、どちらのホストでも崩れな�
   assert.ok(!html.includes('rel="canonical"'));
   // 公開URLを丸ごと書くと、PHP 版（別のホスト）では CSP でスタイルが止まります。
   assert.match(html, /href="\/css\/area\.css"/);
-  assert.match(html, /href="\/index\.html"/);
+  assert.match(html, /href="\/app"/);
   assert.match(html, /href="\/areas\/kanagawa\/index\.html"/);
   assert.ok(!/(href|src)="(?!\/|https:)/.test(html), "相対リンクが残っています");
   assert.ok(!/(href|src)="https:\/\/example/.test(html), "公開URLのリンクが残っています");
@@ -529,6 +529,24 @@ test("モデルコースには、エリアの中心から遠い場所（鎌倉�
   assert.equal(isFar(kamakura, { name: "座標なし" }), false);
 });
 
+test("町歩きのエリアは、名所のかたまり具合で寄る範囲を狭める（松本の四賀化石館）", () => {
+  const matsumoto = { lat: 36.2384, lng: 137.969, genres: ["history", "nature", "view", "city"] };
+  const own = [
+    { name: "松本城", lat: 36.2384, lng: 137.969, fame_score: 90 },
+    { name: "旧開智学校", lat: 36.242, lng: 137.967, fame_score: 70 },
+    { name: "冠着山", lat: 36.3, lng: 138.04, fame_score: 60 },          // 約9.6km、山の上
+    { name: "四賀化石館", lat: 36.317853, lng: 137.998342, fame_score: 10 },
+  ];
+  const r = courseRadiusKm(matsumoto, own);
+  assert.equal(r, 3, "城と旧開智学校がすぐ近くなので、最小の3kmになる");
+  assert.equal(isFar(matsumoto, own[3], r), true, "9km 先の化石館は外れる");
+  assert.equal(isFar(matsumoto, own[1], r), false);
+  // 町歩きでないエリア（山・温泉）は、これまでどおりの10km。
+  assert.equal(courseRadiusKm({ ...matsumoto, genres: ["onsen", "nature"] }, own), 10);
+  // 名所が3つ無いときは、狭めない。
+  assert.equal(courseRadiusKm(matsumoto, own.slice(0, 2)), 10);
+});
+
 test("コースがあるページだけ、題に「モデルコース」と書く", async () => {
   const kbDoc = {
     index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
@@ -589,7 +607,7 @@ test("紹介ページ: 組めたコースを例に載せ、エリアへつなぎ
   assert.match(html, /実際に組んだ例: 箱根の1日/);
   assert.match(html, /class="course"/);
   assert.match(html, /href="areas\/kanagawa\/hakone\.html"/);
-  assert.match(html, /href="index\.html"/);
+  assert.match(html, /href="app"/);
   assert.match(html, /script-src 'none'/);
   assert.match(sitemap, /<loc>https:\/\/example\.test\/app\/about\.html<\/loc>\s*<lastmod>2026-10-20<\/lastmod>\s*<priority>0\.8/);
   // どのページの下にも、紹介ページへのリンクがあること。

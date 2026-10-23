@@ -175,9 +175,12 @@
       <!-- 文書の h1 は、画面に出ている名前そのものです。ひとことは
            読み上げにだけ添えます。狭い画面で一覧を畳んでいるあいだも、
            見出しとしては残します（css/app.css の .side .brand-line）。 -->
+      <!-- 名前を押すとトップ（/）へ戻ります。どんなサービスか・都道府県の一覧は
+           トップにあるので、チャットの画面から迷子にならない道を1本残します。 -->
       <h1 class="brand-line">
+        <a class="brand-home" href="./" aria-label="旅さき トップページへ">
         <img class="brand-mark" src="mark.svg" alt="" width="28" height="28">
-        <span class="brand-name">旅さき</span><span class="sr-only"> — 行きたいことから旅行プランを作成</span>
+        <span class="brand-name">旅さき</span></a><span class="sr-only"> — 行きたいことから旅行プランを作成</span>
       </h1>
       <button type="button" class="md-icon-btn md-state side-close" id="side-close"
               aria-label="旅の一覧を畳む" title="旅の一覧を畳む" aria-controls="side" aria-expanded="true">
@@ -225,10 +228,6 @@
         <svg class="ic" data-icon="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 8h16M4 16h10"/></svg>
       </button>
       <p class="topbar-title" id="topbar-title"></p>
-      <button type="button" class="md-icon-btn md-state" id="open-settings"
-              aria-label="設定" title="設定">
-        <svg class="ic" data-icon="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg>
-      </button>
     </div>
 
     <div class="chat-body" id="chat-body">
@@ -268,6 +267,10 @@
     <div class="dock" id="dock">
       <div class="tune-group" id="pinned" hidden></div>
       <p class="area-picked" id="area-picked" role="status"></p>
+      <!-- 書いた文から読み取った移動のしかた（車・普通列車のみ…）。送る前に
+           見えるようにします。こだわりの「移動」を開かなくても、意図どおりに
+           読めたかが分かります（js/intent.js の readIntent。文が設定に勝ちます）。 -->
+      <p class="mode-hint" id="mode-hint" role="status" aria-live="polite" hidden></p>
 
       <div class="composer" id="composer">
         <label class="note-field">
@@ -803,201 +806,6 @@
 
 </main>
 
-
-<dialog id="settings-dialog" class="md-dialog">
-  <h2 class="hig-title-2">設定</h2>
-
-  <!-- 使う人が知りたいこと。「Geminiとは」ではなく「AIは使えるのか」。 -->
-  <!-- 字の大きさ。
-       ------------------------------------------------------------
-       字は rem で書いてあるので、ブラウザの既定の字と、iOS の
-       Dynamic Type（font: -apple-system-body）にはついていきます。
-       ただ **Android の Chrome では Dynamic Type が効きません**し、
-       OSの設定の場所を知らない人もいます。ここで倍率を選べるように
-       します（OSの設定とは掛け算になります）。 -->
-  <div class="md-list-item type-scale-row">
-    <span class="md-list-text" id="type-scale-label">字の大きさ</span>
-    <span class="md-list-support">端末の設定にも合わせますが、ここでも
-      変えられます</span>
-    <div class="chip-set chip-choice" id="type-scale-choice"
-         role="group" aria-labelledby="type-scale-label">
-      <button type="button" class="md-chip md-state is-selected"
-              data-scale="1"><span>標準</span></button>
-      <button type="button" class="md-chip md-state"
-              data-scale="1.15"><span>やや大きい</span></button>
-      <button type="button" class="md-chip md-state"
-              data-scale="1.3"><span>大きい</span></button>
-      <button type="button" class="md-chip md-state"
-              data-scale="1.5"><span>特大</span></button>
-    </div>
-  </div>
-
-  <!-- 控えと読み込み。
-       ------------------------------------------------------------
-       作った旅程が残る場所は、この端末の localStorage だけで最大10件
-       でした。機種を変えたら消えます。Safari の追跡防止は、しばらく
-       開かないサイトの保存を消します。**戻す手がどこにもありません
-       でした。** ファイルにすれば、別の端末へ移せて、同行者にも
-       渡せます（時刻の固まった旅程がそのまま開きます）。 -->
-  <div class="md-list-item type-scale-row">
-    <span class="md-list-text">つくった旅の控え</span>
-    <span class="md-list-support">この端末にしか残っていません。
-      ファイルにすると、別の端末へ移せます。読み込んでも、
-      手元の旅は消しません（混ぜるだけです）。</span>
-    <div class="chip-set">
-      <button type="button" class="md-btn md-btn--outlined md-state"
-              id="backup-export"><span>控えを書き出す</span></button>
-      <button type="button" class="md-btn md-btn--outlined md-state"
-              id="backup-import"><span>ファイルから読み込む</span></button>
-      <input type="file" id="backup-file" accept="application/json,.json"
-             hidden>
-    </div>
-  </div>
-
-  <ul class="md-list">
-    <li class="md-list-item">
-      <span class="md-list-text">配色</span>
-      <span class="md-list-support">端末の設定に合わせます</span>
-    </li>
-    <li class="md-list-item">
-      <span class="md-list-text">AIによる提案</span>
-      <span class="md-list-support" id="key-gemini"></span>
-    </li>
-    <!-- チャットの調べもの（js/qa.js → 中継の /web/search）。外へ出る
-         ものは、ほかの項目と同じく、何がどこへ行くかを書いておきます。 -->
-    <li class="md-list-item">
-      <span class="md-list-text">チャットの調べもの</span>
-      <span class="md-list-support" id="key-websearch"></span>
-    </li>
-    <li class="md-list-item">
-      <span class="md-list-text">実際の経路・所要時間</span>
-      <span class="md-list-support" id="key-maps"></span>
-    </li>
-    <li class="md-list-item">
-      <span class="md-list-text">収録データ</span>
-      <span class="md-list-support" id="key-kb"></span>
-    </li>
-    <li class="md-list-item">
-      <span class="md-list-text">これまでの利用</span>
-      <span class="md-list-support" id="key-quota"></span>
-      <button type="button" class="md-btn md-btn--text md-state" id="reset-quota">
-        <span>数え直す</span></button>
-    </li>
-  </ul>
-
-  <!-- 使われかたの件数（js/metrics.js）。名前・入力・場所は送りません。
-       既定は協力する（チェックなし）。チェックを入れたときだけ止めます。 -->
-  <label class="switch-row" for="optout-metrics">
-    <span class="md-switch">
-      <input type="checkbox" id="optout-metrics">
-      <span class="md-switch-track"></span>
-    </span>
-    <span class="switch-text">
-      <b>使われかたの集計に協力しない</b>
-      <small>チェックを入れると、「旅程ができた」「組めなかった」などの件数を送りません。チェックが無いときも、入力した文や場所、旅程は送りません。</small>
-    </span>
-  </label>
-
-  <!-- ここから先は、自分で動かしている人だけが要るものです。
-       一般の利用者に「Routes API」と書いても、何も伝わりません。
-
-       キーは、この端末の localStorage にだけ残します。どこにも送りません。
-       公開サイト（GitHub Pages など）では config.js を書き換えられないので、
-       使う人が自分のキーをここから入れられるようにしています。 -->
-  <!-- 接続の確認は、開発者向けの欄の外に出します。キーを入れるのは
-       開発者の仕事ですが、「つながっているか」を知りたいのは使う人です。
-       つながっていなければ、電車・バスの時間が目安になり、AIは
-       収録データからの機械的な選定に落ちます（旅程は作れますが、
-       希望文の読み取りと並べ方が簡易になります）。 -->
-  <div class="tune-group check-conn">
-    <span class="tune-label">接続の確認</span>
-    <button type="button" class="md-btn md-btn--tonal md-state" id="test-conn">
-      <span>いま使えるか確かめる</span>
-    </button>
-    <p id="conn-result" class="key-result" hidden></p>
-    <p class="md-field-help">電車・バスの時間（Yahoo!路線情報）、
-      徒歩・車の経路（Google）、行き先を選ぶAI（Gemma）を1回ずつ試します。</p>
-  </div>
-
-  <details class="dev-settings" id="dev-settings" hidden>
-    <summary><span>開発者向け（APIキーを入れる）</span></summary>
-
-    <p class="dev-lead">
-      キーは<b>この端末の中だけ</b>に保存されます。空にして保存すると
-      <code>js/config.js</code> の値に戻ります。</p>
-
-    <label class="md-field key-field">
-      <span class="md-field-label">AI（Google AI Studio）のキー</span>
-      <input type="password" id="in-gemini" autocomplete="off"
-             spellcheck="false" placeholder="AIza…">
-      <span class="md-field-help">
-        <a href="https://aistudio.google.com/apikey" target="_blank"
-           rel="noopener">Google AI Studio</a> で発行できます。
-        希望文の読み取り・行き先の選定・収録に無い土地の調査に使います。</span>
-    </label>
-
-    <label class="md-field key-field">
-      <span class="md-field-label">経路（Routes API）のキー</span>
-      <input type="password" id="in-maps" autocomplete="off"
-             spellcheck="false" placeholder="AIza…">
-      <span class="md-field-help">
-        <a href="https://console.cloud.google.com/google/maps-apis/api-list"
-           target="_blank" rel="noopener">Google Cloud</a> で
-        <b>Routes API</b> を有効にしたキー。実際の乗換・所要時間に使います。
-        HTTPリファラー制限には、このページのURLを入れてください。</span>
-    </label>
-
-    <label class="md-field key-field">
-      <span class="md-field-label">プロキシの入口（任意）</span>
-      <input type="url" id="in-proxy" autocomplete="off" spellcheck="false"
-             inputmode="url" placeholder="https://…（キーをサーバー側に置く場合）">
-      <span class="md-field-help" id="proxy-help">
-        設定すると上の2つのキーは使われず、キーはサーバー側で付けます
-        （<code>server/README.md</code>）。</span>
-    </label>
-
-    <div class="key-actions">
-      <button type="button" class="md-btn md-btn--filled md-state" id="save-keys">
-        <span>保存する</span></button>
-      <button type="button" class="md-btn md-btn--text md-state" id="clear-keys">
-        <span>消す</span></button>
-      <label class="show-keys">
-        <input type="checkbox" id="show-keys"> <span>キーを表示</span>
-      </label>
-    </div>
-    <p id="keys-note" class="keys-note" hidden></p>
-
-    <ul class="md-list">
-      <li class="md-list-item">
-        <span class="md-list-text">AI（Gemma / Google AI Studio）</span>
-        <span class="md-list-support" id="dev-gemini"></span>
-        <button type="button" class="md-btn md-btn--text md-state" id="test-gemini">
-          <span>確認</span></button>
-      </li>
-      <li class="md-list-item">
-        <span class="md-list-text">Routes API</span>
-        <span class="md-list-support" id="dev-maps"></span>
-        <button type="button" class="md-btn md-btn--text md-state" id="test-maps">
-          <span>確認</span></button>
-      </li>
-      <li class="md-list-item">
-        <span class="md-list-text">知識ベース</span>
-        <span class="md-list-support" id="dev-kb"></span>
-      </li>
-    </ul>
-    <p id="routes-usage" class="routes-usage" hidden></p>
-    <p id="key-result" class="key-result" hidden></p>
-    <p class="hig-footnote dev-foot">
-      「確認」は1リクエストだけ送ります。公開するときは
-      <code>PROXY_URL</code> に自分のバックエンドを設定して、キーを
-      ブラウザに置かないようにしてください（<code>server/README.md</code>）。</p>
-  </details>
-
-  <div class="md-dialog-actions">
-    <button type="button" class="md-btn md-btn--text md-state" id="settings-close">
-      <span>閉じる</span></button>
-  </div>
-</dialog>
 
 <!-- 取り消せない操作の確認。
      ------------------------------------------------------------------

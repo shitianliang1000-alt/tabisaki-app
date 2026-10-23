@@ -45,6 +45,24 @@
   //
   // それ以外のファイル（js/・kb/・areas/…）は、Worker を通さずに
   // Cloudflare がそのまま返します（無料枠の回数を使いません）。
+  // --- 独自ドメイン（Custom Domain） ---------------------------------------
+  // 検索エンジンや SNS のリンクカードの取りに来るもの（Bingbot・X・LINE…）は、
+  // InfinityFree（tabisaki.site.je）では JavaScript の確認画面に止められます。
+  // Cloudflare に自分のドメインを置き、この Worker に直につなぐと止まりません。
+  //
+  // **site.je は InfinityFree の共用ドメインなので、ここには書けません**
+  // （Cloudflare に登録できるのは、自分で持っているドメインだけです）。
+  // 自分のドメインを Cloudflare に足したら、次の // を外して名前を入れます。
+  // 書いたドメインがアカウントに無いと、デプロイが失敗します。
+  //
+  // "routes": [
+  //   { "pattern": "example.jp", "custom_domain": true },
+  //   { "pattern": "www.example.jp", "custom_domain": true }
+  // ],
+  // あわせて server/landing.js・php/inc/site.php の SITE_ORIGIN と
+  // tools/build_area_pages.mjs の DEFAULT_BASE を同じアドレスにします
+  // （tests/canonical.test.js が揃っているかを見ます）。
+
   "build": {
     "command": "sh tools/build_worker.sh .site"
   },

@@ -180,6 +180,13 @@ p, li { text-wrap: pretty; }
   margin: 0 0 16px; padding-right: 48px;
 }
 .brand-mark { flex: none; width: 28px; height: 28px; }
+/* 名前はトップ（/）へのリンクです。見た目は名前の行のまま。 */
+.brand-home {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: inherit; text-decoration: none; border-radius: 8px;
+}
+.brand-home:hover .brand-name { text-decoration: underline; text-underline-offset: 3px; }
+.brand-home:focus-visible { outline: 2px solid var(--hig-label); outline-offset: 3px; }
 .brand-name {
   font-size: var(--hig-t-title3, 1.25rem); font-weight: 700; letter-spacing: .02em;
   color: var(--hig-label);
@@ -1525,18 +1532,6 @@ body[data-trip-mode="on"] .today { margin-top: 0; min-height: 60vh; }
 }
 .here-note.warn { color: var(--hig-orange); font-weight: 600; }
 
-/* 設定はキーの欄が増えたので、少し広く、中で流れるようにします。 */
-#settings-dialog {
-  width: min(94vw, 520px);
-  max-height: min(90vh, 90dvh);
-  overflow-y: auto;
-  padding-bottom: 10px;
-}
-#settings-dialog .md-dialog-actions {
-  position: sticky; bottom: -10px;
-  margin-bottom: -10px; padding-bottom: 10px;
-  background: var(--hig-elevated);
-}
 /* 「利用できます」「未設定」を色でも示します。文字だけでも読めますが、
    一覧をひと目で追うには色の助けがあるほうが速い。
    明るい配色用の緑は --hig-green そのものが濃いので、ここで上書きしません
@@ -1581,20 +1576,6 @@ body[data-trip-mode="on"] .today { margin-top: 0; min-height: 60vh; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
        font-size: .92em; padding: 1px 5px; border-radius: 4px;
        background: var(--hig-fill); }
-
-/* 開発者向けの設定。一般の利用者には畳んで見せます。 */
-.dev-settings { margin: 4px 0 8px; }
-.dev-settings > summary {
-  list-style: none; cursor: pointer;
-  min-height: 36px; display: flex; align-items: center;
-  font-size: var(--hig-t-subhead); font-weight: 600; color: var(--hig-label-2);
-}
-.dev-settings > summary::-webkit-details-marker { display: none; }
-.dev-settings > summary::after {
-  content: "\203A"; margin-left: 6px; font-size: var(--hig-t-title3);
-  transform: rotate(90deg);
-}
-.dev-settings[open] > summary::after { transform: rotate(-90deg); }
 
 /* ------------------------------------------------ 適合度と選定理由 --- */
 
@@ -3198,6 +3179,16 @@ body[data-view="result"] .dock { padding-top: 4px; }
 .dock #pinned { margin: 0 0 8px; }
 .dock .area-picked { margin: 0 0 6px 14px; }
 .dock .area-picked:empty { display: none; }
+/* 文から読み取った移動のしかた。送る前に「車で組む」などが見えます。 */
+.mode-hint {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  margin: 0 0 6px 10px; padding: 4px 12px 4px 10px;
+  border: 1px solid var(--chat-line); border-radius: 999px;
+  background: var(--chat-bg); color: var(--chat-ink-2, var(--hig-label-2));
+  font-size: var(--hig-t-footnote); line-height: 1.4;
+}
+.mode-hint[hidden] { display: none; }
+.mode-hint .ic { width: 16px; height: 16px; flex: none; }
 .composer {
   position: relative;
   display: flex; flex-direction: column; gap: 6px;
