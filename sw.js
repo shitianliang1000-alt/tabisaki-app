@@ -35,7 +35,7 @@
 // v13: ホームを挨拶と入力欄だけにし、当日の札と共有を答えに出しました。
 // v20: こだわりを入力欄の下へ出し、答えに動き（js/motion.js）を足しました。
 // v22: 起動に要る js/ を app.js と chunk-*.js にまとめました（tools/optimize_site.mjs）。
-const VERSION = "tabisaki-v23";
+const VERSION = "tabisaki-v24";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -48,6 +48,11 @@ const TILE_HOST = /(^|\.)tile\.openstreetmap\.org$/;
 /** 先に入れておくもの。ここが欠けるとアプリが開きません。 */
 const SHELL_FILES = [
   "./",
+  // チャットの画面の正式なアドレス（Worker・PHP 版とも /app）。ホーム画面に
+  // 足したアプリもここから開きます（manifest.webmanifest の start_url）。
+  // ファイルではなく Worker・PHP が返すので、静的に配るだけの場所では
+  // 404 になりますが、allSettled なので他のものは入ります。
+  "./app",
   "./index.html",
   "./manifest.webmanifest",
   "./icon.svg",
@@ -242,7 +247,8 @@ async function networkFirst(req, cacheName) {
     // ページの要求で、何も持っていないとき。
     // 真っ白より、理由の書いてある画面のほうがましです。
     if (req.mode === "navigate") {
-      const shell = await cache.match("./index.html");
+      const shell = (await cache.match("./app"))
+        ?? (await cache.match("./index.html"));
       if (shell) return shell;
     }
     throw e;

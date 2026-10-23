@@ -63,10 +63,39 @@ const REGION_MIN_NEAR = 8;
  */
 const COURSE_RADIUS_KM = 10;
 
+/**
+ * 名所が中心にかたまっているエリアでは、寄ってよい範囲を狭めます。
+ * 松本のコースが、城と旧開智学校のあと、片道1時間の四賀化石館（9km 先）へ
+ * バスで往復していました。歩いて回れる城下町なのに、10km の枠の中なら
+ * どこでも入れていたためです。いちばん知られた3か所が中心からどこまで
+ * 散らばっているか（2番目に遠いもの）を見て、その2.5倍（3〜10km）を枠にします。
+ * 町歩きのエリア（genres に city）だけに効かせます。箱根や草津のように
+ * 名所が離れているエリアは、これまでどおり 10km です。
+ * 名の通った場所（fame_tier が major）は、枠が狭まっても外しません。
+ */
+const COURSE_MIN_RADIUS_KM = 3;
+const COURSE_SPREAD = 2.5;
+
+export function courseRadiusKm(region, own = []) {
+  if (![region?.lat, region?.lng].every(Number.isFinite)) return COURSE_RADIUS_KM;
+  // 町を歩いて回るエリア（genres に city）だけです。山や温泉地のエリアは、
+  // 離れた滝や展望台へ足を延ばすのがふつうの1日です。
+  if (!(region.genres ?? []).includes("city")) return COURSE_RADIUS_KM;
+  const dist = (s) => distanceKm(region.lat, region.lng, s.lat, s.lng);
+  const top = own.filter((s) => Number.isFinite(s?.lat) && Number.isFinite(s?.lng)
+                                && dist(s) <= COURSE_RADIUS_KM)
+    .sort(byFame).slice(0, 3);
+  if (top.length < 3) return COURSE_RADIUS_KM;
+  // 3か所の中ほど（2番目に遠いもの）で見ます。1か所だけ山の上にある
+  // （松本の冠着山）ようなエリアで、枠が広がりきらないようにします。
+  const spread = top.map(dist).sort((a, b) => a - b)[1];
+  return Math.min(COURSE_RADIUS_KM, Math.max(COURSE_MIN_RADIUS_KM, spread * COURSE_SPREAD));
+}
+
 /** モデルコースに入れるには遠すぎる場所か。座標の無いものは判断せず、遠いとはしません。 */
-export function isFar(region, spot) {
+export function isFar(region, spot, radiusKm = COURSE_RADIUS_KM) {
   if (![region?.lat, region?.lng, spot?.lat, spot?.lng].every(Number.isFinite)) return false;
-  return distanceKm(region.lat, region.lng, spot.lat, spot.lng) > COURSE_RADIUS_KM;
+  return distanceKm(region.lat, region.lng, spot.lat, spot.lng) > radiusKm;
 }
 
 export function esc(text) {
@@ -88,9 +117,13 @@ export function nextSaturday(now = new Date()) {
   return d;
 }
 
-/** アプリへのリンク。`?q=` は「どんな旅にしたい？」の欄に入るだけです。 */
+/**
+ * アプリへのリンク。`?q=` は「どんな旅にしたい？」の欄に入るだけです。
+ * チャットの画面の正式なアドレスは /app です（canonical と同じにして、
+ * 内部リンクの評価が index.html と /app に割れないようにします）。
+ */
 export function appLink(rel, text) {
-  return `${rel}index.html?q=${encodeURIComponent(text)}`;
+  return `${rel}app?q=${encodeURIComponent(text)}`;
 }
 
 /**
@@ -107,7 +140,7 @@ export function courseLink(rel, text, regionId, spotIds) {
     q.set("pin", spotIds.join(","));
     q.set("area", regionId);
   }
-  return `${rel}index.html?${q.toString().replace(/\+/g, "%20")}`;
+  return `${rel}app?${q.toString().replace(/\+/g, "%20")}`;
 }
 
 const GENRE_PROMPT = {
@@ -395,7 +428,7 @@ function fmtTime(d) {
 
 /**
  * 「旅さき」（ロゴ・パンくず）の行き先。トップ（/。紹介と入口のページ）です。
- * チャットの画面は「旅程をつくる」のリンク（index.html）から開きます。
+ * チャットの画面は「旅程をつくる」のリンク（/app）から開きます。
  */
 function home(rel) {
   return rel || "./";
@@ -724,7 +757,7 @@ export function renderNotFoundPage({ prefs, base }) {
   const description = "お探しのページは見つかりませんでした。旅さきのトップか、エリアの一覧からお探しください。";
   const body = `<h1>ページが見つかりません</h1>
 <p class="lead">お探しのページは、移動したか、無くなったようです。</p>
-<p><a class="cta primary" href="${root}index.html">旅さきで旅程をつくる</a></p>
+<p><a class="cta primary" href="${root}app">旅さきで旅程をつくる</a></p>
 <p><a class="cta" href="${root}areas/index.html">エリアから探す</a></p>
 ${prefs.length ? `<section>
 <h2>都道府県から探す</h2>
@@ -871,7 +904,7 @@ export function renderIntroPage({ base, featured = [], prefCount = 0, spotCount 
 <div class="hero">
 <h1><span class="nw">行きたい、を</span><span class="nw">書くだけで</span><span class="nw">そのまま行ける</span><span class="nw">旅程に。</span></h1>
 <p class="lead">旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くと、行き先・まわる順・移動時間まで組んだ旅行プランを作る、無料のウェブアプリです。行き先がまだ決まっていなくても始められます。</p>
-<p><a class="cta primary" href="${rel}index.html">旅さきで旅程をつくる</a></p>
+<p><a class="cta primary" href="${rel}app">旅さきで旅程をつくる</a></p>
 <p class="fine">登録は要りません。ブラウザで開くだけで使えます。</p>
 </div>
 <section>
@@ -917,7 +950,7 @@ ${featured.map((f) => `  <li><a href="${esc(`${rel}areas/${f.prefSlug}/${f.regio
   <dd>経路検索につながっているときは実際の便から、つながらないときは距離からの目安で組みます。目安のときは画面にそう出します。お出かけ前に、時刻表と各施設の公式の情報もご確認ください。</dd>
 </dl>
 </section>
-<p><a class="cta primary" href="${rel}index.html">旅さきで旅程をつくる</a></p>`;
+<p><a class="cta primary" href="${rel}app">旅さきで旅程をつくる</a></p>`;
   const jsonLd = { "@context": "https://schema.org", "@graph": [
     { "@type": "AboutPage", name: title, url: canonical, inLanguage: "ja",
       about: { "@type": "WebApplication", name: "旅さき", url: base,
@@ -1029,7 +1062,15 @@ async function main(outDir) {
     // 入っていて、モデルコースが「移動 約79分」で三笠へ行っていました。
     // 中心から COURSE_RADIUS_KM より遠いものは「外す」に入れます。
     // （一覧の REGION_RADIUS_KM では狭すぎます。箱根の大涌谷や彫刻の森まで外れます）
-    const far = new Set(own.filter((s) => isFar(region, s)).map((s) => s.id));
+    const radius = courseRadiusKm(region, own);
+    // 名の通った場所（major）は、これまでの枠（10km）のままにします。
+    // 伊勢の外宮・高知の桂浜・日光の華厳滝は、少し遠くても外せません。
+    // 狭めた枠は、エリアの中心か、コースの起点の駅の、どちらかから測ります
+    // （伊勢の外宮は、内宮寄りの中心からは遠くても、伊勢市駅のすぐ前です）。
+    const station = { lat: region.stationLat, lng: region.stationLng };
+    const far = new Set(own.filter((s) => isFar(region, s) || (s.fame_tier !== "major"
+      && isFar(region, s, radius) && (!Number.isFinite(station.lat) || isFar(station, s, radius))))
+      .map((s) => s.id));
     // 同じ県の別のエリア（機械で作った「松本市」など）の場所も外します。
     // 入ると「よそのエリアへ行った」として courseFits がコースごと捨てるので、
     // 松本のページは観光案内所に寄るコースが組まれて、コースが出ていませんでした。

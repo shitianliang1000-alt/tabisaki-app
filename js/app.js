@@ -6,18 +6,15 @@
 //   ・結果を描く／エラーを日本語で出す
 //   ・APIキーの疎通確認（「キーを入れたのに効かない」を切り分けるため）
 
-import { KB_INDEX_URL, TILE_ATTRIBUTION, TILE_URL } from "./config.js";
-import { clearSettings, cspAllows, effectiveConfig, loadSettings, maskKey,
-         saveSettings } from "./settings.js";
-import { callModel, canGround, canWebSearch, describeSpot, diagnoseGeminiKey, hasApiKey }
+import { TILE_ATTRIBUTION, TILE_URL } from "./config.js";
+import { effectiveConfig } from "./settings.js";
+import { callModel, describeSpot, hasApiKey }
   from "./ai.js";
-import { proxyStatus } from "./endpoints.js";
 import { discoverArea } from "./discover.js";
 import { ensureRegions, loadKnowledgeBase, loadRegionIndex, mergeIntoKb, stagedKb }
   from "./kb.js";
 
-import { clearRouteCache, diagnoseMapsKey, diagnoseYahooTransit,
-         resetRoutesBreaker, routesUsage }
+import { resetRoutesBreaker, routesUsage }
   from "./routes.js";
 import { PLACES, findPlace, nearestPlaceInfo } from "./places.js";
 import { findStop, preloadStops, searchStops } from "./stops.js";
@@ -42,7 +39,7 @@ import { $, el, loadSketch, openSheet, renderItinerary, renderProgress, renderTo
          saveItineraryIcs, scrollBehavior, sendItineraryText, suggestionButton } from "./ui.js";
 import { catchUp } from "./today.js";
 import { isOffline, watchConnection } from "./online.js";
-import { conditionsOf, metricsEnabled, setMetricsEnabled, track } from "./metrics.js";
+import { conditionsOf, track } from "./metrics.js";
 import { watchArrival } from "./arrive.js";
 import { armNotices, askNotifyPermission, scheduleNotices }
   from "./notify.js";
@@ -54,12 +51,13 @@ import { searchYahooTransit } from "./yahoo-transit.js";
 import { yahooFlags } from "./modes.js";
 import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory, removeHistory,
-         replaceHistory, savedLabel, thawItinerary } from "./history.js";
-import { applyTypeScale, initTypeScale, saveTypeScale } from "./typescale.js";
+         savedLabel, thawItinerary } from "./history.js";
+import { initTypeScale } from "./typescale.js";
 import { closePop, updatePills, wireShell } from "./shell.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "./chatread.js";
+import { readIntent } from "./intent.js";
 
 // ここまで読めたら、画面の部品はそろっています（js/boot-check.js が見ます）。
 document.documentElement.dataset.booted = "1";
@@ -161,7 +159,6 @@ async function boot() {
   fillPlaces();
   setDefaultDates();
   wireForm();
-  wireKeyPanel();
   wireChrome();
   wireShell({
     // 「新しい旅」。書いた希望を空にして、入力欄へ戻ります。出発地や
@@ -216,22 +213,15 @@ async function boot() {
     show(kept.itin, kept.trip);
   }
 
+  let autoSend = false;
   try {
     state.kb = await state.kbPromise;
     if (state.kb.loadError) setBadge(state.kb.loadError, true);
     const restored = restoreConditions();
     updatePills();
+    autoSend = restored === "query" && goFromQuery(location.search);
     if (restored === "url") {
       $("#ph-data").textContent = "共有されたリンクの条件を読み込みました。";
-    }
-    // 使う人には件数を、開発者には出どころを。
-    const c0 = state.kb.manifest.counts;
-    $("#key-kb").textContent =
-      `全国${c0.regions}エリア・${c0.spots}スポット`;
-    const devKb = $("#dev-kb");
-    if (devKb) {
-      devKb.textContent = KB_INDEX_URL
-        ? `公開知識ベース（${KB_INDEX_URL}）` : "同梱データ（KB_INDEX_URL 未設定）";
     }
     // 収録件数やキーの有無は、旅行者が読んでも何もできない話です。
     // 出典は画面の下の「著作権表記」のページにまとめています（credits.html）。
@@ -245,6 +235,23 @@ async function boot() {
   // 旅程のリンク（#t=…）から来たときは、その旅程をそのまま開きます。
   // 収録が読めなくても開けます（旅程の中に、要るものは入っています）。
   await openSharedTrip();
+  // トップの「旅程をつくる」から来たとき（`?q=…&go=1`）は、書いた文で
+  // そのまま組み始めます。トップで送ったのに、もう一度送らせないためです。
+  // エリアのページからの `?q=` は、これまでどおり欄に入れるだけです。
+  if (autoSend) {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete("go");
+      u.searchParams.delete("q");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    } catch { /* 外せなくても組めます */ }
+    send();
+  }
+}
+
+/** `?go=1`。トップの欄から送られてきた印です。 */
+function goFromQuery(search) {
+  return new URLSearchParams(search ?? "").get("go") === "1";
 }
 
 /**
@@ -583,229 +590,6 @@ function setDefaultDates() {
   $("#arrive-by").value = iso(ret);
 }
 
-function wireKeyPanel() {
-  const mark = (elm, ok, text) => {
-    if (!elm) return;
-    elm.textContent = text;
-    elm.classList.toggle("ok", ok);
-    elm.classList.toggle("ng", !ok);
-  };
-
-  // 使う人に向けては、「できるかどうか」だけを言います。
-  //
-  // 「Gemini」「Routes API」は、こちらの都合の名前です。使う人が
-  // 知りたいのは「AIが効いているのか」だけです。
-  // プロキシを使っているなら、キーはサーバー側にあります。
-  // ブラウザ側が空なのは正常なので、「未設定」とは言いません。
-  const refresh = () => {
-    const cfg = effectiveConfig();
-    const viaProxy = Boolean(cfg.proxyUrl);
-    const aiOn = hasApiKey();
-    const routesOn = viaProxy || Boolean(cfg.mapsKey);
-    mark($("#key-gemini"), aiOn,
-         aiOn ? "利用できます" : "使わない設定です（収録データから提案します）");
-    // 調べものは、外へ出るものなので、何がどこへ行くかまで書きます。
-    // 送るのは、AIが質問から作った短い検索語だけです（js/qa.js）。
-    const webOn = aiOn && canWebSearch();
-    const grounded = aiOn && canGround();
-    mark($("#key-websearch"), webOn || grounded,
-         webOn ? "質問によっては、AIが作った短い検索語だけを、中継を通して"
-               + " Wikipedia（または Tavily）へ送ります。質問の文・名前・"
-               + "場所・旅程は、検索先へ送りません。"
-               : grounded ? "AI（Google）の中で Google 検索を使います。"
-               : "使っていません（AIが知っていることだけで答えます）");
-    mark($("#key-maps"), routesOn,
-         routesOn ? "利用できます" : "使わない設定です（距離から推定します）");
-
-    // 開発者向けには、どこから来た設定なのかまで出します。
-    // 末尾4文字だけ見せます。「入れたはずのキーが効いているか」を
-    // 確かめるのに、それ以上は要りません。
-    const where = { settings: "この端末の設定", config: "config.js", none: "" };
-    const dev = (id, key, from) => {
-      const elm = $(id);
-      if (!elm) return;
-      if (viaProxy) mark(elm, true, `プロキシ経由（${where[cfg.from.proxyUrl]}）`);
-      else if (key) mark(elm, true, `設定済み（${where[from]}・…${key.slice(-4)}）`);
-      else mark(elm, false, "未設定");
-    };
-    dev("#dev-gemini", cfg.geminiKey, cfg.from.geminiKey);
-    dev("#dev-maps", cfg.mapsKey, cfg.from.mapsKey);
-
-    // ブラウザで入れたプロキシは、index.html の CSP に無ければ繋がりません。
-    // 保存はできても動かない、を黙って通さないための注意書きです。
-    const ph = $("#proxy-help");
-    if (ph && cfg.proxyUrl && !cspAllows(cfg.proxyUrl)) {
-      ph.replaceChildren(
-        el("b", {}, "この入口は index.html の connect-src に含まれていないため、ブラウザが接続を拒みます。"),
-        " index.html の ",
-        el("code", {}, "connect-src"),
-        " に ",
-        new URL(cfg.proxyUrl).origin,
-        " を足してください。"
-      );
-      ph.classList.add("ng");
-    }
-  };
-
-  // 保存してあるものを欄に戻します（config.js の値は欄に出しません。
-  // 消すべき対象ではないからです）。
-  const fill = () => {
-    const saved = loadSettings();
-    const g = $("#in-gemini"), m = $("#in-maps"), px = $("#in-proxy");
-    if (g) g.value = saved.geminiKey;
-    if (m) m.value = saved.mapsKey;
-    if (px) px.value = saved.proxyUrl;
-  };
-
-  const note = (text, ok) => {
-    const n = $("#keys-note");
-    if (!n) return;
-    n.hidden = !text;
-    n.textContent = text;
-    n.classList.toggle("ok", Boolean(ok));
-    n.classList.toggle("ng", !ok);
-  };
-
-  $("#save-keys")?.addEventListener("click", () => {
-    const r = saveSettings({
-      geminiKey: $("#in-gemini")?.value,
-      mapsKey: $("#in-maps")?.value,
-      proxyUrl: $("#in-proxy")?.value,
-    });
-    if (!r.ok) { note(r.errors.join("／"), false); return; }
-    // 前の設定で失敗して止まっていた経路検索を、動かせる状態に戻します。
-    resetRoutesBreaker();
-    clearRouteCache();
-    fill();
-    refresh();
-    const any = r.value.geminiKey || r.value.mapsKey || r.value.proxyUrl;
-    note(any ? "保存しました。すぐに効きます（再読み込みは要りません）。"
-             : "消しました。config.js の値に戻ります。", true);
-  });
-  $("#clear-keys")?.addEventListener("click", () => {
-    clearSettings();
-    resetRoutesBreaker();
-    clearRouteCache();
-    fill();
-    refresh();
-    note("この端末に保存していたキーを消しました。", true);
-  });
-  $("#show-keys")?.addEventListener("change", (e) => {
-    const type = e.currentTarget.checked ? "text" : "password";
-    for (const id of ["#in-gemini", "#in-maps"]) {
-      const elm = $(id);
-      if (elm) elm.type = type;
-    }
-  });
-
-  const runInto = async (sel, btn, fn) => {
-    const out = $(sel);
-    btn.disabled = true;
-    out.hidden = false;
-    out.textContent = "確認しています…";
-    out.classList.remove("ok", "ng");
-    try {
-      const r = await fn();
-      out.textContent = r.message;
-      out.classList.toggle("ok", r.ok);
-      out.classList.toggle("ng", !r.ok);
-    } catch (e) {
-      out.textContent = String(e?.message ?? e);
-      out.classList.add("ng");
-    } finally {
-      btn.disabled = false;
-    }
-  };
-  const run = (btn, fn) => runInto("#key-result", btn, fn);
-  $("#test-gemini").addEventListener("click", (e) =>
-    run(e.currentTarget, () => diagnoseGeminiKey()));
-  // 経路の確認は、電車・バス（Yahoo!路線情報）と徒歩・車（Google）の
-  // 2つを見ます。使う先が分かれているので、片方だけ通っていることが
-  // あります。
-  const routeChecks = async () => {
-    const [maps, yahoo] = await Promise.all([
-      diagnoseMapsKey(), diagnoseYahooTransit(),
-    ]);
-    return {
-      ok: maps.ok && yahoo.ok,
-      message: `【電車・バス】${yahoo.message}\n\n【徒歩・車】${maps.message}`,
-    };
-  };
-  $("#test-maps").addEventListener("click", (e) => run(e.currentTarget, routeChecks));
-  // 開発者向けの欄を閉じていても押せる、まとめての確認。
-  //
-  // 経路の2つに、**行き先を選ぶAI（Gemma）**を加えた3点セットです。
-  // AIが通らなくても旅程は作れます（収録データから機械的に選ぶ形に
-  // 落ちます）。それでも、ここで見えるようにしておかないと
-  // 「AIの意見を聞いていない気がする」ことに利用者が気づけません。
-  const allChecks = async () => {
-    const [maps, yahoo, ai, budget] = await Promise.all([
-      diagnoseMapsKey(), diagnoseYahooTransit(), diagnoseGeminiKey(),
-      proxyBudget(),
-    ]);
-    return {
-      ok: maps.ok && yahoo.ok && ai.ok,
-      message: `【行き先を選ぶAI】${ai.message}\n\n`
-        + `【電車・バス】${yahoo.message}\n\n【徒歩・車】${maps.message}`
-        + (budget ? `\n\n【中継の余力】${budget}` : ""),
-    };
-  };
-  $("#test-conn").addEventListener("click", (e) =>
-    runInto("#conn-result", e.currentTarget, allChecks));
-
-  $("#reset-quota").addEventListener("click", () => {
-    quota.reset();
-    showQuota();
-  });
-  // チェックは「協力しない」です。入れたときだけ数えるのをやめます。
-  const optOut = $("#optout-metrics");
-  if (optOut) {
-    optOut.checked = !metricsEnabled();
-    optOut.addEventListener("change", () => setMetricsEnabled(!optOut.checked));
-  }
-  fill();
-  refresh();
-  showQuota();
-}
-
-/**
- * 中継の余力。
- *
- * 無料枠は、使い切ると**その日は誰も使えません**（追加課金ではなく、
- * その種類の処理が失敗します）。止まってから気づくのでは遅いので、
- * 押せば見えるようにしておきます。
- *
- * ここで見えるのは、この端末（IP）ぶんの点数です。Cloudflare の1日の
- * 合計（10万リクエスト／Workers AI 1万ニューロン）は、中継の外からは
- * 数えられないので、ダッシュボードで見る旨を添えます。
- */
-async function proxyBudget() {
-  try {
-    const st = await proxyStatus(effectiveConfig());
-    // 中継が古いと、点数が1枚よけいに包まれて届きます（usage.usage）。
-    // 中継を入れ替えるまでのあいだ「undefined点」と出さないよう、
-    // どちらの形でも読めるようにしておきます。
-    const u = st?.usage?.usage ?? st?.usage;
-    if (!Number.isFinite(u?.minute)) return "";
-    // 枠は2つです。見出しは、使い切ると止まる側（お金のかかる処理）。
-    // 電車・バスは費用がかからないので、大きく取ってあります。
-    const paid = u.paid ?? u;
-    const free = u.free;
-    return `AI・経路API: 1分 ${paid.minute}/${paid.minuteLimit}点`
-      + `・1時間 ${paid.hour}/${paid.hourLimit}点`
-      + (free
-        ? `\n電車・バス（Yahoo!路線情報）: 1分 ${free.minute}/${free.minuteLimit}`
-          + `・1時間 ${free.hour}/${free.hourLimit}`
-        : "")
-      + "\n※ 電車・バスはこちらに費用がかからないので、別枠で大きく"
-      + "取ってあります。旅程1本で30区間ほど調べても届きません。"
-      + "\n1日の合計は Cloudflare のダッシュボードでご確認ください"
-      + "（無料枠は10万リクエスト／日）。";
-  } catch {
-    return "";
-  }
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -925,6 +709,32 @@ function wireAreaMap() {
       setBadge(`エリアの地図を開けませんでした: ${e.message}`, true);
     }
   });
+}
+
+/** 読み取った移動のしかたを、送る前に見せるための言葉と記号。 */
+const MODE_HINTS = {
+  car: ["car", "車で回る前提で組みます（電車・バスの時刻表は使いません）"],
+  "transit+car": ["car", "遠出は電車・バス、現地は車で組みます"],
+  "air+car": ["air", "行きは飛行機、現地は車で組みます"],
+  air: ["air", "飛行機を使う前提で組みます"],
+  ferry: ["ferry", "船を使う経路で組みます"],
+  local: ["transit", "普通列車と快速だけで組みます（新幹線・特急なし）"],
+  walk: ["walk", "歩いて（自転車で）回れる範囲で組みます"],
+};
+
+/** 欄に書いている文から、移動のしかたを読んで、欄の上に一言出します。 */
+function updateModeHint() {
+  const box = $("#mode-hint");
+  if (!box) return;
+  const text = $("#note")?.value ?? "";
+  let mode = null;
+  try { mode = text.trim() ? readIntent(text).transport : null; } catch { mode = null; }
+  const hint = MODE_HINTS[mode];
+  if (!hint) { box.hidden = true; box.replaceChildren(); return; }
+  if (box.dataset.mode === mode && !box.hidden) return;
+  box.dataset.mode = mode;
+  box.replaceChildren(icon(hint[0]), el("span", {}, hint[1]));
+  box.hidden = false;
 }
 
 function pickArea(area) {
@@ -1206,33 +1016,6 @@ function wireChrome() {
     renderRecent();
   });
 
-  // つくった旅の控え。端末の保存は消えるものなので、外へ出す手を
-  // 画面から届くところに置きます。
-  $("#backup-export")?.addEventListener("click", exportBackup);
-  $("#backup-import")?.addEventListener("click", () => {
-    $("#backup-file")?.click();
-  });
-  $("#backup-file")?.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    // 同じファイルを続けて選べるように、値を空に戻します
-    // （戻さないと、2度目の change が起きません）。
-    e.target.value = "";
-    await importTripFile(file);
-  });
-
-  // 設定。ふだんは見えなくてよいものを、ここにまとめます。
-  // 配色に切り替えは置きません。端末の設定（ダークモード）に合わせます。
-  const settings = $("#settings-dialog");
-  $("#open-settings")?.addEventListener("click", () => {
-    showQuota();
-    showRoutesUsage();
-    settings?.showModal();
-  });
-  $("#settings-close")?.addEventListener("click", () => settings?.close());
-  settings?.addEventListener("click", (e) => {
-    if (e.target === settings) settings.close();
-  });
-
   // 地図を大きく見る。旅程は下に残したままにします
   // （地図だけになると「どこの話か」を見失うためです）
   $("#map-expand")?.addEventListener("click", () => {
@@ -1293,31 +1076,6 @@ function renderPinned() {
     + "入れられなかった場合は理由を表示します。"));
 }
 
-/**
- * 開発者向けの欄を出すかどうか。
- *
- * APIキー・中継のURLは、公開版の利用者が触るものではありません
- * （キーは中継側にあります）。出しておくと、直す必要のない場所を
- * 疑わせます。`?debug=1` を付けたときだけ出します。
- * 一度付ければ、その端末では覚えます（毎回URLを打たずに済むように）。
- */
-function wantsDevPanel() {
-  try {
-    const q = new URLSearchParams(globalThis.location?.search ?? "");
-    if (q.get("debug") === "1") {
-      globalThis.localStorage?.setItem("tabisaki.debug", "1");
-      return true;
-    }
-    if (q.get("debug") === "0") {
-      globalThis.localStorage?.removeItem("tabisaki.debug");
-      return false;
-    }
-    return globalThis.localStorage?.getItem("tabisaki.debug") === "1";
-  } catch {
-    return false;
-  }
-}
-
 function wireForm() {
   // 予算と移動手段。押されたものを覚えるだけの、同じ形の切り替えです。
   // 選ばれていることを、**読み上げにも出します。**
@@ -1360,18 +1118,6 @@ function wireForm() {
   // 移動の考えかた。移動そのものを楽しみたい人（青春18きっぷなど）向け。
   segmented("#journey-choice", "journey", (v) => {
     state.enjoyTravel = v === "enjoy";
-  });
-  // 字の大きさ。押した瞬間に画面ぜんぶが変わります（rem で書いて
-  // あるので、根の大きさを書き換えるだけで全部ついてきます）。
-  const scaleNow = String(initTypeScale());
-  for (const btn of document.querySelectorAll("#type-scale-choice button")) {
-    const on = btn.dataset.scale === scaleNow;
-    btn.classList.toggle("is-selected", on);
-    btn.setAttribute("aria-pressed", String(on));
-  }
-  segmented("#type-scale-choice", "scale", (v) => {
-    const n = saveTypeScale(v);
-    applyTypeScale(n);
   });
   // 宿の取りかた。連泊と周遊は、同じ日数でも別の旅です（stays.js）。
   segmented("#stay-choice", "stay", (v) => {
@@ -1496,6 +1242,7 @@ function wireForm() {
   $("#make-plan").addEventListener("click", () => send());
   // Enter で送ります（Shift + Enter で改行）。変換中の Enter は、
   // 字を決めるためのものなので送りません。
+  $("#note").addEventListener("input", updateModeHint);
   $("#note").addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.keyCode === 229) return;
     if (e.metaKey || e.ctrlKey) return;   // 下の Ctrl/⌘ + Enter に任せます
@@ -1503,9 +1250,6 @@ function wireForm() {
     send();
   });
 
-  // 開発者向けの欄は、既定では出しません（?debug=1 で出ます）。
-  const dev = document.getElementById("dev-settings");
-  if (dev) dev.hidden = !wantsDevPanel();
   $("#avoid-crowds").addEventListener("change", saveConditions);
   for (const id of ["#note", "#depart-place", "#end-place", "#depart-at",
                     "#arrive-by"]) {
@@ -1883,21 +1627,6 @@ async function exportTrip(itin, trip) {
   setTimeout(() => setBadge(kbBadgeText()), 2600);
 }
 
-/** 履歴ぜんぶを、控えのファイルにします。 */
-async function exportBackup() {
-  const list = loadHistory();
-  if (!list.length) {
-    setBadge("控えにする旅がまだありません");
-    setTimeout(() => setBadge(kbBadgeText()), 2600);
-    return;
-  }
-  const { toBackupFile, tripFilename } = await loadTransfer();
-  const doc = toBackupFile(list);
-  downloadJson(doc, tripFilename);
-  setBadge(`${list.length}件を控えに書き出しました`);
-  setTimeout(() => setBadge(kbBadgeText()), 2600);
-}
-
 /** JSON を端末に保存します（.ics と同じやりかたです）。 */
 function downloadJson(doc, tripFilename) {
   const blob = new Blob([JSON.stringify(doc, null, 1)],
@@ -1911,46 +1640,6 @@ function downloadJson(doc, tripFilename) {
   a.remove();
   // すぐに消すと、保存が始まる前に無効になることがあります。
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
-
-/**
- * ファイルから読み込みます。
- *
- * **手元の履歴は消しません。** 混ぜるだけです。控えを読み込んだら
- * 手元の旅程が消えた、はいちばん困ります。
- */
-async function importTripFile(file) {
-  if (!file) return;
-  let text = "";
-  try {
-    text = await file.text();
-  } catch (e) {
-    setBadge(`ファイルを開けませんでした（${e?.message ?? e}）`);
-    setTimeout(() => setBadge(kbBadgeText()), 4000);
-    return;
-  }
-  let transfer;
-  try {
-    transfer = await loadTransfer();
-  } catch (e) {
-    setBadge(`ファイルを開けませんでした（${e?.message ?? e}）`);
-    setTimeout(() => setBadge(kbBadgeText()), 4000);
-    return;
-  }
-  const { mergeTrips, readTripFile } = transfer;
-  const out = readTripFile(text);
-  if (!out.ok) {
-    // **黙って読み違えません。** 何が違うのかを言います。
-    setBadge(out.error);
-    setTimeout(() => setBadge(kbBadgeText()), 5000);
-    return;
-  }
-  const { list, added, replaced } = mergeTrips(loadHistory(), out.trips);
-  replaceHistory(list);
-  renderRecent();
-  setBadge(`${added}件を読み込みました`
-    + (replaced ? `（${replaced}件は上書き）` : ""));
-  setTimeout(() => setBadge(kbBadgeText()), 3600);
 }
 
 /**

@@ -1627,7 +1627,7 @@ await check("指で押せる大きさになっている（44pt）", async () => 
       }
       return { coarse, bad };
     }, sels);
-    const home = await measure([".side-open", "#open-settings", ".plus-btn", ".cond-pill",
+    const home = await measure([".side-open", ".plus-btn", ".cond-pill",
       ".send-btn", ".note-examples .md-chip"]);
     await pg.click("#plus");
     const menu = await measure([".plus-item"]);
@@ -2126,7 +2126,7 @@ await check("画面の記号が、絵文字になっていない", async () => {
       icons: document.querySelectorAll("svg.ic").length,
       // どの記号かが読めること（data-icon）。
       named: [...document.querySelectorAll("svg.ic")]
-        .filter((e) => e.dataset.icon || e.closest("#open-settings, #use-here,"
+        .filter((e) => e.dataset.icon || e.closest("#use-here,"
           + " #make-plan, #map-expand, #back-to-form")).length,
       // 線の太さが、ぜんぶ同じであること。ここがそろっていないと、
       // 並べたときに太さの違いだけが目に付きます。

@@ -20,6 +20,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 前のトップ（チャットの画面）あてに送られた旅程のリンク（/#t=…）は、チャットへ渡します。
 if (/^#t=/.test(location.hash)) location.replace(`app${location.search}${location.hash}`);
 
+// --- 見出しの上の日付・挨拶 ---------------------------------------------
+// ページは開いたときに作りますが、途中（CDN・ブラウザ）に少しのあいだ
+// 取っておかれることがあります。日付や時間帯がずれていたら、この端末の
+// 時計（日本時間）で書き直します。前日の日付が出たままにしないためです。
+(() => {
+  const k = $(".kicker");
+  if (!k) return;
+  const t = new Date(Date.now() + 9 * 3600 * 1000);
+  const h = t.getUTCHours(), m = t.getUTCMonth() + 1;
+  const greet = h >= 4 && h < 10 ? "おはようございます" : h < 17 && h >= 10 ? "こんにちは" : "こんばんは";
+  const season = m >= 3 && m <= 5 ? "春" : m >= 6 && m <= 8 ? "夏" : m >= 9 && m <= 11 ? "秋" : "冬";
+  const date = `${m}月${t.getUTCDate()}日（${"日月火水木金土"[t.getUTCDay()]}）`;
+  const text = `${greet}。${date}、${season}の旅を考える日に。`;
+  const node = [...k.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+  if (node && node.textContent.trim() !== text) node.textContent = text;
+  k.dataset.hour = String(h);
+})();
+
 /** 見えたら1回だけ呼びます。 */
 function onSeen(nodes, fn, opts = { threshold: 0.15 }) {
   if (!("IntersectionObserver" in window)) { nodes.forEach(fn); return; }
@@ -323,14 +341,16 @@ if (rail) {
     const lat = picks.map((p) => p.dataset.lat).join(","), lng = picks.map((p) => p.dataset.lng).join(",");
     try {
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
-        + "&current=temperature_2m,weather_code&timezone=Asia%2FTokyo");
+        + "&current=temperature_2m,weather_code&timezone=Asia%2FTokyo",
+        // 遅い回線で待ち続けないように。取れなければ、天気の札は出しません。
+        { signal: AbortSignal.timeout?.(8000) });
       if (!res.ok) return;
       const json = await res.json();
       const list = Array.isArray(json) ? json : [json];
       list.forEach((w, i) => {
         const el = $(".wx", picks[i]);
         const c = w?.current;
-        if (!el || !c) return;
+        if (!el || !c || !Number.isFinite(c.temperature_2m)) return;
         el.textContent = `いま ${sky(c.weather_code)} ${Math.round(c.temperature_2m)}℃`;
         el.classList.add("in");
       });
