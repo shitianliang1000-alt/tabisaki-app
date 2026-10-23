@@ -6,7 +6,7 @@
 //
 //   ・挨拶（おはようございます／こんにちは／こんばんは）
 //   ・書きかたの見本の札（4つのうち、うしろの2つを季節のものに）
-//   ・canonical と OGP の URL（正式なアドレス tabisaki.site.je の /app）
+//   ・canonical と OGP の URL（正式なアドレス workers.dev の /app）
 //   ・紹介のページへのリンク（トップの index.php へ）
 declare(strict_types=1);
 require __DIR__ . '/inc/site.php';

@@ -20,11 +20,11 @@ const SITE_NAME = '旅さき';
 const PROXY_ORIGIN = 'https://tabisaki-github-io.shitianliang1000.workers.dev';
 /**
  * 検索エンジンに載せる正式なアドレス（canonical・OGP・構造化データ）。
- * 同じサイトを Cloudflare（workers.dev）でも配っていますが、評価が2つに
- * 割れないよう、どちらのホストで開いてもここを名乗ります（2026-10-22 に決定）。
+ * 同じサイトを PHP 版（tabisaki.site.je）でも配っていますが、評価が2つに
+ * 割れないよう、どちらのホストで開いてもここを名乗ります（2026-10-23 に workers.dev へ変更）。
  * server/landing.js の SITE_ORIGIN と同じにしてください。
  */
-const SITE_ORIGIN = 'https://tabisaki.site.je';
+const SITE_ORIGIN = 'https://tabisaki-github-io.shitianliang1000.workers.dev';
 const TZ = 'Asia/Tokyo';
 /** トップの CSP（server/landing.js の LANDING_CSP と同じ）。天気だけ外へ取りに行きます。 */
 const LANDING_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.open-meteo.com; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
@@ -37,7 +37,7 @@ function h(?string $s): string
     return htmlspecialchars($s ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-/** 正式なアドレスの根（https://tabisaki.site.je/）。canonical や OGP に使います。 */
+/** 正式なアドレスの根（https://tabisaki-github-io.shitianliang1000.workers.dev/）。canonical や OGP に使います。 */
 function canonical_base(): string
 {
     return SITE_ORIGIN . '/';

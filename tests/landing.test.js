@@ -87,8 +87,8 @@ test("/app と /index.html は、挨拶と見本を替えたチャットの画�
     assert.match(html, /<button a>1<\/button><button b>2<\/button><button type="button"[^>]*data-example="紅葉を見て/);
     assert.ok(!html.includes("<button c>"));
     assert.match(html, /href="\.\/">旅さきについて/);
-    // どちらのホストで開いても、正式なアドレス（tabisaki.site.je）を名乗る。
-    assert.match(html, /<link rel="canonical" href="https:\/\/tabisaki\.site\.je\/app"/);
+    // どちらのホストで開いても、正式なアドレス（workers.dev）を名乗る。
+    assert.match(html, /<link rel="canonical" href="https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/app"/);
   }
 });
 

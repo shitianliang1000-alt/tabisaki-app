@@ -1,8 +1,8 @@
 # 旅さき
 #
 # 2026-10-22 から、サイトは Cloudflare Worker が根（/）で配っています
-# （wrangler.jsonc）。PHP 版（tabisaki.site.je）も同じものを配り、
-# 検索に載せる正式なアドレスは tabisaki.site.je です。
+# （wrangler.jsonc）。PHP 版（tabisaki.site.je）も同じものを配りますが、
+# 検索に載せる正式なアドレスは workers.dev です。
 # 管理画面は合言葉つきで、索引にも載せません。
 
 User-agent: *
@@ -11,4 +11,4 @@ Disallow: /admin
 Disallow: /private/
 Disallow: /__admin/
 
-Sitemap: https://tabisaki.site.je/sitemap.xml
+Sitemap: https://tabisaki-github-io.shitianliang1000.workers.dev/sitemap.xml

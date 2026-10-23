@@ -12,11 +12,11 @@
 export const SITE_DIR = "/__site/";
 /**
  * 検索エンジンに載せる正式なアドレス（canonical・OGP・構造化データ）。
- * この Worker（workers.dev）で開いても、PHP 版（tabisaki.site.je）を名乗ります。
- * 評価が2つに割れないようにするためです（2026-10-22 に決定）。
+ * Worker（workers.dev）でも PHP 版（tabisaki.site.je）でも、ここを名乗ります。
+ * 評価が2つに割れないようにするためです（2026-10-23 に workers.dev へ変更）。
  * php/inc/site.php の SITE_ORIGIN と同じにしてください。
  */
-export const SITE_ORIGIN = "https://tabisaki.site.je";
+export const SITE_ORIGIN = "https://tabisaki-github-io.shitianliang1000.workers.dev";
 export const LANDING_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.open-meteo.com; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 
 const JST = 9 * 3600 * 1000;
