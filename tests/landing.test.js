@@ -154,10 +154,12 @@ test("モデルコースの読み取りは、字だけを取り出し、文字�
 test("動く見本は、どの見本の高さも先に取っておく（再生で下が動かない＝CLS を出さない）", async () => {
   resetLandingCache();
   const html = await (await worker.fetch(new Request(`${W}/`), env)).text();
-  const demos = JSON.parse(html.match(/data-demo="([^"]*)"/)[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#039;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
-  assert.ok(demos.length >= 1);
+  // 見本の数は、data-demo の中の "prompt" の数で数えます（字の戻しはしません）。
+  const demoAttr = html.match(/data-demo="([^"]*)"/)[1];
+  const demos = demoAttr.split("&quot;prompt&quot;").length - 1;
+  assert.ok(demos >= 1);
   // 見えない「型」が見本の数だけ、同じ場所に重ねてあります。
-  assert.equal((html.match(/class="s-frame s-sizer" aria-hidden="true"/g) ?? []).length, demos.length);
+  assert.equal((html.match(/class="s-frame s-sizer" aria-hidden="true"/g) ?? []).length, demos);
   // 打つ文・流れる文は、全文で大きさを取る .s-ghost と、字が増える .s-typed の2枚です。
   assert.match(html, /id="s-prompt"><span class="s-ghost" aria-hidden="true">[^<]+<\/span><span class="s-typed">/);
   assert.match(html, /id="s-lead"><span class="s-ghost" aria-hidden="true">[^<]+<\/span><span class="s-typed">/);
