@@ -150,3 +150,20 @@ test("モデルコースの読み取りは、字だけを取り出し、文字�
   assert.ok(!/[<>]/.test(c.title));
   assert.equal(c.min, "30分");
 });
+
+test("動く見本は、どの見本の高さも先に取っておく（再生で下が動かない＝CLS を出さない）", async () => {
+  resetLandingCache();
+  const html = await (await worker.fetch(new Request(`${W}/`), env)).text();
+  const demos = JSON.parse(html.match(/data-demo="([^"]*)"/)[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#039;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+  assert.ok(demos.length >= 1);
+  // 見えない「型」が見本の数だけ、同じ場所に重ねてあります。
+  assert.equal((html.match(/class="s-frame s-sizer" aria-hidden="true"/g) ?? []).length, demos.length);
+  // 打つ文・流れる文は、全文で大きさを取る .s-ghost と、字が増える .s-typed の2枚です。
+  assert.match(html, /id="s-prompt"><span class="s-ghost" aria-hidden="true">[^<]+<\/span><span class="s-typed">/);
+  assert.match(html, /id="s-lead"><span class="s-ghost" aria-hidden="true">[^<]+<\/span><span class="s-typed">/);
+  const css = await readFile(new URL("php/assets/landing.css", root), "utf8");
+  assert.match(css, /\.s-frame \{ grid-area: 1 \/ 1;/);
+  assert.match(css, /\.s-sizer \{ visibility: hidden;/);
+  // 「考えています…」は出し入れで行を足さず、見出しの場所に重ねます。
+  assert.doesNotMatch(css, /\.s-think \{[^}]*display: none/);
+});

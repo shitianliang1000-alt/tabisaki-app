@@ -84,10 +84,36 @@ const SHOPPING = /複合商業施設|商業施設|ショッピングセンター
 const PAREN = /[（(][^）)]*[）)]/g;
 const baseName = (s) => String(s?.name ?? "").replace(PAREN, "").trim();
 
+/**
+ * エリア・都道府県のページの「観光地」「穴場」に並べないもの（旅程からは外しません）。
+ *
+ *   松本市美鈴湖もりの国オートキャンプ場 … 泊まって過ごす所で、立ち寄り先ではありません
+ *   ヒカリヤ ニシ・旬彩 月の静香          … 1軒の店。説明も無く、見どころが読めません
+ *
+ * キャンプ場は js/notaspot.js では外しません（そこで過ごしたい人の旅程には要ります）。
+ * ここで外すのは、ページで「観光地」として紹介する一覧からだけです。
+ */
+const CAMPSITE = /(キャンプ場|オートキャンプ|キャンプフィールド|キャンプ村|キャンプセンター|キャンプファーム|野営場)/;
+// 料理の種類が名前の頭にある1軒の店（「旬彩 月の静香」「里山イタリアン AJIKURA」）。
+const SHOP_LEAD = /^(旬彩|割烹|鮨|寿司|そば処|蕎麦処|里山イタリアン|イタリアン|フレンチ|ビストロ|ダイニング|カフェ|レストラン)(和食)?(\s|$)/;
+// 名前だけでは店と分からないもの。外から指摘のあったものを、名指しで入れます。
+const SHOP_NAMES = new Set(["ヒカリヤ ニシ", "ヒカリヤ ヒガシ"]);
+
+/** ページの観光地の一覧に出してよいか。 */
+export function fitsAreaList(spot) {
+  const name = baseName(spot);
+  if (!name) return false;
+  if (CAMPSITE.test(name)) return false;
+  if (SHOP_NAMES.has(name)) return false;
+  if (SHOP_LEAD.test(name) && !spot?.description) return false;
+  return true;
+}
+
 /** 穴場の欄に出してよいか。 */
 export function fitsHiddenList(spot) {
   const name = baseName(spot);
   if (!name) return false;
+  if (!fitsAreaList(spot)) return false;
   if (TOO_WIDE_NAME.test(name)) return false;
   const d = String(spot?.description ?? "");
   if (TOO_WIDE_LEAD.test(d) && !/(岳|山|峰)$/.test(name)) return false;

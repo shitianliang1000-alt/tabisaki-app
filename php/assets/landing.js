@@ -118,6 +118,12 @@ if (stage) {
   const prompt = $("#s-prompt"), lead = $("#s-lead"), list = $("#s-list");
   const route = $("#s-route"), dots = $("#s-dots"), caption = $("#s-caption");
   const pager = $("#s-pager"), pause = $("#s-pause");
+  // 打つ文・流れる文は、見えない全文（.s-ghost）で大きさを取り、上に重ねた
+  // .s-typed に字を足していきます。こうすると、打つあいだに吹き出しや下の
+  // 行が動きません（レイアウトのずれ＝CLS を出さないため）。
+  const part = (el) => ({ ghost: $(".s-ghost", el), typed: $(".s-typed", el) });
+  const P = part(prompt), L = part(lead);
+  const setFull = (p, text) => { p.ghost.textContent = text; p.typed.textContent = text; };
   const NS = "http://www.w3.org/2000/svg";
   const HOLD = 4200;
   let paused = still, visible = false, run = 0;
@@ -189,10 +195,10 @@ if (stage) {
 
   function showAll(demo, k) {
     const stopAt = build(demo, k);
-    prompt.textContent = demo.prompt;
+    setFull(P, demo.prompt);
     prompt.classList.remove("typing");
     ai.classList.remove("thinking");
-    lead.textContent = demo.lead;
+    setFull(L, demo.lead);
     lead.classList.add("in");
     $$("li", list).forEach((li) => li.classList.add("in"));
     $$(".stop", dots).forEach((g) => g.classList.add("on"));
@@ -210,14 +216,14 @@ if (stage) {
     const stopAt = build(demo, k);
     const lis = $$("li", list), gs = $$(".stop", dots);
     pager.style.setProperty("--dur", `${(demo.prompt.length * 45 + 1300 + lis.length * 380 + HOLD) / 1000}s`);
-    prompt.textContent = ""; prompt.classList.add("typing");
-    lead.textContent = ""; lead.classList.remove("in");
+    P.ghost.textContent = demo.prompt; P.typed.textContent = ""; prompt.classList.add("typing");
+    L.ghost.textContent = demo.lead; L.typed.textContent = ""; lead.classList.remove("in");
     ai.classList.remove("thinking");
     drawTo(-1, stopAt.length, true);
     // 1. 打つ
     for (const ch of demo.prompt) {
       if (!(await gate(id))) return;
-      prompt.textContent += ch;
+      P.typed.textContent += ch;
       await sleep(38 + Math.random() * 30);
     }
     prompt.classList.remove("typing");
@@ -229,7 +235,7 @@ if (stage) {
     // 3. 答えが流れる
     lead.classList.add("in");
     for (const ch of demo.lead) {
-      lead.textContent += ch;
+      L.typed.textContent += ch;
       await sleep(16);
     }
     // 4. 1行ずつ。立ち寄る場所に来たら、地図の線をそこまで引きます。

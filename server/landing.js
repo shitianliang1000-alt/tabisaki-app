@@ -152,6 +152,7 @@ export function landingView(now, data, base, madeBy) {
     headS: words(`旅さきは、全国${num(spotCount)}か所の観光地から、営業時間と移動時間を確かめて、無理のない1日を組むAIです。`),
     demoJson: JSON.stringify(demo),
     demo0: demo[0] ?? null,
+    demos: demo,
     typing0: typing[0] ?? "",
     typingJson: JSON.stringify(typing),
     examples: ex.map((e) => ({ label: e[0], q: rawurl(e[1]) })),
