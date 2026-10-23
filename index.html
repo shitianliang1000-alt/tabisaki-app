@@ -16,9 +16,12 @@
      og:image は絶対URLでなければ多くのサービスが読みません。また SVG は
      ほとんどの共有先（X・Facebook・LINE）が画像として扱わないので、
      og.svg から焼き出した og.png（1200×630）を指します。
-     公開するドメインを変えたら、ここの URL と sitemap.xml・robots.txt を
-     合わせて書き換えてください。 -->
-<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/">
+     正式なアドレス（canonical）は tabisaki.site.je です（2026-10-22 に決めました）。
+     変えるときは、ここと sitemap.xml・robots.txt・credits.html・
+     tools/build_area_pages.mjs・server/landing.js・php/inc/site.php の SITE_ORIGIN を
+     合わせて書き換えてください（tests/canonical.test.js が確かめます）。
+     AI の中継（下の connect-src と js/config.js）は workers.dev のままです。 -->
+<link rel="canonical" href="https://tabisaki.site.je/app">
 <!-- 検索エンジン向けに「これは何か」を機械が読める形でも書いておきます。
      検索結果にアプリ名として出るのは WebSite の name です。
      「たびさき」とひらがなで探されても同じものだと分かるよう alternateName に入れます。 -->
@@ -30,13 +33,13 @@
       "@type": "WebSite",
       "name": "旅さき",
       "alternateName": ["たびさき", "Tabisaki"],
-      "url": "https://tabisaki-github-io.shitianliang1000.workers.dev/",
+      "url": "https://tabisaki.site.je/",
       "inLanguage": "ja"
     },
     {
       "@type": "WebApplication",
       "name": "旅さき",
-      "url": "https://tabisaki-github-io.shitianliang1000.workers.dev/",
+      "url": "https://tabisaki.site.je/app",
       "applicationCategory": "TravelApplication",
       "operatingSystem": "Web",
       "inLanguage": "ja",
@@ -47,11 +50,11 @@
 }
 </script>
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/">
+<meta property="og:url" content="https://tabisaki.site.je/app">
 <meta property="og:site_name" content="旅さき">
 <meta property="og:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta property="og:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
-<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta property="og:image" content="https://tabisaki.site.je/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="旅さき — 行きたい、から旅程をつくる。">
@@ -59,7 +62,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta name="twitter:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
-<meta name="twitter:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="twitter:image" content="https://tabisaki.site.je/og.png">
 
 <link rel="icon" href="mark.svg" type="image/svg+xml">
 <!-- iOS は apple-touch-icon に SVG を読みません。SVG だけを置いていたころは、

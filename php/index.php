@@ -25,7 +25,7 @@ if ($tpl === false) {
     echo 'inc/landing.html が見つかりません。サイトのファイルを全部上げてください。';
     exit;
 }
-$view = landing_view(new DateTimeImmutable('now'), load_areas(), site_base(), 'PHP');
+$view = landing_view(new DateTimeImmutable('now'), load_areas(), canonical_base(), 'PHP');
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=300');
