@@ -4,7 +4,7 @@
 
 > 「温泉と海をゆっくり楽しみたい」のように希望を入力すると、行き先・立ち寄る順番・移動時間・営業時間などを考慮して旅程を組み立てます。
 
-**▶ 公開サイト: <https://tabisaki-github-io.shitianliang1000.workers.dev/>**
+**▶ 公開サイト: <https://tabisaki.site.je/>**（正式なアドレス。同じものを <https://tabisaki-github-io.shitianliang1000.workers.dev/> でも配っています）
 
 - ビルド不要・サーバー不要。
 - APIキーが無くても旅程は作れます（移動時間は距離からの推定、行き先は収録データから）

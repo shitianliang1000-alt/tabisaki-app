@@ -39,7 +39,7 @@ a { color: inherit; }
 /* 和文の改行。見出しは文節で折り（「だけ／で、」のような切れかたを防ぐ）、
    行の長さもそろえます。本文は最後の行が1字だけにならないようにします。
    対応していないブラウザでは、これまでどおり字の単位で折れます。 */
-h1, h2, h3, .kicker, .stage-bar p, .pick-tag, .sub { word-break: auto-phrase; }
+h1, h2, h3, .kicker, .stage-bar p, .pick-tag, .sub, .stat span, .faq summary, .news-card h3 { word-break: auto-phrase; }
 /* 長い文（.scrub）は、狭い画面で文節折りにすると右がでこぼこになるので、広い画面だけにします。 */
 @media (min-width: 861px) { .scrub { word-break: auto-phrase; } }
 h1, h2, h3 { text-wrap: balance; }
@@ -271,7 +271,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 
 /* --- お知らせ --- */
 .news-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-@media (max-width: 960px) { .news-grid { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .news-grid { grid-template-columns: 1fr; } .news-card { min-height: 0; } }
 .news-card { display: flex; flex-direction: column; min-height: 280px; padding: 28px; border-radius: 18px; background: var(--bg-2); transition: transform .4s var(--ease), background-color .3s; }
 .news-card:hover { transform: translateY(-4px); background: var(--panel); }
 .meta { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: .85rem; color: var(--ink-2); }
@@ -281,11 +281,14 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .news-list li { display: grid; grid-template-columns: 6em auto 1fr; gap: 16px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: .95rem; }
 .news-list time { color: var(--ink-2); }
 @media (max-width: 640px) { .news-list li { grid-template-columns: auto 1fr; } .news-list li > span:last-child { grid-column: 1 / -1; } }
+/* 札は字の幅だけ（携帯で1fr の列に入っても、横いっぱいに伸ばさない）。 */
+.news-list .tag { justify-self: start; }
 
 /* --- 考えかた（コードで描いた色面） --- */
 .p-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 @media (max-width: 960px) { .p-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .p-grid { grid-template-columns: 1fr; } }
+/* 携帯の1列では、正方形だと絵が画面いっぱいになるので横長にします。 */
+@media (max-width: 560px) { .p-grid { grid-template-columns: 1fr; } .p-art { aspect-ratio: 16 / 10; } }
 .p-card h3 { margin: 16px 0 6px; font-size: 1.12rem; }
 .p-card p { margin: 0; color: var(--ink-2); font-size: .94rem; }
 .p-art { position: relative; aspect-ratio: 1 / 1; border-radius: 4px; overflow: hidden; }
@@ -331,7 +334,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 /* --- よくある質問 --- */
 .faq-list { border-top: 1px solid var(--ink); }
 .faq-list details { border-bottom: 1px solid var(--line); }
-.faq-list summary { display: flex; justify-content: space-between; align-items: center; min-height: 68px; cursor: pointer; list-style: none; font-size: 1.12rem; font-weight: 600; }
+.faq-list summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 68px; cursor: pointer; list-style: none; font-size: 1.12rem; font-weight: 600; }
 .faq-list summary::-webkit-details-marker { display: none; }
 .faq-list summary::after { content: "+"; font-family: var(--serif); font-size: 1.7rem; font-weight: 400; transition: transform .35s var(--ease); }
 .faq-list details[open] summary::after { transform: rotate(45deg); }

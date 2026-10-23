@@ -10,6 +10,13 @@
 // tests/landing.test.js が、PHP があれば両方を動かして字まで比べます。
 
 export const SITE_DIR = "/__site/";
+/**
+ * 検索エンジンに載せる正式なアドレス（canonical・OGP・構造化データ）。
+ * この Worker（workers.dev）で開いても、PHP 版（tabisaki.site.je）を名乗ります。
+ * 評価が2つに割れないようにするためです（2026-10-22 に決定）。
+ * php/inc/site.php の SITE_ORIGIN と同じにしてください。
+ */
+export const SITE_ORIGIN = "https://tabisaki.site.je";
 export const LANDING_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.open-meteo.com; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 
 const JST = 9 * 3600 * 1000;
@@ -259,7 +266,7 @@ export async function servePage(request, env, now = new Date()) {
     return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
   if (request.method !== "GET" && request.method !== "HEAD") return null;
-  const base = `${url.origin}/`;
+  const base = `${SITE_ORIGIN}/`;
   if (path === "/" || path === "/index.php") {
     if (url.searchParams.has("p")) {
       return Response.redirect(`${url.origin}/app${url.search}`, 302);

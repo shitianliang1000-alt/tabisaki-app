@@ -87,7 +87,8 @@ test("/app と /index.html は、挨拶と見本を替えたチャットの画�
     assert.match(html, /<button a>1<\/button><button b>2<\/button><button type="button"[^>]*data-example="紅葉を見て/);
     assert.ok(!html.includes("<button c>"));
     assert.match(html, /href="\.\/">旅さきについて/);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${W}/app"`));
+    // どちらのホストで開いても、正式なアドレス（tabisaki.site.je）を名乗る。
+    assert.match(html, /<link rel="canonical" href="https:\/\/tabisaki\.site\.je\/app"/);
   }
 });
 

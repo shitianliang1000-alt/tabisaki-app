@@ -6,7 +6,7 @@
 //
 //   ・挨拶（おはようございます／こんにちは／こんばんは）
 //   ・書きかたの見本の札（4つのうち、うしろの2つを季節のものに）
-//   ・canonical と OGP の URL（いま開いているホストに合わせる）
+//   ・canonical と OGP の URL（正式なアドレス tabisaki.site.je の /app）
 //   ・紹介のページへのリンク（トップの index.php へ）
 declare(strict_types=1);
 require __DIR__ . '/inc/site.php';
@@ -21,7 +21,7 @@ if ($html === false) {
 
 $now = new DateTimeImmutable('now');
 $season = season($now);
-$base = site_base();
+$base = canonical_base();
 
 // 挨拶
 $html = str_replace('<span id="hero-greet">こんにちは</span>',
@@ -47,7 +47,7 @@ $html = preg_replace_callback(
 // 紹介のページは、PHP 版ではトップ（index.php）です。
 $html = str_replace('href="about.html">旅さきについて（使いかたと組んだ例）', 'href="./">旅さきについて（使いかたと組んだ例）', $html);
 
-// URL は、いま開いているホストのものにします（引っ越しても直さずに済みます）。
+// URL は正式なアドレス（inc/site.php の SITE_ORIGIN）のものにします。
 $html = str_replace(PROXY_ORIGIN . '/og.png', $base . 'og.png', $html);
 $html = preg_replace('#(<link rel="canonical" href=")[^"]*(")#', '${1}' . h($base) . 'app${2}', $html, 1) ?? $html;
 $html = preg_replace('#(<meta property="og:url" content=")[^"]*(")#', '${1}' . h($base) . 'app${2}', $html, 1) ?? $html;
