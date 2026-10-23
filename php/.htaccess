@@ -1,0 +1,39 @@
+# 旅さき — PHP 版（InfinityFree などの Apache のサーバー）の設定。
+DirectoryIndex index.php index.html
+Options -Indexes
+AddDefaultCharset UTF-8
+AddType application/manifest+json .webmanifest
+AddType application/javascript .js .mjs
+# 無い URL には、エリアの一覧などへの道があるページを出します（状態は 404 のまま）。
+ErrorDocument 404 /404.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # チャットの画面は /app で開けます（app.php）。?q= などはそのまま渡します。
+  RewriteRule ^app/?$ app.php [L,QSA]
+  # /index.html もチャットの画面です（ホーム画面に置いたアプリと、エリアのページの
+  # 「旅程をつくる」が開く場所）。静的なままだと、挨拶が時刻に合わず、canonical も
+  # トップ（/）を指してしまうので、/app と同じく app.php が返します。
+  RewriteRule ^index\.html$ app.php [L,QSA]
+  # 前の紹介のページ（/about）は、トップ（index.php）にまとめました。
+  RewriteRule ^about/?$ ./ [R=301,L]
+  # PHP の部品と、組み立てたデータの元は、直には見せません。
+  RewriteRule ^inc(/|$) - [F,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
+  # 古い版の画面が残り続けないように、Service Worker は毎回確かめます。
+  <Files "sw.js">
+    Header set Cache-Control "no-cache"
+  </Files>
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png "access plus 7 days"
+  ExpiresByType image/svg+xml "access plus 7 days"
+  ExpiresByType font/woff2 "access plus 30 days"
+</IfModule>

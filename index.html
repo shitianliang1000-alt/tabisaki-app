@@ -16,9 +16,12 @@
      og:image は絶対URLでなければ多くのサービスが読みません。また SVG は
      ほとんどの共有先（X・Facebook・LINE）が画像として扱わないので、
      og.svg から焼き出した og.png（1200×630）を指します。
-     公開するドメインを変えたら、ここの URL と sitemap.xml・robots.txt を
-     合わせて書き換えてください。 -->
-<link rel="canonical" href="https://shitianliang1000-alt.github.io/tabisaki.github.io/">
+     正式なアドレス（canonical）は tabisaki.site.je です（2026-10-22 に決めました）。
+     変えるときは、ここと sitemap.xml・robots.txt・credits.html・
+     tools/build_area_pages.mjs・server/landing.js・php/inc/site.php の SITE_ORIGIN を
+     合わせて書き換えてください（tests/canonical.test.js が確かめます）。
+     AI の中継（下の connect-src と js/config.js）は workers.dev のままです。 -->
+<link rel="canonical" href="https://tabisaki.site.je/app">
 <!-- 検索エンジン向けに「これは何か」を機械が読める形でも書いておきます。
      検索結果にアプリ名として出るのは WebSite の name です。
      「たびさき」とひらがなで探されても同じものだと分かるよう alternateName に入れます。 -->
@@ -30,13 +33,13 @@
       "@type": "WebSite",
       "name": "旅さき",
       "alternateName": ["たびさき", "Tabisaki"],
-      "url": "https://shitianliang1000-alt.github.io/tabisaki.github.io/",
+      "url": "https://tabisaki.site.je/",
       "inLanguage": "ja"
     },
     {
       "@type": "WebApplication",
       "name": "旅さき",
-      "url": "https://shitianliang1000-alt.github.io/tabisaki.github.io/",
+      "url": "https://tabisaki.site.je/app",
       "applicationCategory": "TravelApplication",
       "operatingSystem": "Web",
       "inLanguage": "ja",
@@ -47,11 +50,11 @@
 }
 </script>
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/">
+<meta property="og:url" content="https://tabisaki.site.je/app">
 <meta property="og:site_name" content="旅さき">
 <meta property="og:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta property="og:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
-<meta property="og:image" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/og.png">
+<meta property="og:image" content="https://tabisaki.site.je/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="旅さき — 行きたい、から旅程をつくる。">
@@ -59,7 +62,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="旅さき — 行きたいことから旅行プランを作成できる旅程アプリ">
 <meta name="twitter:description" content="「温泉と海をゆっくり楽しみたい」の一言から、行き先・まわる順・移動時間まで組み立てます。">
-<meta name="twitter:image" content="https://shitianliang1000-alt.github.io/tabisaki.github.io/og.png">
+<meta name="twitter:image" content="https://tabisaki.site.je/og.png">
 
 <link rel="icon" href="mark.svg" type="image/svg+xml">
 <!-- iOS は apple-touch-icon に SVG を読みません。SVG だけを置いていたころは、
@@ -203,41 +206,17 @@
     <ul class="recent-list" id="recent-list"></ul>
   </section>
 
-    <!-- 検索エンジンにも読める説明と、都道府県のページへの普通のリンクです。
-         画面は JavaScript で描くため、これが無いとトップの本文はほとんど空で、
-         areas/ へも辿れません（Search Console の「クロール済み - インデックス未登録」対策）。
-         都道府県の一覧は areas/index.html と同じものです。 -->
-    <details class="about">
-      <summary>旅さきについて</summary>
-      <p>旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くだけで、旅行プランを作成する無料のウェブアプリです。行き先を決めていなくても、出発地と日時から、行き先・まわる順・移動時間まで考えた1日または複数日の旅程を組みます。</p>
-      <p>観光地の営業時間と定休日、駅や停留所のあいだの移動時間を実際に照らし合わせるので、「着いたら閉まっていた」を減らせます。組んだ旅程は、「もっとゆっくり」「昼は海鮮で」のように話しかけて直せます。</p>
-      <p>行き先の候補は、全国47都道府県の観光地から選びます。都道府県ごとの定番と穴場、1日のモデルコースは、次のページで読めます。</p>
-      <p class="about-row"><b>北海道・東北</b>　<a href="areas/hokkaido/index.html">北海道</a>・<a href="areas/aomori/index.html">青森県</a>・<a href="areas/iwate/index.html">岩手県</a>・<a href="areas/miyagi/index.html">宮城県</a>・<a href="areas/akita/index.html">秋田県</a>・<a href="areas/yamagata/index.html">山形県</a>・<a href="areas/fukushima/index.html">福島県</a></p>
-      <p class="about-row"><b>関東</b>　<a href="areas/ibaraki/index.html">茨城県</a>・<a href="areas/tochigi/index.html">栃木県</a>・<a href="areas/gunma/index.html">群馬県</a>・<a href="areas/saitama/index.html">埼玉県</a>・<a href="areas/chiba/index.html">千葉県</a>・<a href="areas/tokyo/index.html">東京都</a>・<a href="areas/kanagawa/index.html">神奈川県</a></p>
-      <p class="about-row"><b>中部</b>　<a href="areas/niigata/index.html">新潟県</a>・<a href="areas/toyama/index.html">富山県</a>・<a href="areas/ishikawa/index.html">石川県</a>・<a href="areas/fukui/index.html">福井県</a>・<a href="areas/yamanashi/index.html">山梨県</a>・<a href="areas/nagano/index.html">長野県</a>・<a href="areas/gifu/index.html">岐阜県</a>・<a href="areas/shizuoka/index.html">静岡県</a>・<a href="areas/aichi/index.html">愛知県</a></p>
-      <p class="about-row"><b>近畿</b>　<a href="areas/mie/index.html">三重県</a>・<a href="areas/shiga/index.html">滋賀県</a>・<a href="areas/kyoto/index.html">京都府</a>・<a href="areas/osaka/index.html">大阪府</a>・<a href="areas/hyogo/index.html">兵庫県</a>・<a href="areas/nara/index.html">奈良県</a>・<a href="areas/wakayama/index.html">和歌山県</a></p>
-      <p class="about-row"><b>中国・四国</b>　<a href="areas/tottori/index.html">鳥取県</a>・<a href="areas/shimane/index.html">島根県</a>・<a href="areas/okayama/index.html">岡山県</a>・<a href="areas/hiroshima/index.html">広島県</a>・<a href="areas/yamaguchi/index.html">山口県</a>・<a href="areas/tokushima/index.html">徳島県</a>・<a href="areas/kagawa/index.html">香川県</a>・<a href="areas/ehime/index.html">愛媛県</a>・<a href="areas/kochi/index.html">高知県</a></p>
-      <p class="about-row"><b>九州・沖縄</b>　<a href="areas/fukuoka/index.html">福岡県</a>・<a href="areas/saga/index.html">佐賀県</a>・<a href="areas/nagasaki/index.html">長崎県</a>・<a href="areas/kumamoto/index.html">熊本県</a>・<a href="areas/oita/index.html">大分県</a>・<a href="areas/miyazaki/index.html">宮崎県</a>・<a href="areas/kagoshima/index.html">鹿児島県</a>・<a href="areas/okinawa/index.html">沖縄県</a></p>
-    </details>
     <div class="side-fill"></div>
-    <footer class="credits">
+    <!-- 紹介・都道府県の一覧・著作権表記へのリンクは、トップ（/）に置いています。
+         チャットの画面には並べません。 -->
     <p id="ph-data" hidden></p>
-    <!-- 地図・写真・データの出典とライセンスは、すべて著作権表記のページに
-         まとめています（ご指示で、画面には出典を並べずこのリンクだけを置きます）。
-         後ろの地図（#bg-map）の OpenStreetMap の表示も、ここから辿れます。 -->
-    <!-- 検索エンジンが辿れるように、エリアのページ（areas/）への普通のリンクを
-         置いています。画面の「エリアから探す」は地図を開くボタンで、
-         リンクではないため、これが無いと areas/ は誰からもリンクされません。 -->
-    <p><a href="areas/index.html">都道府県別の観光地・旅行プラン</a></p>
-    <p><a href="credits.html">著作権表記</a></p>
-  </footer>
   </nav>
   <div class="side-scrim" id="side-scrim" hidden></div>
 
   <!-- ===================== 旅の相談（チャット） =====================
        AIに話しかける画面です。書いて送ると、下に答え（旅程）が返ります。
        返ってきた旅程は、続けて書けば直せます（「もっとゆっくり」など）。
-       出発地・日時・まわる場所・こだわりは、欄の左の「＋」から足します。
+       出発地・日時・まわる場所は欄の左の「＋」から、こだわり（目的・人数・宿・食事）も「＋」の下のほうから足します。
        書いたことは、ここで決めた設定より勝ちます（js/chatread.js）。 -->
   <section class="pane chat" id="form-pane" aria-label="旅の相談">
     <div class="topbar">
@@ -330,8 +309,21 @@
           <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="mix">
             <svg class="ic" data-icon="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 10l6.1-.9Z"/></svg><span class="plus-tx"><b>まわる場所</b><small>定番中心・バランス・穴場多め</small></span>
           </button>
-          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune" id="pill-tune">
-            <svg class="ic" data-icon="sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM10 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg><span class="plus-tx"><b>こだわり</b><small>人数・予算・移動手段・宿など</small></span>
+          <p class="plus-sep" id="plus-sep-tune" role="presentation">こだわり</p>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-time">
+            <svg class="ic" data-icon="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 7.5V12l3 2"/></svg><span class="plus-tx"><b>目的・時間・興味</b><small>旅の目的・ゆとり・好きなもの</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-move">
+            <svg class="ic" data-icon="crowd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 9.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4ZM4.5 19v-2.5a4.5 4.5 0 0 1 9 0V19M16.5 9.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4M15.5 12.4A4.3 4.3 0 0 1 20 16.5V19"/></svg><span class="plus-tx"><b>人数・予算・移動</b><small>人数・予算・移動のしかた</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-stay">
+            <svg class="ic" data-icon="lodging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M6.5 11a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2Z"/></svg><span class="plus-tx"><b>同行者と宿</b><small>同行者と、泊まるところ</small></span>
+          </button>
+          <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-food">
+            <svg class="ic" data-icon="meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M9.5 3v5M17 3c-1.5 1-2 3-2 5s1 3 2 3v10"/></svg><span class="plus-tx"><b>食事と旅の終わり</b><small>食事の希望と、旅の終わりかた</small></span>
+          </button>
+          <button type="button" class="plus-item plus-item--quiet md-state" role="menuitem" id="reset-form">
+            <svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg><span class="plus-tx"><b>条件をリセット</b><small>入力した条件を最初に戻す</small></span>
           </button>
         </div>
         <div class="pop-panel" id="panel-from" data-panel="from" role="group" aria-labelledby="panel-from-title" hidden>
@@ -448,32 +440,8 @@
           </div>
           <div class="pop-foot"><button type="button" class="md-btn md-btn--filled md-state pop-done">決める</button></div>
         </div>
-        <div class="pop-panel" id="panel-tune" data-panel="tune" role="group" aria-labelledby="panel-tune-title" hidden>
-          <header class="pop-head">
-            <h2 class="pop-title" id="panel-tune-title">こだわり</h2>
-            <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-          </header>
-          <div class="tune-menu" role="menu" aria-label="こだわり">
-            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-time">
-              <svg class="ic" data-icon="wait" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 7.5V12l3 2"/></svg><span class="plus-tx"><b>目的・時間・興味</b><small>デート・アクティブなど・いつ動くか・興味</small></span>
-            </button>
-            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-move">
-              <svg class="ic" data-icon="crowd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 9.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4ZM4.5 19v-2.5a4.5 4.5 0 0 1 9 0V19M16.5 9.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4M15.5 12.4A4.3 4.3 0 0 1 20 16.5V19"/></svg><span class="plus-tx"><b>人数・予算・移動</b><small>人数・予算・移動手段</small></span>
-            </button>
-            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-stay">
-              <svg class="ic" data-icon="lodging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M6.5 11a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2Z"/></svg><span class="plus-tx"><b>同行者と宿</b><small>ベビーカー・車椅子・宿</small></span>
-            </button>
-            <button type="button" class="plus-item md-state" role="menuitem" data-open-cond="tune-food">
-              <svg class="ic" data-icon="meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M9.5 3v5M17 3c-1.5 1-2 3-2 5s1 3 2 3v10"/></svg><span class="plus-tx"><b>食事と旅の終わり</b><small>食べたいもの・旅の終わり</small></span>
-            </button>
-          </div>
-          <p class="reset-row">
-            <button type="button" class="linkish" id="reset-form">条件をリセット</button>
-          </p>
-        </div>
         <div class="pop-panel tune-panel" id="panel-tune-time" data-panel="tune-time" role="group" aria-labelledby="panel-tune-time-title" hidden>
           <header class="pop-head">
-            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
             <h2 class="pop-title" id="panel-tune-time-title">目的・時間・興味</h2>
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
@@ -550,7 +518,6 @@
         </div>
         <div class="pop-panel tune-panel" id="panel-tune-move" data-panel="tune-move" role="group" aria-labelledby="panel-tune-move-title" hidden>
           <header class="pop-head">
-            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
             <h2 class="pop-title" id="panel-tune-move-title">人数・予算・移動</h2>
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
@@ -675,7 +642,6 @@
         </div>
         <div class="pop-panel tune-panel" id="panel-tune-stay" data-panel="tune-stay" role="group" aria-labelledby="panel-tune-stay-title" hidden>
           <header class="pop-head">
-            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
             <h2 class="pop-title" id="panel-tune-stay-title">同行者と宿</h2>
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
@@ -746,7 +712,6 @@
         </div>
         <div class="pop-panel tune-panel" id="panel-tune-food" data-panel="tune-food" role="group" aria-labelledby="panel-tune-food-title" hidden>
           <header class="pop-head">
-            <button type="button" class="md-icon-btn md-state pop-back" data-open-cond="tune" aria-label="こだわりの一覧へ戻る"><svg class="ic" data-icon="back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7"/></svg></button>
             <h2 class="pop-title" id="panel-tune-food-title">食事と旅の終わり</h2>
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
@@ -1075,6 +1040,7 @@
      待たされる理由はありません（地図は旅程づくりに要りません）。
      app.js は window.L を待たずに動き、届いた時点で地図を出します。 -->
 <script src="vendor/leaflet.js" async></script>
+<script src="js/boot-check.js" defer></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

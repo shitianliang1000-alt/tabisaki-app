@@ -1,0 +1,284 @@
+<!doctype html>
+<!-- 旅さき — トップ（/）のひな形。
+     PHP 版は php/index.php が、Cloudflare 版は server/landing.js が、
+     開いたときに中身（{{…}}）を入れて返します。どちらも同じこのファイルを使います。
+     書きかた: {{名前}} は字をそのまま（HTML として安全に）、{{{名前}}} は組み立て済みの HTML、
+     {{#名前}}…{{/名前}} は並びをくり返す（空なら出さない）、{{^名前}}…{{/名前}} は空のときだけ出す。 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{title}}</title>
+<meta name="description" content="{{desc}}">
+<link rel="canonical" href="{{base}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{desc}}">
+<meta property="og:url" content="{{base}}">
+<meta property="og:image" content="{{base}}og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- 検索エンジン向けの「これは何か」。サイトの根なので WebSite もここに書きます。
+     よくある質問は、下の #faq に出している字と同じにしてください（違うと載りません）。
+     この種類の script は動かないので、CSP（script-src 'self'）にかかりません。 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"WebSite","name":"旅さき","alternateName":["たびさき","Tabisaki"],"url":"{{base}}","inLanguage":"ja"},
+{"@type":"WebApplication","name":"旅さき","url":"{{base}}app","applicationCategory":"TravelApplication","operatingSystem":"Web","inLanguage":"ja","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"無料で使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。登録もいりません。ブラウザで開くだけで使えます。"}},
+{"@type":"Question","name":"どこまで正しいですか？","acceptedAnswer":{"@type":"Answer","text":"電車の時刻と営業時間は目安です。出かける前に、公式の情報も確かめてください。"}},
+{"@type":"Question","name":"行き先が決まっていなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"使えます。「晴れているところ」「2時間以内で行ける温泉」のように書けば、出発地からの距離と天気を見て選びます。"}},
+{"@type":"Question","name":"実際に組んだ例はありますか？","acceptedAnswer":{"@type":"Answer","text":"組んだ例のページと、都道府県ごとのモデルコースで読めます。"}}
+]}
+]}
+</script>
+<link rel="stylesheet" href="assets/landing.css?v={{build}}">
+<script type="module" src="assets/landing.js?v={{build}}"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+<div class="progress" aria-hidden="true"><i id="progress"></i></div>
+
+<header class="nav" id="nav">
+  <nav class="nav-l" aria-label="ページの中">
+    <a class="pill" href="#demo">見本</a>
+    <a class="pill" href="#how">使いかた</a>
+    <a class="pill" href="#today">今日のおすすめ</a>
+    <a class="pill" href="#about">旅さきについて</a>
+  </nav>
+  <a class="logo" href="./" aria-label="旅さき トップ">
+    <img src="mark.svg" alt="" width="24" height="24"><span>旅さき</span>
+  </a>
+  <div class="nav-r">
+    <a class="pill pill-quiet" href="areas/index.html">エリア</a>
+    <a class="pill pill-dark" href="app">旅さきを使う <span aria-hidden="true">↗</span></a>
+  </div>
+</header>
+
+<main id="main">
+  <!-- 1. 見出し（Anthropic のトップと同じく、太い文に細い文を続けます） -->
+  <section class="hero">
+    <p class="kicker" data-hour="{{hour}}"><span class="dot" aria-hidden="true"></span>{{greeting}}。{{date}}、{{seasonName}}の旅を考える日に。</p>
+    <h1 class="headline">
+      <b>{{{headB}}}</b>
+      <span class="serif">{{{headS}}}</span>
+    </h1>
+  </section>
+
+  <!-- 2. 動く見本（Anthropic のトップの大きな絵の場所）。実際に組んだコースを再生します。 -->
+  <section class="stage-wrap" id="demo" aria-label="動く見本">
+    <div class="stage" id="stage" data-demo="{{demoJson}}">
+      <div class="stage-chat" aria-live="off">
+        {{#demo0}}
+        <div class="s-user"><p class="s-bubble" id="s-prompt">{{prompt}}</p></div>
+        <div class="s-ai">
+          <span class="s-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg></span>
+          <div class="s-body">
+            <p class="s-think" id="s-think">考えています…</p>
+            <p class="s-lead" id="s-lead">{{lead}}</p>
+            <ol class="s-list" id="s-list">
+              {{#items}}<li class="k-{{kind}}"><b>{{time}}</b><span>{{title}}</span>{{#min}}<small>{{min}}</small>{{/min}}</li>{{/items}}
+            </ol>
+          </div>
+        </div>
+        {{/demo0}}
+      </div>
+      <div class="stage-map" aria-hidden="true">
+        <svg viewBox="0 0 400 420" id="s-map">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" stroke-width=".5" opacity=".18"/></pattern>
+          </defs>
+          <rect width="400" height="420" fill="url(#grid)" stroke="none"/>
+          <path class="contour" d="M-20 300 C 80 240, 160 330, 260 270 S 420 230, 440 260"/>
+          <path class="contour" d="M-20 340 C 90 290, 170 370, 270 310 S 420 280, 440 300"/>
+          <path class="contour" d="M-20 120 C 60 90, 140 160, 230 110 S 380 60, 440 90"/>
+          <path class="route" id="s-route" d=""/>
+          <g id="s-dots"></g>
+        </svg>
+        <p class="map-note">順路のイメージ（距離は正確ではありません）</p>
+      </div>
+    </div>
+    <div class="stage-bar">
+      <p id="s-caption">{{#demo0}}旅さきのエンジンが実際に組んだ、{{name}}の1日です。{{/demo0}}</p>
+      <div class="stage-ctl">
+        <span class="stage-dots" id="s-pager" aria-hidden="true"></span>
+        <button type="button" class="icon-btn" id="s-pause" aria-label="見本の再生を止める" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M7 5l12 7-12 7Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 聞く欄（OpenAI のトップのように、まん中に1つ） -->
+  <section class="ask" aria-labelledby="ask-title">
+    <h2 id="ask-title" class="ask-title reveal">どこへ、行きたいですか。</h2>
+    <form class="ask-box reveal" action="app" method="get" role="search">
+      <label for="ask-q" class="sr-only">やりたいこと</label>
+      <input id="ask-q" name="q" type="text" maxlength="200" autocomplete="off"
+             placeholder="{{typing0}}" data-typing="{{typingJson}}">
+      <button type="submit" class="send" aria-label="旅程をつくる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <div class="chips reveal">
+      {{#examples}}<a class="chip" href="app?q={{q}}">{{label}}</a>{{/examples}}
+      <a class="chip" href="app?q={{rainQ}}">雨の日</a>
+    </div>
+  </section>
+
+  <!-- 4. 読み進めると、字に色が乗っていく文 -->
+  <section class="statement" aria-label="旅さきの考え">
+    <p class="scrub" id="scrub">「着いたら閉まっていた」「乗り換えに間に合わなかった」。旅の失敗の多くは、行き先ではなく段取りから生まれます。旅さきは、行きたいことを聞いて、営業時間・定休日・移動時間を一つずつ照らし合わせ、そのまま行ける順番にします。</p>
+  </section>
+
+  <!-- 5. 使いかた（左は止まったまま、右を送ると段が切り替わる） -->
+  <section class="how" id="how">
+    <div class="how-sticky">
+      <p class="eyebrow">使いかた</p>
+      <h2 class="title">3つの手順で、<br>1日の旅が決まります。</h2>
+      <ol class="how-nav" aria-hidden="true"><li class="on">書く</li><li>組む</li><li>直す</li></ol>
+      <div class="how-art" aria-hidden="true">
+        <div class="art art-1 on"><span class="a-line"></span><span class="a-line short"></span><span class="a-caret"></span></div>
+        <div class="art art-2"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="art art-3"><span class="a-chip">もっとゆっくり</span><span class="a-chip">昼は海鮮で</span><span class="a-chip">穴場を多めに</span></div>
+      </div>
+    </div>
+    <div class="how-steps">
+      <article class="step" data-step="0"><span class="num">01</span><h3>行きたいことを書く</h3>
+        <p>「子どもと海で遊びたい」「古い町並みを歩いて、夜は温泉」。ふだんのことばで大丈夫です。出発地・日時・人数や予算などのこだわりは、入力欄の左の「＋」から足せます。</p></article>
+      <article class="step" data-step="1"><span class="num">02</span><h3>旅さきが組む</h3>
+        <p>全国の観光地から行き先を選び、営業時間・定休日と、駅や停留所のあいだの移動時間を照らし合わせて、無理のない順に並べます。答えは、考えたそばから流れるように出てきます。</p></article>
+      <article class="step" data-step="2"><span class="num">03</span><h3>話しかけて直す</h3>
+        <p>「もっとゆっくり」「昼は海鮮で」と続けて書けば、その場で組み直します。気に入った旅程は、リンク・カレンダー・文字で送れます。</p></article>
+    </div>
+  </section>
+
+  <!-- 6. 今日のおすすめ（横に流れるカード。天気はブラウザがいま取ります） -->
+  <section class="today" id="today">
+    <div class="row-head">
+      <div>
+        <p class="eyebrow">今日のおすすめ・{{date}}</p>
+        <h2 class="title">{{seasonName}}に行きたい、{{pickCount}}つの場所。</h2>
+        <p class="sub">{{seasonLine}}</p>
+      </div>
+      <div class="row-ctl">
+        <button type="button" class="icon-btn" data-scroll="-1" aria-label="前へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="icon-btn" data-scroll="1" aria-label="次へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    <div class="rail" id="rail" tabindex="0" aria-label="今日のおすすめ（横に送れます）">
+      {{#picks}}
+      <article class="pick" data-lat="{{lat}}" data-lng="{{lng}}">
+        <div class="pick-img">
+          {{#image}}<img src="{{image}}" alt="" loading="lazy" width="1200" height="630">{{/image}}
+          <span class="wx" aria-live="polite"></span>
+        </div>
+        <div class="pick-body">
+          <p class="pick-pref">{{prefecture}}・{{station}}</p>
+          <h3>{{name}}</h3>
+          <p class="pick-tag">{{tagline}}</p>
+          <div class="pick-rows">
+            <a href="app?q={{q}}"><span>この旅を組む</span><span aria-hidden="true">→</span></a>
+            {{#page}}<a href="{{page}}"><span>モデルコース</span><span aria-hidden="true">→</span></a>{{/page}}
+          </div>
+        </div>
+      </article>
+      {{/picks}}
+    </div>
+  </section>
+
+  <!-- 7. 数 -->
+  <section class="stats" aria-label="収録の数">
+    <div class="stat reveal"><b data-count="{{prefCount}}">{{prefCount}}</b><span>都道府県</span></div>
+    <div class="stat reveal"><b data-count="{{spotCount}}">{{spotCountFmt}}</b><span>か所の観光地</span></div>
+    <div class="stat reveal"><b data-count="{{areaCount}}">{{areaCount}}</b><span>モデルコースのあるエリア</span></div>
+    <div class="stat reveal"><b data-count="0">0</b><span>円（登録も要りません）</span></div>
+  </section>
+
+  <!-- 8. お知らせ（Anthropic の発表カードの形） -->
+  {{#hasNews}}
+  <section class="news" id="news">
+    <div class="row-head"><div><p class="eyebrow">お知らせ</p><h2 class="title">最近の旅さき</h2></div></div>
+    <div class="news-grid">
+      {{#news3}}
+      <article class="news-card reveal">
+        <p class="meta"><span class="tag">{{tag}}</span><time datetime="{{date}}">{{label}}</time></p>
+        <h3>{{title}}</h3>
+        <div class="news-rows"><a href="app"><span>旅さきで試す</span><span aria-hidden="true">→</span></a></div>
+      </article>
+      {{/news3}}
+    </div>
+    {{#newsRest}}
+    <ul class="news-list">
+      {{#items}}<li class="reveal"><time datetime="{{date}}">{{label}}</time><span class="tag">{{tag}}</span><span>{{title}}</span></li>{{/items}}
+    </ul>
+    {{/newsRest}}
+  </section>
+  {{/hasNews}}
+
+  <!-- 9. 考えかた（絵はコードで描いた、ゆっくり動く色面） -->
+  <section class="principles" id="principles">
+    <div class="row-head"><div><p class="eyebrow">考えかた</p><h2 class="title">旅さきが、大事にしていること。</h2></div></div>
+    <div class="p-grid">
+      <article class="p-card reveal"><div class="p-art art-a" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3>着いたら閉まっていた、を減らす</h3><p>営業時間と定休日、乗り換えと歩く時間を、組むたびに確かめます。</p></article>
+      <article class="p-card reveal"><div class="p-art art-b" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3>定番だけでなく、穴場も</h3><p>有名な場所と、知る人ぞ知る場所のまぜかたを選べます。</p></article>
+      <article class="p-card reveal"><div class="p-art art-c" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3>あなたの情報は、あなたの端末に</h3><p>現在地は近い駅を探すためだけに、端末の中で使います。</p></article>
+      <article class="p-card reveal"><div class="p-art art-d" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3>まちがいは、まちがいと書く</h3><p>確かめられなかったところは、そうと書きます。AIは間違えることがあります。</p></article>
+    </div>
+  </section>
+
+  <!-- 10. 旅さきについて（前はチャットの画面の横に畳んでいた説明。ここに移しました）。
+       都道府県のページへの普通のリンクは、検索エンジンが areas/ を辿るためにも要ります。 -->
+  <section class="about-site" id="about">
+    <div class="row-head"><div><p class="eyebrow">旅さきについて</p><h2 class="title">行きたいことから、<br>旅程をつくる。</h2></div></div>
+    <div class="about-cols">
+      <div class="about-text reveal">
+        <p>旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くだけで、旅行プランを作成する無料のウェブアプリです。行き先を決めていなくても、出発地と日時から、行き先・まわる順・移動時間まで考えた1日または複数日の旅程を組みます。</p>
+        <p>観光地の営業時間と定休日、駅や停留所のあいだの移動時間を実際に照らし合わせるので、「着いたら閉まっていた」を減らせます。組んだ旅程は、「もっとゆっくり」「昼は海鮮で」のように話しかけて直せます。</p>
+        <p>行き先の候補は、全国47都道府県の観光地から選びます。都道府県ごとの定番と穴場、1日のモデルコースは、都道府県の一覧から読めます。実際に組んだ例は<a href="about.html">組んだ例のページ</a>にまとめています。</p>
+      </div>
+      <div class="pref-list" aria-label="都道府県別の観光地・旅行プラン">
+        <div class="pref-row reveal"><h3>北海道・東北</h3><p><a href="areas/hokkaido/index.html">北海道</a><a href="areas/aomori/index.html">青森県</a><a href="areas/iwate/index.html">岩手県</a><a href="areas/miyagi/index.html">宮城県</a><a href="areas/akita/index.html">秋田県</a><a href="areas/yamagata/index.html">山形県</a><a href="areas/fukushima/index.html">福島県</a></p></div>
+        <div class="pref-row reveal"><h3>関東</h3><p><a href="areas/ibaraki/index.html">茨城県</a><a href="areas/tochigi/index.html">栃木県</a><a href="areas/gunma/index.html">群馬県</a><a href="areas/saitama/index.html">埼玉県</a><a href="areas/chiba/index.html">千葉県</a><a href="areas/tokyo/index.html">東京都</a><a href="areas/kanagawa/index.html">神奈川県</a></p></div>
+        <div class="pref-row reveal"><h3>中部</h3><p><a href="areas/niigata/index.html">新潟県</a><a href="areas/toyama/index.html">富山県</a><a href="areas/ishikawa/index.html">石川県</a><a href="areas/fukui/index.html">福井県</a><a href="areas/yamanashi/index.html">山梨県</a><a href="areas/nagano/index.html">長野県</a><a href="areas/gifu/index.html">岐阜県</a><a href="areas/shizuoka/index.html">静岡県</a><a href="areas/aichi/index.html">愛知県</a></p></div>
+        <div class="pref-row reveal"><h3>近畿</h3><p><a href="areas/mie/index.html">三重県</a><a href="areas/shiga/index.html">滋賀県</a><a href="areas/kyoto/index.html">京都府</a><a href="areas/osaka/index.html">大阪府</a><a href="areas/hyogo/index.html">兵庫県</a><a href="areas/nara/index.html">奈良県</a><a href="areas/wakayama/index.html">和歌山県</a></p></div>
+        <div class="pref-row reveal"><h3>中国・四国</h3><p><a href="areas/tottori/index.html">鳥取県</a><a href="areas/shimane/index.html">島根県</a><a href="areas/okayama/index.html">岡山県</a><a href="areas/hiroshima/index.html">広島県</a><a href="areas/yamaguchi/index.html">山口県</a><a href="areas/tokushima/index.html">徳島県</a><a href="areas/kagawa/index.html">香川県</a><a href="areas/ehime/index.html">愛媛県</a><a href="areas/kochi/index.html">高知県</a></p></div>
+        <div class="pref-row reveal"><h3>九州・沖縄</h3><p><a href="areas/fukuoka/index.html">福岡県</a><a href="areas/saga/index.html">佐賀県</a><a href="areas/nagasaki/index.html">長崎県</a><a href="areas/kumamoto/index.html">熊本県</a><a href="areas/oita/index.html">大分県</a><a href="areas/miyazaki/index.html">宮崎県</a><a href="areas/kagoshima/index.html">鹿児島県</a><a href="areas/okinawa/index.html">沖縄県</a></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="row-head"><div><p class="eyebrow">よくある質問</p><h2 class="title">はじめる前に。</h2></div></div>
+    <div class="faq-list">
+      <details><summary>無料で使えますか？</summary><p>はい。登録もいりません。ブラウザで開くだけで使えます。</p></details>
+      <details><summary>どこまで正しいですか？</summary><p>電車の時刻と営業時間は目安です。出かける前に、公式の情報も確かめてください。</p></details>
+      <details><summary>行き先が決まっていなくても使えますか？</summary><p>使えます。「晴れているところ」「2時間以内で行ける温泉」のように書けば、出発地からの距離と天気を見て選びます。</p></details>
+      <details><summary>実際に組んだ例はありますか？</summary><p><a href="about.html">組んだ例のページ</a>と、<a href="areas/index.html">都道府県ごとのモデルコース</a>で読めます。</p></details>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2 class="cta-title reveal">さて、どこへ行きましょう。</h2>
+    <p class="reveal"><a class="pill pill-light pill-lg" href="app">旅さきをひらく <span aria-hidden="true">→</span></a></p>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="foot-brand"><img src="mark.svg" alt="" width="28" height="28"><span>旅さき</span></div>
+  <div class="foot-acc">
+    <details><summary>旅さき</summary><ul><li><a href="app">旅程をつくる</a></li><li><a href="about.html">組んだ例</a></li><li><a href="credits.html">著作権表記</a></li></ul></details>
+    <details><summary>エリア</summary><ul><li><a href="areas/index.html">都道府県別の観光地</a></li>{{#footAreas}}<li><a href="{{page}}">{{name}}</a></li>{{/footAreas}}</ul></details>
+    <details><summary>このページについて</summary><ul><li>このページは開いたときに作っています（{{stamp}} 日本時間・{{madeBy}}）。</li><li>天気は Open-Meteo から、いま取っています。</li></ul></details>
+  </div>
+</footer>
+</body>
+</html>

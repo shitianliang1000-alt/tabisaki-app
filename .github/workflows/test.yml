@@ -1,10 +1,12 @@
 name: Unit tests
 
-# main への push では、公開（pages.yml）がこのテストを呼び出して、
-# 通ったときだけ公開します。ここで push にも反応させると二重に走るので、
-# push では動かしません。
+# 2026-10-22 から、GitHub はコードの置き場（とテスト）だけです。
+# 公開は GitHub Pages ではなく、Cloudflare Worker（wrangler.jsonc）と
+# PHP 版（InfinityFree。php/・tools/build_php.sh）が受け持ちます。
 on:
   pull_request:
+  push:
+    branches: ["main"]
   workflow_call:
 
 permissions:
@@ -22,6 +24,23 @@ jobs:
         run: for f in js/*.js sw.js; do node --check "$f"; done
       - name: Unit tests
         run: node --test tests/*.test.js
+      # PHP 版（InfinityFree 向け）を組み立てて、書きまちがいが無いかを見ます。
+      - name: PHP site build and lint
+        run: |
+          npm install --no-save --no-package-lock esbuild@0.25.10
+          sh tools/build_php.sh .php-site
+          php -S 127.0.0.1:8090 -t .php-site tools/php_router.php >/dev/null 2>&1 &
+          sleep 1
+          # トップ（index.php）と、チャットの画面（/app → app.php）
+          curl -sSf http://127.0.0.1:8090/ | grep -q 'id="stage"'
+          curl -sSf http://127.0.0.1:8090/app | grep -q 'id="plus-sep-tune"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/inc/landing.html)" = 403
+      # Cloudflare 用の組み立て（トップのひな形・データ・管理画面が入るか）
+      - name: Cloudflare site build
+        run: |
+          sh tools/build_worker.sh .site
+          test -f .site/__site/landing.html && test -f .site/data/areas.json && test -f .site/assets/landing.js
+          test -f .site/__admin/index.html
 
   # 画面のテスト。関数が全部正しくても、ボタンが繋がっていなければ
   # 旅程は作れません（tests/e2e/README.md）。外へは出ない前提で動かします。

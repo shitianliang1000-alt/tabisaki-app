@@ -4,7 +4,7 @@
 
 > 「温泉と海をゆっくり楽しみたい」のように希望を入力すると、行き先・立ち寄る順番・移動時間・営業時間などを考慮して旅程を組み立てます。
 
-**▶ 公開サイト: <https://shitianliang1000-alt.github.io/tabisaki.github.io/>**
+**▶ 公開サイト: <https://tabisaki.site.je/>**（正式なアドレス。同じものを <https://tabisaki-github-io.shitianliang1000.workers.dev/> でも配っています）
 
 - ビルド不要・サーバー不要。
 - APIキーが無くても旅程は作れます（移動時間は距離からの推定、行き先は収録データから）
@@ -237,7 +237,7 @@ AI                     プログラム
 | 項目 | 件数 |
 |---|---:|
 | エリア | **1,371** |
-| スポット | **54,176** |
+| スポット | **54,101** |
 
 主なデータソースは以下です。
 
@@ -364,13 +364,30 @@ PROXY_URL
 
 ---
 
-## 🚀 公開する（GitHub Pages）
+## 🚀 公開する（Cloudflare と PHP 版）
 
-`.github/workflows/pages.yml` が、`main` への push ごとに、先に `test.yml` のテストを全部走らせ、通ったときだけ GitHub Pages へ配置します（赤なら公開せず、前の版が残ります）。ビルド工程はエリア別のページ（`node tools/build_area_pages.mjs dist`）だけで、**公開するのはブラウザが読むものだけ**です（`index.html`・`css/`・`js/`・`kb/`と、アイコン・manifest・robots・sitemap・sw.js）。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`pages.yml` の「Stage site files」にも足してください。
+2026-10-22 から、GitHub Pages では公開しません。GitHub はプログラムの置き場とテスト（`test.yml`）だけです。
+組み立て・試し・公開は、端末（SSH でも）から `./tabisaki` 1つでできます。
+
+    ./tabisaki help          # 使いかた
+    ./tabisaki serve php     # 手元で PHP 版を開く（http://127.0.0.1:8090/）
+    ./tabisaki test          # 試験
+    ./tabisaki deploy cf     # Cloudflare に上げる
+    ./tabisaki deploy ftp    # InfinityFree に FTP で上げる（FTP_HOST などは .env.deploy に）
+
+トップ（`/`）は Anthropic・OpenAI のサイトのような、動く紹介のページです。チャットの画面は `/app` です。
+どちらも開いたときにサーバーが作ります（挨拶・季節・日替わりのおすすめ・実際に組んだコースの再生）。
+トップのひな形は `php/inc/landing.html` の1つだけで、PHP 版（`php/inc/site.php`）と Cloudflare 版（`server/landing.js`）が同じ中身を入れます。
+`tests/landing.test.js` が、両方の HTML が1字も違わないことを確かめます。
+
+- **Cloudflare Worker**（`wrangler.jsonc`）: AIの中継・管理画面に加えて、サイトそのものも配ります。Workers Builds が push ごとに `tools/build_worker.sh` で `.site/` を組み立てて上げます。`/`・`/app`・`/index.html` は Worker が作り、ほかは静的なファイルをそのまま返します。管理画面のファイルは `.site/__admin/` に入り、合言葉を通ったときだけ見えます。
+- **PHP 版**（InfinityFree など）: `./tabisaki php --zip` で `tabisaki-php.zip` ができます。中身をサーバーの `htdocs/` に上げれば動きます。`index.php`（トップ）と `app.php`（チャットの画面）が PHP で、ほかは静的なファイルです。PHP 版のアドレスは、Worker の `ALLOW_ORIGIN` に足してください（AIを呼べるようにするため）。
+
+どちらも `tools/build_site.sh` を通るので、**公開するのはブラウザが読むものだけ**です。`admin/`・`tests/`・`tools/`・`server/`・`data/` や README は公開されません。公開に要るファイルを増やしたら、`tools/build_site.sh` に足してください。
 
 ### 管理画面を開く
 
-管理画面（`admin/`）には認証が無いので、GitHub Pages には置きません。中継の Worker が、合言葉を聞いてから見せます（`server/admin.js`）。
+管理画面（`admin/`）には認証が無いので、PHP 版には入れません。中継の Worker が、合言葉を聞いてから見せます（`server/admin.js`）。
 
 1. 合言葉を Worker に入れる（一度だけ）: `npx wrangler secret put ADMIN_PASSWORD`、またはダッシュボードの Workers & Pages → `tabisaki-github-io` → Settings → Variables and Secrets → Add で、種類を Secret、名前を `ADMIN_PASSWORD` にします。
 2. `https://tabisaki-github-io.shitianliang1000.workers.dev/admin` を開き、ユーザー名は何でも、パスワードに合言葉を入れます。
@@ -384,11 +401,9 @@ PROXY_URL
 - **機能の入り切りと上限**は、管理画面で保存すると、30秒ほどで Worker に効きます。
 - **スポットの追加・削除・分類の直し**は、管理画面では「変更待ち」に積むだけで、公開サイトには出ません。書き込みは合言葉を通った管理画面からだけです。Worker の secret `GITHUB_TOKEN`（このリポジトリだけに絞った fine-grained token。Contents と Pull requests に Read and write）を入れると「PRにする」で `kb/` の変更を PR にします。入れていないときは「JSONで書き出す」→ `node tools/apply_kb_edits.mjs kb-edits.json` で手元に当てます。
 
-初回だけ、リポジトリの **Settings → Pages → Source** を「GitHub Actions」にしてください。
-
 公開する URL を変えたら、`index.html` の OGP（`og:url` / `og:image` / canonical）と `sitemap.xml`・`robots.txt` の絶対 URL も合わせて書き換えてください。
 
-`.github/workflows/test.yml` は pull request ごとに（`main` への push では `pages.yml` から呼ばれて）単体テストと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
+`.github/workflows/test.yml` は pull request と `main` への push ごとに、単体テスト・PHP 版の組み立てと、ブラウザを使う E2E テスト・読み上げと色のテスト（外へは出ない設定）を走らせます。
 
 エリア別のページを手元で見るときは、作ってから開きます。
 

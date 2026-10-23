@@ -3207,10 +3207,11 @@ body[data-view="result"] .dock { padding-top: 4px; }
   background: var(--chat-input);
   box-shadow: 0 1px 2px rgba(31, 30, 29, .04), 0 4px 20px rgba(31, 30, 29, .05);
 }
+/* 書いている間は、枠を1段だけ濃くして影を少し深くします。
+   線を2本重ねると（枠＋輪）、携帯では太い灰色の囲みに見えていました。 */
 .composer:has(textarea:focus-visible) {
-  border-color: color-mix(in srgb, var(--chat-ink) 38%, var(--chat-line));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-ink) 38%, var(--chat-line)),
-              0 6px 24px rgba(31, 30, 29, .08);
+  border-color: color-mix(in srgb, var(--chat-ink) 30%, var(--chat-line));
+  box-shadow: 0 1px 2px rgba(31, 30, 29, .05), 0 8px 28px rgba(31, 30, 29, .09);
 }
 .composer .note-field { margin: 0; display: block; }
 .composer textarea {
@@ -3264,12 +3265,20 @@ body[data-view="form"] .composer textarea { min-height: 5.6em; }
 .send-btn .ic { width: 20px; height: 20px; }
 .send-btn:disabled { opacity: .45; cursor: progress; }
 .composer:has(textarea:placeholder-shown) .send-btn:not(:disabled) { opacity: .7; }
+/* こだわり（「＋」の中の一覧の下に、区切りを付けて平らに並べます）。 */
+.plus-sep {
+  margin: 8px 10px 2px; padding-top: 10px; border-top: 1px solid var(--chat-line);
+  font-size: var(--hig-t-caption1); font-weight: 600; letter-spacing: .04em;
+  color: var(--chat-ink-2);
+}
+.plus-item--quiet .plus-tx b { font-weight: 400; color: var(--chat-ink-2); }
 .note-examples {
   justify-content: center; margin: 14px 0 0; gap: 8px;
 }
 .note-examples .md-chip {
   min-height: 36px; padding: 0 14px;
-  border: 1px solid var(--chat-line); border-radius: 10px;
+  /* md-chip の内側の線（box-shadow）と枠が重なって、2本線になっていました。 */
+  border: 1px solid var(--chat-line); border-radius: 10px; box-shadow: none;
   background: transparent; color: var(--chat-ink-2);
   font-size: var(--hig-t-footnote);
 }
@@ -3296,13 +3305,9 @@ body[data-view="form"] .compose-foot { visibility: hidden; }
 /* はじめの画面では、入力欄の下に開きます（上には見出ししかありません）。 */
 body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .pop[hidden], .pop-panel[hidden] { display: none !important; }
-.pop[data-panel="mix"], .pop[data-panel="when"], .pop[data-panel="tune"] { width: min(440px, 100%); }
+.pop[data-panel="mix"], .pop[data-panel="when"] { width: min(440px, 100%); }
 /* こだわりの欄（4つ）。中身が多いので、少し広く・長くします。 */
 .pop[data-panel^="tune-"] { width: min(520px, 100%); max-height: min(78vh, 680px); }
-.pop .pop-back { color: var(--chat-ink-2); margin-left: -8px; }
-.pop .pop-back + .pop-title { flex: 1; margin-left: 2px; }
-.pop .tune-menu { display: flex; flex-direction: column; margin: 0 -8px; }
-.pop .reset-row { margin: 8px 2px 0; font-size: var(--hig-t-footnote); }
 .pop .tune-group { margin: 0 0 16px; }
 .pop .tune-group > .tune-label { margin: 0 0 6px; }
 .pop .tune-panel .pop-foot {
@@ -3715,9 +3720,55 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   .turn-details, .turn-details[hidden] { display: block !important; border: 0; }
 }
 
-/* --- 旅さきについて（検索エンジンにも読める説明。畳んだままで構いません） --- */
-.about { margin: 8px 0 0; padding: 0 10px; font-size: var(--hig-t-caption1, 12px); color: var(--md-sys-color-on-surface-variant); }
-.about summary { cursor: pointer; padding: 6px 0; }
-.about p { margin: 0 0 8px; line-height: 1.6; }
-.about a { color: var(--md-sys-color-primary); }
-body[data-side="mini"] .side .about { display: none; }
+/* --- 答えの動き（2026-10-22。js/motion.js） ---
+   頼んだことは右から、答えは下から、すっと入ります。答えの最初の1文は
+   字が流れるように出て、そのあと候補・地図・行程が上から順に出ます。
+   字は最初から全部あります（見た目だけを遅らせています）。 */
+@media (prefers-reduced-motion: no-preference) {
+  .thread > .turn-user { animation: turn-in-user .42s cubic-bezier(.2, .8, .2, 1) both; }
+  .thread > .turn-ai { animation: turn-in-ai .5s cubic-bezier(.2, .8, .2, 1) .08s both; }
+  .read-chips li { animation: chip-in .36s cubic-bezier(.2, .8, .2, 1) both; }
+  .read-chips li:nth-child(2) { animation-delay: .05s; }
+  .read-chips li:nth-child(3) { animation-delay: .1s; }
+  .read-chips li:nth-child(4) { animation-delay: .15s; }
+  .read-chips li:nth-child(n+5) { animation-delay: .2s; }
+  .stream-ch { animation: stream-in .32s ease-out both; }
+  .rise { animation: rise-up .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .follow-ups .md-chip { transition: transform .2s, background-color .2s; }
+  .follow-ups .md-chip:active, .send-btn:active, .plus-btn:active { transform: scale(.96); }
+  .cand { transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s, background-color .2s; }
+  .send-btn { transition: transform .2s, opacity .2s, background-color .2s; }
+  body[data-view="form"] .hero-greet { animation: greet-in .8s cubic-bezier(.2, .8, .2, 1) both; }
+  body[data-view="form"] .dock { animation: dock-in .7s cubic-bezier(.2, .8, .2, 1) .12s both; }
+  body[data-view="form"] .note-examples .md-chip { animation: chip-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  body[data-view="form"] .note-examples .md-chip:nth-child(2) { animation-delay: .06s; }
+  body[data-view="form"] .note-examples .md-chip:nth-child(3) { animation-delay: .12s; }
+  body[data-view="form"] .note-examples .md-chip:nth-child(4) { animation-delay: .18s; }
+  .composer { transition: border-color .2s, box-shadow .3s; }
+  @media (hover: hover) and (pointer: fine) {
+    .cand:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(31, 30, 29, .08); }
+    .send-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  }
+}
+@keyframes turn-in-user { from { opacity: 0; transform: translate(16px, 6px); } to { opacity: 1; transform: none; } }
+@keyframes turn-in-ai { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes chip-in { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes stream-in { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
+@keyframes rise-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes greet-in { from { opacity: 0; transform: translateY(12px); letter-spacing: .08em; } to { opacity: 1; transform: none; } }
+@keyframes dock-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+/* 紙・動きを減らす設定では、出し終わった形だけを見せます。 */
+@media print { .stream-ch, .rise { animation: none !important; opacity: 1 !important; } }
+
+/* 画面が動かないときの案内（js/boot-check.js）。 */
+.boot-fail {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1000;
+  max-width: 560px; margin: 0 auto; padding: 16px 18px;
+  border-radius: 16px; background: #141413; color: #faf9f5;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .3); line-height: 1.7;
+}
+.boot-fail p { margin: 6px 0 0; font-size: var(--hig-t-footnote); color: #d9d7cf; }
+.boot-fail button {
+  margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
+  background: #faf9f5; color: #141413; font: inherit; font-weight: 600; cursor: pointer;
+}

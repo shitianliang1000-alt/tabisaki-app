@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import {
   appLink, breadcrumbLd, buildAll, courseFits, courseItems, courseLink, courseSpotIds, curatedRegions, esc,
   examplePrompts, groupByChiho, isFar, nameList, nearbySpots, nextSaturday, pickPrefSpots,
-  latestDay, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
+  latestDay, pickFeatured, readableDescription, sentencesOf, shardSlug, sitemapXml, spotIcon,
 } from "../tools/build_area_pages.mjs";
 import { boundsOf, CARD_H, CARD_W, renderAreaCard } from "../tools/area_card.mjs";
 import { inflateSync } from "node:zlib";
@@ -139,6 +139,34 @@ test("穴場: 同じ分類は3つまで", () => {
   const { hidden } = pickPrefSpots(list, "神奈川県");
   assert.equal(hidden.filter((s) => s.category === "スキー場").length, 3);
   assert.ok(hidden.some((s) => s.id === "f"));
+});
+
+test("穴場: 名前の順ではなく、説明から見どころが読み取れる順", () => {
+  // 以前は有名さの点の無いものが あいうえお順 で並び、長野県の穴場が
+  // スキー場・温水プール・中央道のトンネル・山塊になっていました。
+  const wiki = (id, name, category, description) =>
+    spot(id, { name, category, description, fame_score: undefined });
+  const { hidden } = pickPrefSpots([
+    wiki("a", "あの横穴墓群", "史跡", "あの横穴墓群は、横浜市栄区にある古代横穴墓群遺跡。"),
+    wiki("b", "いの川", "川", "いの川は、相模原市を流れる相模川水系の一級河川。"),
+    wiki("c", "うの山地", "山", "うの山地は、県の北部に広がる山地である。"),
+    wiki("d", "えのスキー場", "スキー場", "えのスキー場は、山ノ内町にあるスキー場。2010年に改名された。"),
+    wiki("e", "おの花火大会", "観光名所", "おの花火大会は、毎年夏に開かれる花火大会。"),
+    wiki("f", "OSC", "観光名所", "OSCは、平塚市にある複合商業施設・ショッピングセンター。"),
+    wiki("y", "八島ヶ原湿原", "観光名所", "八島ヶ原湿原は、霧ヶ峰の北西にある標高約1632mの高層湿原。夏は花が咲き、木道を散策できる。"),
+    wiki("z", "御射鹿池", "観光名所", "御射鹿池は、茅野市にあるため池。水面に森が映る景観で知られる。"),
+  ], "長野県");
+  assert.deepEqual(hidden.map((s) => s.id), ["y", "z"]);
+});
+
+test("穴場: 見どころの語が無くても、悪い語も無いものは6件まで足す", () => {
+  const list = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) =>
+    spot(id, { category: id < "e" ? "寺院" : "神社", fame_score: undefined,
+      description: `場所${id}は、谷あいにある寺。${"本堂は江戸時代の建物。".repeat(id.charCodeAt(0) % 3)}` }));
+  const { hidden } = pickPrefSpots(list, "神奈川県");
+  assert.equal(hidden.length, 6);
+  // 説明の長いものから。
+  assert.ok(hidden.slice(0, 2).every((s) => s.description.length >= hidden.at(-1).description.length));
 });
 
 test("分類の記号は、読み上げない線の SVG", () => {
@@ -331,8 +359,9 @@ test("県とエリアのページは、トップ › エリア › 県 › エ�
   assert.match(pref, /href="hakone\.html"/);
   assert.match(pref, /href="enoshima\.html"/);
   const hakone = html("areas/kanagawa/hakone.html");
-  // パンくずの頭はアプリのトップ。県のページへも戻れる。
-  assert.match(hakone, /class="crumbs"[^>]*><a href="\.\.\/\.\.\/index\.html">旅さき<\/a>/);
+  // パンくずの頭はサイトのトップ（/。構造化データのパンくずと同じ）。県のページへも戻れる。
+  assert.match(hakone, /class="crumbs"[^>]*><a href="\.\.\/\.\.\/">旅さき<\/a>/);
+  assert.match(hakone, /class="brand" href="\.\.\/\.\.\/"/);
   assert.match(hakone, /href="\.\.\/\.\.\/areas\/kanagawa\/index\.html"/);
   // 同じ県のほかのエリアへ。自分自身は並べない。
   assert.match(hakone, /同じ県のほかのエリア[\s\S]*href="enoshima\.html"/);
@@ -411,7 +440,7 @@ test("共有カード: 離島の外れ値で県の地図が小さくならない
   assert.equal(boundsOf([]), null);
 });
 
-test("404.html: どの深さで出ても崩れない絶対URLで、検索には載せない", async () => {
+test("404.html: どの深さで出ても、どちらのホストでも崩れない根からのリンクで、検索には載せない", async () => {
   const kbDoc = {
     index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
     regions: [REGION],
@@ -424,11 +453,14 @@ test("404.html: どの深さで出ても崩れない絶対URLで、検索には�
   const html = notFound.html;
   assert.match(html, /<meta name="robots" content="noindex">/);
   assert.ok(!html.includes('rel="canonical"'));
-  assert.match(html, /href="https:\/\/example\.test\/app\/css\/area\.css"/);
-  assert.match(html, /href="https:\/\/example\.test\/app\/index\.html"/);
-  assert.match(html, /href="https:\/\/example\.test\/app\/areas\/kanagawa\/index\.html"/);
-  // 相対パス（../ や css/ で始まるもの）が残っていないこと。
-  assert.ok(!/(href|src)="(?!https:)/.test(html), "相対リンクが残っています");
+  // 公開URLを丸ごと書くと、PHP 版（別のホスト）では CSP でスタイルが止まります。
+  assert.match(html, /href="\/css\/area\.css"/);
+  assert.match(html, /href="\/index\.html"/);
+  assert.match(html, /href="\/areas\/kanagawa\/index\.html"/);
+  assert.ok(!/(href|src)="(?!\/|https:)/.test(html), "相対リンクが残っています");
+  assert.ok(!/(href|src)="https:\/\/example/.test(html), "公開URLのリンクが残っています");
+  // OGP の絵だけは、よそから読まれるので絶対URLです。
+  assert.match(html, /og:image" content="https:\/\/example\.test\/app\/og\.png"/);
   assert.match(html, /script-src 'none'/);
 });
 
@@ -537,4 +569,48 @@ test("上高地は自分のエリアを持ち、河童橋がそのコース圏�
   assert.equal(isFar(kamikochi, kappa), false);
   assert.ok(nearbySpots(kamikochi, spots.filter((s) => s.regionId === "kamikochi"))
     .some((s) => s.id === kappa.id));
+});
+
+test("紹介ページ: 組めたコースを例に載せ、エリアへつなぎ、sitemap に入る", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [
+      spot("a", { name: "大涌谷", fame_tier: "major", fame_score: 80 }),
+    ]]]),
+  };
+  const { pages, intro, sitemap } = await buildAll(kbDoc,
+    { base: BASE, now: new Date(2026, 9, 9), planCourse: async () => itinOf(["a"]),
+      siteUpdated: "2026-10-20" });
+  assert.equal(intro.path, "about.html");
+  assert.ok(!pages.includes(intro));
+  const html = intro.html;
+  assert.match(html, /<link rel="canonical" href="https:\/\/example\.test\/app\/about\.html">/);
+  assert.match(html, /実際に組んだ例: 箱根の1日/);
+  assert.match(html, /class="course"/);
+  assert.match(html, /href="areas\/kanagawa\/hakone\.html"/);
+  assert.match(html, /href="index\.html"/);
+  assert.match(html, /script-src 'none'/);
+  assert.match(sitemap, /<loc>https:\/\/example\.test\/app\/about\.html<\/loc>\s*<lastmod>2026-10-20<\/lastmod>\s*<priority>0\.8/);
+  // どのページの下にも、紹介ページへのリンクがあること。
+  for (const p of pages) assert.match(p.html, /about\.html">旅さきとは</);
+});
+
+test("紹介ページ: コースが1つも組めなくても、例の欄を出さずに作れる", async () => {
+  const kbDoc = {
+    index: { shards: [{ file: "spots-jp14-kanagawa.json", prefecture: "神奈川県" }] },
+    regions: [REGION],
+    shards: new Map([["spots-jp14-kanagawa.json", [spot("a")]]]),
+  };
+  const { intro } = await buildAll(kbDoc, { base: BASE, planCourse: async () => null });
+  assert.ok(!intro.html.includes('class="course"'));
+  assert.ok(!intro.html.includes("実際に組んだ例"));
+  assert.match(intro.html, /旅さきで旅程をつくる/);
+});
+
+test("pickFeatured: 名の知れたエリアを先に、8件まで", () => {
+  const f = (id) => ({ region: { id } });
+  const got = pickFeatured([f("zzz"), f("kamakura"), f("hakone"), ...Array.from({ length: 10 }, (_, i) => f(`x${i}`))]);
+  assert.deepEqual(got.slice(0, 2).map((x) => x.region.id), ["hakone", "kamakura"]);
+  assert.equal(got.length, 8);
 });

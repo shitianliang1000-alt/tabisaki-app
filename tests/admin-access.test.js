@@ -31,9 +31,12 @@ const env = { ADMIN_PASSWORD: "かぎ-123", ADMIN_FILES: files };
 const get = (path, headers = {}) => new Request(`${W}${path}`, { headers });
 
 test("公開サイトの組み立てに、admin/ を入れない", async () => {
-  // 何を公開するかは tools/build_site.sh に書いてあります（pages.yml が呼びます）。
-  const yml = await readFile(new URL(".github/workflows/pages.yml", root), "utf8");
-  assert.match(yml, /tools\/build_site\.sh/, "公開が tools/build_site.sh を通っていません");
+  // 何を公開するかは tools/build_site.sh に書いてあります。Cloudflare 用
+  // （tools/build_worker.sh）も PHP 版（tools/build_php.sh）も、これを通ります。
+  for (const f of ["tools/build_worker.sh", "tools/build_php.sh"]) {
+    const by = await readFile(new URL(f, root), "utf8");
+    assert.match(by, /tools\/build_site\.sh/, `${f} が tools/build_site.sh を通っていません`);
+  }
   const sh = await readFile(new URL("tools/build_site.sh", root), "utf8");
   const copies = sh.split("\n").filter((l) => /^\s*cp\s/.test(l));
   assert.ok(copies.length > 0, "cp の行が見つかりません");
@@ -41,6 +44,36 @@ test("公開サイトの組み立てに、admin/ を入れない", async () => {
     assert.ok(!/\badmin\b/.test(line), `admin を公開に入れています: ${line.trim()}`);
   }
   assert.match(sh, /dist"?\/admin/, "紛れ込んだときに止める確認がありません");
+  // PHP 版には管理画面を入れません（合言葉を聞く仕組みが無いため）。
+  const php = await readFile(new URL("tools/build_php.sh", root), "utf8");
+  assert.ok(!/cp[^\n]*\badmin\//.test(php), "PHP 版に admin/ を入れています");
+  // Cloudflare 用は __admin/ に置き、必ず Worker を先に通します。
+  const wr = await readFile(new URL("wrangler.jsonc", root), "utf8");
+  assert.match(wr, /"run_worker_first":\s*\[[^\]]*"\/__admin\/\*"/, "__admin/ が Worker を通りません");
+});
+
+test("Cloudflare の静的ファイルにある管理画面は、合言葉なしでは見えない", async () => {
+  const seen = [];
+  const ASSETS = {
+    async fetch(req) {
+      const path = new URL(req.url).pathname;
+      seen.push(path);
+      return new Response(`asset:${path}`, { headers: { "Content-Type": "text/plain" } });
+    },
+  };
+  const e = { ADMIN_PASSWORD: "かぎ-123", ASSETS };
+  const direct = await worker.fetch(get("/__admin/index.html"), e);
+  assert.equal(direct.status, 404);
+  const locked = await worker.fetch(get("/private/admin/"), e);
+  assert.equal(locked.status, 401);
+  const ok = await worker.fetch(get("/private/admin/", { Authorization: basic("かぎ-123") }), e);
+  assert.equal(ok.status, 200);
+  assert.equal(await ok.text(), "asset:/__admin/index.html");
+  const js = await worker.fetch(get("/private/js/config.js", { Authorization: basic("かぎ-123") }), e);
+  assert.equal(await js.text(), "asset:/js/config.js");
+  // サイトのページ（無いファイル）は、静的ファイルの側へ渡します。
+  const page = await worker.fetch(get("/nope.html"), e);
+  assert.equal(await page.text(), "asset:/nope.html");
 });
 
 test("合言葉が入っていなければ、管理画面は無いことにする", async () => {

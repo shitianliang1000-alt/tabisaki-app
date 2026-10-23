@@ -167,7 +167,10 @@ test("index.html に直に書いた形が、icons.js とずれていない", () 
     .map((m) => m[1]);
   // 2026-10: こだわりを「＋」の中の4つの欄にしたので、その項目と
   // 「戻る」「閉じる」が増えました（旅の例は外しました）。
-  assert.equal(paths.length, 31, `直書きの記号が ${paths.length} 個です`);
+  // 2026-10-22: こだわりを「＋」の一覧に平らに並べ（入れ子をやめ）、
+  // 「こだわり」の項目と、その一覧の「閉じる」、4つの「戻る」が無くなり、
+  // 「条件をリセット」の項目が増えました（4つの項目の記号は、列にあったときと同じ）。
+  assert.equal(paths.length, 26, `直書きの記号が ${paths.length} 個です`);
   const known = new Set(iconNames().map((n) => iconPath(n)));
   for (const d of paths) {
     assert.ok(known.has(d), `icons.js に無い形が index.html にあります: ${d}`);

@@ -82,7 +82,7 @@ async function closePanel(pg) {
 }
 
 /**
- * 「こだわり」の欄を1つ開きます（「＋」→「こだわり」→ 区切り）。
+ * 「こだわり」の欄を1つ開きます（「＋」→ 一覧の下のほうの項目。1段）。
  * section は tune-time（時間と興味）・tune-move（人数・予算・移動）・
  * tune-stay（同行者と宿）・tune-food（食事と旅の終わり）のどれか。
  */
@@ -91,8 +91,7 @@ async function openConditions(pg, section = "tune-move") {
   if (open === section) return;
   if (open) await pg.keyboard.press("Escape");
   await pg.click("#plus");
-  await pg.click("#pill-tune");
-  await pg.click(`#panel-tune [data-open-cond="${section}"]`);
+  await pg.click(`#plus-menu [data-open-cond="${section}"]`);
   await pg.waitForSelector(`#pop .pop-panel[data-panel="${section}"]:not([hidden])`);
 }
 
@@ -281,12 +280,20 @@ await check("出発地・日時は、押したものだけが開く", async () =
   await page.keyboard.press("Escape");
   const closed = await page.$eval("#pop", (e) => e.hidden);
   assert(closed, "Esc で閉じません");
-  // 「＋」の中に、5つの項目が並ぶこと。
+  // 「＋」の中に、出発地・日時・まわる場所と、その下に「こだわり」の4つ、
+  // 最後に「条件をリセット」が、1つの一覧として平らに並ぶこと（入れ子にしない）。
   await page.click("#plus");
   const items = await page.$$eval("#plus-menu .plus-item",
     (els) => els.map((e) => e.querySelector("b")?.textContent.trim()));
-  assert(items.join("・") === "出発地・日時・まわる場所・こだわり",
+  assert(items.join("・") === "出発地・日時・まわる場所・目的・時間・興味・人数・予算・移動・同行者と宿・食事と旅の終わり・条件をリセット",
     `「＋」の中身: ${items.join("・")}`);
+  const sep = await page.$eval("#plus-sep-tune", (e) => e.textContent.trim());
+  assert(sep === "こだわり", `区切りの見出し: ${sep}`);
+  assert(!(await page.$("#tune-row")), "入力欄の下に、こだわりの列が残っています");
+  // 押せば、その欄が1段で開くこと。
+  await page.click('#plus-menu [data-open-cond="tune-stay"]');
+  got = await shown();
+  assert(got.join() === "tune-stay", `同行者と宿を押したら、${got.join("・")} が開きました`);
   await page.keyboard.press("Escape");
 });
 
@@ -1631,12 +1638,10 @@ await check("指で押せる大きさになっている（44pt）", async () => 
     const when = await measure([".date-presets .md-chip"]);
     await pg.keyboard.press("Escape");
     await pg.click("#plus");
-    await pg.click("#pill-tune");
+    const tuneMenu = await measure(["#plus-menu .plus-item"]);
+    await pg.click('#plus-menu [data-open-cond="tune-move"]');
     await pg.waitForTimeout(200);
-    const tuneMenu = await measure(["#panel-tune .plus-item", "#panel-tune .pop-close"]);
-    await pg.click('#panel-tune [data-open-cond="tune-move"]');
-    await pg.waitForTimeout(200);
-    const sheet = await measure(["#panel-tune-move .md-chip", "#panel-tune-move .pop-back",
+    const sheet = await measure(["#panel-tune-move .md-chip", "#panel-tune-move .pop-close",
       "#panel-tune-move .pop-done"]);
     sheet.bad.push(...tuneMenu.bad);
     await pg.keyboard.press("Escape");

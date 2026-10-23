@@ -8,13 +8,14 @@
 //   areas/index.html              都道府県とエリアの一覧
 //   areas/<県>/index.html         その県の定番・穴場・エリア
 //   areas/<県>/<エリア>.html      そのエリアの1日のモデルコース
+//   about.html                    旅さきの紹介（何ができるか・組んだ例）
 //   404.html                      無い URL を開いたときのページ
 //
 // モデルコースは、アプリと**同じエンジン**（js/pipeline.js）で組みます。
 // 中継（AI・経路検索）へは出ないので、移動時間は距離からの目安です。
 // ページにもそう書きます。
 //
-// リポジトリには入れません。公開のたびに .github/workflows/pages.yml が
+// リポジトリには入れません。公開のたびに tools/build_site.sh（Cloudflare・PHP 版の組み立て）が
 // 作ります（収録が変わるたびに作り直し忘れる、ということが起きません）。
 // 手元で見るときは:
 //
@@ -31,16 +32,19 @@ import { renderAreaCard } from "./area_card.mjs";
 import { artFor } from "../js/art.js";
 import { normalizeName, sameThing } from "../js/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
+import { fitsHiddenList, gemScore } from "./gem.mjs";
 import { onlySpots } from "../js/notaspot.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 
 /** 公開URLの根。sitemap.xml の1件目から読みます（無ければこれ）。 */
-const DEFAULT_BASE = "https://shitianliang1000-alt.github.io/tabisaki.github.io/";
+const DEFAULT_BASE = "https://tabisaki.site.je/";
 
 /** 1ページに並べる数。多すぎると読まれず、少なすぎると探しに来た場所がありません。 */
 const PREF_MAJOR = 12;
 const PREF_HIDDEN = 12;
+/** 穴場の欄が、これより少なくならないように足す数（見どころの語の無い説明から）。 */
+const PREF_HIDDEN_MIN = 6;
 const REGION_SPOTS = 24;
 /**
  * エリアのページに「〇〇の観光地」として並べるのは、エリアの中心からこの距離まで。
@@ -163,6 +167,16 @@ export function breadcrumbLd(trail) {
 
 function byFame(a, b) {
   return (b.fame_score ?? 0) - (a.fame_score ?? 0)
+    || String(a.name).localeCompare(String(b.name), "ja");
+}
+
+/**
+ * 有名な順。有名さの点が同じもの（点の無い収録の大半）は、名前の順ではなく
+ * 説明から見どころが読み取れる順（tools/gem.mjs）にします。
+ */
+function byFameThenGem(a, b) {
+  return (b.fame_score ?? 0) - (a.fame_score ?? 0)
+    || gemScore(b, readableDescription(b)) - gemScore(a, readableDescription(a))
     || String(a.name).localeCompare(String(b.name), "ja");
 }
 
@@ -335,10 +349,26 @@ export function pickPrefSpots(spots, prefName) {
   const major = pickDistinct(
     list.filter((s) => s.fame_tier === "major" || s.fame_tier === "known")
       .sort((a, b) => tierRank(a) - tierRank(b) || byFame(a, b)), PREF_MAJOR, taken);
-  const hidden = pickDistinct(
-    list.filter((s) => s.fame_tier === "hidden" && readableDescription(s)
-                       && !GONE.test(s.description) && !inOtherPrefecture(s, prefName)),
-    PREF_HIDDEN, taken);
+  // 穴場は、説明から見どころが読み取れる順（tools/gem.mjs）。以前は有名さの
+  // 点の無いものが名前の順に並び、長野県の穴場がスキー場・温水プール・
+  // 中央道のトンネル、神奈川県が横穴墓群と準用河川になっていました。
+  //
+  // 点が1以上のものを先に並べます。それが PREF_HIDDEN_MIN に満たない県
+  // （説明の短い収録が多い県）だけ、点が0のもの（悪い語も無いもの）を
+  // 説明の長い順に足します。点が負のものは並べません。
+  const scored = list
+    .filter((s) => s.fame_tier === "hidden" && fitsHiddenList(s)
+                   && !GONE.test(s.description) && !inOtherPrefecture(s, prefName))
+    .map((s) => ({ s, text: readableDescription(s) }))
+    .filter((x) => x.text)
+    .map((x) => ({ ...x, score: gemScore(x.s, x.text) }))
+    .filter((x) => x.score >= 0)
+    .sort((a, b) => b.score - a.score || b.text.length - a.text.length || byFame(a.s, b.s));
+  const hidden = pickDistinct(scored.filter((x) => x.score > 0).map((x) => x.s), PREF_HIDDEN, taken);
+  if (hidden.length < PREF_HIDDEN_MIN) {
+    hidden.push(...pickDistinct(scored.filter((x) => x.score === 0).map((x) => x.s),
+      PREF_HIDDEN_MIN - hidden.length, taken));
+  }
   return { major, hidden };
 }
 
@@ -364,12 +394,20 @@ function fmtTime(d) {
 }
 
 /**
- * 1ページの枠。`rel` はページから根までの相対パスです。404.html だけは
- * どの深さの URL でも同じものが出るので、`rel` に公開URLの根（絶対URL）を
- * 渡し、`canonical` を持たせず `noindex` にします。
+ * 「旅さき」（ロゴ・パンくず）の行き先。トップ（/。紹介と入口のページ）です。
+ * チャットの画面は「旅程をつくる」のリンク（index.html）から開きます。
  */
-function page({ title, description, canonical, rel, body, jsonLd, noindex = false, image = null }) {
-  const ogUrl = canonical ?? rel;
+function home(rel) {
+  return rel || "./";
+}
+
+/**
+ * 1ページの枠。`rel` はページから根までの相対パスです。404.html だけは
+ * どの深さの URL でも同じものが出るので、`rel` に根（"/"）を渡し、
+ * `canonical` を持たせず `noindex` にします（OGP の絵の URL は `origin` から作ります）。
+ */
+function page({ title, description, canonical, rel, body, jsonLd, noindex = false, image = null, origin = null }) {
+  const ogUrl = canonical ?? origin ?? rel;
   const img = image ?? { path: "og.png", alt: "旅さき — 行きたい、から旅程をつくる。" };
   return `<!doctype html>
 <html lang="ja">
@@ -386,7 +424,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(ogUrl)}">
-<meta property="og:image" content="${esc(new URL(`${rel}${img.path}`, ogUrl).href)}">
+<meta property="og:image" content="${esc((origin ? new URL(img.path, origin) : new URL(`${rel}${img.path}`, ogUrl)).href)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="${esc(img.alt)}">
@@ -401,7 +439,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>\n` : ""}</head>
 <body>
 <header class="area-bar">
-  <a class="brand" href="${rel}index.html"><img src="${rel}icon.svg" alt="" width="22" height="22">旅さき</a>
+  <a class="brand" href="${home(rel)}"><img src="${rel}icon.svg" alt="" width="22" height="22">旅さき</a>
   <a class="bar-link" href="${rel}areas/index.html">エリアから探す</a>
 </header>
 <main class="area">
@@ -409,7 +447,7 @@ ${body}
 </main>
 <footer class="area-foot">
   <p>収録データ: 国土数値情報・OpenStreetMap・Wikipedia ほか（出典は<a href="${rel}credits.html">著作権表記</a>のページにまとめています）。営業時間や料金は変わることがあります。お出かけ前に公式の情報をご確認ください。</p>
-  <p><a href="${rel}index.html">旅さき</a> — 行きたいことから旅程をつくる</p>
+  <p><a href="${home(rel)}">旅さき</a> — 行きたいことから旅程をつくる・<a href="${rel}about.html">旅さきとは</a></p>
 </footer>
 </body>
 </html>
@@ -513,7 +551,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
   // 同じ浜が「江之浦海水浴場」と「市営江之浦海水浴場」の2件で並んでいました。
   // 別名は1つにします（分類の数は絞りません。エリアの一覧は分類で選ぶ欄ではありません）。
-  const list = pickDistinct([...nearbySpots(region, spots)].sort(byFame), REGION_SPOTS, [],
+  const list = pickDistinct([...nearbySpots(region, spots)].sort(byFameThenGem), REGION_SPOTS, [],
     Infinity);
   const items = course ? courseItems(course) : null;
   // コースが組めなかったページに「モデルコース」と書くと、検索から来た人が
@@ -530,7 +568,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
     : `${region.name}（${prefName}）の観光地${famous ? `（${famous}など）` : ""}と1日の旅程づくり。`)
     + (region.tagline ? `${region.tagline}。` : "")
     + "行きたいことを書くと、営業時間と移動時間まで合わせた旅行プランを作成できます。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › <a href="${rel}areas/${prefSlug}/index.html">${esc(prefName)}</a> › ${esc(region.name)}</nav>
 <h1>${esc(region.name)}</h1>
 ${region.tagline ? `<p class="lead">${esc(region.tagline)}</p>` : ""}
 ${region.description ? `<p>${esc(region.description)}</p>` : ""}
@@ -585,7 +623,7 @@ export function renderPrefPage({ prefName, prefSlug, spots, regions, base, count
   const description = `${prefName}の観光地。${famous ? `${famous}などの定番と、` : "定番と、"}`
     + `知る人ぞ知る穴場。収録${count.toLocaleString("ja-JP")}か所から、`
     + "行きたいことに合わせて旅行プランを作成できます。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
 <p class="lead">収録 ${count.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
 <p><a class="cta primary" href="${esc(appLink(rel, `${prefName}で、定番と穴場をまぜて1日まわる`))}">${esc(prefName)}で旅程をつくる</a></p>
@@ -653,7 +691,7 @@ export function renderIndexPage({ prefs, base, total = null }) {
   const title = "エリアから探す — 都道府県の観光地と旅行プランのモデルコース｜旅さき";
   const description = "47都道府県の定番の観光地と穴場、主なエリアの1日モデルコース。"
     + "行きたいことを書くと、旅さきが営業時間と移動時間まで合わせた旅行プランを作成します。";
-  const body = `<nav class="crumbs" aria-label="現在地"><a href="${rel}index.html">旅さき</a> › エリア</nav>
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › エリア</nav>
 <h1>エリアから探す</h1>
 <p class="lead">${total !== null ? `全国の収録 ${total.toLocaleString("ja-JP")} か所。` : ""}都道府県を選ぶと、定番と穴場、主なエリアのモデルコースが見られます。</p>
 ${groupByChiho(prefs).map(({ chiho, list }) => `<section>
@@ -674,25 +712,28 @@ ${list.map((p) => `  <li><a href="${esc(p.slug)}/index.html"><b>${esc(p.name)}</
 /**
  * 公開URLの下に無いページを開いたときに出る 404.html。
  *
- * GitHub Pages は、無い URL にはこのファイルを（その URL のまま）返します。
- * どの深さで出ても崩れないよう、リンクとスタイルは公開URLの根からの
- * 絶対URLで書きます。検索結果には載せません（noindex）。
+ * Cloudflare（wrangler.jsonc の not_found_handling）と PHP 版（.htaccess の
+ * ErrorDocument）は、無い URL にはこのファイルを（その URL のまま）返します。
+ * どの深さで出ても崩れないよう、リンクとスタイルは根（/）から書きます。
+ * 公開URLを丸ごと書くと、PHP 版（別のホスト）ではスタイルが CSP で
+ * 止まって崩れます。検索結果には載せません（noindex）。
  */
 export function renderNotFoundPage({ prefs, base }) {
+  const root = "/";
   const title = "ページが見つかりません｜旅さき";
   const description = "お探しのページは見つかりませんでした。旅さきのトップか、エリアの一覧からお探しください。";
   const body = `<h1>ページが見つかりません</h1>
 <p class="lead">お探しのページは、移動したか、無くなったようです。</p>
-<p><a class="cta primary" href="${esc(base)}index.html">旅さきで旅程をつくる</a></p>
-<p><a class="cta" href="${esc(base)}areas/index.html">エリアから探す</a></p>
+<p><a class="cta primary" href="${root}index.html">旅さきで旅程をつくる</a></p>
+<p><a class="cta" href="${root}areas/index.html">エリアから探す</a></p>
 ${prefs.length ? `<section>
 <h2>都道府県から探す</h2>
 <ul class="prefs">
-${prefs.map((p) => `  <li><a href="${esc(base)}areas/${esc(p.slug)}/index.html"><b>${esc(p.name)}</b></a></li>`).join("\n")}
+${prefs.map((p) => `  <li><a href="${root}areas/${esc(p.slug)}/index.html"><b>${esc(p.name)}</b></a></li>`).join("\n")}
 </ul>
 </section>` : ""}`;
   return { path: "404.html", url: null,
-           html: page({ title, description, rel: base, body, noindex: true }) };
+           html: page({ title, description, rel: root, origin: base, body, noindex: true }) };
 }
 
 /**
@@ -708,7 +749,7 @@ export function sitemapXml(base, entries, date, { rootLastmod = null } = {}) {
   const fallback = date.toISOString().slice(0, 10);
   const row = (loc, day, pri) => `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${esc(day ?? fallback)}</lastmod>\n    <priority>${pri}</priority>\n  </url>`;
   const rows = entries.map((e) => (typeof e === "string" ? { url: e } : e))
-    .map(({ url, lastmod }) => row(url, lastmod, url.endsWith("areas/index.html") ? "0.8" : "0.6"));
+    .map(({ url, lastmod }) => row(url, lastmod, /(areas\/index|about)\.html$/.test(url) ? "0.8" : "0.6"));
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!-- tools/build_area_pages.mjs が公開のたびに作ります。手で直さないでください。 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -729,7 +770,7 @@ export function latestDay(days) {
  * 県とエリアのページは、その県の収録（spots-jpNN-*.json）から作るので、
  * その日を lastmod にします。浅い clone では全ファイルが同じ1件の記録の
  * 日になってしまうので、そのときは何も返しません（作った日になります）。
- * 公開の作業（.github/workflows/pages.yml）は履歴ごと取ってきます。
+ * 公開の作業（Cloudflare の Workers Builds）では履歴が浅いことがあり、そのときは同じ日付になります。
  */
 export function gitDays(root, files) {
   const days = new Map();
@@ -797,6 +838,98 @@ export function curatedRegions(regions) {
 }
 
 /**
+ * 紹介ページ（about.html）。
+ *
+ * アプリのトップは画面を JavaScript で描くので、検索エンジンにも、
+ * 人に「これ何？」と聞かれて渡すリンクとしても、読める本文がほとんど
+ * ありません。何ができるのか・どう組むのか・実際に組んだ例を、
+ * 1ページにまとめます。例は**このビルドでエンジンが組んだ本物の
+ * コース**です（作り話の画面写真は載せません）。
+ *
+ * `featured` はモデルコースの組めたエリア（{ region, prefName, prefSlug, items, course }）。
+ */
+const FEATURED_ORDER = ["hakone", "kamakura", "kyoto-higashiyama", "kanazawa", "nikko",
+  "miyajima", "takayama", "nara", "beppu", "hakodate", "kawagoe", "naoshima"];
+const FEATURED_MAX = 8;
+
+export function pickFeatured(withCourse) {
+  const rank = (r) => {
+    const i = FEATURED_ORDER.indexOf(r.region.id);
+    return i < 0 ? FEATURED_ORDER.length : i;
+  };
+  return [...withCourse].sort((a, b) => rank(a) - rank(b)).slice(0, FEATURED_MAX);
+}
+
+export function renderIntroPage({ base, featured = [], prefCount = 0, spotCount = 0, date = null }) {
+  const rel = "";
+  const canonical = `${base}about.html`;
+  const title = "旅さきとは｜行きたいことから旅行プランを作成するAI旅程アプリ";
+  const description = "「温泉と海をゆっくり」と書くだけで、行き先・まわる順・移動時間まで組んだ旅程が届く無料のウェブアプリ。"
+    + `全国${prefCount}都道府県・${spotCount.toLocaleString("ja-JP")}か所の観光地から、営業時間と移動時間を照らし合わせて組みます。`;
+  const sample = featured[0] ?? null;
+  const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › 旅さきとは</nav>
+<div class="hero">
+<h1><span class="nw">行きたい、を</span><span class="nw">書くだけで</span><span class="nw">そのまま行ける</span><span class="nw">旅程に。</span></h1>
+<p class="lead">旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くと、行き先・まわる順・移動時間まで組んだ旅行プランを作る、無料のウェブアプリです。行き先がまだ決まっていなくても始められます。</p>
+<p><a class="cta primary" href="${rel}index.html">旅さきで旅程をつくる</a></p>
+<p class="fine">登録は要りません。ブラウザで開くだけで使えます。</p>
+</div>
+<section>
+<h2>3つの手順で、1日の旅が決まります</h2>
+<ol class="steps">
+  <li><b>行きたいことを書く</b><span>「子どもと海で遊びたい」「古い町並みを歩いて、夜は温泉」など、ふだんのことばで大丈夫です。出発地と日時は＋から足せます。</span></li>
+  <li><b>旅さきが組む</b><span>全国の観光地から行き先を選び、営業時間・定休日と、駅や停留所のあいだの移動時間を照らし合わせて、無理のない順に並べます。</span></li>
+  <li><b>話しかけて直す</b><span>「もっとゆっくり」「昼は海鮮で」と続けて書けば、その場で組み直します。気に入った旅程は共有もできます。</span></li>
+</ol>
+</section>
+<section>
+<h2>ほかの旅行サイトとちがうところ</h2>
+<ul class="points">
+  <li><b>着いたら閉まっていた、を減らす</b><span>寄る時刻にその場所が開いているかを、営業時間と定休日で確かめてから旅程に入れます。</span></li>
+  <li><b>定番と穴場をまぜる</b><span>有名な場所だけを並べず、地元で知られた場所や静かな穴場も混ぜて組みます。</span></li>
+  <li><b>行き先から決めてくれる</b><span>「どこへ行くか」から相談できます。決まっているなら、行きたい場所を「必ず行く」に入れるだけです。</span></li>
+  <li><b>現在地は送らない</b><span>現在地は、いちばん近い駅を出発地に入れるためだけに、端末の中で使います。</span></li>
+</ul>
+</section>
+${sample ? `<section>
+<h2>実際に組んだ例: ${esc(sample.region.name)}の1日</h2>
+<p class="fine">${date ? `${esc(fmtDate(date))}に` : ""}${esc(sample.region.station ?? "")}を9:00に出て、18:00までに戻る旅程を、旅さきのエンジンで組んだものです。移動時間は距離からの目安です。</p>
+${courseHtml(sample.items)}
+<p><a class="cta" href="${esc(`${rel}areas/${sample.prefSlug}/${sample.region.id}.html`)}">${esc(sample.region.name)}のモデルコースと観光地を見る</a></p>
+</section>` : ""}
+${featured.length ? `<section>
+<h2>人気のエリアのモデルコース</h2>
+<ul class="regions">
+${featured.map((f) => `  <li><a href="${esc(`${rel}areas/${f.prefSlug}/${f.region.id}.html`)}"><b>${esc(f.region.name)}（${esc(f.prefName)}）</b>${f.region.tagline ? `<span>${esc(f.region.tagline)}</span>` : ""}</a></li>`).join("\n")}
+</ul>
+<p><a href="${rel}areas/index.html">47都道府県の観光地とモデルコースの一覧へ</a></p>
+</section>` : ""}
+<section>
+<h2>よくある質問</h2>
+<dl class="faq">
+  <dt>お金はかかりますか？</dt>
+  <dd>かかりません。登録もなしで使えます。</dd>
+  <dt>行き先が決まっていなくても使えますか？</dt>
+  <dd>使えます。「関東から日帰りで、紅葉と温泉」のように書けば、行き先の候補から選んで組みます。</dd>
+  <dt>泊まりがけの旅行も組めますか？</dt>
+  <dd>組めます。日数を足すと、複数日の旅程になります。</dd>
+  <dt>電車やバスの時刻は正確ですか？</dt>
+  <dd>経路検索につながっているときは実際の便から、つながらないときは距離からの目安で組みます。目安のときは画面にそう出します。お出かけ前に、時刻表と各施設の公式の情報もご確認ください。</dd>
+</dl>
+</section>
+<p><a class="cta primary" href="${rel}index.html">旅さきで旅程をつくる</a></p>`;
+  const jsonLd = { "@context": "https://schema.org", "@graph": [
+    { "@type": "AboutPage", name: title, url: canonical, inLanguage: "ja",
+      about: { "@type": "WebApplication", name: "旅さき", url: base,
+               applicationCategory: "TravelApplication", operatingSystem: "Web",
+               offers: { "@type": "Offer", price: "0", priceCurrency: "JPY" } } },
+    breadcrumbLd([{ name: "旅さき", url: base }, { name: "旅さきとは", url: canonical }]),
+  ] };
+  return { path: "about.html", url: canonical,
+           html: page({ title, description, canonical, rel, body, jsonLd }) };
+}
+
+/**
  * 全ページを作ります。
  *
  * @param {{index:object, regions:object[], shards:Map<string,object[]>}} kbDoc
@@ -813,6 +946,7 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
   const regions = curatedRegions(kbDoc.regions);
   const pages = [];
   const prefs = [];
+  const withCourse = [];
   for (const shard of kbDoc.index.shards ?? []) {
     const slug = shardSlug(shard.file);
     if (!slug) continue;
@@ -832,14 +966,21 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
       pages.push({ ...renderRegionPage({ region, prefName, prefSlug: slug, spots: own,
                                          course, date, base, siblings: mine }),
                    lastmod, card: { shard: shard.file, region } });
+      const items = course ? courseItems(course) : null;
+      if (items) withCourse.push({ region, prefName, prefSlug: slug, items, lastmod });
     }
   }
   // 一覧は、どこかの県が変わるか、エリアの分けかたが変わると変わります。
   const indexDay = latestDay([...updated.values()]);
   pages.unshift({ ...renderIndexPage({ prefs, base }), lastmod: indexDay });
-  return { pages, notFound: renderNotFoundPage({ prefs, base }),
-           sitemap: sitemapXml(base, pages.map((p) => ({ url: p.url, lastmod: p.lastmod })), now,
-                               { rootLastmod: siteUpdated }) };
+  // 紹介ページは、アプリと収録のどちらが変わっても変わります。
+  const featured = pickFeatured(withCourse);
+  const intro = { ...renderIntroPage({ base, featured, date, prefCount: prefs.length,
+                                       spotCount: prefs.reduce((n, p) => n + p.count, 0) }),
+                  lastmod: latestDay([siteUpdated, ...featured.map((f) => f.lastmod)]) };
+  const entries = [intro, ...pages].map((p) => ({ url: p.url, lastmod: p.lastmod }));
+  return { pages, intro, notFound: renderNotFoundPage({ prefs, base }),
+           sitemap: sitemapXml(base, entries, now, { rootLastmod: siteUpdated }) };
 }
 
 async function readJson(path) {
@@ -918,9 +1059,9 @@ async function main(outDir) {
   // トップ（アプリ）の日は、アプリを作っているファイルが最後に変わった日です。
   const siteUpdated = latestDay([...gitDays(ROOT, ["index.html", "js", "css"]).values()]);
 
-  const { pages, notFound, sitemap } = await buildAll({ index, regions, shards },
+  const { pages, intro, notFound, sitemap } = await buildAll({ index, regions, shards },
     { base, now: new Date(), planCourse, updated, siteUpdated });
-  for (const p of [...pages, notFound]) {
+  for (const p of [...pages, intro, notFound]) {
     const file = join(outDir, p.path);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, p.html);

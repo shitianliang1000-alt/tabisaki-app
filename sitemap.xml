@@ -5,7 +5,7 @@
      公開URLの根は、この1件目の <loc> から読みます。 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://shitianliang1000-alt.github.io/tabisaki.github.io/</loc>
+    <loc>https://tabisaki.site.je/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>

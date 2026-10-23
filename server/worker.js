@@ -1,11 +1,16 @@
-import { isAdminPath, serveAdmin } from "./admin.js";
+import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
 import { currentSettings, record, Stats, SWITCHABLE } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
+import { servePage } from "./landing.js";
 
 // 管理画面の件数・設定の置き場（Durable Object）。wrangler.jsonc の STATS。
 export { Stats };
 
 // 呼び出しを許すページの出どころ。
+//
+// 2026-10-22 から、サイトはこの Worker 自身が配っています（同じ出どころ
+// なので、下の一覧に無くても通ります）。github.io は、引っ越す前のページを
+// 開いたままの人のために残しています。
 //
 // Worker の変数 ALLOW_ORIGIN で上書きできます（カンマ区切りで複数）。
 // ここを直に書き換えると、公開先を増やすたびに Worker を作り直すことに
@@ -15,9 +20,15 @@ export { Stats };
 //   https://shitianliang1000-alt.github.io,http://localhost:8000
 const DEFAULT_ALLOW_ORIGIN = "https://shitianliang1000-alt.github.io";
 
+// このサイト自身の置き場（InfinityFree の PHP 版）。ALLOW_ORIGIN を Cloudflare
+// 側で設定していても、ここは常に通します（足し忘れで、AI・電車・バスが
+// 「このサイトからは呼べません」になるのを防ぎます）。
+const OWN_ORIGINS = ["https://tabisaki.site.je", "http://tabisaki.site.je"];
+
 function allowList(env) {
   const raw = String(env?.ALLOW_ORIGIN ?? "").trim();
-  return (raw || DEFAULT_ALLOW_ORIGIN).split(/[,\s]+/).filter(Boolean);
+  const list = (raw || DEFAULT_ALLOW_ORIGIN).split(/[,\s]+/).filter(Boolean);
+  return [...new Set([...list, ...OWN_ORIGINS])];
 }
 // 重み付きの回数制限。
 //
@@ -140,6 +151,20 @@ export default {
         overview: () => overviewFor(env, url.origin),
       });
     }
+    // 管理画面のファイルの置き場は、直には見せません（合言葉は上で聞きます）。
+    if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
+      return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+    // トップ（/）とチャットの画面（/app）は、開いたときに作ります（server/landing.js）。
+    if (env?.ASSETS) {
+      const page = await servePage(request, env);
+      if (page) return page;
+    }
+    // サイトのページ（GET）。ふつうは Cloudflare がこの Worker を通さずに
+    // 静的ファイルを返します。ここに来るのは、無いファイルを開いたときです。
+    if ((request.method === "GET" || request.method === "HEAD") && env?.ASSETS) {
+      return withNotFoundPage(request, env, await env.ASSETS.fetch(request));
+    }
     const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
     if (request.method === "POST") {
@@ -149,6 +174,28 @@ export default {
     return res;
   },
 };
+
+/**
+ * 無いページを開いた人には、空の 404 ではなく 404.html（エリアの一覧などへの
+ * 道があるページ）を見せます。状態は 404 のままです（検索に載らないように）。
+ * 画像や JS など、ページでないものは、そのまま返します。
+ * wrangler.jsonc の not_found_handling は "none" のままにしています。
+ * 変えると、中継の入口（POST）まで静的ファイルの側で止まりかねないからです。
+ */
+export async function withNotFoundPage(request, env, res) {
+  if (res.status !== 404) return res;
+  const accept = request.headers.get("Accept") ?? "";
+  if (!accept.includes("text/html")) return res;
+  // html_handling が auto-trailing-slash なので、/404.html は /404 へ回されます。先に /404 を見ます。
+  let page = await env.ASSETS.fetch(new Request(new URL("/404", request.url)));
+  if (!page.ok) page = await env.ASSETS.fetch(new Request(new URL("/404.html", request.url)));
+  if (!page.ok) return res;
+  return new Response(request.method === "HEAD" ? null : page.body, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300",
+               "X-Content-Type-Options": "nosniff" },
+  });
+}
 
 /** その入口の名前（数えるとき・止めるときの鍵）。 */
 export function endpointOf(path) {
@@ -420,7 +467,7 @@ async function webSearch(request, env, ctx) {
       srlimit: String(WEB_RESULTS), format: "json", utf8: "1", origin: "*" })) u.searchParams.set(k, v);
     res = await fetch(u, {
       // Wikimedia は、名乗らない呼び出しを断ることがあります。
-      headers: { "User-Agent": "tabisaki/1.0 (https://shitianliang1000-alt.github.io/tabisaki.github.io/)" },
+      headers: { "User-Agent": "tabisaki/1.0 (https://tabisaki-github-io.shitianliang1000.workers.dev/)" },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   }

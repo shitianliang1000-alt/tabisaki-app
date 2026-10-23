@@ -55,6 +55,9 @@ async function audit(name, { dark = false, plan = false, width = 1280,
     viewport: { width, height: 900 },
     colorScheme: dark ? "dark" : "light",
     serviceWorkers: "block",
+    // 色は、出し終わった形で測ります。入りの動き（ふわっと出る）の途中では
+    // 字が地の色と混ざって薄く見え、実際より低いコントラストを拾います。
+    reducedMotion: "reduce",
   });
   const page = await ctx.newPage();
   await page.route("**/__axe.js", (route) =>
@@ -151,6 +154,9 @@ async function auditStatic(name, path, { dark = false, width = 1280 } = {}) {
     viewport: { width, height: 900 },
     colorScheme: dark ? "dark" : "light",
     serviceWorkers: "block",
+    // 色は、出し終わった形で測ります。入りの動き（ふわっと出る）の途中では
+    // 字が地の色と混ざって薄く見え、実際より低いコントラストを拾います。
+    reducedMotion: "reduce",
     // このページの CSP は script を一切止めます（止まるのが正しい）。
     // axe はテストの側から差し込むので、ここだけ CSP を外して開きます。
     bypassCSP: true,
@@ -199,6 +205,9 @@ async function contrast(name, dark) {
     viewport: { width: 390, height: 844 },
     colorScheme: dark ? "dark" : "light",
     serviceWorkers: "block",
+    // 色は、出し終わった形で測ります。入りの動き（ふわっと出る）の途中では
+    // 字が地の色と混ざって薄く見え、実際より低いコントラストを拾います。
+    reducedMotion: "reduce",
   });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
@@ -206,7 +215,7 @@ async function contrast(name, dark) {
   // 畳んであるものを開き、チップを1つ選んで、選ばれた状態も測ります。
   // シートを開いて、畳んであるものも開き、チップを1つ選びます。
   await page.click("#plus").catch(() => {});
-  await page.click("#pill-tune").catch(() => {});
+  await page.click('#plus-menu [data-open-cond="tune-time"]').catch(() => {});
   await page.click('[data-genre="onsen"]').catch(() => {});
   await page.waitForTimeout(300);
 
@@ -273,6 +282,9 @@ await audit("エリアを地図で探す画面（携帯の幅）", { width: 390,
 await audit("エリアを地図で探す画面（暗い配色）", { dark: true, areaMap: true });
 
 await auditStatic("著作権表記のページ（明るい配色）", "credits.html");
+await auditStatic("紹介のページ（明るい配色）", "about.html");
+await auditStatic("紹介のページ（暗い配色・携帯の幅）", "about.html",
+                  { dark: true, width: 390 });
 await auditStatic("著作権表記のページ（暗い配色・携帯の幅）", "credits.html",
                   { dark: true, width: 390 });
 
