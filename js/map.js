@@ -198,6 +198,8 @@ export class TripMap {
     // 「いまは」で持たせる作りにしないためです。
     const pin = document.createElement("span");
     pin.style.background = bg;
+    // 順に落ちてくる動きの順番（css/app.css の pin-drop）。
+    pin.style.setProperty("--i", String(Math.min(Number(index) || 0, 12)));
     const num = document.createElement("b");
     num.textContent = label;
     pin.append(num);

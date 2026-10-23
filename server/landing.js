@@ -281,9 +281,14 @@ export async function servePage(request, env, now = new Date()) {
       return env.ASSETS.fetch(new Request(`${url.origin}/`));
     }
   }
+  // /app/ のままだと、画面の部品（css/・js/ への相対の道）が /app/css/… を
+  // 探して見つからず、画面が崩れます。/app へ移ってもらいます。
+  if (path === "/app/") {
+    return Response.redirect(`${url.origin}/app${url.search}`, 301);
+  }
   // /index.html も、チャットの画面です（ホーム画面に置いたアプリが開く場所）。
   // 静的ファイルの側では「/」が index.html なので、それを取ってきます。
-  if (path === "/app" || path === "/app/" || path === "/index.html") {
+  if (path === "/app" || path === "/index.html") {
     const res = await env.ASSETS.fetch(new Request(`${url.origin}/`));
     if (!res.ok) return res;
     const html = renderApp(await res.text(), now, base);

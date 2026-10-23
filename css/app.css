@@ -3751,6 +3751,81 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
 /* 紙・動きを減らす設定では、出し終わった形だけを見せます。 */
 @media print { .stream-ch, .rise { animation: none !important; opacity: 1 !important; } }
 
+/* --- アプリのモーション（2026-10-23 のご依頼。js/motion.js） ---
+   トップ（php/assets/landing.css）と同じ考えかたの動きを、チャットの画面にも足します。
+   ・はじめの画面: 奥の淡い光がゆっくり流れ、挨拶が1文字ずつ浮かび、
+     入力欄の見本の文が打ち込まれるように入れ替わります（js/motion.js）。
+   ・「＋」の欄は、ボタンの側からふわっと開き、項目が上から順に並びます。
+   ・送れるようになると、送るボタンが小さく弾みます。
+   ・地図のピンは、順番どおりに上から落ちてきます。
+   ・旅程の行は、見える位置まで来たときに下からすっと出ます。
+   色は足しません（チャットの画面は白黒のまま。ご指示どおり）。
+   「動きを減らす」設定では、どれも動きません。 */
+@media (prefers-reduced-motion: no-preference) {
+  .chat { isolation: isolate; }
+  body[data-view="form"] .chat::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(38% 30% at 28% 36%, color-mix(in srgb, var(--chat-ink) 6%, transparent), transparent 72%),
+      radial-gradient(34% 28% at 74% 62%, color-mix(in srgb, var(--chat-ink) 5%, transparent), transparent 72%),
+      radial-gradient(26% 22% at 56% 20%, color-mix(in srgb, var(--chat-ink) 3.5%, transparent), transparent 72%);
+    background-size: 150% 150%;
+    animation: chat-drift 26s ease-in-out infinite alternate, chat-glow-in 1.6s ease both;
+  }
+  body[data-view="form"] .hero-greet:has(.greet-ch) { animation: none; }
+  .greet-ch { display: inline-block; animation: greet-ch-in .7s cubic-bezier(.2, .8, .2, 1) both; }
+
+  .pop:not([hidden]) { animation: pop-in-up .22s cubic-bezier(.2, .8, .2, 1) both; transform-origin: 22px 100%; }
+  body[data-view="form"] .pop:not([hidden]) { animation-name: pop-in-down; transform-origin: 22px 0; }
+  .pop-panel:not([hidden]):not(#plus-menu) { animation: hig-fade .2s ease both; }
+  #plus-menu:not([hidden]) > * { animation: chip-in .3s cubic-bezier(.2, .8, .2, 1) both; }
+  #plus-menu > :nth-child(2) { animation-delay: .02s; }
+  #plus-menu > :nth-child(3) { animation-delay: .04s; }
+  #plus-menu > :nth-child(4) { animation-delay: .06s; }
+  #plus-menu > :nth-child(5) { animation-delay: .08s; }
+  #plus-menu > :nth-child(6) { animation-delay: .1s; }
+  #plus-menu > :nth-child(7) { animation-delay: .12s; }
+  #plus-menu > :nth-child(8) { animation-delay: .14s; }
+  #plus-menu > :nth-child(n+9) { animation-delay: .16s; }
+
+  .composer:has(#note:not(:placeholder-shown)) .send-btn:not(:disabled) {
+    animation: send-ready .42s cubic-bezier(.2, .8, .2, 1);
+  }
+  .note-examples .md-chip { transition: translate .2s, box-shadow .2s, background-color .2s; }
+  @media (hover: hover) and (pointer: fine) {
+    .note-examples .md-chip:hover { translate: 0 -2px; box-shadow: 0 4px 14px rgba(31, 30, 29, .08); }
+  }
+
+  .trip-pin > span {
+    animation: pin-drop .55s cubic-bezier(.2, .8, .2, 1) both;
+    animation-delay: calc(120ms + var(--i, 0) * 70ms);
+  }
+  .cand.is-selected { animation: pick-pop .36s var(--md-sys-motion-emphasized, ease) both; }
+
+  .tl.reveal-wait { animation: none; opacity: 0; translate: 0 18px; }
+  .tl.reveal-in { animation: reveal-up .6s cubic-bezier(.2, .8, .2, 1) both; }
+}
+@keyframes chat-drift {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 60% 40%; }
+  100% { background-position: 100% 100%; }
+}
+@keyframes chat-glow-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes greet-ch-in { from { opacity: 0; transform: translateY(.45em); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes pop-in-up { from { opacity: 0; scale: .96; translate: 0 8px; } to { opacity: 1; scale: 1; translate: 0 0; } }
+@keyframes pop-in-down { from { opacity: 0; scale: .96; translate: 0 -8px; } to { opacity: 1; scale: 1; translate: 0 0; } }
+@keyframes send-ready { 0% { scale: .8; } 60% { scale: 1.1; } 100% { scale: 1; } }
+@keyframes pin-drop {
+  0%   { opacity: 0; translate: 0 -22px; }
+  60%  { opacity: 1; translate: 0 3px; }
+  100% { opacity: 1; translate: 0 0; }
+}
+@keyframes reveal-up { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
+@media print {
+  .tl.reveal-wait { opacity: 1 !important; translate: none !important; }
+  .chat::before { display: none !important; }
+}
+
 /* 画面が動かないときの案内（js/boot-check.js）。 */
 .boot-fail {
   position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1000;

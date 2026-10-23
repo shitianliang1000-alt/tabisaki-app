@@ -35,7 +35,7 @@
 // v13: ホームを挨拶と入力欄だけにし、当日の札と共有を答えに出しました。
 // v20: こだわりを入力欄の下へ出し、答えに動き（js/motion.js）を足しました。
 // v22: 起動に要る js/ を app.js と chunk-*.js にまとめました（tools/optimize_site.mjs）。
-const VERSION = "tabisaki-v24";
+const VERSION = "tabisaki-v25";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
