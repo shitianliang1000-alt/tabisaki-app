@@ -34,6 +34,7 @@
 {"@type":"Question","name":"無料で使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。登録もいりません。ブラウザで開くだけで使えます。"}},
 {"@type":"Question","name":"どこまで正しいですか？","acceptedAnswer":{"@type":"Answer","text":"電車の時刻と営業時間は目安です。出かける前に、公式の情報も確かめてください。"}},
 {"@type":"Question","name":"行き先が決まっていなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"使えます。「晴れているところ」「2時間以内で行ける温泉」のように書けば、出発地からの距離と天気を見て選びます。"}},
+{"@type":"Question","name":"書いた内容や現在地は、どこへ行きますか？","acceptedAnswer":{"@type":"Answer","text":"現在地は、近い駅を探すためだけに端末の中で使います。前に作った旅程と最近のチャットも、この端末のブラウザの中だけに置きます。書いた文と選んだ条件は、旅程や答えを作るために、中継（Cloudflare）を通してAI（Gemma）へ送ります。使われかたの集計は、いまは送っていません。"}},
 {"@type":"Question","name":"実際に組んだ例はありますか？","acceptedAnswer":{"@type":"Answer","text":"組んだ例のページと、都道府県ごとのモデルコースで読めます。"}}
 ]}
 ]}
@@ -87,6 +88,8 @@
       {{#examples}}<a class="chip" href="app?q={{q}}&amp;go=1">{{label}}</a>{{/examples}}
       <a class="chip" href="app?q={{rainQ}}&amp;go=1">雨の日</a>
     </div>
+    <!-- 欄の文は GET で /app?q= に渡るので、閲覧の履歴に残ります。先に言っておきます。 -->
+    <p class="ask-note">書いた文はアドレスに入れて渡すので、閲覧の履歴に残ります。名前や連絡先は書かないでください。</p>
   </section>
 
   <!-- 3. 動く見本（Anthropic のトップの大きな絵の場所）。実際に組んだコースを再生します。 -->
@@ -265,6 +268,7 @@
       <details><summary>無料で使えますか？</summary><p>はい。登録もいりません。ブラウザで開くだけで使えます。</p></details>
       <details><summary>どこまで正しいですか？</summary><p>電車の時刻と営業時間は目安です。出かける前に、公式の情報も確かめてください。</p></details>
       <details><summary>行き先が決まっていなくても使えますか？</summary><p>使えます。「晴れているところ」「2時間以内で行ける温泉」のように書けば、出発地からの距離と天気を見て選びます。</p></details>
+      <details><summary>書いた内容や現在地は、どこへ行きますか？</summary><p>現在地は、近い駅を探すためだけに端末の中で使います。前に作った旅程と最近のチャットも、この端末のブラウザの中だけに置きます。書いた文と選んだ条件は、旅程や答えを作るために、中継（Cloudflare）を通してAI（Gemma）へ送ります。使われかたの集計は、いまは送っていません。</p></details>
       <details><summary>実際に組んだ例はありますか？</summary><p><a href="about.html">組んだ例のページ</a>と、<a href="areas/index.html">都道府県ごとのモデルコース</a>で読めます。</p></details>
     </div>
   </section>

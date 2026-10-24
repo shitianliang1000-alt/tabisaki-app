@@ -6,3 +6,6 @@
 
 /vendor/*
   Cache-Control: public, max-age=86400
+# トップの部品は ?v=版 を付けて読むので、長く持ってかまいません（PHP 版の .htaccess と同じ）。
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -87,3 +87,15 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:8000
         run: node tests/e2e/a11y.mjs
+
+      # ホーム画面に足した直後に圏外になり、そのまま開いたとき（start_url の /app）。
+      # /app は Worker・PHP が返すページなので、PHP 版を組んで確かめます。
+      - name: Offline launch test (PHP site)
+        run: |
+          sh tools/build_php.sh .php-site
+          php -S 127.0.0.1:8090 -t .php-site tools/php_router.php >/dev/null 2>&1 &
+          for i in $(seq 1 20); do
+            curl -sSf -o /dev/null http://127.0.0.1:8090/app && break
+            sleep 0.5
+          done
+          BASE_URL=http://127.0.0.1:8090 node tests/e2e/offline-launch.mjs

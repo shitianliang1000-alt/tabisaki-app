@@ -368,6 +368,8 @@ PROXY_URL
 
 2026-10-22 から、GitHub Pages では公開しません。GitHub はプログラムの置き場とテスト（`test.yml`）だけです。
 組み立て・試し・公開は、端末（SSH でも）から `./tabisaki` 1つでできます。
+公開先は **Cloudflare Worker（正式）と PHP 版（InfinityFree）の2つだけ**で、どちらも同じ `tools/build_site.sh` の成果物を配り、canonical はどちらも workers.dev を名乗ります（`tests/canonical.test.js`）。
+**試験が落ちたら公開しません**: Workers Builds では `tools/build_worker.sh` が組み立ての前に `node --test` を走らせ、`./tabisaki deploy` も先に試験を通します。
 
     ./tabisaki help          # 使いかた
     ./tabisaki serve php     # 手元で PHP 版を開く（http://127.0.0.1:8090/）

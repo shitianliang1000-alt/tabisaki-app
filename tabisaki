@@ -72,6 +72,10 @@ case "$cmd" in
     node --test tests/*.test.js
     if command -v php >/dev/null 2>&1; then for f in php/*.php php/inc/*.php; do php -l "$f" >/dev/null; done; echo "php -l ok"; fi ;;
   deploy)
+    # 試験が通ったものだけを上げます（SKIP_TESTS=1 で飛ばせますが、勧めません）。
+    if [ "${SKIP_TESTS:-}" != "1" ]; then
+      node --test tests/*.test.js || { echo "試験が通らないので、上げるのをやめました。" >&2; exit 1; }
+    fi
     case "${1:-}" in
       cf|cloudflare) npx --yes wrangler@4 deploy ;;
       ftp|php|infinityfree) ftp_upload ;;
