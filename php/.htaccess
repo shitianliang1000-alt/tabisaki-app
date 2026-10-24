@@ -30,10 +30,18 @@ ErrorDocument 404 /404.html
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
-  # 古い版の画面が残り続けないように、Service Worker は毎回確かめます。
-  <Files "sw.js">
+  # キャッシュは種類ごとに分けます。
+  #  ・画面と部品（HTML・PHP・js/・css/・データ・Service Worker）は、毎回「変わったか」を
+  #    確かめます（no-cache。変わっていなければ 304 で中身は送りません）。js/ の部品は
+  #    名前に版が付いていないので、古いものと新しいものが混ざると画面が動きません。
+  #  ・トップの部品（assets/landing.*）は ?v=版 を付けて読むので、長く持ってかまいません。
+  #  ・絵と字（png・svg・woff2）は、下の mod_expires で数日〜30日持ちます。
+  <FilesMatch "\.(html|php|js|mjs|css|json|webmanifest|xml|txt)$">
     Header set Cache-Control "no-cache"
-  </Files>
+  </FilesMatch>
+  <FilesMatch "^landing\.(css|js)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>
 
 <IfModule mod_expires.c>

@@ -11,6 +11,12 @@
 # Worker が合言葉を確かめてからしか渡しません（server/admin.js）。
 set -eu
 out="${1:-.site}"
+# Workers Builds（Cloudflare が push ごとに組み立てて上げる仕組み。WORKERS_CI=1 が付きます）
+# では、先に試験を通します。落ちたらここで止まり、公開されません（前の版が残ります）。
+# 手元の wrangler dev では毎回は走らせません（./tabisaki deploy は自分で先に試験します）。
+if [ "${WORKERS_CI:-}" = "1" ] && [ "${SKIP_TESTS:-}" != "1" ]; then
+  node --test tests/*.test.js
+fi
 # 注釈を削る道具（tools/optimize_site.mjs）。版は固定します。
 if ! node -e "require.resolve('esbuild')" >/dev/null 2>&1; then
   npm install --no-save --no-package-lock esbuild@0.25.10 >/dev/null
