@@ -116,17 +116,27 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 }
 @keyframes drift { to { transform: translate(6%, -4%) rotate(8deg); } }
 .stage > * { position: relative; z-index: 1; }
-.stage-chat { padding: clamp(24px, 4vw, 56px); display: flex; flex-direction: column; gap: 22px; }
+.stage-chat { padding: clamp(24px, 4vw, 56px); display: grid; align-items: start; }
+/* 見本は3つを同じ場所に重ね、いちばん長いものの高さを取っておきます（再生で下が動かないように）。 */
+.s-frame { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.s-sizer { visibility: hidden; pointer-events: none; }
+.s-sizer .s-list li { opacity: 1 !important; transform: none !important; }
+/* 打っている途中・流れている途中の文も、全文の大きさを先に取ります。 */
+.s-bubble, .s-lead { display: grid; }
+.s-ghost, .s-typed { grid-area: 1 / 1; }
+.s-ghost { visibility: hidden; }
+.s-head { display: grid; }
+.s-head > * { grid-area: 1 / 1; }
 .s-user { display: flex; justify-content: flex-end; }
 .s-bubble { margin: 0; max-width: 85%; padding: 12px 18px; border-radius: 20px; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.05); font-size: 1.02rem; min-height: 1.8em; }
-.s-bubble.typing::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); animation: caret 1s steps(1) infinite; }
+.s-bubble.typing .s-typed::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); animation: caret 1s steps(1) infinite; }
 @keyframes caret { 50% { opacity: 0; } }
 .s-ai { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
 .s-mark { width: 26px; height: 26px; color: var(--clay); }
 .s-ai.thinking .s-mark { animation: spin 2.4s cubic-bezier(.45,0,.55,1) infinite; }
 @keyframes spin { 50% { transform: rotate(180deg) scale(.72); opacity: .55; } 100% { transform: rotate(360deg); } }
-.s-think { margin: 0; color: var(--ink-3); display: none; }
-.s-ai.thinking .s-think { display: block; background: linear-gradient(90deg, var(--ink-3), var(--ink), var(--ink-3)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 1.8s linear infinite; }
+.s-think { margin: 0; color: var(--ink-3); visibility: hidden; }
+.s-ai.thinking .s-think { visibility: visible; background: linear-gradient(90deg, var(--ink-3), var(--ink), var(--ink-3)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 1.8s linear infinite; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .s-lead { margin: 0 0 12px; font-weight: 600; }
 .s-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }

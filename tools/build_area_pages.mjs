@@ -32,7 +32,7 @@ import { renderAreaCard } from "./area_card.mjs";
 import { artFor } from "../js/art.js";
 import { normalizeName, sameThing } from "../js/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
-import { fitsHiddenList, gemScore } from "./gem.mjs";
+import { fitsAreaList, fitsHiddenList, gemScore } from "./gem.mjs";
 import { onlySpots } from "../js/notaspot.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
@@ -584,7 +584,7 @@ export function renderRegionPage({ region, prefName, prefSlug, spots, course, da
   const canonical = `${base}areas/${prefSlug}/${region.id}.html`;
   // 同じ浜が「江之浦海水浴場」と「市営江之浦海水浴場」の2件で並んでいました。
   // 別名は1つにします（分類の数は絞りません。エリアの一覧は分類で選ぶ欄ではありません）。
-  const list = pickDistinct([...nearbySpots(region, spots)].sort(byFameThenGem), REGION_SPOTS, [],
+  const list = pickDistinct(nearbySpots(region, spots).filter(fitsAreaList).sort(byFameThenGem), REGION_SPOTS, [],
     Infinity);
   const items = course ? courseItems(course) : null;
   // コースが組めなかったページに「モデルコース」と書くと、検索から来た人が

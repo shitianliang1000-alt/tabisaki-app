@@ -632,3 +632,16 @@ test("pickFeatured: 名の知れたエリアを先に、8件まで", () => {
   assert.deepEqual(got.slice(0, 2).map((x) => x.region.id), ["hakone", "kamakura"]);
   assert.equal(got.length, 8);
 });
+
+test("エリアの観光地の一覧に、キャンプ場と1軒の店は並べない", async () => {
+  const { fitsAreaList, fitsHiddenList } = await import("../tools/gem.mjs");
+  for (const name of ["松本市美鈴湖もりの国オートキャンプ場", "戸隠キャンプ場", "ヒカリヤ ニシ", "旬彩 月の静香"]) {
+    assert.equal(fitsAreaList({ name }), false, name);
+    assert.equal(fitsHiddenList({ name }), false, name);
+  }
+  for (const name of ["松本城", "旧開智学校", "松本市美術館", "中町通り", "上高地"]) {
+    assert.equal(fitsAreaList({ name }), true, name);
+  }
+  // 料理の名前で始まっても、説明のある所（見どころが読める所）は残します。
+  assert.equal(fitsAreaList({ name: "カフェ 旧駅舎", description: "明治の駅舎を使った資料館。" }), true);
+});

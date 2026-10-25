@@ -179,6 +179,7 @@ function landing_view(DateTimeImmutable $now, array $data, string $base, string 
         'headS' => words('旅さきは、全国' . number_format($spotCount) . 'か所の観光地から、営業時間と移動時間を確かめて、無理のない1日を組むAIです。'),
         'demoJson' => $json($demo),
         'demo0' => $demo[0] ?? null,
+        'demos' => $demo,
         'typing0' => $typing[0] ?? '',
         'typingJson' => $json($typing),
         'examples' => array_map(fn($e) => ['label' => $e[0], 'q' => q($e[1])], $ex),

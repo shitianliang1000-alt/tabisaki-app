@@ -95,20 +95,28 @@
   <!-- 3. 動く見本（Anthropic のトップの大きな絵の場所）。実際に組んだコースを再生します。 -->
   <section class="stage-wrap" id="demo" aria-label="動く見本">
     <div class="stage" id="stage" data-demo="{{demoJson}}">
+      <!-- 見本は、打つ・流れる・行が出るたびに中身の長さが変わります。下の文や
+           ボタンが押し下げられないよう（CLS）、3つの見本を見えない形で同じ場所に
+           重ねて置き、いちばん長いものの高さを先に取っておきます。 -->
       <div class="stage-chat" aria-live="off">
         {{#demo0}}
-        <div class="s-user"><p class="s-bubble" id="s-prompt">{{prompt}}</p></div>
-        <div class="s-ai">
-          <span class="s-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg></span>
-          <div class="s-body">
-            <p class="s-think" id="s-think">考えています…</p>
-            <p class="s-lead" id="s-lead">{{lead}}</p>
-            <ol class="s-list" id="s-list">
-              {{#items}}<li class="k-{{kind}}"><b>{{time}}</b><span>{{title}}</span>{{#min}}<small>{{min}}</small>{{/min}}</li>{{/items}}
-            </ol>
+        <div class="s-frame">
+          <div class="s-user"><p class="s-bubble" id="s-prompt"><span class="s-ghost" aria-hidden="true">{{prompt}}</span><span class="s-typed">{{prompt}}</span></p></div>
+          <div class="s-ai">
+            <span class="s-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg></span>
+            <div class="s-body">
+              <div class="s-head">
+                <p class="s-think" id="s-think">考えています…</p>
+                <p class="s-lead" id="s-lead"><span class="s-ghost" aria-hidden="true">{{lead}}</span><span class="s-typed">{{lead}}</span></p>
+              </div>
+              <ol class="s-list" id="s-list">
+                {{#items}}<li class="k-{{kind}}"><b>{{time}}</b><span>{{title}}</span>{{#min}}<small>{{min}}</small>{{/min}}</li>{{/items}}
+              </ol>
+            </div>
           </div>
         </div>
         {{/demo0}}
+        {{#demos}}<div class="s-frame s-sizer" aria-hidden="true"><div class="s-user"><p class="s-bubble">{{prompt}}</p></div><div class="s-ai"><span class="s-mark"></span><div class="s-body"><div class="s-head"><p class="s-lead">{{lead}}</p></div><ol class="s-list">{{#items}}<li class="k-{{kind}}"><b>{{time}}</b><span>{{title}}</span>{{#min}}<small>{{min}}</small>{{/min}}</li>{{/items}}</ol></div></div></div>{{/demos}}
       </div>
       <div class="stage-map" aria-hidden="true">
         <svg viewBox="0 0 400 420" id="s-map">
