@@ -1,0 +1,35 @@
+name: Knowledge base check
+
+# 知識ベース（kb/）を週に1回点検します。手でも走らせられます
+# （Actions → Knowledge base check → Run workflow）。
+# 結果は実行のまとめ欄（Summary）と、kb-check.md の添付に出ます。
+# 誤りがあれば失敗にします。気になる点は人が見て決めます（自動では書き換えません）。
+on:
+  schedule:
+    - cron: "0 0 * * 1"   # 毎週月曜 9:00（日本時間）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check
+        run: |
+          set +e
+          node tools/kb_check.mjs --md > kb-check.md
+          code=$?
+          cat kb-check.md >> "$GITHUB_STEP_SUMMARY"
+          node tools/kb_check.mjs | grep '^誤り' | head -50
+          exit $code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kb-check
+          path: kb-check.md
