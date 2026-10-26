@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 22
       - name: Syntax check
-        run: for f in js/*.js sw.js server/*.js tools/*.mjs; do node --check "$f"; done
+        run: for f in js/*.js sw.js server/*.js tools/*.mjs packages/*/*.mjs packages/cli/bin/*.mjs; do node --check "$f"; done
       - name: Unit tests
         run: node --test tests/*.test.js
       # 知識ベースの点検（誤りは単体試験でも止まります。ここでは件数と

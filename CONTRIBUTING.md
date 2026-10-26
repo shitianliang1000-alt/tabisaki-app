@@ -21,6 +21,7 @@ python3 -m http.server 8000      # http://localhost:8000/index.html を開く
 - APIキーが無くても旅程は作れます（行き先は `kb/` の収録データ、移動時間は距離から推定）
 - AI を手元で試したいときは [API_KEYS.md](./API_KEYS.md) を見てください。**キーを書いた `js/config.js` は commit しないでください**
 - 公開と同じ形（Cloudflare 版・PHP 版）で見るときは `./tabisaki help`
+- 端末で旅程を組んで確かめるときは `./tabisaki plan "温泉と海" --days=2`（[docs/cli-usage.md](./docs/cli-usage.md)）
 
 ## 2. 試験
 

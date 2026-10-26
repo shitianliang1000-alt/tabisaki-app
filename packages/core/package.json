@@ -1,0 +1,10 @@
+{
+  "name": "tabisaki-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "旅さき: 旅程を組む部分を Node.js から使う入口",
+  "type": "module",
+  "exports": { ".": "./index.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "SEE LICENSE IN ../../LICENSE"
+}

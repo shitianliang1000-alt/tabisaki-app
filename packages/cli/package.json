@@ -1,0 +1,10 @@
+{
+  "name": "tabisaki-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "旅さき: 端末から旅程を組む CLI",
+  "type": "module",
+  "bin": { "tabisaki-plan": "./bin/tabisaki-plan.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "SEE LICENSE IN ../../LICENSE"
+}
