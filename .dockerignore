@@ -1,0 +1,12 @@
+.git
+node_modules
+.site
+.php-site
+dist
+tests
+tools
+php
+admin
+vendor
+*.zip
+.env*

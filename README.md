@@ -15,7 +15,8 @@
 | 開発に参加する・PR の出しかた・ブランチの決まり | [CONTRIBUTING.md](./CONTRIBUTING.md) |
 | 変更の履歴・版の付けかた | [CHANGELOG.md](./CHANGELOG.md) / [docs/releases.md](./docs/releases.md) |
 | 端末から旅程を組む（`./tabisaki plan "温泉と海" --days=2`） | [docs/cli-usage.md](./docs/cli-usage.md) |
-| これから作るもの（API・TUI など、まだ無いもの） | [docs/roadmap.md](./docs/roadmap.md) |
+| 手元の API サーバー（`docker compose up` → `POST /plan`） | [docs/self-hosting.md](./docs/self-hosting.md) |
+| これから作るもの（TUI など、まだ無いもの） | [docs/roadmap.md](./docs/roadmap.md) |
 | 脆弱性の知らせかた | [SECURITY.md](./SECURITY.md) |
 | 行動規範 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) |
 | スポットの情報がまちがっている | [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) |
@@ -230,7 +231,8 @@ AI                     プログラム
 │
 ├── packages/
 │   ├── core/                  # js/ のエンジンを Node.js から使う入口（docs/cli-usage.md）
-│   └── cli/                   # ./tabisaki plan の本体
+│   ├── cli/                   # ./tabisaki plan の本体
+│   └── server/                # 手元用の API サーバー（Dockerfile・compose.yaml）
 ├── docs/                      # CLI の使いかた・ロードマップ・版の付けかた
 │
 ├── tests/
