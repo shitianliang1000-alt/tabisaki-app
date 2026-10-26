@@ -8,6 +8,13 @@
 ```
 
 要るもの: Node.js 22 以上と、このリポジトリ（`kb/` の収録データを読みます）。依存パッケージは要りません。
+
+```sh
+git clone git@github.com:shitianliang1000-alt/tabisaki-app.git && cd tabisaki-app
+```
+
+SSH でつないだ先のサーバーで動かすときも同じです。出力は stdout だけなので、手元へ持ってくるなら
+`ssh server 'cd tabisaki-app && ./tabisaki plan "温泉"' > trip.md` のようにもできます。
 `./tabisaki` が使えない環境（Windows など）では `node packages/cli/bin/tabisaki-plan.mjs plan …` と同じです。
 
 ## できること・できないこと

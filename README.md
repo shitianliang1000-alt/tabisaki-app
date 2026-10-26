@@ -1,12 +1,28 @@
 # 旅さき
 
-**「行きたいこと」から旅程をつくる、ブラウザベースのAI旅行プランナー。**
+**「行きたいこと」から旅程をつくる旅行プランナー。端末（SSH）から使えます。**
 
 > 「温泉と海をゆっくり楽しみたい」のように希望を入力すると、行き先・立ち寄る順番・移動時間・営業時間などを考慮して旅程を組み立てます。
 
-**▶ 公開サイト: <https://tabisaki-github-io.shitianliang1000.workers.dev/>**（正式なアドレス。同じものを PHP 版 <https://tabisaki.site.je/> でも配っています）
+## 端末（SSH）から使う
 
-- 手元で動かすだけならビルド不要です（`python3 -m http.server` などで開けます）。
+このリポジトリは、**端末から使う道具**として置いています。ブラウザは要りません。SSH でつないだ先のサーバーでもそのまま動きます。
+
+```sh
+git clone git@github.com:shitianliang1000-alt/tabisaki-app.git
+cd tabisaki-app
+
+./tabisaki plan "温泉と海をゆっくり楽しみたい" --days=2   # 旅程を Markdown で出す
+./tabisaki tui  "京都で歴史を感じたい" --from=新大阪駅     # 端末の中でキーボードだけで見る
+./tabisaki api                                            # 手元用の API（http://127.0.0.1:8787/plan）
+```
+
+要るのは Node.js 22 以上だけです（`npm install` は要りません）。外へは通信せず、収録の約5万4千か所と距離からの目安で組みます。
+くわしくは [docs/cli-usage.md](./docs/cli-usage.md)（CLI・TUI）と [docs/self-hosting.md](./docs/self-hosting.md)（API・Docker）です。
+
+ブラウザで使いたい人向けには、同じエンジンの Web 版も公開しています: <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 <https://tabisaki.site.je/>）
+
+- Web 版を手元で動かすだけならビルド不要です（`python3 -m http.server` などで開けます）。
 - APIキーが無くても旅程は作れます（移動時間は距離からの推定、行き先は収録データから）
 - 公開サイトのAIは Cloudflare Worker の中継（`PROXY_URL`）を通して使います。**キーはブラウザに置きません**（[API_KEYS.md](./API_KEYS.md)）
 
@@ -549,13 +565,21 @@ AIから返ったIDをそのまま信用せず、候補集合と照合します�
 
 ## 📄 ライセンス・外部データについて
 
-**プログラム本体のライセンスは、今は [The Unlicense](./LICENSE) です**（パブリックドメインに近く、商用利用も認める条件です）。
-商用利用を認めない条件に変えるかどうかは検討中です（Issue #365・#383）。変えるまでは、この README でも「商用利用は禁止」とは書きません。
-外部データ・API の条件は、本体のライセンスとは別に、提供元ごとに決まっています（以下）。
+**プログラム本体のライセンスは [PolyForm Noncommercial License 1.0.0](./LICENSE) です。商用利用はできません。**
+個人の利用・学習・研究・趣味の改変や、非営利の団体での利用はできます（くわしい範囲は LICENSE の「Noncommercial Purposes」）。
+
+| 対象 | 条件 |
+|---|---|
+| プログラム（`js/`・`server/`・`php/`・`packages/`・`tools/` など）と、このリポジトリで書いた文書 | PolyForm Noncommercial 1.0.0 |
+| 2026-10-27 より前に公開した版 | The Unlicense のまま（すでに配ったぶんは取り消せません） |
+| 収録データ（`kb/`）のうち、外から取り込んだ部分 | **それぞれの提供元の条件**（下の表と [credits.html](./credits.html)）。たとえば OpenStreetMap 由来は ODbL、Wikipedia の文は CC BY-SA |
+| 同梱の部品（`vendor/` の Leaflet・フォントなど） | それぞれのライセンス（BSD 2-Clause、SIL OFL 1.1 など） |
+
+外部データ・API の条件は、本体のライセンスとは別に、提供元ごとに決まっています（以下）。本体を非商用にしても、外部データの条件がゆるくなったり、きびしくなったりはしません。
 
 このリポジトリで利用している地図・外部データ・APIには、それぞれ提供元の利用規約・ライセンスがあります。
 
-公開・商用利用の前に、各サービスの最新の規約を確認してください。特に `kb/index.json` に記載されている外部データソースは、それぞれ利用条件が異なります。
+公開・再配布の前に、各サービスの最新の規約を確認してください。特に `kb/index.json` に記載されている外部データソースは、それぞれ利用条件が異なります。
 
 画面から見られる一覧は **[credits.html](./credits.html)**（条件の画面の下のリンク）です。
 データや外部サービスを足した・外したときは、そこも直してください。
