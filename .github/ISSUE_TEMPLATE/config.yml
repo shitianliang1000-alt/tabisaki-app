@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 質問・アイデア（Discussions）
+    url: https://github.com/shitianliang1000-alt/tabisaki-app/discussions
+    about: 使いかたの質問や、まだ形になっていないアイデアはこちらへ
+  - name: 脆弱性の報告（非公開）
+    url: https://github.com/shitianliang1000-alt/tabisaki-app/security/advisories/new
+    about: 脆弱性は Issue に書かず、こちらから非公開で知らせてください

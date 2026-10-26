@@ -6,9 +6,19 @@
 
 **▶ 公開サイト: <https://tabisaki-github-io.shitianliang1000.workers.dev/>**（正式なアドレス。同じものを PHP 版 <https://tabisaki.site.je/> でも配っています）
 
-- ビルド不要・サーバー不要。
+- 手元で動かすだけならビルド不要です（`python3 -m http.server` などで開けます）。
 - APIキーが無くても旅程は作れます（移動時間は距離からの推定、行き先は収録データから）
-- 実際の乗換・所要時間やAIによる選定を使いたいときは、**画面右上の ⚙ →「開発者向け」から自分のキーを入れられます**（キーはその端末の中だけに保存されます）
+- 公開サイトのAIは Cloudflare Worker の中継（`PROXY_URL`）を通して使います。**キーはブラウザに置きません**（[API_KEYS.md](./API_KEYS.md)）
+
+| 知りたいこと | 文書 |
+|---|---|
+| 開発に参加する・PR の出しかた・ブランチの決まり | [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| 変更の履歴・版の付けかた | [CHANGELOG.md](./CHANGELOG.md) / [docs/releases.md](./docs/releases.md) |
+| 端末から旅程を組む（`./tabisaki plan "温泉と海" --days=2`） | [docs/cli-usage.md](./docs/cli-usage.md) |
+| これから作るもの（API・TUI など、まだ無いもの） | [docs/roadmap.md](./docs/roadmap.md) |
+| 脆弱性の知らせかた | [SECURITY.md](./SECURITY.md) |
+| 行動規範 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) |
+| スポットの情報がまちがっている | [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) |
 
 ---
 
@@ -218,6 +228,11 @@ AI                     プログラム
 │   ├── admin.js
 │   └── admin.css
 │
+├── packages/
+│   ├── core/                  # js/ のエンジンを Node.js から使う入口（docs/cli-usage.md）
+│   └── cli/                   # ./tabisaki plan の本体
+├── docs/                      # CLI の使いかた・ロードマップ・版の付けかた
+│
 ├── tests/
 │   ├── *.test.js              # Node.js標準テストランナーによるテスト
 │   └── e2e/                   # ブラウザを使うE2Eテスト（画面操作と、読み上げ・色）
@@ -288,14 +303,14 @@ AI用APIキーを設定しなくても、アプリ自体は動作します。
 - 同梱されている範囲のデータを中心に旅程を作ります
 - Google Routes APIがなければ、移動時間は距離から推定します
 
-### キーを入れる場所（2通り）
+### キーを置く場所（2通り）
 
 | 場所 | 向いている人 |
 |---|---|
-| **⚙ 設定 →「開発者向け」**（画面から入力） | 公開サイトを開いて使う人。キーはその端末の `localStorage` だけに残り、どこにも送られません。保存した直後から効きます |
-| **`js/config.js`** | 自分で clone して動かす人。**公開すると誰からも見えるので、公開サイトの `config.js` には書かないでください** |
+| **Cloudflare Worker の secret**（`PROXY_URL` の中継） | 公開サイト。キーはサーバー側にだけあり、ブラウザには届きません（このリポジトリの公開サイトはこの構成です） |
+| **`js/config.js`** | 自分で clone して手元だけで動かす人。**公開すると誰からも見えるので、公開サイトの `config.js` には書かないでください** |
 
-画面から入れたキーは `config.js` より優先されます。「確認」ボタンで1リクエストだけ送って疎通を確かめられ、Routes API が 403 を返したときは原因の切り分け（API未有効・請求先・キーのAPI制限・HTTPリファラー制限）まで日本語で出ます。
+（2026-10-23 までは画面の ⚙ 設定からキーを入れられましたが、設定の画面ごと無くしました。）
 
 ### Geminiを設定
 
@@ -326,8 +341,8 @@ export const FALLBACK_MODELS = [
 
 公開サイトでキーを使う方法は2つです。
 
-1. **使う人が自分のキーを持ち込む** — `config.js` は空のまま公開し、⚙ 設定から入れてもらう。キーはその人の端末から出ません（このリポジトリの公開サイトはこの構成です）
-2. **自分のキーをサーバー側に置く** — `server/` のプロキシ実装を利用して以下の構成にする
+1. **自分のキーをサーバー側に置く** — `server/` のプロキシ実装（Cloudflare Worker）を利用して以下の構成にする（このリポジトリの公開サイトはこの構成です）
+2. **キーを使わない** — `config.js` も `PROXY_URL` も空のまま公開する。行き先は収録データから、移動時間は距離から推定します
 
 ```text
 ブラウザ
@@ -519,6 +534,10 @@ AIから返ったIDをそのまま信用せず、候補集合と照合します�
 
 ## 📌 関連ドキュメント
 
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** — 開発の始めかた、試験、PR とブランチの決まり
+- **[docs/roadmap.md](./docs/roadmap.md)** — これから作るもの（まだ無い機能は、ここに「計画」として書きます）
+- **[docs/releases.md](./docs/releases.md)** / **[CHANGELOG.md](./CHANGELOG.md)** — 版の付けかたと変更の履歴
+- **[SECURITY.md](./SECURITY.md)** — 脆弱性の知らせかた
 - **[API_KEYS.md](./API_KEYS.md)** — APIキー、AIモデル、検索機能の設定
 - **[server/README.md](./server/README.md)** — APIキーをブラウザから隠すためのバックエンド構成
 - **[tests/e2e/README.md](./tests/e2e/README.md)** — E2Eテストの実行方法
@@ -526,6 +545,10 @@ AIから返ったIDをそのまま信用せず、候補集合と照合します�
 ---
 
 ## 📄 ライセンス・外部データについて
+
+**プログラム本体のライセンスは、今は [The Unlicense](./LICENSE) です**（パブリックドメインに近く、商用利用も認める条件です）。
+商用利用を認めない条件に変えるかどうかは検討中です（Issue #365・#383）。変えるまでは、この README でも「商用利用は禁止」とは書きません。
+外部データ・API の条件は、本体のライセンスとは別に、提供元ごとに決まっています（以下）。
 
 このリポジトリで利用している地図・外部データ・APIには、それぞれ提供元の利用規約・ライセンスがあります。
 

@@ -1,8 +1,8 @@
 // 管理画面の「変更待ち」を、GitHub のプルリクエストにします。
 //
-// kb/ はリポジトリに入っていて、GitHub Pages がそこから配っています。
-// 管理画面から直接書き換える入れ物はありません（あっても、リポジトリと
-// 食い違うだけです）。変更は PR にして、マージしたら公開されます。
+// kb/ はリポジトリに入っていて、公開（Cloudflare Worker・PHP 版）はそこから
+// 組み立てます。管理画面から直接書き換える入れ物はありません（あっても、
+// リポジトリと食い違うだけです）。変更は PR にして、マージしたら公開されます。
 // 間違えても、マージ前なら閉じるだけで済みます。
 //
 // 使うには、Worker の secret GITHUB_TOKEN に、このリポジトリだけに
@@ -12,7 +12,9 @@
 
 import { applyEdits, shardsFor } from "./kbedit.js";
 
-export const REPO = "shitianliang1000-alt/tabisaki.github.io";
+// 2026-10 にリポジトリの名前が tabisaki.github.io から tabisaki-app に
+// 変わりました（古い名前は GitHub が転送しますが、書き込みは新しい名前で）。
+export const REPO = "shitianliang1000-alt/tabisaki-app";
 const API = "https://api.github.com";
 
 function gh(env, path, init = {}) {
