@@ -5,5 +5,5 @@
   "description": "旅さき: 手元用の API サーバー（POST /plan）",
   "type": "module",
   "engines": { "node": ">=22" },
-  "license": "SEE LICENSE IN ../../LICENSE"
+  "license": "PolyForm-Noncommercial-1.0.0"
 }

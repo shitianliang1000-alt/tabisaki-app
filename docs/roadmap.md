@@ -21,7 +21,8 @@
 | ブランチと PR の決まり（[CONTRIBUTING.md](../CONTRIBUTING.md)） | ✅ ある（`main` の保護は持ち主の設定） | #344 |
 | 版の付けかた（[releases.md](./releases.md)） | ✅ ある（最初のタグはまだ） | #346 |
 | 公開先の整理（GitHub Pages はやめ、Cloudflare Worker と PHP 版） | ✅ ある | #339 #347 |
-| 商用利用を認めないライセンスへの変更 | ⏸ 判断待ち | #365 #383 #384 |
+| 商用利用を認めないライセンスへの変更（PolyForm Noncommercial 1.0.0） | ✅ ある | #365 #383 |
+| 非商用の方針に沿った運営・支援のしかた | 📝 計画 | #384 |
 
 ## Phase 2: Web 以外からも使う
 
