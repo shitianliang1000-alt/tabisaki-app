@@ -29,7 +29,7 @@
 |---|---|---|
 | 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | 🚧 一部（Node.js から使う入口。`js/` の移しはまだ） | #348 |
 | `tabisaki plan "温泉と海" --days=2 --output=markdown` の CLI（[cli-usage.md](./cli-usage.md)） | ✅ ある（通信なし・移動は距離の目安） | #349 |
-| 端末の中で旅程を見る TUI | 📝 計画 | #350 |
+| 端末の中で旅程を見る TUI（`./tabisaki tui`、[cli-usage.md](./cli-usage.md)） | ✅ ある（見るだけ。並べ替えはまだ） | #350 |
 | Docker で動く手元の API（`POST /plan`、[self-hosting.md](./self-hosting.md)） | ✅ ある（認証なし・127.0.0.1 だけ） | #351 |
 
 `./tabisaki plan` で旅程を組めます。そのほかのコマンド（build・deploy など）は組み立て・公開の道具です。

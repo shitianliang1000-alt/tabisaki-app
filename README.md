@@ -232,6 +232,7 @@ AI                     プログラム
 ├── packages/
 │   ├── core/                  # js/ のエンジンを Node.js から使う入口（docs/cli-usage.md）
 │   ├── cli/                   # ./tabisaki plan の本体
+│   ├── tui/                   # ./tabisaki tui（端末の中で旅程を見る）
 │   └── server/                # 手元用の API サーバー（Dockerfile・compose.yaml）
 ├── docs/                      # CLI の使いかた・ロードマップ・版の付けかた
 │

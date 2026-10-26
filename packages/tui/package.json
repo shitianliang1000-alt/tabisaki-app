@@ -1,0 +1,9 @@
+{
+  "name": "tabisaki-tui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "旅さき: 組んだ旅程を端末の中で見る",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "license": "SEE LICENSE IN ../../LICENSE"
+}

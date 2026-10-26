@@ -21,6 +21,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --transport=<手段>  any / transit / car / walk / local（既定: any）
   --output=<形式>     markdown / text / json（既定: markdown）
 
+  tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
   tabisaki help       これを出す
   tabisaki --version  版を出す
 
@@ -63,9 +64,12 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
-    if (cmd !== "plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     const wish = rest.join(" ").trim();
-    if (!wish) throw usage(`希望の文を書いてください。例: tabisaki plan "温泉と海をゆっくり楽しみたい"`);
+    if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
+    if (cmd === "tui" && !(process.stdin.isTTY && process.stdout.isTTY)) {
+      throw usage("tui は端末の中で動かしてください（パイプやファイルに出すときは tabisaki plan）");
+    }
     const output = opts.output ?? "markdown";
     if (!["markdown", "md", "text", "json"].includes(output)) throw usage(`--output は markdown / text / json のどれかです`);
     const days = opts.days === undefined ? undefined : Number(opts.days);
@@ -88,6 +92,11 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
       });
     } finally {
       console.log = log; console.warn = warn; console.info = info;
+    }
+    if (cmd === "tui") {
+      const { run } = await import("../../tui/tui.mjs");
+      await run(result);
+      return 0;
     }
     const text = output === "json" ? core.toJson(result)
       : output === "text" ? core.toPlainText(result) : core.toMarkdown(result);
