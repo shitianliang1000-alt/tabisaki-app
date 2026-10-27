@@ -140,7 +140,7 @@ export async function normalizeRequest(req = {}) {
  *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string,
  *          local?: {model?: string, baseUrl?: string} | null}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb = null, home, local = null } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, home, local = null } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
   // （手元の LLM を使うときだけ、その行き先へは通します）。
   globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
