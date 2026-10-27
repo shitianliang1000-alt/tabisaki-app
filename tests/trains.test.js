@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { NAMED_ROUTES, TIMETABLED, findTrains, nightTrainLeg }
-  from "../js/trains.js";
+  from "../packages/core/src/trains.js";
 
 const TOKYO = { lat: 35.6812, lng: 139.7671, name: "東京駅" };
 const IZUMO = { lat: 35.3661, lng: 132.7549, name: "出雲市" };

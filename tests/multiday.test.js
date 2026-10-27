@@ -12,10 +12,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { REJECT } from "../js/feasibility.js";
-import { trimToFit, verifyOrder } from "../js/verify.js";
+import { REJECT } from "../packages/core/src/feasibility.js";
+import { trimToFit, verifyOrder } from "../packages/core/src/verify.js";
 import { allocateDays, capacityDays, orderRegions, planStays, suggestRegionCount }
-  from "../js/stays.js";
+  from "../packages/core/src/stays.js";
 
 const d = (s) => new Date(s);
 const BASE = { name: "高松駅", lat: 34.3506, lng: 134.0466 };

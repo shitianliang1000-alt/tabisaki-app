@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FETCHED_ON, fetchedAtOf } from "../js/kb.js";
+import { FETCHED_ON, fetchedAtOf } from "../packages/core/src/kb.js";
 import { freshnessOf } from "../js/confidence.js";
 
 test("出どころが分かるものには、取り込んだ日が付く", () => {
@@ -53,5 +53,5 @@ test("収録で使われている出どころは、ぜんぶ日付を持つ", as
   }
   const missing = [...seen].filter((s) => !FETCHED_ON[s]);
   assert.deepEqual(missing, [],
-    `取り込み日の無い出どころ（js/kb.js の FETCHED_ON に足してください）: ${missing.join(" ")}`);
+    `取り込み日の無い出どころ（packages/core/src/kb.js の FETCHED_ON に足してください）: ${missing.join(" ")}`);
 });

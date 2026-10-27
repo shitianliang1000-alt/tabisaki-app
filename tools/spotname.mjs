@@ -107,7 +107,7 @@ export function cleanSpot(spot) {
   const next = cleanSpotName(spot.name);
   if (next === spot.name) return false;
   const was = spot.name;
-  // 読み込み（js/kb.js）は wikipedia が無ければ名前を記事名に使います。
+  // 読み込み（packages/core/src/kb.js）は wikipedia が無ければ名前を記事名に使います。
   // 曖昧さ回避のかっこは記事名そのものなので、落とす前に移します。
   if (!spot.wikipedia && DISAMBIG.test(was) && /^wiki/.test(String(spot.src ?? ""))) {
     spot.wikipedia = was;
