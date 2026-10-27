@@ -204,11 +204,12 @@ export async function createServer({
         if (e.status === 413) return fail(413, "too_large", `本文は ${L.bodyBytes} バイトまでです`);
         return fail(400, "invalid_json", "本文が JSON として読めません");
       }
-      if (!body || typeof body !== "object" || Array.isArray(body)) return fail(res, 400, "invalid_input", "本文は JSON のオブジェクトにしてください");
+      if (!body || typeof body !== "object" || Array.isArray(body)) return fail(400, "invalid_input", "本文は JSON のオブジェクトにしてください");
       const known = ["wish", "from", "days", "date", "start", "back", "transport", "markdown", "lang"];
-      if (body.lang !== undefined && !lib.pickLang(body.lang)) return fail(res, 400, "invalid_input", `lang は ${lib.LANGS.join(" / ")} のどれかです`);
+      if (body.markdown !== undefined && typeof body.markdown !== "boolean") return fail(400, "invalid_input", "markdown は true か false にしてください");
+      if (body.lang !== undefined && !lib.pickLang(body.lang)) return fail(400, "invalid_input", `lang は ${lib.LANGS.join(" / ")} のどれかです`);
       const extra = Object.keys(body).filter((k) => !known.includes(k));
-      if (extra.length) return fail(res, 400, "invalid_input", `知らない項目です: ${extra.join(", ")}`);
+      if (extra.length) return fail(400, "invalid_input", `知らない項目です: ${extra.join(", ")}`);
 
       running++;
       let timer;
@@ -220,7 +221,7 @@ export async function createServer({
         ]);
         const out = { ok: true, plan: JSON.parse(lib.toJson(result)) };
         if (body.markdown === true) out.markdown = lib.toMarkdown(result, { lang: body.lang });
-        return send(res, 200, out);
+        return send(200, out);
       } finally {
         clearTimeout(timer);
         running--;
