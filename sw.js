@@ -116,6 +116,7 @@ const SHELL_FILES = [
   "./js/history.js",
   "./js/hours.js",
   "./js/ical.js",
+  "./js/voice.js",
   "./js/icons.js",
   "./js/intent.js",
   "./js/purpose.js",

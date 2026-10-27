@@ -16,6 +16,8 @@
 - 組んだ旅程を端末の中でキーボードだけで見る `./tabisaki tui` を足しました
 - 手元用の API サーバー（`POST /plan`、`docker compose up`）を足しました（[docs/self-hosting.md](./docs/self-hosting.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
+- 組んだ旅程を CalDAV のカレンダー（Nextcloud・iCloud・Fastmail など）に書く `./tabisaki sync` と、`--output=ics` を足しました。同じ旅は上書きし、`--remove` で消せます（[docs/calendar-and-voice.md](./docs/calendar-and-voice.md)）
+- 声で希望を伝えられるようにしました: Web 版は入力欄のマイク（聞き取った文は欄に入れるだけで送りません）、端末は手元の whisper.cpp を使う `./tabisaki voice-plan`
 - README と CONTRIBUTING を [UTM](https://github.com/utmapp/UTM) の文書の形（短い README と、くわしい内容を `docs/` に分ける）にそろえました
 
 ## 0.1.0 — 2026-10-25（最初の版にする予定のところ）

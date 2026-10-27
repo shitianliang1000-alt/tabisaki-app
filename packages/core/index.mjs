@@ -153,4 +153,15 @@ export async function createCore({ root = ROOT } = {}) {
   };
 }
 
+/**
+ * 組んだ旅程を .ics にします（Web 版の「カレンダーに入れる」と同じ中身）。
+ * @param {{request: object, itinerary: object}} result createCore().plan の結果
+ * @param {{seed?: string, now?: Date}} [opts] seed を同じにすると、同じ予定として上書きされます
+ */
+export async function toIcs(result, opts = {}) {
+  const { toIcs: ics } = await js("ical.js");
+  const { tripSeed } = await import("./caldav.mjs");
+  return ics(result.itinerary, { seed: opts.seed ?? tripSeed(result.request), now: opts.now });
+}
+
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
