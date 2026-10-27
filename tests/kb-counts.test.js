@@ -1,6 +1,6 @@
 // 件数の出どころは kb/index.json の counts と shards[].count の1か所です。
 // エリアのページ（tools/build_area_pages.mjs の kbCounts）もアプリも
-// README もそこから引きます。中身と食い違っていたら、ここで落ちます。
+// README と docs/knowledge-base.md もそこから引きます。中身と食い違っていたら、ここで落ちます。
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -19,13 +19,18 @@ test("kb/index.json の件数が、収録の中身と合っている", () => {
   assert.equal(index.counts.regions, regions.length);
 });
 
-test("README の件数の表が、kb/index.json の counts と同じ", () => {
+test("知識ベースの文書と README の件数が、kb/index.json の counts と同じ", () => {
   const { counts } = kb("index.json");
-  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const doc = readFileSync(new URL("../docs/knowledge-base.md", import.meta.url), "utf8");
   const num = (label) => Number(new RegExp(`\\| ${label} \\| \\*\\*([0-9,]+)\\*\\* \\|`)
-    .exec(readme)?.[1]?.replace(/,/g, ""));
+    .exec(doc)?.[1]?.replace(/,/g, ""));
   assert.equal(num("スポット"), counts.spots);
   assert.equal(num("エリア"), counts.regions);
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const m = /エリア \*\*([0-9,]+)\*\* か所・スポット \*\*([0-9,]+)\*\* か所/.exec(readme);
+  assert.ok(m, "README の Features に件数の行がありません");
+  assert.equal(Number(m[1].replace(/,/g, "")), counts.regions);
+  assert.equal(Number(m[2].replace(/,/g, "")), counts.spots);
 });
 
 test("kbCounts: 県の件数が中身と違えば止める", () => {
