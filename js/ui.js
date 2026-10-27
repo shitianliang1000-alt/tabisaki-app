@@ -22,6 +22,9 @@ import { icon } from "./icons.js";
 import { NOTICE_LIMITS } from "./notify.js";
 import { describeOrderDiff } from "./orderdiff.js";
 import { laterToday } from "./tripmode.js";
+import { ISSUES, PACE, STATUS, clearFeedback, feedbackFor, issueUrl, loadFeedback,
+         removeFeedback, reportMarkdown, saveFeedback, spotsOf, summarize, tripKey,
+         tripStarted } from "./feedback.js";
 
 // 行の先頭の記号の「名前」です。形は js/icons.js が持っています。
 //
@@ -1160,6 +1163,10 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     container.append(more);
   }
 
+  // 行ってきた旅の感想（任意）。旅が始まったあとにだけ、畳んで出します。
+  const fb = handlers.feedback === false ? null : feedbackBox(itin, handlers.now);
+  if (fb) container.append(fb);
+
   // 旅程を文字で渡す。同行者に送るのは LINE やメールなので、
   // いま画面に出ているとおりの時刻と場所を、そのまま貼れる形にします。
   // 共有シート（navigator.share）がある端末ではそれを開き、無ければ
@@ -1238,6 +1245,126 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
                        onClick: handlers.onExport },
           el("span", {}, "この旅程をファイルで渡す"))
       : null)].filter(Boolean));
+}
+
+/**
+ * 行ってきた旅の感想（js/feedback.js）。
+ *
+ * 書かなくても何も変わりません。畳んだまま出し、開いた人だけが選びます。
+ * 残すのは端末の中だけで、送るのは利用者が「GitHub で知らせる」を
+ * 押して、開いた画面で自分で送ったときだけです。
+ */
+export function feedbackBox(itin, now = new Date()) {
+  if (!tripStarted(itin, now)) return null;
+  const key = tripKey(itin);
+  const spots = spotsOf(itin);
+  if (!key || !spots.length) return null;
+  const saved = feedbackFor(key, undefined, now);
+  const before = new Map((saved?.spots ?? []).map((s) => [s.spotId, s]));
+
+  const box = el("details", { class: "more feedback" });
+  box.append(el("summary", {},
+    el("span", {}, "この旅はどうでしたか？（任意）"),
+    el("span", { class: "more-count" }, saved ? "記録あり" : "")));
+  const form = el("form", { class: "panel feedback-form" });
+  form.append(el("p", { class: "fb-note" },
+    "見込みと違ったところを選んでください。この端末の中にだけ残り、"
+    + "どこにも送りません。書かなくても、使えることは何も変わりません。"));
+
+  const rows = spots.map((s, i) => {
+    const prev = before.get(s.spotId);
+    const status = el("select", { name: `st${i}`, "aria-label": `${s.name || "立ち寄り先"}に行けたか` },
+      el("option", { value: "" }, "—"),
+      ...Object.entries(STATUS).map(([k, label]) => {
+        const o = el("option", { value: k }, label);
+        if (prev?.status === k) o.selected = true;
+        return o;
+      }));
+    const checks = Object.entries(ISSUES).map(([k, label]) => {
+      const c = el("input", { type: "checkbox", value: k });
+      if (prev?.issues.includes(k)) c.checked = true;
+      return el("label", { class: "fb-chip" }, c, el("span", {}, label));
+    });
+    const row = el("fieldset", { class: "fb-spot" },
+      el("legend", {}, s.name || s.spotId), status, el("div", { class: "fb-chips" }, ...checks));
+    return { s, status, checks: () => [...row.querySelectorAll("input:checked")].map((c) => c.value), row };
+  });
+  form.append(...rows.map((r) => r.row));
+
+  const paceBox = el("fieldset", { class: "fb-pace" }, el("legend", {}, "全体の詰め具合"));
+  for (const [k, label] of Object.entries(PACE)) {
+    const r = el("input", { type: "radio", name: "pace", value: k });
+    if (saved?.pace === k) r.checked = true;
+    paceBox.append(el("label", { class: "fb-chip" }, r, el("span", {}, label)));
+  }
+  form.append(paceBox);
+
+  const said = el("p", { class: "fb-said", role: "status" });
+  const report = el("div", { class: "fb-report" });
+  const showReport = () => {
+    report.textContent = "";
+    const list = loadFeedback(undefined, now);
+    if (!list.length) return;
+    const md = reportMarkdown(summarize(list));
+    const pre = el("pre", { class: "fb-md" }, md);
+    const copy = el("button", { type: "button", class: "md-btn md-btn--tonal md-state" },
+      el("span", {}, "まとめをコピー"));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(md);
+        copy.querySelector("span").textContent = "コピーしました";
+      } catch {
+        copy.querySelector("span").textContent = "コピーできませんでした";
+      }
+    });
+    const clear = el("button", { type: "button", class: "md-btn md-btn--outlined md-state" },
+      el("span", {}, "感想の記録をすべて消す"));
+    clear.addEventListener("click", () => {
+      clearFeedback();
+      report.textContent = "";
+      said.textContent = "この端末の感想をすべて消しました。";
+    });
+    report.append(
+      el("p", { class: "fb-note" },
+        `この端末に残っている感想 ${list.length}件のまとめです。送るときは、中身を確かめてから`
+        + "コピーするか、GitHub の画面で送ってください（GitHub のアカウントが要ります）。"),
+      pre,
+      el("div", { class: "actions" }, copy,
+        el("a", { class: "md-btn md-btn--outlined md-state", href: issueUrl(md),
+                  target: "_blank", rel: "noopener noreferrer" },
+          el("span", {}, "GitHub で開発者に知らせる")),
+        clear));
+  };
+
+  const save = el("button", { type: "submit", class: "md-btn md-btn--filled md-state" },
+    el("span", {}, "この端末に残す"));
+  const drop = el("button", { type: "button", class: "md-btn md-btn--outlined md-state" },
+    el("span", {}, "この旅の感想を消す"));
+  drop.addEventListener("click", () => {
+    removeFeedback(key, undefined, now);
+    for (const r of rows) r.status.value = "";
+    for (const c of form.querySelectorAll("input")) c.checked = false;
+    said.textContent = "この旅の感想を消しました。";
+    showReport();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const entry = saveFeedback({
+      key,
+      region: String(itin.regionName ?? "").slice(0, 40),
+      pace: form.querySelector("input[name=pace]:checked")?.value ?? "",
+      spots: rows.map((r) => ({ spotId: r.s.spotId, name: r.s.name,
+                                 status: r.status.value, issues: r.checks() })),
+    }, undefined, now);
+    said.textContent = entry
+      ? "この端末に残しました。ありがとうございます。"
+      : "選んだものがありません。何も残していません。";
+    showReport();
+  });
+  form.append(el("div", { class: "actions" }, save, drop), said, report);
+  box.append(form);
+  if (saved) showReport();
+  return box;
 }
 
 /** その日の一行要約。開いていない日でも中身が想像できるように。 */

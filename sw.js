@@ -110,6 +110,7 @@ const SHELL_FILES = [
   "./js/errors.js",
   "./js/events.js",
   "./js/feasibility.js",
+  "./js/feedback.js",
   "./js/fit.js",
   "./js/follow.js",
   "./js/geo.js",
