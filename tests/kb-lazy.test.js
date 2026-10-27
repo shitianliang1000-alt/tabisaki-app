@@ -19,8 +19,8 @@ import { readFile } from "node:fs/promises";
 import {
   ensureAllSpots, ensureNames, ensureRegions, hasAllShards, shardsForRegions,
   stagedKb,
-} from "../js/kb.js";
-import { unknownPlaceTerms } from "../js/areas.js";
+} from "../packages/core/src/kb.js";
+import { unknownPlaceTerms } from "../packages/core/src/areas.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -125,7 +125,7 @@ test("読んだスポットは、まとめて読んだときと同じ形にな�
 
 test("全部読めば、段の合計から「同じ場所」を引いた件数になる", async () => {
   // 索引の件数（29,706）は**収録の件数**です。読み込むときに、
-  // 座標も名前も同じものを1つにまとめるので（js/dedupe.js）、
+  // 座標も名前も同じものを1つにまとめるので（packages/core/src/dedupe.js）、
   // 実際に行ける場所の数はそのぶん少なくなります。
   //
   //   高徳院（鎌倉大仏） と 鎌倉大仏 高徳院  → 1つ

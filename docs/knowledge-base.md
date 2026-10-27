@@ -47,3 +47,7 @@ python3 tools/build_kb.py <P12を展開したディレクトリ> <doc.kml> [出�
 python3 tools/clean_kb.py ...
 python3 tools/import_p27.py ...
 ```
+
+## 自分の差分を重ねる（ユーザーKB）
+
+`kb/` は書き換えずに、自分で足したスポットや直した説明を `~/.tabisaki/kbs/` に持って、旅程を組むときに上から重ねられます。形と決まりは [ユーザーKB](./user-kb.md) にあります。

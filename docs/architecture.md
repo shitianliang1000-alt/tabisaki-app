@@ -119,61 +119,21 @@ AI                     プログラム
 │   ├── app.css                # アプリ固有のレイアウト
 │   └── area.css               # エリア別のページ（areas/）
 │
-├── js/
+├── js/                        # 画面（DOM・地図・入力）。旅程を組む部分は packages/core/src/ から読みます
 │   ├── app.js                 # アプリの起点・画面連携
 │   ├── ui.js                  # UI描画・入力処理
-│   ├── pipeline.js            # 旅程生成パイプライン本体
-│   │
-│   ├── ai.js                  # AI呼び出し・意味理解・候補選定
-│   ├── endpoints.js           # APIの接続先を切り替え
-│   ├── config.js              # APIキー・モデル等の設定（ファイル側）
-│   ├── settings.js            # 画面から入れたキーの保存（localStorage 側）
-│   ├── quota.js               # クライアント側の使用量ゲート
-│   │
-│   ├── kb.js                  # 知識ベースの読み込み・検索
-│   ├── keywords.js            # 希望文から検索語を抽出
-│   ├── areas.js               # 地名・エリアの解釈
-│   ├── discover.js            # 未収録の土地をAIで調査
-│   ├── sample-data.js         # 収録済みサンプルデータ
-│   │
-│   ├── planner.js             # 時刻の割り当て
-│   ├── verify.js              # 実時刻で旅程を検証
-│   ├── feasibility.js         # 営業時間・移動時間の成立判定
-│   ├── routes.js              # Google Routes API / 経路推定
-│   ├── transit.js             # 公共交通の乗換・待ち時間
-│   ├── trip.js                # 出発・帰着・宿泊など旅の条件
-│   ├── stays.js               # 拠点と宿泊日数
-│   │
-│   ├── hours.js               # 営業時間・定休日・季節休業
-│   ├── crowd.js               # 混雑の見込みと順番調整
-│   ├── weather.js             # Open-Meteoの天気情報
-│   ├── sun.js                 # 日の出・日の入り
-│   ├── events.js              # 季節イベント・見頃
-│   ├── luggage.js             # チェックアウト後の荷物
-│   ├── lodging.js             # 宿泊地の選定
-│   ├── cost.js                # 交通・食事・入場・宿泊費の概算
-│   │
 │   ├── fit.js                 # 希望との適合度
-│   ├── score.js               # 旅程のスコアリング
-│   ├── match.js               # 希望に応えられたかの判定
 │   ├── variants.js            # ゆったり・王道・探索の3案
-│   ├── replan.js              # 天気・混雑等による再計画
-│   ├── relax.js               # 制約を緩めた場合の代替案
 │   ├── confidence.js          # 情報の確からしさ
 │   ├── errors.js              # エラーを旅行者向けに変換
-│   ├── story.js               # 旅程の意味づけ
 │   ├── today.js               # 旅行中モード
-│   │
-│   ├── geo.js                 # 国・空路・時差などの地理処理
-│   ├── places.js              # 出発地・終着地候補
 │   ├── map.js                 # OpenStreetMap / Leaflet
 │   ├── follow.js              # 読んでいる立ち寄りを地図でも示す
 │   ├── photos.js              # Wikipediaから代表写真を取得
 │   ├── links.js               # Google Maps等へのリンク生成
 │   ├── history.js             # 過去に作った旅の保存
 │   ├── art.js                 # 写真がない場合の代替ビジュアル
-│   ├── edit.js                # 「もっとゆっくり」等を条件へ変換
-│   └── mix.js                 # 候補の組み合わせ調整
+│   └── edit.js                # 「もっとゆっくり」等を条件へ変換
 │
 ├── kb/
 │   ├── index.json             # 知識ベースの入口・出典・件数
@@ -203,7 +163,45 @@ AI                     プログラム
 │   └── admin.css
 │
 ├── packages/
-│   ├── core/                  # js/ のエンジンを Node.js から使う入口（docs/cli-usage.md）
+│   ├── core/                  # 旅程を組む部分（Web・CLI・TUI・API で共通。README.md）
+│   │   ├── index.mjs          # Node.js から使う入口（createCore・CoreError）
+│   │   ├── format.mjs         # Markdown・文・JSON への書き出し
+│   │   └── src/               # 本体。ブラウザでも Node.js でも動きます
+│   │       ├── pipeline.js            # 旅程生成パイプライン本体
+│   │       ├── ai.js                  # AI呼び出し・意味理解・候補選定
+│   │       ├── endpoints.js           # APIの接続先を切り替え
+│   │       ├── config.js              # APIキー・モデル等の設定（ファイル側）
+│   │       ├── settings.js            # 画面から入れたキーの保存（localStorage 側）
+│   │       ├── quota.js               # クライアント側の使用量ゲート
+│   │       ├── kb.js                  # 知識ベースの読み込み・検索
+│   │       ├── keywords.js            # 希望文から検索語を抽出
+│   │       ├── areas.js               # 地名・エリアの解釈
+│   │       ├── discover.js            # 未収録の土地をAIで調査
+│   │       ├── sample-data.js         # 収録済みサンプルデータ
+│   │       ├── planner.js             # 時刻の割り当て
+│   │       ├── verify.js              # 実時刻で旅程を検証
+│   │       ├── feasibility.js         # 営業時間・移動時間の成立判定
+│   │       ├── routes.js              # Google Routes API / 経路推定
+│   │       ├── transit.js             # 公共交通の乗換・待ち時間
+│   │       ├── trip.js                # 出発・帰着・宿泊など旅の条件
+│   │       ├── stays.js               # 拠点と宿泊日数
+│   │       ├── hours.js               # 営業時間・定休日・季節休業
+│   │       ├── crowd.js               # 混雑の見込みと順番調整
+│   │       ├── weather.js             # Open-Meteoの天気情報
+│   │       ├── sun.js                 # 日の出・日の入り
+│   │       ├── events.js              # 季節イベント・見頃
+│   │       ├── luggage.js             # チェックアウト後の荷物
+│   │       ├── lodging.js             # 宿泊地の選定
+│   │       ├── cost.js                # 交通・食事・入場・宿泊費の概算
+│   │       ├── score.js               # 旅程のスコアリング
+│   │       ├── match.js               # 希望に応えられたかの判定
+│   │       ├── replan.js              # 天気・混雑等による再計画
+│   │       ├── relax.js               # 制約を緩めた場合の代替案
+│   │       ├── story.js               # 旅程の意味づけ
+│   │       ├── geo.js                 # 国・空路・時差などの地理処理
+│   │       ├── places.js              # 出発地・終着地候補
+│   │       ├── mix.js                 # 候補の組み合わせ調整
+│   │       └── root.js                # アプリの一番上の場所（まとめる前・後どちらでも）
 │   ├── cli/                   # ./tabisaki plan の本体
 │   ├── tui/                   # ./tabisaki tui（端末の中で旅程を見る）
 │   └── server/                # 手元用の API サーバー（Dockerfile・compose.yaml）
@@ -244,12 +242,12 @@ AIから返ったIDをそのまま信用せず、候補集合と照合します�
 | 目的 | 最初に見るファイル |
 |---|---|
 | 画面や入力を変える | `index.html` / `js/ui.js` / `js/app.js` |
-| 旅程生成の流れを変える | `js/pipeline.js` |
-| AIの動作を変える | `js/ai.js` / `js/config.js` |
-| 候補検索を変える | `js/kb.js` / `js/keywords.js` / `js/areas.js` |
-| 時刻・営業時間の判定を変える | `js/planner.js` / `js/verify.js` / `js/feasibility.js` / `js/hours.js` |
-| 経路を変える | `js/routes.js` / `js/transit.js` |
-| 天気・混雑・季節対応 | `js/weather.js` / `js/crowd.js` / `js/events.js` / `js/sun.js` |
+| 旅程生成の流れを変える | `packages/core/src/pipeline.js` |
+| AIの動作を変える | `packages/core/src/ai.js` / `packages/core/src/config.js` |
+| 候補検索を変える | `packages/core/src/kb.js` / `packages/core/src/keywords.js` / `packages/core/src/areas.js` |
+| 時刻・営業時間の判定を変える | `packages/core/src/planner.js` / `packages/core/src/verify.js` / `packages/core/src/feasibility.js` / `packages/core/src/hours.js` |
+| 経路を変える | `packages/core/src/routes.js` / `packages/core/src/transit.js` |
+| 天気・混雑・季節対応 | `packages/core/src/weather.js` / `packages/core/src/crowd.js` / `packages/core/src/events.js` / `packages/core/src/sun.js` |
 | 新しいデータを追加する | `kb/` / `tools/` |
-| APIキーの扱いを変える | `js/config.js` / `server/` / `API_KEYS.md` |
+| APIキーの扱いを変える | `packages/core/src/config.js` / `server/` / `API_KEYS.md` |
 | テストを追加する | `tests/` |

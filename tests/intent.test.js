@@ -13,8 +13,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { normalizeRomaji, placeFromRomaji, withJapanesePlaces }
-  from "../js/romaji.js";
-import { readIntent } from "../js/intent.js";
+  from "../packages/core/src/romaji.js";
+import { readIntent } from "../packages/core/src/intent.js";
 
 test("ローマ字の地名を、収録の表記に読み替える", () => {
   assert.equal(placeFromRomaji("Sendai"), "仙台市");
@@ -93,7 +93,7 @@ test("飛行機・フェリーの指定を、そのまま読み取る", () => {
 
 test("夜行は、狙っている列車として読み取る", () => {
   // 夜行は毎日同じ時刻で走るので、旅程の区間として組めます
-  // （js/trains.js）。ここでは「どれを狙っているか」だけを拾います。
+  // （packages/core/src/trains.js）。ここでは「どれを狙っているか」だけを拾います。
   assert.equal(readIntent("サンライズに乗って山陰へ").nightTrain, "any");
   assert.equal(readIntent("サンライズ出雲で出雲大社").nightTrain,
     "sunrise-izumo");

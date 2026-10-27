@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LUGGAGE_MIN, attachLuggage } from "../js/luggage.js";
+import { LUGGAGE_MIN, attachLuggage } from "../packages/core/src/luggage.js";
 
 const d = (s) => new Date(s);
 

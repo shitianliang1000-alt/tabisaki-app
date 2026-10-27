@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { luggagePlanFor, needsLuggagePlan } from "../js/luggage.js";
+import { luggagePlanFor, needsLuggagePlan } from "../packages/core/src/luggage.js";
 
 const d = (s) => new Date(s);
 const spot = (id, name, category, over = {}) => ({

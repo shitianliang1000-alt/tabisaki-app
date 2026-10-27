@@ -17,7 +17,7 @@ import test from "node:test";
 import {
   NORMALS_YEARS, RAIN_MM, WINDOW_DAYS, describeNormals, normalsFor,
   normalsUrl, parseNormals,
-} from "../js/normals.js";
+} from "../packages/core/src/normals.js";
 
 const AT = { lat: 35.4020, lng: 132.6857 };
 const NOW = new Date("2026-09-18T12:00:00");

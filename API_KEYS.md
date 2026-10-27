@@ -5,9 +5,9 @@
 | 入れる場所 | 向いている人 | 効く範囲 |
 |---|---|---|
 | **⚙ 設定 →「開発者向け」**（画面から入力） | 公開サイト（GitHub Pages など）を開いて使う人、まず試したい人 | その端末・そのブラウザの `localStorage` だけ。どこにも送りません |
-| **`js/config.js`** | 自分で clone して動かす人 | そのファイルを配った先すべて（＝**公開すると誰からも見えます**） |
+| **`packages/core/src/config.js`** | 自分で clone して動かす人 | そのファイルを配った先すべて（＝**公開すると誰からも見えます**） |
 
-画面から入れたキーは `js/config.js` より優先されます。空にして保存すると
+画面から入れたキーは `packages/core/src/config.js` より優先されます。空にして保存すると
 `config.js` の値に戻ります。保存した直後から効くので、再読み込みは要りません。
 
 > **公開するなら、まず `PROXY_URL` を読んでください。**
@@ -22,7 +22,7 @@
 > キーはその人の端末から出ません。
 
 ```js
-// js/config.js（自分で動かす場合）
+// packages/core/src/config.js（自分で動かす場合）
 export const PROXY_URL      = "";   // ← 自分のバックエンド（https のみ）
 export const GEMINI_API_KEY = "";   // ← AI（希望文の読み取りと選定）
 export const MAPS_API_KEY   = "";   // ← 経路（Routes API）
@@ -30,7 +30,7 @@ export const KB_INDEX_URL   = "kb/index.json";  // ← 知識ベース
 ```
 
 `PROXY_URL` を設定すると、下の2つのキーは**使われません**
-（`js/endpoints.js` が行き先を切り替え、キーをヘッダーに載せなくなります）。
+（`packages/core/src/endpoints.js` が行き先を切り替え、キーをヘッダーに載せなくなります）。
 画面から `PROXY_URL` を入れる場合は、`index.html` の CSP（`connect-src`）に
 その入口を足す必要があります。足していないと、設定画面にその旨が出ます。
 
@@ -40,7 +40,7 @@ export const KB_INDEX_URL   = "kb/index.json";  // ← 知識ベース
 |---|---|---|
 | `GEMINI_API_KEY` | 希望文の読み取り／行き先とスポットの選定／**収録に無い土地を調べる**／検索用の埋め込み | 語句検索で選定します。旅程は組めますが、**収録済みのエリア（`kb/` の 1,383エリア）からしか選べません** |
 | `MAPS_API_KEY` | 実際の移動時間・経路 | 直線距離からの推定になります。画面に「推定」と出ます |
-| `KB_INDEX_URL` | 知識ベースの読み込み（既定で同梱の `kb/`、1,383エリア・15,857スポット） | `js/sample-data.js` の47エリア232スポット（動作確認用）に落ちます |
+| `KB_INDEX_URL` | 知識ベースの読み込み（既定で同梱の `kb/`、1,383エリア・15,857スポット） | `packages/core/src/sample-data.js` の47エリア232スポット（動作確認用）に落ちます |
 
 どれも空のままでも動きます。ただし `GEMINI_API_KEY` が無いと、
 **収録済みのエリア以外は提案できません**。「屋久島に行きたい」「パリで
@@ -186,7 +186,7 @@ export const MAPS_API_KEY = "AIza...";
 - **案を作り直しても、経路は取り直しません。** 採用が決まった案にだけ使います
 
 **1回の旅程作成につき、往路1回＋公共交通の区間ごとに最大10回**です
-（日帰りで実測4回、3泊4日で9回）。上限は `js/config.js` の
+（日帰りで実測4回、3泊4日で9回）。上限は `packages/core/src/config.js` の
 `maxTransitRequests` で変えられます。下げたぶんは距離からの推定に回り、
 そのことが旅程に出ます。
 
@@ -200,7 +200,7 @@ export const MAPS_API_KEY = "AIza...";
 | 429（回数制限） | 止めません。時間が経てば通ります |
 | 経由地が25を超える | APIの上限です |
 
-止めたいときは `js/config.js` の `USE_ROUTES_API` を `false` にしてください。
+止めたいときは `packages/core/src/config.js` の `USE_ROUTES_API` を `false` にしてください。
 一切呼ばなくなります。
 
 ### 「経路が見つかりません」と出るとき
@@ -248,7 +248,7 @@ APIの使用を続けますか
 - 件数はブラウザに保存され、再読み込みしても続きから数えます
 - ⚙（設定）の「API使用量」に、いまの件数と内訳が出ます
 - 「数え直す」を押すとゼロに戻ります
-- 区切りの件数は `js/quota.js` の `DEFAULT_EVERY`（既定 50）で変えられます
+- 区切りの件数は `packages/core/src/quota.js` の `DEFAULT_EVERY`（既定 50）で変えられます
 
 Wikipedia からの写真取得はここを通しません（課金されないため）。
 そのかわり、取れた／取れなかったの両方を30日キャッシュして、
@@ -269,7 +269,7 @@ routes.legs.steps.transitDetails.stopDetails.departureStop.name / departureTime
 routes.legs.steps.transitDetails.stopDetails.arrivalStop.name / arrivalTime
 ```
 
-一覧は `js/transit.js` の `transitFieldMask()` にあります。経路の線
+一覧は `packages/core/src/transit.js` の `transitFieldMask()` にあります。経路の線
 （polyline）や案内文は取りません。応答が数十倍になり、通信量だけが
 増えるためです。
 
@@ -288,12 +288,12 @@ routes.legs.steps.transitDetails.stopDetails.arrivalStop.name / arrivalTime
 ### 営業時間について
 
 Places API は使っていません（課金が高くなりやすいため）。営業時間は
-`js/hours.js` が一箇所で決めています。優先順は次のとおりです。
+`packages/core/src/hours.js` が一箇所で決めています。優先順は次のとおりです。
 
 1. `spot.hours` … 曜日ごと・季節ごと・**最終入場**・定休日・年末年始・
    冬期休業まで持つ実データ
 2. `spot.open` / `spot.close` … 単純な実データ
-3. 分類ごとの目安（`js/feasibility.js` の `CATEGORY_PROFILES`）
+3. 分類ごとの目安（`packages/core/src/feasibility.js` の `CATEGORY_PROFILES`）
 
 **「営業中」と「入場できる」は別**として扱います。17:00 閉館・
 最終入場 16:30 の城に 16:35 に着く案は、開いていても落とします。
@@ -325,7 +325,7 @@ AIキーがある場合は、`discover.js` が `lastEntry` / `closedDays` /
 
 ```js
 // js/photos.js  … photoFor の先頭で return null すれば写真を取りません
-// js/weather.js … forecastFor の先頭で return {ok:false} にすれば天気を見ません
+// packages/core/src/weather.js … forecastFor の先頭で return {ok:false} にすれば天気を見ません
 // あるいは planTrip({ ..., useWeather: false }) で天気の見直しごと止められます
 ```
 

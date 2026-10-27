@@ -162,7 +162,7 @@ export function trailEnds(spot, spots, from = null) {
  * 琵琶湖は南北に60kmあります。代表の1点（湖のまん中）から6kmでは、
  * 岸のどこにも届きません。定番になるほどの広い場所は、それだけ大きい
  * ものが多いので、まわりのエリアと「中の行き先」を広く取ります
- * （js/areas.js の namedSpotAreas も同じ範囲を使います）。
+ * （packages/core/src/areas.js の namedSpotAreas も同じ範囲を使います）。
  */
 export const WIDE_REACH_KM = 25;
 
@@ -216,7 +216,7 @@ export function insideOf(spot, spots, maxKm) {
  * @param {object} itin
  * @param {{spots?:Array, nearestStop?:Function}} opts
  *   nearestStop は非同期で「その地点の最寄りの停留所」を返す関数です
- *   （js/stops.js の nearestStop）。渡さなければ、最寄りは書きません。
+ *   （packages/core/src/stops.js の nearestStop）。渡さなければ、最寄りは書きません。
  * @returns {Promise<number>} 書き足した立ち寄りの数
  */
 export async function attachShapes(itin, opts = {}) {

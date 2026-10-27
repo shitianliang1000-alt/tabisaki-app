@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { attachShapes, insideOf, shapeOf, trailCore, trailEnds, trailPoints }
-  from "../js/shapes.js";
+  from "../packages/core/src/shapes.js";
 
 const at = (name, lat, lng, category = "観光名所") =>
   ({ id: name, name, lat, lng, category });

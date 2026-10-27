@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { estimatedTravel, travelSource, tripReliability }
-  from "../js/reliability.js";
+  from "../packages/core/src/reliability.js";
 
 const move = (extra) => ({ kind: "transit", ...extra });
 const spot = (extra) => ({ kind: "spot", ...extra });

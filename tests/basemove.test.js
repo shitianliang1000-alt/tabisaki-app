@@ -20,7 +20,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { chainOf } from "../js/pipeline.js";
+import { chainOf } from "../packages/core/src/pipeline.js";
 
 const at = (n, lat) => ({ name: n, lat, lng: 135 });
 const KYOTO = at("京都駅", 35.0);

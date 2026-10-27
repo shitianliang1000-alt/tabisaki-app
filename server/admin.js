@@ -7,14 +7,14 @@
 //
 // /private/ の下は、リポジトリの一番上と同じ並びです。
 //   /private/admin/…  … Worker に同梱した admin/ のファイル（ADMIN_FILES）
-//   /private/js/… /private/css/… /private/kb/…
+//   /private/js/… /private/css/… /private/kb/… /private/packages/core/src/…
 //                     … 同じ Worker が配っているサイトのファイル（ASSETS）を渡します
 //
 // 2026-10-22 から、サイトも管理画面も同じ Worker の静的ファイル（ASSETS、
 // tools/build_worker.sh が組み立てる .site/）から配ります。管理画面の
 // ファイルは .site/__admin/ にあり、Worker が合言葉を確かめてからしか
 // 渡しません（wrangler.jsonc の run_worker_first）。
-// admin/index.html は ../js/ や ../kb/ を相対で読むので、手元で
+// admin/index.html は ../js/ や ../kb/（旅程を組む部分は ../packages/core/src/）を相対で読むので、手元で
 // `python3 -m http.server` から開いたときと同じ書きかたのまま動きます。
 //
 // 合言葉は Worker の secret ADMIN_PASSWORD です。**入れていなければ、
@@ -37,7 +37,7 @@ export const ADMIN_ASSET_DIR = "/__admin/";
 
 // 公開サイトから取ってきてよい場所。これ以外は取りに行きません
 // （どこでも中継する入口にはしません）。
-const MIRRORED = /^(js|css|kb)\/[A-Za-z0-9._\/-]+$/;
+const MIRRORED = /^(js|css|kb|packages\/core\/src)\/[A-Za-z0-9._\/-]+$/;
 const ADMIN_FILE = /^admin\/[A-Za-z0-9._-]*$/;
 
 /** この入口が管理画面のものか。 */

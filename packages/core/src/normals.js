@@ -1,6 +1,6 @@
 // 16日より先の旅に、その時期の「ふつう」を出す。
 //
-// 天気予報は16日先までです（js/weather.js の FORECAST_HORIZON_DAYS）。
+// 天気予報は16日先までです（packages/core/src/weather.js の FORECAST_HORIZON_DAYS）。
 // ところが旅程は、宿を取る都合で1か月も2か月も先に組みます。その旅に
 // ついて、いまの画面は**天気の話をいっさいしません**。
 //
@@ -34,7 +34,7 @@
 //   言う   … **予報ではないこと**。これがいちばん大事です
 //   言わない … 「10月20日は晴れます」。分かるはずがありません
 //   言わない … 桜や紅葉の見ごろ。気温の平均からは決まりません
-//     （js/events.js の季節の話は、そちらで別に持っています）
+//     （packages/core/src/events.js の季節の話は、そちらで別に持っています）
 
 import { requestSignal } from "./endpoints.js";
 

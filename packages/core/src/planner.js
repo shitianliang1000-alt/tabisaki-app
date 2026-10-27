@@ -34,7 +34,7 @@ const MIN_IDLE_MIN = 60;
  * 空欄のほうが、間違った断定より役に立ちます。
  */
 /**
- * その区間で乗る乗り物の種類（js/modes.js の classifyLine による）。
+ * その区間で乗る乗り物の種類（packages/core/src/modes.js の classifyLine による）。
  *
  * routes.js の yahooLeg が、調べた経路の路線名から見分けて kinds に
  * 入れています。preferMet は「指定した乗り物で組めたか」です
@@ -110,7 +110,7 @@ export function buildItinerary(input) {
   // 4:00に家を出ることにすると、旅程は 4:00発・3時間55分。ところが
   // 説明には「14:50発→18:40着」と出ます。**同じ行の中で食い違います。**
   // 実際に乗れるのは次の便なので、そちらに合わせて時刻を動かします。
-  // 夜行は、乗る時刻も着く時刻も表から決まっています（js/trains.js）。
+  // 夜行は、乗る時刻も着く時刻も表から決まっています（packages/core/src/trains.js）。
   // 「出発できる時刻＋所要時間」では着きません。
   const overnight = legs?.outbound?.overnight ? legs.outbound : null;
   const board = overnight?.boardAt_
@@ -556,7 +556,7 @@ export function buildItinerary(input) {
   if (!legs?.outbound?.routed) {
     warnings.push(legs?.routeError
       ? `移動時間は直線距離からの推定です（Routes API: ${legs.routeError}）。`
-      : "移動時間は直線距離からの推定です。js/config.js に Maps API キーを"
+      : "移動時間は直線距離からの推定です。packages/core/src/config.js に Maps API キーを"
         + "設定すると実際の経路になります。");
   }
   if (legs?.modeNote && legs?.local?.routed) {
@@ -568,7 +568,7 @@ export function buildItinerary(input) {
 
   // 同じ土地を指す名前は、1つにまとめます。収録のエリア名は出どころで
   // 粒度が違い、「京都・東山・京都市」のように同じ名前が2回並んで
-  // いました（js/stays.js の dedupeAreaNames）。
+  // いました（packages/core/src/stays.js の dedupeAreaNames）。
   const regionName = dedupeAreaNames(stays.map((s) => s.region.name))
     .join("・");
   return {

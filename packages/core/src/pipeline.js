@@ -49,7 +49,7 @@ import { critique, relaxForItinerary, relaxForUnreachable } from "./relax.js";
 import { itineraryCrowd, spreadCrowds } from "./crowd.js";
 import { costBreakdown } from "./cost.js";
 import { sunNotes, sunTimes } from "./sun.js";
-import { forecastFor, summarizeDay } from "./weather.js";
+import { summarizeDay } from "./weather.js";
 import { normalsFor } from "./normals.js";
 import { suggestReplan } from "./replan.js";
 import { attachBackups } from "./backup.js";
@@ -60,7 +60,7 @@ import { attachShapes } from "./shapes.js";
 import { attachAccess } from "./access.js";
 import { attachLastTrain } from "./lasttrain.js";
 import { attachTickets } from "./tickets.js";
-import { searchYahooTransit } from "./yahoo-transit.js";
+import { getProvider } from "./providers.js";
 import { yahooFlags } from "./modes.js";
 import { nearestStop } from "./stops.js";
 import { eventNotesFor } from "./events.js";
@@ -205,7 +205,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 「青春18きっぷで」と書いた人に、移動の少ない近場の旅程を返さないためです。
   let enjoyTravel = trip.enjoyTravel === true || intent.enjoyTravel === true;
   // 旅の目的（デート・アクティブ…）。こだわりの欄で選んだものと、
-  // 希望文に書いてあるものを合わせます（js/purpose.js）。
+  // 希望文に書いてあるものを合わせます（packages/core/src/purpose.js）。
   const purposes = [...new Set([...(trip.purposes ?? []), ...readPurposes(trip.note)])];
   // AIへ渡す希望文。欄で選んだ目的は文に入っていないので、書き足します。
   const aiNote = purposes.length ? `${trip.note ?? ""}\n${purposeHint(purposes)}`.trim()
@@ -230,7 +230,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
 
   // 名前のある旅のしかた（「最長往復切符」「国道1号線の旅」）。
   // 行き先ではなく旅の形なので、乗り物・移動の楽しみかた・沿う道に
-  // 読み替えます（js/journeys.js）。画面で選んだ乗り物は上書きしません。
+  // 読み替えます（packages/core/src/journeys.js）。画面で選んだ乗り物は上書きしません。
   const journey = opts.ignoreAreas ? null : pickJourney(trip.note, query.journey);
   if (journey?.transport && trip.transport === "any") {
     trip = { ...trip, transport: journey.transport };
@@ -261,7 +261,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
     // 「さん都心」から取り出された「都心」は、呼び名の一部です。
     .filter((w) => w.length < 2 || ![...areaWords].some((t) => t.length > w.length && t.includes(w)))
     .filter((w) => !(enjoyTravel && JOURNEY_WORDS.test(w)))
-    // 「デート」「子連れ」は目的で、探す語ではありません（js/purpose.js）。
+    // 「デート」「子連れ」は目的で、探す語ではありません（packages/core/src/purpose.js）。
     .filter((w) => !isPurposeWord(w))
     .filter((w) => !journey || !isJourneyWord(w, journey));
 
@@ -278,9 +278,9 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   await loadNeededSpots(kb, trip, { ...opts, onProgress });
   stop();
 
-  // 車の旅なら、走って気持ちのいい場所を前に出します（js/touring.js）。
+  // 車の旅なら、走って気持ちのいい場所を前に出します（packages/core/src/touring.js）。
   const touring = isTouring(trip);
-  // 同行者がいるなら、石段と登り道を少し後ろへ（js/access.js）。
+  // 同行者がいるなら、石段と登り道を少し後ろへ（packages/core/src/access.js）。
   // **外しません。** 並びを変えるだけです。
   const companions = trip.companions ?? [];
   let matches = vector
@@ -326,7 +326,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
     : areaScope([...detectAreas(towardText, kb, actx), ...phraseHits]);
   // 地名は当たらないが、収録にある場所の名前（「琵琶湖」）が書かれて
   // いるなら、そこから決めます。広い場所なら、まわりのエリアごと
-  // （js/areas.js の namedSpotAreas）。
+  // （packages/core/src/areas.js の namedSpotAreas）。
   if (!opts.ignoreAreas && !scope.regionIds) {
     const near = namedSpotAreas(towardText, kb);
     if (near.length) scope = { ...areaScope(near), missing: scope.missing };
@@ -454,7 +454,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
 
   // 「明日晴れていて、近いところ」。行き先の名前が無いときだけ、
   // 出発日の予報と出発地からの距離で、行き先にしてよいエリアを絞ります
-  // （js/sunny.js）。名前が書いてあれば、そちらが勝ちます。
+  // （packages/core/src/sunny.js）。名前が書いてあれば、そちらが勝ちます。
   const wishNotes = [];
   if ((wish.sunny || wish.near) && !scope.regionIds && !opts.ignoreAreas) {
     onProgress(1, wish.sunny ? "行ける範囲の天気予報を見ています" : "近いエリアを探しています");
@@ -955,7 +955,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   //      収録で両端が分かるのは144本中1本だけです（山背古道）。
   //      持っていないものを推し量ると、行けない旅程ができます。
   //      分かることを言い切り、分からないことは分からないと書きます。
-  // 8.45 同行者のための一言（js/access.js）。
+  // 8.45 同行者のための一言（packages/core/src/access.js）。
   //
   //      収録に「バリアフリーかどうか」はありません。持っているのは
   //      分類だけです。**「行けません」とは言いません。** 何がつらい
@@ -984,7 +984,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   //     どの駅から乗るのかが分からないので、終電も聞けません。
   itin.lastTrainCount = await attachLastTrain(itin, async (from, to, when) => {
     try {
-      return await searchYahooTransit(from, to, {
+      return await getProvider("routing").search(from, to, {
         departAt: when, search: "last",
         modes: yahooFlags(trip.transport ?? "any"),
         signal: opts.signal,
@@ -1432,7 +1432,7 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
   //
   // Yahoo!路線情報は「その時刻に出たら」で答えるので、夜行を狙って
   // 引くのは向きません（朝10時に出れば新幹線が返ります）。夜行は毎日
-  // 同じ時刻で走る定期列車なので、表から引きます（js/trains.js）。
+  // 同じ時刻で走る定期列車なので、表から引きます（packages/core/src/trains.js）。
   //
   // **決めるのは、日程を組む前です。** あとから差し替えると、
   // 「21:50に東京を出る」旅程なのに、その日の16時に出雲で観光している
@@ -2092,7 +2092,8 @@ function candidatePool(candidates) {
 async function buildReplan(itin, candidates, opts = {}) {
   if (opts.useWeather === false) return { suggestions: [], notes: [] };
 
-  const getForecast = opts.forecast ?? forecastFor;
+  const getForecast = opts.forecast
+    ?? ((at, date, o) => getProvider("weather").forecast(at, date, o));
   const weather = {};
   const sunset = {};
   const daySummaries = [];
@@ -2125,7 +2126,7 @@ async function buildReplan(itin, candidates, opts = {}) {
   //
   // 「出発が48日先のため、天気予報はまだ出ていません」は正しいのですが、
   // これだけでは持ち物も決められません。**予報ではなく、過去の観測の
-  // 平均**を出します（js/normals.js）。1回だけ、最初の日の場所で聞きます
+  // 平均**を出します（packages/core/src/normals.js）。1回だけ、最初の日の場所で聞きます
   // （同じ旅の中で日ごとに聞いても、平年値はほとんど同じです）。
   const firstDay = (itin.days ?? [])[0];
   const firstAt = (firstDay?.items ?? [])

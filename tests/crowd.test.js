@@ -8,11 +8,11 @@ import test from "node:test";
 
 import { crowdLevel, itineraryCrowd, labelOf, orderByRoute, quietWindow,
          spreadCrowds }
-  from "../js/crowd.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+  from "../packages/core/src/crowd.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const famous = { id: "a", name: "有名寺", category: "寺院", fame_tier: "major",
                  open: 9, close: 17 };

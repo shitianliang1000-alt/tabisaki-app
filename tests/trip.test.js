@@ -12,13 +12,13 @@ import test from "node:test";
 import {
   END_MODES, dayEnd, endPlace, makeTrip, nightsOf, returnsToStart,
   totalMinutes, validateTrip,
-} from "../js/trip.js";
+} from "../packages/core/src/trip.js";
 import {
   REJECT, checkSpot, estimateMinutes, filterFeasible, haversineKm,
   isAlwaysOpen, profileOf, summarizeRejections,
-} from "../js/feasibility.js";
-import { reachableRegions, travelEfficiency } from "../js/kb.js";
-import { extractKeywords } from "../js/keywords.js";
+} from "../packages/core/src/feasibility.js";
+import { reachableRegions, travelEfficiency } from "../packages/core/src/kb.js";
+import { extractKeywords } from "../packages/core/src/keywords.js";
 
 const TOKYO = { name: "東京駅", lat: 35.681236, lng: 139.767125 };
 const KAMAKURA = { name: "鎌倉駅", lat: 35.3190, lng: 139.5500 };
@@ -403,7 +403,7 @@ test("雰囲気の語を拾う", () => {
 // 長さ（9時間）だけでは「いつ動くのか」が決まりません。同じ9時間でも
 // 7時発と10時発では、開いている施設もその日に回れる場所も変わります。
 
-import { formatHourField, parseHourField } from "../js/trip.js";
+import { formatHourField, parseHourField } from "../packages/core/src/trip.js";
 
 test("時刻の欄を、内部で使う数に読み替える", () => {
   assert.equal(parseHourField("09:00"), 9);
@@ -436,7 +436,7 @@ test("指定した時間帯が、そのまま旅の条件になる", () => {
 });
 
 test("移動手段は、決めた通りに使う", async () => {
-  const { pickMode } = await import("../js/routes.js");
+  const { pickMode } = await import("../packages/core/src/routes.js");
   const near = [{ lat: 35.68, lng: 139.76 }, { lat: 35.69, lng: 139.77 }];
   const far = [{ lat: 35.68, lng: 139.76 }, { lat: 34.69, lng: 135.50 }];
 
@@ -470,7 +470,7 @@ test("予算の扱いは、目安か厳守のどちらか", () => {
 });
 
 test("予算を超えたら、入場料の高い場所から外す", async () => {
-  const { overBudgetSpots } = await import("../js/pipeline.js");
+  const { overBudgetSpots } = await import("../packages/core/src/pipeline.js");
   const itin = {
     cost: { total: 24000 },
     days: [{ items: [

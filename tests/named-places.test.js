@@ -7,11 +7,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { discoverArea, resolveDestination } from "../js/discover.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+import { discoverArea, resolveDestination } from "../packages/core/src/discover.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 /** モデル呼び出しの差し替え。プロンプトの一部で応答を選びます。 */
 function stubCall(map) {

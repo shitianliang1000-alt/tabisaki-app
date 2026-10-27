@@ -11,9 +11,10 @@ cd tabisaki-app
 python3 -m http.server 8000      # http://localhost:8000/index.html を開く
 node --test tests/*.test.js       # 単体試験（依存パッケージなしで動きます）
 node tools/kb_check.mjs           # 知識ベースの点検（誤りがあると終了コード 1）
+node tools/plan_bench.mjs --check # 旅程の成立率（基準より悪いと終了コード 1。docs/benchmarks.md）
 ```
 
-SSH の鍵は GitHub → Settings → SSH and GPG keys で登録します。APIキーが無くても旅程は作れます。AI を手元で試したいときは [API_KEYS.md](API_KEYS.md) を見てください（**キーを書いた `js/config.js` は commit しないでください**）。端末で旅程を組んで確かめるときは `./tabisaki plan "温泉と海" --days=2`（[docs/cli-usage.md](docs/cli-usage.md)）、公開と同じ形（Cloudflare 版・PHP 版）で見るときは `./tabisaki help` です。画面の試験（E2E）と読みやすさの試験はブラウザが要ります。手順は [tests/e2e/README.md](tests/e2e/README.md) です。
+SSH の鍵は GitHub → Settings → SSH and GPG keys で登録します。APIキーが無くても旅程は作れます。AI を手元で試したいときは [API_KEYS.md](API_KEYS.md) を見てください（**キーを書いた `packages/core/src/config.js` は commit しないでください**）。端末で旅程を組んで確かめるときは `./tabisaki plan "温泉と海" --days=2`（[docs/cli-usage.md](docs/cli-usage.md)）、公開と同じ形（Cloudflare 版・PHP 版）で見るときは `./tabisaki help` です。画面の試験（E2E）と読みやすさの試験はブラウザが要ります。手順は [tests/e2e/README.md](tests/e2e/README.md) です。
 
 ## Style Guide
 本体はビルドなしでブラウザと Node.js の両方で動く JavaScript（ES modules）です。新しい依存パッケージは、なるべく足さないでください。データを作る道具（`tools/`）は Python と Node.js です。

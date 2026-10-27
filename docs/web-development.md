@@ -73,7 +73,7 @@ http://localhost:8000
 
 - `npm install` は本体の実行には必要ありません
 - APIキーなしでも基本機能を確認できます
-- `js/config.js` を変更したらブラウザを再読み込みしてください
+- `packages/core/src/config.js` を変更したらブラウザを再読み込みしてください
 
 ## テスト
 

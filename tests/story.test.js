@@ -14,7 +14,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { storyFor } from "../js/story.js";
+import { storyFor } from "../packages/core/src/story.js";
 
 const d = (s) => new Date(s);
 const spot = (name, category, genres, over = {}) => ({

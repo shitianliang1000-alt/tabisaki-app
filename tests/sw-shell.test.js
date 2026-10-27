@@ -29,18 +29,23 @@ const sw = read("sw.js");
 /** sw.js が先に入れると言っているファイル。 */
 const listed = [...sw.matchAll(/"\.\/([^"]+)"/g)].map((m) => m[1]);
 
-test("js/ のモジュールが、1つ残らず並んでいる", () => {
-  const actual = fs.readdirSync(new URL("js/", root))
-    .filter((f) => f.endsWith(".js")).sort();
-  const inSw = listed.filter((f) => f.startsWith("js/"))
-    .map((f) => f.slice(3));
-  const missing = actual.filter((f) => !inSw.includes(f));
-  assert.deepEqual(missing, [],
-    `sw.js に無いモジュール（圏外で初めて開くと真っ白になります）: ${missing.join(" ")}`);
-  // 消したファイルが残っていると、install のたびに404を引きます。
-  const gone = inSw.filter((f) => !actual.includes(f));
-  assert.deepEqual(gone, [], `もう無いものが並んでいます: ${gone.join(" ")}`);
-});
+// 画面（js/）と、旅程を組む部分（packages/core/src/）。どちらも全部入れます。
+const DIRS = ["js/", "packages/core/src/"];
+
+for (const dir of DIRS) {
+  test(`${dir} のモジュールが、1つ残らず並んでいる`, () => {
+    const actual = fs.readdirSync(new URL(dir, root))
+      .filter((f) => f.endsWith(".js")).sort();
+    const inSw = listed.filter((f) => f.startsWith(dir) && !f.slice(dir.length).includes("/"))
+      .map((f) => f.slice(dir.length));
+    const missing = actual.filter((f) => !inSw.includes(f));
+    assert.deepEqual(missing, [],
+      `sw.js に無いモジュール（圏外で初めて開くと真っ白になります）: ${missing.join(" ")}`);
+    // 消したファイルが残っていると、install のたびに404を引きます。
+    const gone = inSw.filter((f) => !actual.includes(f));
+    assert.deepEqual(gone, [], `もう無いものが並んでいます: ${gone.join(" ")}`);
+  });
+}
 
 test("app.js が静的に読むものは、ぜんぶ入っている", () => {
   // import の輪を実際に辿ります。並びの数を数えるだけでは、
@@ -49,20 +54,20 @@ test("app.js が静的に読むものは、ぜんぶ入っている", () => {
   const walk = (file) => {
     if (seen.has(file)) return;
     seen.add(file);
-    const src = read(`js/${file}`);
-    for (const m of src.matchAll(/^import[^;]*?from "\.\/([\w-]+\.js)"/gm)) {
-      walk(m[1]);
+    const src = read(file);
+    for (const m of src.matchAll(/^import[^;]*?from "(\.\.?\/[\w./-]+\.js)"/gm)) {
+      walk(new URL(m[1], new URL(file, root)).href.slice(root.href.length));
     }
   };
-  walk("app.js");
-  const inSw = new Set(listed.filter((f) => f.startsWith("js/"))
-    .map((f) => f.slice(3)));
+  walk("js/app.js");
+  const inSw = new Set(listed);
   const missing = [...seen].filter((f) => !inSw.has(f));
   assert.deepEqual(missing, [],
     `起動に要るのに入っていません: ${missing.join(" ")}`);
   // 辿れていること自体も見ます（正規表現が空振りしたら、この試験は
   // 何も確かめないまま通ります）。
   assert.ok(seen.size > 50, `辿れたのが ${seen.size} 件しかありません`);
+  assert.ok([...seen].some((f) => f.startsWith("packages/core/src/")), "packages/core/src/ まで辿れていません");
 });
 
 test("画面と見た目も、先に入っている", () => {

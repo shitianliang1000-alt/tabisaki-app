@@ -1,7 +1,7 @@
 // 正式なアドレス（canonical）は workers.dev に揃えます（2026-10-23 に決定）。
 // 同じサイトを PHP 版（tabisaki.site.je）でも配っているので、ページごとに名乗りがばらばらだと、
 // 検索エンジンの評価が2つに割れます。ここでは、名乗る場所がすべて同じかを見ます。
-// AI の中継（js/config.js の PROXY_URL）は workers.dev のままです。
+// AI の中継（packages/core/src/config.js の PROXY_URL）は workers.dev のままです。
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,6 +32,6 @@ test("静的なページ・サイトマップ・robots.txt も、正式なアド
 });
 
 test("AI の中継は workers.dev のまま（正式なアドレスとは別）", async () => {
-  assert.match(await read("js/config.js"), /workers\.dev/);
+  assert.match(await read("packages/core/src/config.js"), /workers\.dev/);
   assert.match(await read("index.html"), /connect-src[^"]*tabisaki-github-io\.shitianliang1000\.workers\.dev/);
 });
