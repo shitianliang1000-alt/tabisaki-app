@@ -98,6 +98,10 @@ Web 版と同じエンジン（`js/`）で組むので、AI を使わないと�
 - `NO_COLOR=1` を付けると色を使いません。幅の狭い端末では長い名前を切って並べます
 - パイプやファイルへ出すときは使えません（`tabisaki plan` を使ってください）
 
+## プラグイン
+
+旅程のひな形と行き先の除外を、JSON のプラグインで足せます。`./tabisaki plugins` で一覧、`./tabisaki plugins trust <id>` で使ってよいと決めます。くわしくは [plugins.md](./plugins.md) にあります。
+
 ## Node.js から使う（packages/core）
 
 ```js

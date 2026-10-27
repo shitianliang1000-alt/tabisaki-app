@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "jp.tabisaki.sample",
+  "name": "見本: 静かな温泉旅",
+  "version": "1.0.0",
+  "description": "プラグインの書きかたの見本です。「静かな温泉旅」のひな形と、にぎやかな場所を外す除外を1つずつ持っています。",
+  "author": "旅さき",
+  "homepage": "https://github.com/shitianliang1000-alt/tabisaki-app",
+  "license": "CC0-1.0",
+  "api": 1,
+  "contributes": {
+    "templates": [
+      {
+        "name": "静かな温泉旅",
+        "keywords": ["静かな温泉", "湯治"],
+        "wish": "人の少ない温泉で、のんびり湯につかって休みたい",
+        "days": 2,
+        "transport": "transit"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "にぎやかな場所を外す",
+        "exclude_categories": ["遊園地", "商店街"]
+      }
+    ]
+  }
+}

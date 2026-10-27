@@ -16,6 +16,7 @@
 //     const result = await core.plan({ wish: "温泉と海をゆっくり", from: "東京駅", days: 2 });
 
 import { readFile } from "node:fs/promises";
+import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -121,13 +122,14 @@ export async function normalizeRequest(req = {}) {
  * 旅程を組む道具を用意します（知識ベースを読み込むので、1回だけ呼んで使い回します）。
  * @param {{root?: string}} [opts]
  */
-export async function createCore({ root = ROOT } = {}) {
+export async function createCore({ root = ROOT, plugins = [] } = {}) {
   // 本体（js/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
-  const kb = await loadKnowledgeBase();
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  const kb = applyConstraints(await loadKnowledgeBase(), plugins);
 
   return {
     kb,
@@ -137,7 +139,8 @@ export async function createCore({ root = ROOT } = {}) {
      * @returns {Promise<{request: object, itinerary: object}>}
      */
     async plan(request) {
-      const r = await normalizeRequest(request);
+      const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
+      const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
@@ -148,11 +151,12 @@ export async function createCore({ root = ROOT } = {}) {
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return { request: r, itinerary };
+      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
     },
   };
 }
 
+export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
