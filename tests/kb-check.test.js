@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { checkKb, toMarkdown, REQUIRED } from "../tools/kb_check.mjs";
+import { checkKb, toMarkdown, REQUIRED, CATEGORIES } from "../tools/kb_check.mjs";
 
 test("本物の kb/ に誤りが無い", () => {
   const { errors, stats } = checkKb();
@@ -45,6 +45,7 @@ test("必須の項目・座標・id・営業時間・エリア・件数の誤り
     { ...good, id: "c", open: 19, close: 9 },          // 開く方が後
     { ...good, id: "d", regionId: "nowhere" },         // 無いエリア
     { ...good, id: "e", fame_tier: "super" },          // 知らない値
+    { ...good, id: "g", category: "宇宙港" },          // 知らない分類
     (({ name, ...rest }) => ({ ...rest, id: "f" }))(good), // name が無い
   ], { count: 99 });
   try {
@@ -55,6 +56,7 @@ test("必須の項目・座標・id・営業時間・エリア・件数の誤り
     has(/c .*開く時刻/);
     has(/d .*エリア nowhere がありません/);
     has(/e .*fame_tier/);
+    has(/g .*分類「宇宙港」/);
     has(/ f: name がありません/);
     has(/索引の件数 99/);
   } finally { rmSync(dir, { recursive: true }); }
@@ -68,4 +70,9 @@ test("Markdown のまとめに、件数と誤りが出る", () => {
   const md = toMarkdown({ errors: ["x: id が重なっています"], warnings: [], stats: { spots: 1, regions: 1 } });
   assert.match(md, /誤り 1 件/);
   assert.match(md, /\| スポット \| 1 \|/);
+});
+
+test("kb_check の分類は、アプリの営業時間の表と食い違わない", async () => {
+  const src = (await import("node:fs")).readFileSync(new URL("../js/feasibility.js", import.meta.url), "utf8");
+  for (const c of CATEGORIES) assert.ok(src.includes(`${c}:`), `js/feasibility.js に分類「${c}」がありません`);
 });
