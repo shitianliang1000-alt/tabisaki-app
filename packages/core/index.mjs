@@ -126,11 +126,13 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
- *          plugins?: object[]}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home, plugins = [] } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
@@ -146,13 +148,20 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home, pl
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
-  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
-  kb = applyConstraints(kb, plugins);
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
 
   return {
     kb,
     /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
     overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
