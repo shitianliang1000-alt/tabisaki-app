@@ -22,7 +22,11 @@ import { slackLevel } from "./score.js";
 /** 移動の出どころ。区間の中身から見分けます。 */
 export function travelSource(item) {
   if (!item || item.kind !== "transit") return null;
-  if (item.yahoo) return { key: "yahoo", label: "Yahoo!路線情報" };
+  // 時刻表で引いた区間。どの乗り換え検索が答えたかは、中継が付けた
+  // 名前で出します（無ければ、これまでどおり Yahoo!路線情報）。
+  if (item.yahoo) {
+    return { key: "yahoo", label: item.yahoo.providerLabel || "Yahoo!路線情報" };
+  }
   if (item.routed) return { key: "routes", label: "Googleの経路" };
   // 歩きは距離で足ります（confidence.js と同じ見かたです）。
   if (item.walk) return { key: "walk", label: "徒歩（距離から）" };

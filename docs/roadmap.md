@@ -51,7 +51,7 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| Yahoo! から取っているデータを、別の API に移す | ⏸ 判断待ち（移り先・費用） | #367 |
+| Yahoo! から取っているデータを、別の API に移す | 🚧 一部（駅すぱあと・NAVITIME・HERE・Transitous に対応。キーを入れたら Yahoo! を止める） | #367 |
 | 外部データの取り口を差し替えられる形にする（[docs/data-providers.md](data-providers.md)） | ✅ ある | #369 |
 | 知識ベースの点検（PR ごと・週に1回、`tools/kb_check.mjs`） | ✅ ある | #370 #374 #345 |
 | 旅程の成立率ベンチマーク（PR ごと、[benchmarks.md](./benchmarks.md)） | ✅ ある | #374 |

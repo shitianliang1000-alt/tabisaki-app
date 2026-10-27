@@ -49,6 +49,12 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
 
 本文の `modes`（`al` 飛行機・`shin` 新幹線・`ex` 特急・`hb` 高速バス・`lb` 路線バス・`sr` 船、0 で使わない）と `prefer`（`air`・`ferry`）、`search: "last"`（終電）も、`/yahoo/transit` と同じです。
 
+## アプリの側
+
+アプリ（`packages/core`）は、乗り換えを中継の `POST /transit` で引きます。どれを使うかは `packages/core/src/config.js` の `TRANSIT_PROVIDER` で決まり、既定の `auto` なら中継が上の順に試します。中継がまだ古く `/transit` を知らない（404）ときは、これまでの `/yahoo/transit` で引き直します。
+
+旅程の「どこまで確かめたか」と区間の説明には、答えた API の名前（`providerLabel`）が出ます。CLI や組み込みでは、経路の取り口を `transit`（既定・中継に任せる）・`ekispert`・`navitime`・`here`・`transitous`・`yahoo` から選べます（`useProvider("routing", "transitous")`）。
+
 ## 各社の決まり
 
 * **Transitous** は、オープンソースで非商用のものだけが使えます。1日に720回を超えて経路を聞くときは、先に Transitous に相談します。中継は `User-Agent` に連絡先（このリポジトリ）を入れ、著作権表記のページから [Transitous の出典][5] にリンクしています。

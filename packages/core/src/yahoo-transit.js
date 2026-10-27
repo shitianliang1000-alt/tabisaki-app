@@ -1,5 +1,6 @@
 import { endpointFor, readProxyError, requestSignal } from "./endpoints.js";
 import { effectiveConfig } from "./settings.js";
+import { TRANSIT_PROVIDER } from "./config.js";
 
 /**
  * Yahoo!路線情報の検索をバックエンド経由で実行します。
@@ -121,6 +122,7 @@ export async function searchYahooTransit(from, to, opts = {}) {
   // "last" を渡すと、その日の**終電**を聞きます（中継が type=2 を
   // 立てます）。渡さなければ、これまでどおりです。
   const search = opts.search === "last" ? "last" : undefined;
+  const provider = String(opts.provider ?? TRANSIT_PROVIDER ?? "auto").trim() || "auto";
 
   // 位置も渡します（中継が Yahoo!に flatlon / tlatlon として渡します）。
   // 名前だけだと、同じ名前の別の駅や、駅前の店に読み替えられます
@@ -138,8 +140,12 @@ export async function searchYahooTransit(from, to, opts = {}) {
     modes: opts.modes ?? undefined,
     prefer: opts.prefer?.length ? opts.prefer : undefined,
     search,
+    // どの乗り換え検索で引くか（中継の POST /transit が選びます）。
+    provider,
   });
-  const url = endpointFor("yahoo:transit", {}, cfg);
+  // 中継の /transit で引きます。中継がまだ古く /transit を知らなければ
+  // （404）、これまでの /yahoo/transit で引き直します。
+  let url = endpointFor("transit", {}, cfg);
 
   // 待ち時間は差し替えられます（テストで18秒待たないため）。
   const waits = Array.isArray(opts.retryWaits) ? opts.retryWaits : RETRY_WAIT_MS;
@@ -169,6 +175,11 @@ export async function searchYahooTransit(from, to, opts = {}) {
       // 画面は「作成中」のまま止まって見えます。届かないものは、
       // 少し置いてからにします（下の hold）。
       if (attempt >= 1) break;
+      continue;
+    }
+    if (res.status === 404 && /\/transit$/.test(url) && !/yahoo\/transit$/.test(url)) {
+      url = endpointFor("yahoo:transit", {}, cfg);
+      attempt--;
       continue;
     }
     if (res.ok) {

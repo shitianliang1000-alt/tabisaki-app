@@ -100,7 +100,7 @@ function proxyBase(cfg) {
 /**
  * 投げ先のURL。
  *
- * @param {"gemini:generate"|"gemini:embed"|"gemini:models"|"routes"|"yahoo:transit"|"local:generate"} what
+ * @param {"gemini:generate"|"gemini:embed"|"gemini:models"|"routes"|"yahoo:transit"|"transit"|"local:generate"} what
  * @param {{model?:string}} [args]
  * @param {{proxyUrl?:string, localBaseUrl?:string}} [cfg]
  */
@@ -115,6 +115,7 @@ export function endpointFor(what, args = {}, cfg = {}) {
                         "routes": "routes",
                         "status": "status",
                         "yahoo:transit": "yahoo/transit",
+                        "transit": "transit",
                         "web:search": "web/search" }[what] ?? what}`;
   }
   if (what === "local:generate") {
