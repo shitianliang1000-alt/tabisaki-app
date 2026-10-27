@@ -36,6 +36,8 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   tabisaki similar "<スポット名か文>" [--region=…] [--limit=10] [--index=<file>] [--output=json]
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
+  tabisaki spot help  スポットに別名・営業時間・季節・写真を足す（出典と確認の状態つき）
+  tabisaki area help  自分でエリアを決める
   tabisaki help       これを出す
   tabisaki --version  版を出す
 
@@ -73,6 +75,37 @@ export function parseArgs(argv) {
   return { opts, words };
 }
 
+const STATUS = { enabled: "使う", untrusted: "まだ控えていない", changed: "中身が変わった（控え直すまで使わない）", invalid: "宣言にまちがい" };
+
+async function plugins([sub = "list", id], { stdout }) {
+  const p = await import("../../core/plugins.mjs");
+  const dir = p.pluginDir();
+  if (sub === "list") {
+    const all = await p.scanPlugins(dir);
+    stdout.write(`置き場所: ${dir}\n`);
+    if (!all.length) stdout.write("プラグインはありません\n");
+    for (const x of all) {
+      const m = x.manifest;
+      stdout.write(`${x.id}${m ? ` ${m.version}（${m.name}・${m.author}・${m.license}）` : ""}: ${STATUS[x.status]}\n`);
+      for (const e of x.errors ?? []) stdout.write(`  - ${e}\n`);
+    }
+    return 0;
+  }
+  if (!id) throw usage(`tabisaki plugins ${sub} <id> の形で書いてください`);
+  if (sub === "trust") {
+    const x = await p.trustPlugin(dir, id);
+    const c = x.manifest.contributes;
+    stdout.write(`${id} ${x.manifest.version} を控えました（sha256 ${x.sha256.slice(0, 12)}…）。` +
+      `ひな形 ${(c.templates ?? []).length} 個・除外 ${(c.constraints ?? []).length} 個\n`);
+    return 0;
+  }
+  if (sub === "untrust") {
+    stdout.write((await p.untrustPlugin(dir, id)) ? `${id} を控えから外しました。消すときは ${dir}/${id} を消してください\n` : `${id} は控えにありません\n`);
+    return 0;
+  }
+  throw usage(`plugins のあとは list / trust / untrust のどれかです`);
+}
+
 function usage(message) {
   const e = new Error(message);
   e.exitCode = 2;
@@ -80,13 +113,16 @@ function usage(message) {
 }
 
 export async function main(argv, { stdout = process.stdout, stderr = process.stderr } = {}) {
+  if (argv[0] === "spot" || argv[0] === "area") {
+    const { main: spotMain } = await import("./spot.mjs");
+    return spotMain(argv, { stdout, stderr });
+  }
   try {
     const { opts, words } = parseArgs(argv);
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
-    if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
-    if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
+    if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     const wish = rest.join(" ").trim();
     if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
@@ -121,7 +157,9 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
     let result;
     try {
-      const c = await core.createCore({ ...(opts.kb ? { userKb: opts.kb } : {}), local });
+      // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
+      const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
+      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}) });
       const rep = c.overlayReport;
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
@@ -133,6 +171,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     } finally {
       console.log = log; console.warn = warn; console.info = info;
     }
+    if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);

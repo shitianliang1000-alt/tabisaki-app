@@ -17,6 +17,7 @@
 //     const result = await core.plan({ wish: "温泉と海をゆっくり", from: "東京駅", days: 2 });
 
 import { readFile } from "node:fs/promises";
+import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -134,20 +135,15 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
- * userKb（名前か中身）を渡すと、ユーザーKBを公式の収録に重ねます（home はその置き場）。
- *
- * local を渡すと、手元の LLM（Ollama など。OpenAI 互換の /v1/chat/completions）に
- * 希望文の読み取りと行き先の選定をさせます（Issue #352）。渡さなければ AI は使わず、
- * 収録データと語句から組みます。どちらでも、時刻と移動の判定はプログラムが行います。
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string,
- *          local?: {model?: string, baseUrl?: string} | null}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home, local = null } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
-  // （手元の LLM を使うときだけ、その行き先へは通します）。
-  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+  globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -163,18 +159,28 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home, lo
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
 
   return {
     kb,
     /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
     overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
      * @returns {Promise<{request: object, itinerary: object}>}
      */
     async plan(request) {
-      const r = await normalizeRequest(request);
+      const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
+      const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
@@ -185,18 +191,12 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home, lo
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      if (!local) return { request: r, itinerary };
-      // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
-      // 本体が収録データだけで組み直しています。そのことを隠しません。
-      const { error } = ai.aiStatus();
-      return {
-        request: r, itinerary,
-        ai: { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null },
-      };
+      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
     },
   };
 }
 
+export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
