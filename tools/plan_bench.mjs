@@ -64,7 +64,7 @@ const isAir = (it) => /飛行機|空港|✈|flight|plane/i.test(`${it.vehicle ??
  * 1本の旅程を調べて、見つかった違反を返します。
  * @param {object} itinerary planTrip の結果
  * @param {{departAt: Date, arriveBy: Date, days: number}} request
- * @param {{hoursFor: Function}} helpers js/hours.js の hoursFor（営業時間の判定）
+ * @param {{hoursFor: Function}} helpers packages/core/src/hours.js の hoursFor（営業時間の判定）
  * @returns {{kind: string, msg: string}[]}
  */
 export function auditItinerary(itinerary, request, { hoursFor }) {
@@ -340,7 +340,7 @@ function arg(name, fallback) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const { createCore } = await import(pathToFileURL(path.join(ROOT, "packages", "core", "index.mjs")).href);
-  const { hoursFor } = await import(pathToFileURL(path.join(ROOT, "js", "hours.js")).href);
+  const { hoursFor } = await import(pathToFileURL(path.join(ROOT, "packages", "core", "src", "hours.js")).href);
   const baselineFile = path.join(BENCH, "baseline.json");
   let baseline = null;
   try { baseline = JSON.parse(readFileSync(baselineFile, "utf8")); } catch { /* 基準がまだ無い */ }

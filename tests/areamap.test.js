@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { curatedAreas, groupByBlock, noteWithArea } from "../js/areamap.js";
-import { detectAreas } from "../js/areas.js";
+import { detectAreas } from "../packages/core/src/areas.js";
 
 test("空の欄には「〇〇をめぐる」が入る", () => {
   assert.equal(noteWithArea("", "箱根"), "箱根をめぐる");

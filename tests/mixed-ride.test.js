@@ -13,12 +13,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { modeGroups } from "../js/pipeline.js";
-import { pickMode } from "../js/routes.js";
-import { isTouring } from "../js/touring.js";
-import { makeTrip } from "../js/trip.js";
-import { readIntent } from "../js/intent.js";
-import { tripReliability } from "../js/reliability.js";
+import { modeGroups } from "../packages/core/src/pipeline.js";
+import { pickMode } from "../packages/core/src/routes.js";
+import { isTouring } from "../packages/core/src/touring.js";
+import { makeTrip } from "../packages/core/src/trip.js";
+import { readIntent } from "../packages/core/src/intent.js";
+import { tripReliability } from "../packages/core/src/reliability.js";
 
 const p = (name, lat) => ({ name, lat, lng: 135.0 });
 

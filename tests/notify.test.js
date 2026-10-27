@@ -20,7 +20,7 @@ import {
   LEAD_MIN, NOTICE_LIMITS, armNotices, askNotifyPermission, leadFor,
   scheduleNotices,
 } from "../js/notify.js";
-import { BOARDING_LEAD_MIN } from "../js/modes.js";
+import { BOARDING_LEAD_MIN } from "../packages/core/src/modes.js";
 
 // 時差を書かずに作ります。書くと、試験を回す端末の時間帯によって
 // getHours() の答えが変わり、UTC の機械では「0:00 出発です」になります。

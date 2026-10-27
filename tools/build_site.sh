@@ -22,6 +22,10 @@ cp index.html credits.html icon.svg mark.svg og.svg og.png manifest.webmanifest 
 # admin/ は入れません。認証が無く、置けば誰でも開けます。
 # 管理画面は Worker が合言葉つきで配ります（server/admin.js）。
 cp -r css js kb vendor "$dist"/
+# 旅程を組む部分（packages/core/src/）。画面の js/ がここを読みます。
+# Node.js 用の入口（index.mjs・format.mjs）は、ブラウザでは使わないので入れません。
+mkdir -p "$dist"/packages/core
+cp -r packages/core/src "$dist"/packages/core/src
 # Google Search Console の所有確認用ファイル（google<数字と英字>.html）。
 # 消すと確認が外れます。
 cp google[0-9a-f]*.html "$dist"/ 2>/dev/null || true
