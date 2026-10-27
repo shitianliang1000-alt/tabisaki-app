@@ -36,6 +36,7 @@ curl -X POST http://127.0.0.1:8787/plan \
 | `start` / `back` | `"08:00"` / `"20:00"` | 08:00 / 20:00 |
 | `transport` | `"car"` | any |
 | `markdown` | `true` | false（true なら Markdown の文も付けます） |
+| `lang` | `"en"` | ja（Markdown の見出しなどの言語。[i18n.md](i18n.md)） |
 
 知らない項目が入っていると 400 にします（書きまちがいに気づけるように）。
 

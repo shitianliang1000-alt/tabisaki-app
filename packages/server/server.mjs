@@ -101,7 +101,8 @@ export async function createServer({ core, limits = {}, log = (l) => process.std
         return fail(res, 400, "invalid_json", "本文が JSON として読めません");
       }
       if (!body || typeof body !== "object" || Array.isArray(body)) return fail(res, 400, "invalid_input", "本文は JSON のオブジェクトにしてください");
-      const known = ["wish", "from", "days", "date", "start", "back", "transport", "markdown"];
+      const known = ["wish", "from", "days", "date", "start", "back", "transport", "markdown", "lang"];
+      if (body.lang !== undefined && !lib.pickLang(body.lang)) return fail(res, 400, "invalid_input", `lang は ${lib.LANGS.join(" / ")} のどれかです`);
       const extra = Object.keys(body).filter((k) => !known.includes(k));
       if (extra.length) return fail(res, 400, "invalid_input", `知らない項目です: ${extra.join(", ")}`);
 
@@ -114,7 +115,7 @@ export async function createServer({ core, limits = {}, log = (l) => process.std
           new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { status: 504 })), L.timeoutMs); }),
         ]);
         const out = { ok: true, plan: JSON.parse(lib.toJson(result)) };
-        if (body.markdown === true) out.markdown = lib.toMarkdown(result);
+        if (body.markdown === true) out.markdown = lib.toMarkdown(result, { lang: body.lang });
         return send(res, 200, out);
       } finally {
         clearTimeout(timer);

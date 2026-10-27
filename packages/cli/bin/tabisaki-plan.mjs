@@ -20,6 +20,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --back=<HH:MM>      最終日に帰り着く時刻（既定: 20:00）
   --transport=<手段>  any / transit / car / walk / local（既定: any）
   --output=<形式>     markdown / text / json（既定: markdown）
+  --lang=<言語>       ja / en（既定: ja。環境変数 TABISAKI_LANG でも決められます）
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
   tabisaki help       これを出す
@@ -32,7 +33,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
 時刻はすべて日本時間です。移動時間は距離からの目安で、実際の乗換は調べません。
 `;
 
-const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output"]);
+const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
 const PLANNED = { local: "#352", model: "#352" };
 
@@ -72,9 +73,11 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     }
     const output = opts.output ?? "markdown";
     if (!["markdown", "md", "text", "json"].includes(output)) throw usage(`--output は markdown / text / json のどれかです`);
+    const core = await import("../../core/index.mjs");
+    if (opts.lang !== undefined && !core.pickLang(opts.lang)) throw usage(`--lang は ${core.LANGS.join(" / ")} のどれかです`);
+    const lang = core.resolveLang(opts.lang);
     const days = opts.days === undefined ? undefined : Number(opts.days);
 
-    const core = await import("../../core/index.mjs");
     // 本体のログ（console.log・warn）は stderr へ。stdout は旅程だけにします（パイプで使えるように）。
     const log = console.log;
     const warn = console.warn;
@@ -99,7 +102,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
       return 0;
     }
     const text = output === "json" ? core.toJson(result)
-      : output === "text" ? core.toPlainText(result) : core.toMarkdown(result);
+      : output === "text" ? core.toPlainText(result, { lang }) : core.toMarkdown(result, { lang });
     stdout.write(text);
     return 0;
   } catch (e) {

@@ -28,6 +28,9 @@ jobs:
       # 気になる点を、実行結果のまとめ欄に出します）
       - name: Knowledge base check
         run: node tools/kb_check.mjs --md >> "$GITHUB_STEP_SUMMARY"
+      # 翻訳の点検（原文に無い鍵や差し込みの食い違いは誤りで止め、訳の進み具合をまとめ欄に出す）
+      - name: Translation check
+        run: node tools/i18n_check.mjs --md >> "$GITHUB_STEP_SUMMARY"
       # PHP 版（InfinityFree 向け）を組み立てて、書きまちがいが無いかを見ます。
       - name: PHP site build and lint
         run: |

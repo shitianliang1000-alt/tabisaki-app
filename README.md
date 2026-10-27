@@ -23,6 +23,7 @@
 * 日帰り・複数日・片道・周遊に対応
 * AI が出した場所も、収録の候補と照らし合わせてから使う（無い場所は旅程に入らない）
 * API キーが無くても動く（移動時間は距離からの目安、行き先は収録データから）
+* 旅程を英語でも出せる（`--lang=en`。翻訳は [docs/i18n.md](docs/i18n.md)）
 
 ## 端末（SSH）での機能
 
@@ -55,7 +56,9 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 
 ### [知識ベース](docs/knowledge-base.md)
 
-開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md)、運営と支援の決まりは [docs/governance.md](docs/governance.md)、発信の計画は [docs/community.md](docs/community.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
+### [多言語対応と翻訳](docs/i18n.md)
+
+開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
 
 ## Related
 
