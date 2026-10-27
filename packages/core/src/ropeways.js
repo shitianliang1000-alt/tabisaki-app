@@ -10,6 +10,7 @@
 // 架かっているなら、聞く先は山麓駅です。架かっていないなら、
 // それも旅程に書きます（「ロープウェイはありません。登山道を歩きます」）。
 
+import { appUrl } from "./root.js";
 import { haversineKm } from "./feasibility.js";
 
 /**
@@ -35,7 +36,7 @@ async function load() {
   if (injected) return injected;
   loaded ??= (async () => {
     try {
-      const url = new URL("../kb/ropeways.json", import.meta.url).toString();
+      const url = appUrl("kb/ropeways.json");
       const res = await fetch(url);
       if (!res.ok) return [];
       const doc = await res.json();

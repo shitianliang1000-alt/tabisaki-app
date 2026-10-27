@@ -16,7 +16,7 @@ import {
   searchAuto, transitHandler, TransitError,
 } from "../server/transit.js";
 import worker from "../server/worker.js";
-import { classifyLine } from "../js/modes.js";
+import { classifyLine } from "../packages/core/src/modes.js";
 
 const transitousOdawara = JSON.parse(await readFile(
   new URL("./fixtures/transitous-odawara-hakone.json", import.meta.url), "utf8"));

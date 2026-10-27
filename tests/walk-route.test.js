@@ -19,7 +19,7 @@ import { readFile } from "node:fs/promises";
 
 import { parseRouteDetail, parseSummary, routeBlocks }
   from "../server/worker.js";
-import { classifyLine } from "../js/modes.js";
+import { classifyLine } from "../packages/core/src/modes.js";
 
 const html = await readFile(
   new URL("./fixtures/yahoo-gion-kyoto-walk.html", import.meta.url), "utf8");

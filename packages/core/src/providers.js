@@ -243,7 +243,7 @@ export const offRouting = {
 //    {ok: false, reason: "利用者に見せる一行"}
 // ---------------------------------------------------------------------------
 
-/** Open-Meteo（キー不要）。予報の範囲・3時間の控えは js/weather.js が受け持ちます。 */
+/** Open-Meteo（キー不要）。予報の範囲・3時間の控えは weather.js が受け持ちます。 */
 export const openMeteoWeather = {
   kind: "weather",
   name: "open-meteo",
@@ -370,7 +370,7 @@ export function normalizeGsi(data) {
 // ---------------------------------------------------------------------------
 //  スポット（spots）
 //
-//  load(opts) → KnowledgeBase（js/kb.js の loadKnowledgeBase と同じ形）
+//  load(opts) → KnowledgeBase（kb.js の loadKnowledgeBase と同じ形）
 //    opts {onProgress?, signal?}
 // ---------------------------------------------------------------------------
 

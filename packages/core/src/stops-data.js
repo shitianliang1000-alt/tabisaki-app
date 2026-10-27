@@ -2,13 +2,13 @@
 // 「なんとなくの目安」を組み立てるための下ごしらえ。
 //
 // ここは**計算だけ**です。データを読み、格子に入れ、近い順に返します。
-// 呼ぶ側は js/stops.js で、そちらが「別のスレッドでやるか、この場で
+// 呼ぶ側は packages/core/src/stops.js で、そちらが「別のスレッドでやるか、この場で
 // やるか」を決めます（停留所のデータは2.6MBあり、読んで解くだけで
-// 低スペック端末では画面が固まります。js/stops-worker.js）。
+// 低スペック端末では画面が固まります。packages/core/src/stops-worker.js）。
 //
 // なぜ要るか
 //   Routes API は、バスしかない区間や登山道では ZERO_RESULTS を返す
-//   （js/routes.js のコメント参照）。そのとき今までは出発地→目的地の
+//   （packages/core/src/routes.js のコメント参照）。そのとき今までは出発地→目的地の
 //   直線距離だけで見積もっていたが、たとえば富士山五合目のように
 //   「バス停までは速い公共交通、そこから先は徒歩（登山道）」という
 //   区間を、ぜんぶ同じ速さで計算すると大きく外れる。
@@ -23,6 +23,7 @@
 //   どちらも「今の時刻表」ではなく「だいたいの位置」の目安でしかない。
 
 import { haversineKm } from "./feasibility.js";
+import { appUrl } from "./root.js";
 
 const CELL_DEG = 0.05; // 約5.5km四方。半径5〜8km圏内の探索に足りる粗さ。
 
@@ -42,7 +43,7 @@ function buildGrid(stops) {
 
 async function fetchJson(name) {
   try {
-    const url = new URL(`../kb/${name}`, import.meta.url).toString();
+    const url = appUrl(`kb/${name}`);
     const res = await fetch(url);
     if (!res.ok) return null;
     return await res.json();

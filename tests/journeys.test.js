@@ -7,13 +7,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { blockOf } from "../js/areas.js";
+import { blockOf } from "../packages/core/src/areas.js";
 import { journeyNote, normalizeJourney, pickJourney, readJourney,
-         stripJourney } from "../js/journeys.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+         stripJourney } from "../packages/core/src/journeys.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 

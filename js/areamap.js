@@ -9,10 +9,10 @@
 // 使う人のために、同じエリアを地方ごとの一覧でも並べます。
 // 地図（Leaflet とタイル）は、この画面を開いたときに初めて作ります。
 
-import { blockOf } from "./areas.js";
+import { blockOf } from "../packages/core/src/areas.js";
 import { japaneseControls } from "./map.js";
 
-/** 一覧の並び（北から）。js/areas.js の地方の分けかたと同じです。 */
+/** 一覧の並び（北から）。packages/core/src/areas.js の地方の分けかたと同じです。 */
 const BLOCK_ORDER = ["北海道", "東北", "関東", "中部", "近畿", "中国地方",
                      "四国", "九州", "沖縄"];
 

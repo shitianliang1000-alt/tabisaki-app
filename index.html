@@ -20,7 +20,7 @@
      変えるときは、ここと sitemap.xml・robots.txt・credits.html・
      tools/build_area_pages.mjs・server/landing.js・php/inc/site.php の SITE_ORIGIN を
      合わせて書き換えてください（tests/canonical.test.js が確かめます）。
-     AI の中継（下の connect-src と js/config.js）は workers.dev のままです。 -->
+     AI の中継（下の connect-src と packages/core/src/config.js）は workers.dev のままです。 -->
 <link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/app">
 <!-- 検索エンジン向けに「これは何か」を機械が読める形でも書いておきます。
      検索結果にアプリ名として出るのは WebSite の name です。
@@ -220,7 +220,7 @@
        AIに話しかける画面です。書いて送ると、下に答え（旅程）が返ります。
        返ってきた旅程は、続けて書けば直せます（「もっとゆっくり」など）。
        出発地・日時・まわる場所は欄の左の「＋」から、こだわり（目的・人数・宿・食事）も「＋」の下のほうから足します。
-       書いたことは、ここで決めた設定より勝ちます（js/chatread.js）。 -->
+       書いたことは、ここで決めた設定より勝ちます（packages/core/src/chatread.js）。 -->
   <section class="pane chat" id="form-pane" aria-label="旅の相談">
     <div class="topbar">
       <button type="button" class="md-icon-btn md-state side-open" id="side-open"
@@ -269,7 +269,7 @@
       <p class="area-picked" id="area-picked" role="status"></p>
       <!-- 書いた文から読み取った移動のしかた（車・普通列車のみ…）。送る前に
            見えるようにします。こだわりの「移動」を開かなくても、意図どおりに
-           読めたかが分かります（js/intent.js の readIntent。文が設定に勝ちます）。 -->
+           読めたかが分かります（packages/core/src/intent.js の readIntent。文が設定に勝ちます）。 -->
       <p class="mode-hint" id="mode-hint" role="status" aria-live="polite" hidden></p>
 
       <div class="composer" id="composer">
@@ -449,7 +449,7 @@
             <button type="button" class="md-icon-btn md-state pop-close" aria-label="閉じる"><svg class="ic" data-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </header>
 
-      <!-- 旅の目的（js/purpose.js）。
+      <!-- 旅の目的（packages/core/src/purpose.js）。
            ------------------------------------------------------------
            興味は「何が見たいか」、目的は「どう過ごしたいか」です。同じ
            箱根でも、デートとアクティブでは回る場所が違います。
@@ -530,7 +530,7 @@
            どうかを分けます。距離からは推し量れません。 -->
       <!-- 人数。
            ------------------------------------------------------------
-           費用の計算（js/cost.js）は people を受け取れるのに、**聞く欄が
+           費用の計算（packages/core/src/cost.js）は people を受け取れるのに、**聞く欄が
            どこにもありませんでした。** つねに1人ぶんの概算です。
            2人旅や家族で「ひとり3万円まで」を選ぶと、合計が実態と
            ずれます（宿は人数ぶん、入場も人数ぶんかかります）。 -->

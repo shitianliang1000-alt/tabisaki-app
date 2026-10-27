@@ -7,13 +7,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { areaScope, blockOf, detectAreas } from "../js/areas.js";
-import { wantsToEnjoyTravel, readIntent } from "../js/intent.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip, spreadCandidates } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { scoreItinerary } from "../js/score.js";
-import { makeTrip } from "../js/trip.js";
+import { areaScope, blockOf, detectAreas } from "../packages/core/src/areas.js";
+import { wantsToEnjoyTravel, readIntent } from "../packages/core/src/intent.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip, spreadCandidates } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { scoreItinerary } from "../packages/core/src/score.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 
@@ -137,7 +137,7 @@ test("移動を楽しむ旅では、移動が長いことを減点しない", ()
 });
 
 test("「日本全国有名なところ」を、地名「日本全国有名」として扱わない", async () => {
-  const { extractKeywords } = await import("../js/keywords.js");
+  const { extractKeywords } = await import("../packages/core/src/keywords.js");
   assert.deepEqual(extractKeywords("日本全国有名なところに行きたい").keywords,
                    ["日本全国"]);
   assert.deepEqual(extractKeywords("四国観光地めぐり").keywords, ["四国"]);

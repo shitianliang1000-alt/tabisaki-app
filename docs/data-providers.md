@@ -1,8 +1,8 @@
 # 外のデータの取り口（プロバイダー）
 
-経路・天気・地名・スポットを「どこからもらうか」を、旅程を組む本体から切り離しています。取り口（API）が止まったり規約が変わったりしても、アダプタを1つ差し替えるだけで済み、本体（`js/pipeline.js`・`js/routes.js`）は書き直しません。
+経路・天気・地名・スポットを「どこからもらうか」を、旅程を組む本体から切り離しています。取り口（API）が止まったり規約が変わったりしても、アダプタを1つ差し替えるだけで済み、本体（`packages/core/src/pipeline.js`・`packages/core/src/routes.js`）は書き直しません。
 
-中身は [`js/providers.js`](../js/providers.js) にあります。
+中身は [`packages/core/src/providers.js`](../packages/core/src/providers.js) にあります。
 
 ## 取り口の種類
 
@@ -82,7 +82,7 @@ const core = await createCore({ providers: { routing: "mock", weather: "mock" } 
 ### Web 版・テスト
 
 ```js
-import { useProvider, useProviders, resetProviders } from "./js/providers.js";
+import { useProvider, useProviders, resetProviders } from "./packages/core/src/providers.js";
 
 useProvider("routing", "mock");
 useProviders({ weather: "off", geocoding: "gsi" });
@@ -94,7 +94,7 @@ resetProviders(); // 既定に戻す
 同じ形を返すアダプタを書いて、登録します。足りない関数があると `registerProvider` が断ります。
 
 ```js
-import { registerProvider, toProviderError, useProvider } from "./js/providers.js";
+import { registerProvider, toProviderError, useProvider } from "./packages/core/src/providers.js";
 
 registerProvider({
   kind: "routing",

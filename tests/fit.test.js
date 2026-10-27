@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AXES, qualityOf, spotFit, tripFit } from "../js/fit.js";
-import { makeTrip } from "../js/trip.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const d = (s) => new Date(s);
 

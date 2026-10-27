@@ -16,12 +16,12 @@ globalThis.fetch = async (url) => {
   const body = await readFile(path, "utf8");
   return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
 };
-const { loadKnowledgeBase } = await import(ROOT + "js/kb.js");
-const { planTrip } = await import(ROOT + "js/pipeline.js");
-const { findPlace } = await import(ROOT + "js/places.js");
-const { makeTrip } = await import(ROOT + "js/trip.js");
-const { haversineKm } = await import(ROOT + "js/feasibility.js");
-const { sunTimes } = await import(ROOT + "js/sun.js").catch(() => ({}));
+const { loadKnowledgeBase } = await import(ROOT + "packages/core/src/kb.js");
+const { planTrip } = await import(ROOT + "packages/core/src/pipeline.js");
+const { findPlace } = await import(ROOT + "packages/core/src/places.js");
+const { makeTrip } = await import(ROOT + "packages/core/src/trip.js");
+const { haversineKm } = await import(ROOT + "packages/core/src/feasibility.js");
+const { sunTimes } = await import(ROOT + "packages/core/src/sun.js").catch(() => ({}));
 const kb = await loadKnowledgeBase();
 
 const CASES = [

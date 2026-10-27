@@ -12,7 +12,7 @@ import test from "node:test";
 
 import {
   describeTransit, summarizeTransitLeg, summarizeYahooRoute, transitFieldMask,
-} from "../js/transit.js";
+} from "../packages/core/src/transit.js";
 
 /** 大阪 → 京都（乗り換え1回）を模した応答。 */
 const LEG = {

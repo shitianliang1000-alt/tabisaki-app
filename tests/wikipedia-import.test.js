@@ -32,7 +32,7 @@ test("出典は Wikipedia とだけ書く", () => {
 
 test("一覧の分類が、収録にすでにある名前に寄せてある", () => {
   // 新しい分類名を作ると、滞在時間も同行者の判定も既定値になります
-  // （js/access.js・js/arrive.js・js/replan.js・js/art.js はどれも
+  // （packages/core/src/access.js・js/arrive.js・packages/core/src/replan.js・js/art.js はどれも
   //  分類で動きます）。収録に無い名前を増やさないこと。
   const block = fetcher.match(/^LISTS = \{([\s\S]*?)^\}/m)[1];
   const cats = new Set([...block.matchAll(/:\s*"([^"]+)",/g)].map((m) => m[1]));
@@ -179,7 +179,7 @@ test("広い場所（国立公園・山地・半島・湾…）を外さず、�
   const importer = read("tools/import_wikipedia_lists.py");
   // はじめは「1点にならない」として、国立公園・山地・半島・湾・諸島など
   // 83件を外していました。ところがアプリには**広い場所の扱い**が最初から
-  // あります（js/shapes.js）。「代表の1点で、入口ではありません」と旅程に
+  // あります（packages/core/src/shapes.js）。「代表の1点で、入口ではありません」と旅程に
   // 書き、名前がその場所から始まる収録を「中の行き先」として挙げます。
   // 分からないことを分からないと言う仕組みを踏まえず、外していました。
   const bad = importer.slice(importer.indexOf("BAD_SUFFIX = ("),

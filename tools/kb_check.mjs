@@ -19,9 +19,9 @@ const ROOT = path.join(import.meta.dirname, "..");
 
 export const REQUIRED = ["id", "regionId", "name", "category", "lat", "lng", "fame_tier"];
 export const FAME_TIERS = new Set(["major", "known", "hidden"]);
-// アプリが知っている分類（js/feasibility.js の滞在時間・営業時間の表と、
+// アプリが知っている分類（packages/core/src/feasibility.js の滞在時間・営業時間の表と、
 // ジャンルの表にあるもの）。ここに無い分類は、営業時間も料金も既定値に
-// 黙って落ちるので、誤りとして止めます。足すときは js/feasibility.js にも足します。
+// 黙って落ちるので、誤りとして止めます。足すときは packages/core/src/feasibility.js にも足します。
 export const CATEGORIES = new Set([
   "観光名所", "寺院", "神社", "教会", "城", "史跡", "世界遺産", "町並み", "建築", "名勝", "天然記念物",
   "博物館", "美術館", "文化施設", "公園", "庭園", "国立公園", "国定公園", "自然",

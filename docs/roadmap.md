@@ -28,7 +28,7 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | 🚧 一部（Node.js から使う入口。`js/` の移しはまだ） | #348 |
+| 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | ✅ ある（本体は `packages/core/src/`。Web 版もここを読む） | #348 |
 | `tabisaki plan "温泉と海" --days=2 --output=markdown` の CLI（[cli-usage.md](./cli-usage.md)） | ✅ ある（通信なし・移動は距離の目安） | #349 |
 | 端末の中で旅程を見る TUI（`./tabisaki tui`、[cli-usage.md](./cli-usage.md)） | ✅ ある（見るだけ。並べ替えはまだ） | #350 |
 | Docker で動く手元の API（`POST /v1/plan`、[self-hosting.md](./self-hosting.md)） | ✅ ある（認証なし・127.0.0.1 だけ） | #351 |
@@ -39,7 +39,7 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| 手元の LLM（Ollama など）で旅程を組む | 🚧 一部（`js/config.js` の `MODEL_PROVIDER = "local"`） | #352 |
+| 手元の LLM（Ollama など）で旅程を組む | 🚧 一部（`packages/core/src/config.js` の `MODEL_PROVIDER = "local"`） | #352 |
 | 地域ごとの知識ベースの切り出し・似たスポットの検索 | 📝 計画 | #353 |
 | 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |

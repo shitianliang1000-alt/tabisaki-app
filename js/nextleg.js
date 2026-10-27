@@ -27,7 +27,7 @@
 //   ・目安だけで組んだ区間は引き直せません。どの駅から乗るのかが
 //     分からないので、聞く相手がいません。
 
-import { clockMinutes, lateMinutes, stationsOf } from "./lasttrain.js";
+import { clockMinutes, lateMinutes, stationsOf } from "../packages/core/src/lasttrain.js";
 
 /** これ以上ずれたら、「この先が押します」と書きます（分）。 */
 export const PUSH_MIN = 10;
@@ -64,7 +64,7 @@ export function nextRide(itin, now = new Date()) {
  * 予定の便と、いま引き直した便の差（分）。
  *
  * 日をまたぐ便があるので、午前4時より前の発車は「翌日」として
- * 数えます（js/lasttrain.js と同じ数えかたです）。
+ * 数えます（packages/core/src/lasttrain.js と同じ数えかたです）。
  *
  * @returns {number|null} 正なら遅い便になった、負なら早い便に乗れる
  */

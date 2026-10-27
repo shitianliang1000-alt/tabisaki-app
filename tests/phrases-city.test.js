@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { detectAreas, originCity } from "../js/areas.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+import { detectAreas, originCity } from "../packages/core/src/areas.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, ...rest) => String(url).startsWith("file:")

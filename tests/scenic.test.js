@@ -17,7 +17,7 @@ import test from "node:test";
 
 import {
   SCENIC_LINES, SCENIC_ROADS, attachScenic, roadsNear, scenicLine,
-} from "../js/scenic.js";
+} from "../packages/core/src/scenic.js";
 
 test("乗る路線の名前から、その路線だと分かる", () => {
   // 調べた結果に書いてある名前に当てるだけです。推し量りません。

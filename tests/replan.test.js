@@ -14,8 +14,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { indoorness, pickIndoorAlternative, suggestReplan, applyReplan }
-  from "../js/replan.js";
-import { makeTrip } from "../js/trip.js";
+  from "../packages/core/src/replan.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const d = (s) => new Date(s);
 

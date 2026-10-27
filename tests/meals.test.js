@@ -14,8 +14,8 @@ import test from "node:test";
 
 import {
   DIETS, FOOD_GENRES, attachMeals, dietNote, dietQuery, isFoodSpot, localFoodsFor, mealDetail, nearbyFoodSpot, normalizeDiet, pickDish,
-} from "../js/meals.js";
-import { makeTrip } from "../js/trip.js";
+} from "../packages/core/src/meals.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const d = (s) => new Date(s);
 const at = (km) => 34.348 + km / 111;

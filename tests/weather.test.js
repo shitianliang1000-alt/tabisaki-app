@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { forecastFor, hourly, rainAt, summarizeDay } from "../js/weather.js";
+import { forecastFor, hourly, rainAt, summarizeDay } from "../packages/core/src/weather.js";
 
 function store() {
   const m = new Map();

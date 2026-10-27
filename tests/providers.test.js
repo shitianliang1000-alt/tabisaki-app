@@ -1,4 +1,4 @@
-// 外のデータの取り口（js/providers.js）のテスト。
+// 外のデータの取り口（packages/core/src/providers.js）のテスト。
 //
 // 取り口ごとに「決まった形で返るか」「失敗が ProviderError にそろうか」
 // 「切り替えたら本体がそれを使うか」を確かめます。キーも通信も要りません。
@@ -12,7 +12,7 @@ import {
   getProvider, listProviders, localGeocoding, normalizeGsi, offRouting,
   offWeather, registerProvider, resetProviders, toProviderError, useProvider,
   useProviders, yahooRouting,
-} from "../js/providers.js";
+} from "../packages/core/src/providers.js";
 
 const TOKYO = { name: "東京駅", lat: 35.6812, lng: 139.7671 };
 const HAKONE = { name: "箱根湯本駅", lat: 35.2325, lng: 139.1063 };
@@ -178,7 +178,7 @@ test("Yahoo!の取り口の答えには、どこの答えかが付く", async ()
 });
 
 test("経路が使えない取り口なら、旅程の本体は聞きに行かず目安で組む", async () => {
-  const { computeRoute, resetRoutesBreaker } = await import("../js/routes.js");
+  const { computeRoute, resetRoutesBreaker } = await import("../packages/core/src/routes.js");
   let calls = 0;
   registerProvider({
     kind: "routing", name: "test-off", available: false,
@@ -201,7 +201,7 @@ test("経路が使えない取り口なら、旅程の本体は聞きに行か�
 });
 
 test("mock の経路に切り替えると、旅程の本体はその答えを使う", async () => {
-  const { computeRoute, resetRoutesBreaker } = await import("../js/routes.js");
+  const { computeRoute, resetRoutesBreaker } = await import("../packages/core/src/routes.js");
   const mock = registerProvider(createMockRouting({ name: "test-mock" }));
   useProvider("routing", "test-mock");
   try {
@@ -223,7 +223,7 @@ test("mock の天気は、時間ごとの行を Forecast の形で返す", async
   assert.equal(f.rows.length, 24);
   assert.ok(f.rows[0].at instanceof Date);
   assert.equal(f.rows[12].rain, 70);
-  const { summarizeDay } = await import("../js/weather.js");
+  const { summarizeDay } = await import("../packages/core/src/weather.js");
   assert.match(summarizeDay(f), /雨の可能性/);
 });
 

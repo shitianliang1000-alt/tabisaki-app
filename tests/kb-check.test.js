@@ -73,6 +73,6 @@ test("Markdown のまとめに、件数と誤りが出る", () => {
 });
 
 test("kb_check の分類は、アプリの営業時間の表と食い違わない", async () => {
-  const src = (await import("node:fs")).readFileSync(new URL("../js/feasibility.js", import.meta.url), "utf8");
-  for (const c of CATEGORIES) assert.ok(src.includes(`${c}:`), `js/feasibility.js に分類「${c}」がありません`);
+  const src = (await import("node:fs")).readFileSync(new URL("../packages/core/src/feasibility.js", import.meta.url), "utf8");
+  for (const c of CATEGORIES) assert.ok(src.includes(`${c}:`), `packages/core/src/feasibility.js に分類「${c}」がありません`);
 });

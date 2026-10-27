@@ -191,12 +191,12 @@ export function readChat(text, now = new Date()) {
   if (out.avoidCrowds === true) L.push("混雑を避ける");
   if (out.avoidCrowds === false) L.push("混雑は気にしない");
   if (out.people) L.push(`${out.people}人`);
-  // 旅の目的（デート・アクティブ…）も js/pipeline.js が文から読みます。
+  // 旅の目的（デート・アクティブ…）も packages/core/src/pipeline.js が文から読みます。
   // 設定（こだわりの「旅の目的」）にも書き込みます（js/app.js の applyChat）。
   out.purposes = readPurposes(src);
   if (out.purposes.length) rest = stripPurposeWords(rest);
   for (const id of out.purposes) L.push(`目的: ${purposeLabel(id)}`);
-  // 乗り物と旅の形は js/pipeline.js が読みます（文が設定に勝ちます）。
+  // 乗り物と旅の形は packages/core/src/pipeline.js が読みます（文が設定に勝ちます）。
   // ここでは、読んだことが見えるように札だけ出します。
   if (/青春18|18きっぷ|鈍行|各駅停車|普通列車(?:のみ|だけ|で)/.test(src)) L.push("普通列車のみ");
   if (/日本(?:列島)?縦断|列島縦断/.test(src)) L.push("日本縦断（片道）");

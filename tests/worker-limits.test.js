@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import worker, { RateLimiter, costOf } from "../server/worker.js";
-import { readProxyError } from "../js/endpoints.js";
+import { readProxyError } from "../packages/core/src/endpoints.js";
 
 const ORIGIN = "https://shitianliang1000-alt.github.io";
 

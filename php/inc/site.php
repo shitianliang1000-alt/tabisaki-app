@@ -16,7 +16,7 @@
 declare(strict_types=1);
 
 const SITE_NAME = '旅さき';
-/** AI の中継（js/config.js の PROXY_URL と同じもの）。 */
+/** AI の中継（packages/core/src/config.js の PROXY_URL と同じもの）。 */
 const PROXY_ORIGIN = 'https://tabisaki-github-io.shitianliang1000.workers.dev';
 /**
  * 検索エンジンに載せる正式なアドレス（canonical・OGP・構造化データ）。

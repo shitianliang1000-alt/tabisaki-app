@@ -6,11 +6,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { critique, relaxForItinerary, relaxForUnreachable } from "../js/relax.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip, PlanError } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+import { critique, relaxForItinerary, relaxForUnreachable } from "../packages/core/src/relax.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip, PlanError } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 const tokyo = findPlace("東京駅");

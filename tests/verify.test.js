@@ -6,9 +6,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { REJECT } from "../js/feasibility.js";
+import { REJECT } from "../packages/core/src/feasibility.js";
 import { issuesToPrompt, keepFeasible, trimKeepingPicks, trimToFit, verifyOrder }
-  from "../js/verify.js";
+  from "../packages/core/src/verify.js";
 
 const d = (s) => new Date(s);
 const TOKYO = { name: "東京駅", lat: 35.681236, lng: 139.767125 };

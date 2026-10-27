@@ -12,7 +12,7 @@
 //        ↓
 //     Gemini / Routes API / Yahoo!路線情報
 //
-// `js/config.js` の PROXY_URL にその入口を書くと、このモジュールが
+// `packages/core/src/config.js` の PROXY_URL にその入口を書くと、このモジュールが
 // 行き先を切り替えます。**キーはヘッダーに載せません**（サーバーが
 // 付けるので、ブラウザが持つ必要がありません）。
 //
@@ -119,7 +119,7 @@ export function endpointFor(what, args = {}, cfg = {}) {
   }
   if (what === "local:generate") {
     const raw = String(cfg.localBaseUrl ?? "").trim().replace(/\/+$/, "");
-    if (!raw) throw new Error("LOCAL_BASE_URL が未設定です（js/config.js）");
+    if (!raw) throw new Error("LOCAL_BASE_URL が未設定です（packages/core/src/config.js）");
     return `${raw}/v1/chat/completions`;
   }
   if (what === "gemini:generate") {

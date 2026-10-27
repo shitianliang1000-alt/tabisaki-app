@@ -41,7 +41,7 @@
 // 縦横の比は保ちます。枠に合わせて引き伸ばすと、同じ10kmが縦と横で
 // 別の長さになり、縮尺が意味を失います。
 
-import { haversineKm } from "./feasibility.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
 
 const NS = "http://www.w3.org/2000/svg";
 

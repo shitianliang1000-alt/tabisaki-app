@@ -9,13 +9,13 @@
 //     base-uri 'none';
 //
 // 見た目には並んで書いてあるので、読んでも気づけません。
-// js/config.js の PROXY_URL と突き合わせて、機械に見張らせます。
+// packages/core/src/config.js の PROXY_URL と突き合わせて、機械に見張らせます。
 
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-import { PROXY_URL } from "../js/config.js";
+import { PROXY_URL } from "../packages/core/src/config.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -49,7 +49,7 @@ for (const file of ["index.html", "admin/index.html"]) {
 // 相手には1件も届きません。js/ が実際に呼んでいる先と突き合わせます。
 test("天気を聞く先が、ぜんぶ通してある", async () => {
   const sources = await connectSrc("index.html");
-  const js = ["js/weather.js", "js/normals.js"];
+  const js = ["packages/core/src/weather.js", "packages/core/src/normals.js"];
   const hosts = new Set();
   for (const f of js) {
     const src = await readFile(new URL(f, root), "utf8");

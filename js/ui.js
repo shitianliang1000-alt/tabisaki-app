@@ -1,23 +1,23 @@
 // 画面の描画。DOM 操作はここに閉じ込め、ロジックは他のモジュールに任せます。
 
 import { directionsFromHereUrl, linksForItem, mapsSearchUrl } from "./links.js";
-import { TIER_LABEL } from "./mix.js";
-import { profileOf } from "./feasibility.js";
-import { crowdLevel } from "./crowd.js";
-import { describeHours, hoursFor } from "./hours.js";
-import { describeTransit } from "./transit.js";
+import { TIER_LABEL } from "../packages/core/src/mix.js";
+import { profileOf } from "../packages/core/src/feasibility.js";
+import { crowdLevel } from "../packages/core/src/crowd.js";
+import { describeHours, hoursFor } from "../packages/core/src/hours.js";
+import { describeTransit } from "../packages/core/src/transit.js";
 import { artFor } from "./art.js";
 import { confidenceOf, describeSource, freshnessOf, reservationOf }
   from "./confidence.js";
-import { paceBreakdown, slackLevel } from "./score.js";
+import { paceBreakdown, slackLevel } from "../packages/core/src/score.js";
 import { VARIANTS } from "./variants.js";
 import { qualityOf, spotFit, tripFit } from "./fit.js";
 import { currentStep } from "./today.js";
 import { photoFor, photoPageOf } from "./photos.js";
-import { estimatedTravel } from "./reliability.js";
-import { isTouring, longDriveNote, restSlots } from "./touring.js";
+import { estimatedTravel } from "../packages/core/src/reliability.js";
+import { isTouring, longDriveNote, restSlots } from "../packages/core/src/touring.js";
 import { itineraryText } from "./share.js";
-import { KIND_NOTE } from "./modes.js";
+import { KIND_NOTE } from "../packages/core/src/modes.js";
 import { icon } from "./icons.js";
 import { NOTICE_LIMITS } from "./notify.js";
 import { describeOrderDiff } from "./orderdiff.js";
@@ -909,7 +909,7 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     //
     // **予報ではありません。** 過去の観測の平均です。ここを読み違えると
     // 「10月20日は24℃」になるので、文のほうにも必ず書いてあります
-    // （js/normals.js の describeNormals）。
+    // （packages/core/src/normals.js の describeNormals）。
     if (rp.normals?.text) {
       box.append(el("p", { class: "normals" },
         icon("sunset"),
@@ -1110,8 +1110,8 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
 
     // その日ぜんぶに関わる一言。行ごとの注記とは別に、日の頭に置きます。
     //
-    //   passNote  … 同じ会社に何回乗るか（js/tickets.js）
-    //   walkLoad  … 移動だけでどれだけ歩くか（js/access.js）
+    //   passNote  … 同じ会社に何回乗るか（packages/core/src/tickets.js）
+    //   walkLoad  … 移動だけでどれだけ歩くか（packages/core/src/access.js）
     //
     // walkLoad は書き足されていたのに、**どこにも出していませんでした**。
     // 数えたものを画面に出さないのは、数えていないのと同じです。
@@ -2192,7 +2192,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
       line.append(" ", srcChip(c, "", src));
     }
     info.append(line);
-    // 乗り物ならではの断り書き（js/modes.js の KIND_NOTE）。
+    // 乗り物ならではの断り書き（packages/core/src/modes.js の KIND_NOTE）。
     //
     // 「4時間46分」とだけ出しても、空路の区間は現地で足りません。
     // 空港には早く着く必要があり、搭乗券は別に取る必要があります。
@@ -2228,7 +2228,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
         icon(item.requeried.level === "push" ? "warn" : "transit"),
         el("span", {}, item.requeried.text)));
     }
-    // 切符のこと（js/tickets.js）。
+    // 切符のこと（packages/core/src/tickets.js）。
     //
     // 「15,290円」と書いてあっても、当日みどりの窓口の前で止まります。
     // 新幹線は乗車券と特急券の2枚で、指定席か自由席かを買うときに
@@ -2239,7 +2239,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
         icon("ticket"),
         el("span", {}, t.text)));
     }
-    // 終電の線（js/lasttrain.js）。
+    // 終電の線（packages/core/src/lasttrain.js）。
     //
     // 「18:40発」とだけ書いてあっても、あと何分粘れるのかが
     // 分かりません。その駅の終電を並べて置きます。
@@ -2275,7 +2275,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
             + `（1回15分・合計${rest.minutes}分）。${rest.note}`)));
       }
     }
-    // 移動そのものの楽しみ（js/scenic.js）。
+    // 移動そのものの楽しみ（packages/core/src/scenic.js）。
     //
     // 走る道と乗る路線では、**確かさが違います**。路線は調べた結果に
     // 名前が書いてあるので言い切れますが、どの道を通るかは分かりません。
@@ -2358,7 +2358,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
       el("span", {}, parts.join(""))));
   }
 
-  // 同行者のための一言（js/access.js）。
+  // 同行者のための一言（packages/core/src/access.js）。
   //
   // 収録に「バリアフリーかどうか」はありません。持っているのは分類
   // だけなので、**「行けません」とは言いません**。何がつらい分類
@@ -2621,7 +2621,7 @@ export function openSheet(item, { onClose, describe }) {
     row(day.closed ? "この日は" : "見学できる時間", hours),
     row("入場料", prof.fee === 0 ? "無料" : `¥${prof.fee.toLocaleString()}`),
     // いつの情報か。出どころ（下の印）と鮮度は別のことなので、並べて出します。
-    // 収録の日付は「取り込んだ日」です（js/kb.js の FETCHED_ON）。
+    // 収録の日付は「取り込んだ日」です（packages/core/src/kb.js の FETCHED_ON）。
     row("情報の日付", freshnessOf(spot.fetchedAt).text)));
 
   // 情報の出どころ。営業時間と料金で違うことがあるので、分けて出します。
