@@ -68,7 +68,7 @@ for (const [file, doc] of shards) writeFileSync(join(KB, file), dump(doc));
   }
   if (index.counts) index.counts.spots = all.length;
   writeFileSync(indexPath, dump(index));
-  console.log(`収録 ${all.length}件（README の件数の表と合わせてください）。`);
+  console.log(`収録 ${all.length}件（README と docs/knowledge-base.md の件数と合わせてください）。`);
 }
 
 // 名前の索引（tools/reshard_kb.py・tools/drop_not_spots.mjs と同じ作り）。
