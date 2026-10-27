@@ -8,6 +8,7 @@
 // 終了コード: 0 = 組めた、1 = 組めなかった、2 = 使いかたのまちがい
 
 import { readFileSync } from "node:fs";
+import { JOURNEY_COMMANDS, JOURNEY_HELP, runJourney } from "../../journey/cli.mjs";
 
 const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
@@ -23,6 +24,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --lang=<言語>       ja / en（既定: ja。環境変数 TABISAKI_LANG でも決められます）
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
+  tabisaki build|test|diff|narrate <trip.yaml>  旅程ファイルを使う（下に詳しく）
   tabisaki help       これを出す
   tabisaki --version  版を出す
 
@@ -31,9 +33,10 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   tabisaki plan "京都で歴史を感じたい" --from=新大阪駅 --date=2026-11-03
 
 時刻はすべて日本時間です。移動時間は距離からの目安で、実際の乗換は調べません。
-`;
 
-const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang"]);
+${JOURNEY_HELP}`;
+
+const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "style"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
 const PLANNED = { local: "#352", model: "#352" };
 
@@ -59,12 +62,42 @@ function usage(message) {
   return e;
 }
 
+/**
+ * 本体のログ（console.log・warn）は stderr へ。stdout は旅程だけにします（パイプで使えるように）。
+ * 旅程を組む間は、ログを止めます。TABISAKI_DEBUG=1 なら stderr に出します。
+ */
+async function quietly(stderr, fn) {
+  const { log, warn, info } = console;
+  const toErr = (...a) => stderr.write(a.map(String).join(" ") + "\n");
+  const quiet = () => {};
+  console.log = console.info = process.env.TABISAKI_DEBUG ? toErr : quiet;
+  console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
+  try {
+    return await fn();
+  } finally {
+    console.log = log; console.warn = warn; console.info = info;
+  }
+}
+
 export async function main(argv, { stdout = process.stdout, stderr = process.stderr } = {}) {
   try {
     const { opts, words } = parseArgs(argv);
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
+    if (JOURNEY_COMMANDS.includes(cmd)) {
+      for (const k of ["from", "days", "date", "start", "back", "transport"]) {
+        if (opts[k] !== undefined) throw usage(`--${k} は旅程ファイルの中に書いてください（${k}: …）`);
+      }
+      if (opts.style && cmd !== "narrate") throw usage("--style は narrate だけで使えます");
+      if ((opts.output || opts.lang) && cmd !== "build") throw usage(`--${opts.output ? "output" : "lang"} は build だけで使えます`);
+      const core = await import("../../core/index.mjs");
+      if (opts.lang !== undefined && !core.pickLang(opts.lang)) throw usage(`--lang は ${core.LANGS.join(" / ")} のどれかです`);
+      return await quietly(stderr, () => runJourney(cmd, rest, { ...opts, lang: opts.lang && core.resolveLang(opts.lang) }, {
+        stdout, stderr, format: core, core: () => core.createCore(),
+      }));
+    }
+    if (opts.style) throw usage("--style は narrate だけで使えます");
     if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     const wish = rest.join(" ").trim();
     if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
@@ -78,24 +111,13 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     const lang = core.resolveLang(opts.lang);
     const days = opts.days === undefined ? undefined : Number(opts.days);
 
-    // 本体のログ（console.log・warn）は stderr へ。stdout は旅程だけにします（パイプで使えるように）。
-    const log = console.log;
-    const warn = console.warn;
-    const info = console.info;
-    const toErr = (...a) => stderr.write(a.map(String).join(" ") + "\n");
-    const quiet = () => {};
-    console.log = console.info = process.env.TABISAKI_DEBUG ? toErr : quiet;
-    console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
-    let result;
-    try {
+    const result = await quietly(stderr, async () => {
       const c = await core.createCore();
-      result = await c.plan({
+      return c.plan({
         wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
         transport: opts.transport,
       });
-    } finally {
-      console.log = log; console.warn = warn; console.info = info;
-    }
+    });
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);
@@ -106,7 +128,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     stdout.write(text);
     return 0;
   } catch (e) {
-    stderr.write(`tabisaki: ${e?.message ?? e}\n`);
+    for (const line of String(e?.message ?? e).split("\n")) stderr.write(`tabisaki: ${line}\n`);
     if (e?.exitCode) return e.exitCode;
     if (e?.code === "invalid_input" || e?.code === "unknown_place") return 2;
     return 1;

@@ -29,6 +29,7 @@
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
+* 旅程を YAML のファイルに書いて、`build`・`test`・`diff`・`narrate` で組む・確かめる・比べる・文にする（[Journey as Code](docs/journey-as-code.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない
 

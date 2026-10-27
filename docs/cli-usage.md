@@ -77,6 +77,17 @@ Web 版と同じエンジン（`js/`）で組むので、AI を使わないと�
 | 1 | 組めなかった（エンジンの中のエラー） |
 | 2 | 使いかたのまちがい（希望の文が無い、知らない駅、日数がおかしい、など） |
 
+## 旅程をファイルに書く（Journey as Code）
+
+条件を YAML のファイルに書いておけば、同じ旅程をいつでも組み直せ、条件を守っているかを確かめられます。
+
+```sh
+./tabisaki build examples/trips/hakone.yaml
+./tabisaki test examples/trips/hakone.yaml
+```
+
+書きかたとコマンドは [journey-as-code.md](./journey-as-code.md) にあります。
+
 ## 端末の中で見る（TUI）
 
 ```sh

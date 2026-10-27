@@ -1,0 +1,22 @@
+# 旅さきの旅程ファイル（Journey as Code）。書きかたは docs/journey-as-code.md
+#
+#   ./tabisaki build examples/trips/hakone.yaml     組む
+#   ./tabisaki test examples/trips/hakone.yaml      条件を守っているか確かめる
+#   ./tabisaki narrate examples/trips/hakone.yaml   旅の文にする
+version: 1
+title: 秋の箱根で温泉と美術館
+wish: 箱根で温泉と美術館をゆっくり楽しみたい
+from: 東京駅
+date: "2026-11-07"
+days: 2
+start: "08:00"
+back: "20:00"
+transport: transit
+constraints:
+  must_visit: [ポーラ美術館]
+  budget_yen: 60000
+  max_spots_per_day: 6
+  respect_hours: true
+output:
+  format: markdown
+  narrate: blog

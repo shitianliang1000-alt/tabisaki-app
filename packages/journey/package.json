@@ -1,0 +1,10 @@
+{
+  "name": "tabisaki-journey",
+  "version": "0.1.0",
+  "private": true,
+  "description": "旅さき: 旅程を YAML のファイルに書いて、組む・確かめる・比べる（Journey as Code）",
+  "type": "module",
+  "exports": { ".": "./index.mjs", "./yaml": "./yaml.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}
