@@ -47,7 +47,7 @@ import { requeryNextLeg } from "./nextleg.js";
 import { orderDiff } from "./orderdiff.js";
 import { reachOf } from "./reach.js";
 import { clearTripMode, loadTripMode, saveTripMode } from "./tripmode.js";
-import { searchYahooTransit } from "./yahoo-transit.js";
+import { getProvider } from "./providers.js";
 import { yahooFlags } from "./modes.js";
 import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory, removeHistory,
@@ -2891,7 +2891,7 @@ function renderTodayBox(itin, trip) {
       try {
         got = await requeryNextLeg(itin, async (from, to, when) => {
           try {
-            return await searchYahooTransit(from, to, {
+            return await getProvider("routing").search(from, to, {
               departAt: when,
               modes: yahooFlags(trip.transport ?? "any"),
             });
