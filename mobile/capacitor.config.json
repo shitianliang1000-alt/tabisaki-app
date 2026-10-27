@@ -1,0 +1,19 @@
+{
+  "appId": "jp.tabisaki.app",
+  "appName": "旅さき",
+  "webDir": "www",
+  "server": {
+    "hostname": "app.tabisaki",
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}
