@@ -416,8 +416,8 @@ export function phraseAreas(phrases, kb) {
  *
  * そこで、
  *   ・点の場所（お寺・美術館）なら、そのエリア
- *   ・広い場所（湖・島・高原・山…。js/shapes.js）なら、代表の点から
- *     WIDE_REACH_KM（js/shapes.js）以内にあるエリアをまとめて
+ *   ・広い場所（湖・島・高原・山…。packages/core/src/shapes.js）なら、代表の点から
+ *     WIDE_REACH_KM（packages/core/src/shapes.js）以内にあるエリアをまとめて
  * を候補にします。湖のまわりの浜は、それぞれのエリアの中から選ばれます。
  *
  * 当てるのは、定番か知られた場所（fame_tier）で、3文字以上の名前だけ
@@ -561,7 +561,7 @@ const NOT_PLACE = new Set([
  *
  * 収録と照らす前の段階です。段を遅れて読むようにしたので、
  * **照らす相手（名前の索引）を取りにいく必要があるかどうか**を、
- * 通信の前に知りたい、という用途です（js/kb.js の ensureNames）。
+ * 通信の前に知りたい、という用途です（packages/core/src/kb.js の ensureNames）。
  * 拾うものが無ければ、索引は要りません。
  */
 export function placeCandidates(text) {
@@ -592,7 +592,7 @@ export function unknownPlaceTerms(text, kb) {
   // 黙っているほうが正しい）。
   if (!s.trim() || !(kb?.spots?.length || kb?.names)) return [];
   const haystack = kb.__searchHaystack ?? (kb.__searchHaystack = [
-    // 名前の索引。段を遅れて読んでも、判定は変わりません（js/kb.js）。
+    // 名前の索引。段を遅れて読んでも、判定は変わりません（packages/core/src/kb.js）。
     kb.names ?? "",
     ...kb.spots.map((x) => `${x.name} ${x.region} ${x.prefecture} ${x.category} ${x.description ?? ""}`),
     ...kb.regions.map((r) => `${r.name} ${r.prefecture} ${r.station ?? ""} ${r.description ?? ""}`),

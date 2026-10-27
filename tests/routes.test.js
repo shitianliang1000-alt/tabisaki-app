@@ -8,9 +8,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { summarizeTransitLeg } from "../js/transit.js";
+import { summarizeTransitLeg } from "../packages/core/src/transit.js";
 
-import { buildRouteRequest, legDetailLookup, pickMode } from "../js/routes.js";
+import { buildRouteRequest, legDetailLookup, pickMode } from "../packages/core/src/routes.js";
 
 const TOKYO = { lat: 35.6812, lng: 139.7671 };
 const SHINJUKU = { lat: 35.6909, lng: 139.7003 };
@@ -68,7 +68,7 @@ test("順序最適化は車のときだけ送る（徒歩に付けると 400 が
 
 // --- 呼びすぎ・呼ぶだけ無駄な呼び出しを止める ------------------------------
 
-import { routesBreakerState } from "../js/routes.js";
+import { routesBreakerState } from "../packages/core/src/routes.js";
 
 const WAKKANAI = { lat: 45.5228, lng: 141.9368 };
 const NAHA = { lat: 26.2124, lng: 127.6809 };
@@ -115,7 +115,7 @@ test("失敗が続いたら呼ぶのをやめる", () => {
 // --- 先の日付では時刻表が引けない ------------------------------------------
 
 import { TRANSIT_HORIZON_DAYS, neutralDepartureTime, transitDepartureTime }
-  from "../js/routes.js";
+  from "../packages/core/src/routes.js";
 
 test("時刻を指定しない問い合わせは、次の平日の昼で聞く", () => {
   // 出発時刻を送らないと Google は「押した瞬間」で調べます。深夜に
@@ -171,9 +171,9 @@ test("置き換えたことを、結果に書き添える", () => {
 
 import {
   MAX_POINTS, clearRouteCache, computeRoute, resetRoutesBreaker, resetTransitPacing, routesUsage,
-} from "../js/routes.js";
-import { TUNING } from "../js/config.js";
-import { resetStopsCache } from "../js/stops.js";
+} from "../packages/core/src/routes.js";
+import { TUNING } from "../packages/core/src/config.js";
+import { resetStopsCache } from "../packages/core/src/stops.js";
 
 /** 駅のデータを差し替えます（実データを取りに行かせないため）。 */
 function withStations(stops, fn) {
@@ -471,7 +471,7 @@ test("回数制限で断られたら、設定のせいにしない", () =>
       };
     };
     try {
-      const { diagnoseYahooTransit } = await import("../js/routes.js");
+      const { diagnoseYahooTransit } = await import("../packages/core/src/routes.js");
       const r = await diagnoseYahooTransit();
       assert.equal(r.ok, false);
       assert.equal(r.code, 429);
@@ -517,7 +517,7 @@ test("区間がいくつあっても、全部Yahoo!に聞く", () =>
 
 test("断られたら、しばらく聞きに行かない", async () => {
   const { searchYahooTransit, yahooCooldown, resetYahooCooldown }
-    = await import("../js/yahoo-transit.js");
+    = await import("../packages/core/src/yahoo-transit.js");
   resetYahooCooldown();
   const real = globalThis.fetch;
   let calls = 0;
@@ -631,7 +631,7 @@ test("何通り試しても引けなければ、目安に戻す（無限には�
 
 test("前の旅程で回数制限に当たっていても、待って調べ直す", async () => {
   const { resetYahooCooldown, searchYahooTransit } =
-    await import("../js/yahoo-transit.js");
+    await import("../packages/core/src/yahoo-transit.js");
   resetRoutesBreaker();
   resetTransitPacing();
   resetYahooCooldown();
@@ -648,7 +648,7 @@ test("前の旅程で回数制限に当たっていても、待って調べ直�
     { retryWaits: [], pace: false }).catch(() => {});
   globalThis.fetch = real;
 
-  const { yahooCooldown } = await import("../js/yahoo-transit.js");
+  const { yahooCooldown } = await import("../packages/core/src/yahoo-transit.js");
   assert.equal(yahooCooldown().waiting, true, "待ちに入っていません");
   assert.equal(yahooCooldown().retryable, true,
     "待てば通る断りだと分かっていません");
@@ -675,7 +675,7 @@ test("前の旅程で回数制限に当たっていても、待って調べ直�
 
 test("設定の不備で止まっているときは、組み直しで待ちを消す", async () => {
   const { resetYahooCooldown, searchYahooTransit, yahooCooldown } =
-    await import("../js/yahoo-transit.js");
+    await import("../packages/core/src/yahoo-transit.js");
   resetRoutesBreaker();
   resetTransitPacing();
   resetYahooCooldown();

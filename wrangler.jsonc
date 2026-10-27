@@ -8,7 +8,7 @@
 //     ✘ [ERROR] Missing entry-point to Worker script or to assets directory
 //
 // 名前は、実際に動いている Worker に合わせています
-// （js/config.js の PROXY_URL が指している先です）。ここを変えると、
+// （packages/core/src/config.js の PROXY_URL が指している先です）。ここを変えると、
 // 別の Worker に上がって、アプリからは前のままに見えます。
 //
 // キーは secret に入れます。このファイルには書かないでください
@@ -77,7 +77,7 @@
 
   // --- Workers AI ------------------------------------------------------
   // AIをこのWorkerの中で動かします。**Googleのキーは要りません。**
-  // js/config.js の MODEL_PROVIDER を "cloudflare" にすると、こちらを
+  // packages/core/src/config.js の MODEL_PROVIDER を "cloudflare" にすると、こちらを
   // 使います。料金は Cloudflare のアカウント側（無料枠あり）です。
   "ai": { "binding": "AI" },
 

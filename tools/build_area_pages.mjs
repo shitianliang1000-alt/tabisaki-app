@@ -11,7 +11,7 @@
 //   about.html                    旅さきの紹介（何ができるか・組んだ例）
 //   404.html                      無い URL を開いたときのページ
 //
-// モデルコースは、アプリと**同じエンジン**（js/pipeline.js）で組みます。
+// モデルコースは、アプリと**同じエンジン**（packages/core/src/pipeline.js）で組みます。
 // 中継（AI・経路検索）へは出ないので、移動時間は距離からの目安です。
 // ページにもそう書きます。
 //
@@ -30,10 +30,10 @@ import { dirname, join } from "node:path";
 
 import { renderAreaCard } from "./area_card.mjs";
 import { artFor } from "../js/art.js";
-import { normalizeName, sameThing } from "../js/dedupe.js";
+import { normalizeName, sameThing } from "../packages/core/src/dedupe.js";
 import { iconPath, STROKE_WIDTH } from "../js/icons.js";
 import { fitsAreaList, fitsHiddenList, gemScore } from "./gem.mjs";
-import { onlySpots } from "../js/notaspot.js";
+import { onlySpots } from "../packages/core/src/notaspot.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 
@@ -1045,9 +1045,9 @@ async function main(outDir) {
     const body = await readFile(path, "utf8");
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
   };
-  const { loadKnowledgeBase } = await import(join(ROOT, "js/kb.js"));
-  const { planTrip, dropSamePlace } = await import(join(ROOT, "js/pipeline.js"));
-  const { makeTrip } = await import(join(ROOT, "js/trip.js"));
+  const { loadKnowledgeBase } = await import(join(ROOT, "packages/core/src/kb.js"));
+  const { planTrip, dropSamePlace } = await import(join(ROOT, "packages/core/src/pipeline.js"));
+  const { makeTrip } = await import(join(ROOT, "packages/core/src/trip.js"));
   const kb = await loadKnowledgeBase();
 
   const planCourse = async (region, date, own, prefSpots = []) => {
@@ -1098,7 +1098,7 @@ async function main(outDir) {
   const days = gitDays(ROOT, kbFiles.map((f) => `kb/${f}`));
   const updated = new Map(kbFiles.filter((f) => days.has(`kb/${f}`)).map((f) => [f, days.get(`kb/${f}`)]));
   // トップ（アプリ）の日は、アプリを作っているファイルが最後に変わった日です。
-  const siteUpdated = latestDay([...gitDays(ROOT, ["index.html", "js", "css"]).values()]);
+  const siteUpdated = latestDay([...gitDays(ROOT, ["index.html", "js", "packages/core/src", "css"]).values()]);
 
   const { pages, intro, notFound, sitemap } = await buildAll({ index, regions, shards },
     { base, now: new Date(), planCourse, updated, siteUpdated });

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SEASONS, seasonalFor, eventNotesFor, validateEvents }
-  from "../js/events.js";
+  from "../packages/core/src/events.js";
 
 const d = (s) => new Date(s);
 

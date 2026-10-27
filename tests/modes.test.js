@@ -21,7 +21,7 @@ import test from "node:test";
 import {
   BOARDING_LEAD_MIN, KIND_NOTE, classifyLine, kindsOf, matchesPreference,
   preferredKinds, yahooFlags,
-} from "../js/modes.js";
+} from "../packages/core/src/modes.js";
 import { routeKinds } from "../server/worker.js";
 
 test("指定した乗り物だけ、旗が変わる", () => {

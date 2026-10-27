@@ -16,7 +16,7 @@ import test from "node:test";
 
 import { applyEdit, describeEdit, parseEdit, parseEditLocally }
   from "../js/edit.js";
-import { makeTrip } from "../js/trip.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const d = (s) => new Date(s);
 

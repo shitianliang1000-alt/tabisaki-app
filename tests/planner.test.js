@@ -4,12 +4,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildItinerary } from "../js/planner.js";
-import { verifyOrder } from "../js/verify.js";
-import { END_MODES, makeTrip } from "../js/trip.js";
-import { mixTargets, balanceByTier } from "../js/mix.js";
+import { buildItinerary } from "../packages/core/src/planner.js";
+import { verifyOrder } from "../packages/core/src/verify.js";
+import { END_MODES, makeTrip } from "../packages/core/src/trip.js";
+import { mixTargets, balanceByTier } from "../packages/core/src/mix.js";
 import { linksForItem, restaurantsUrl, hotelsUrl } from "../js/links.js";
-import { fittableSpots, rankRegions } from "../js/kb.js";
+import { fittableSpots, rankRegions } from "../packages/core/src/kb.js";
 
 const d = (s) => new Date(s);
 const TOKYO = { name: "東京駅", lat: 35.681236, lng: 139.767125 };
@@ -631,7 +631,7 @@ test("宿泊だけの日は作らず、前の晩に連泊としてまとめる",
 // --- AIに聞けなかったとき ---------------------------------------------------
 
 test("AIに聞けなかったら、そう言う", async () => {
-  const { aiStatus, noteAiError, resetAiStatus } = await import("../js/ai.js");
+  const { aiStatus, noteAiError, resetAiStatus } = await import("../packages/core/src/ai.js");
   resetAiStatus();
   assert.equal(aiStatus().error, null);
 
@@ -728,7 +728,7 @@ test("拠点を移したあとの日に、前のエリアの場所を入れな�
 });
 
 test("行き先が散らばらないように選ぶ", async () => {
-  const { coherentRegions } = await import("../js/ai.js");
+  const { coherentRegions } = await import("../packages/core/src/ai.js");
   const r = (name, lat, lng, score) =>
     ({ region: { id: name, name, lat, lng }, score });
   // 「3大都市の美術館と建築」で、鹿児島市・京都市・箱根が選ばれていました。
@@ -783,7 +783,7 @@ test("3.1kmを「徒歩」と書かない", () => {
 });
 
 test("「3大都市」のような言い回しを、言葉として分かる", async () => {
-  const { detectAreas, areaScope } = await import("../js/areas.js");
+  const { detectAreas, areaScope } = await import("../packages/core/src/areas.js");
   const kb = { regions: [
     { id: "tokyo", name: "東京・浅草", prefecture: "東京都" },
     { id: "osaka", name: "大阪市", prefecture: "大阪府" },
@@ -802,7 +802,7 @@ test("「3大都市」のような言い回しを、言葉として分かる", a
 });
 
 test("名指しされた街は、1つずつ回る", async () => {
-  const { coherentRegions } = await import("../js/ai.js");
+  const { coherentRegions } = await import("../packages/core/src/ai.js");
   const r = (id, name, lat, lng, score) =>
     ({ region: { id, name, lat, lng }, score });
   // 大阪の中に高い点が並んでいると、距離だけで選べば3つとも大阪になります。

@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-import { loadKnowledgeBase, loadRegionIndex } from "../js/kb.js";
+import { loadKnowledgeBase, loadRegionIndex } from "../packages/core/src/kb.js";
 
 const root = new URL("../", import.meta.url);
 

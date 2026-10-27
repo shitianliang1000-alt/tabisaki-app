@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { endpointFor, keyHeaders, requestSignal, usingProxy }
-  from "../js/endpoints.js";
-import { ApiQuota, meteredFetch } from "../js/quota.js";
+  from "../packages/core/src/endpoints.js";
+import { ApiQuota, meteredFetch } from "../packages/core/src/quota.js";
 
 const DIRECT = { proxyUrl: "", geminiKey: "AIzaTEST", mapsKey: "AIzaMAPS" };
 const PROXY = { proxyUrl: "https://api.example.test/tabisaki",

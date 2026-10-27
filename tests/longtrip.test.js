@@ -6,10 +6,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TUNING } from "../js/config.js";
+import { TUNING } from "../packages/core/src/config.js";
 import { clearRouteCache, computeRoute, resetRoutesBreaker, resetTransitPacing }
-  from "../js/routes.js";
-import { resetStopsCache } from "../js/stops.js";
+  from "../packages/core/src/routes.js";
+import { resetStopsCache } from "../packages/core/src/stops.js";
 
 const TOWNS = [
   [35.68, 139.77, "東京"], [34.70, 135.50, "大阪"], [35.01, 135.76, "京都"],

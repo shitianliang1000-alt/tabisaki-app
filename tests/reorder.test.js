@@ -12,8 +12,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyChosenOrder, spreadCrowds } from "../js/crowd.js";
-import { makeTrip } from "../js/trip.js";
+import { applyChosenOrder, spreadCrowds } from "../packages/core/src/crowd.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const spot = (id, lat, over = {}) => ({
   id, name: id, category: "寺院", lat, lng: 135.0,

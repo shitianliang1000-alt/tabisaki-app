@@ -13,9 +13,9 @@
 //   fit.js   … その場所が「あなたの希望に合っているか」を測る
 // 前者は旅程を選ぶために、後者は説明のために使います。
 
-import { crowdLevel } from "./crowd.js";
-import { drivingAppeal, drivingNote, isTouring } from "./touring.js";
-import { haversineKm } from "./feasibility.js";
+import { crowdLevel } from "../packages/core/src/crowd.js";
+import { drivingAppeal, drivingNote, isTouring } from "../packages/core/src/touring.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
 
 /**
  * 説明に使う軸。並びはここで決まります。

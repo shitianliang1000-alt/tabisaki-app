@@ -4,8 +4,8 @@
 // nearestStop、nearbyStops。どれも前から Promise を返していました）。
 // 変わったのは、**どこで計算するか**だけです。
 //
-//   ・別のスレッドが使えるなら、そちらへ回します（js/stops-worker.js）
-//   ・使えないなら、この場で計算します（js/stops-data.js）
+//   ・別のスレッドが使えるなら、そちらへ回します（packages/core/src/stops-worker.js）
+//   ・使えないなら、この場で計算します（packages/core/src/stops-data.js）
 //
 // なぜ回すのか
 // ------------
@@ -23,6 +23,7 @@
 // 答えは同じでなければならないので、計算は1か所（stops-data.js）に
 // まとめてあります。ここは行き先を決めるだけです。
 
+import { APP_ROOT } from "./root.js";
 import * as local from "./stops-data.js";
 
 /** 別のスレッドに回せるか。1回だけ試して、駄目ならこの場で計算します。 */
@@ -36,7 +37,7 @@ function ensureWorker() {
   // Worker が無い場（Node の試験、古い環境）では、この場で計算します。
   if (typeof Worker !== "function") { workerBroken = true; return null; }
   try {
-    worker = new Worker(new URL("./stops-worker.js", import.meta.url),
+    worker = new Worker(new URL("packages/core/src/stops-worker.js", APP_ROOT),
                         { type: "module" });
     worker.addEventListener("message", (e) => {
       const { id, ok, value, error } = e.data ?? {};

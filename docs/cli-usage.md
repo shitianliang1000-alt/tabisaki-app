@@ -26,7 +26,7 @@ SSH でつないだ先のサーバーで動かすときも同じです。出力�
 | ❌ しない | 外への通信（AI・経路・天気・写真）。希望の文の読み取りは、AI を使わない簡易なものです |
 | 📝 計画 | 手元の LLM で読む `--local`・`--model`（Issue #352） |
 
-Web 版と同じエンジン（`js/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
+Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
 
 ## オプション
 
@@ -109,4 +109,4 @@ console.log(toMarkdown(result));
 
 - 入力のまちがいは `CoreError` で、`code` が `invalid_input`（入力の形）・`unknown_place`（知らない駅）・`plan_failed`（組めなかった）のどれかです
 - `createCore()` はその process の `fetch` を「リポジトリの中だけを読む」ものに差し替え、時間帯を日本時間にします
-- 今の `packages/core` は、`js/` のエンジンを Node.js から呼ぶための入口です。`js/` のファイルを `packages/core/` へ移すのは、この形が固まってから少しずつ行います（[roadmap.md](./roadmap.md)）
+- 旅程を組む本体は `packages/core/src/` にあり、Web 版（`js/app.js`）も同じファイルを読みます。中の部品だけを使うときは `packages/core/src/feasibility.js` のように直に読めます（[packages/core/README.md](../packages/core/README.md)）

@@ -4,6 +4,7 @@
 // シャード名にビルドIDが入っているため、ブラウザの HTTP キャッシュに任せて
 // 問題ありません。独自のキャッシュ層は置きません。
 
+import { APP_ROOT } from "./root.js";
 import { KB_INDEX_URL } from "./config.js";
 import { drivingAppeal } from "./touring.js";
 import { accessAppeal } from "./access.js";
@@ -13,7 +14,7 @@ import { betterOf, dedupeSpots, samePoint, sameThing } from "./dedupe.js";
 import { whyNotASpot } from "./notaspot.js";
 
 /**
- * 同梱データ（js/sample-data.js、約120KB）。
+ * 同梱データ（packages/core/src/sample-data.js、約120KB）。
  *
  * 使うのは、公開知識ベースを読めなかったときだけです。静的に import
  * すると、ふだんの起動でも毎回取りに行って読み解くので、要るときに
@@ -74,7 +75,7 @@ function absorbInto(keep, gone) {
   // 県ごとに遅れて読むので、どちらが先に来るかはそのときの都合です。
   // 先に来たほうを残すと、「観光神楽 高千穂神社」が残ることがあります
   // （催しの名前が神社の前に付いたものです）。読む人にとって分かる
-  // ほうを残します（js/dedupe.js の betterOf）。
+  // ほうを残します（packages/core/src/dedupe.js の betterOf）。
   //
   // 入れもの（keep）は索引に載っているので、**入れ替えずに名前だけ**
   // を移します。入れ替えると spotsById が古いほうを指したままになります。
@@ -193,7 +194,7 @@ function index(regions, spots) {
  */
 export async function loadRegionIndex(signal) {
   if (!KB_INDEX_URL) return null;
-  const appRoot = new URL("../", import.meta.url);
+  const appRoot = APP_ROOT;
   const base = new URL(KB_INDEX_URL, appRoot).toString();
   try {
     const manifest = await getJson(base, signal);
@@ -237,7 +238,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
   // 読んだときに /admin/kb/index.json を取りにいって 404 になり、
   // 黙って同梱データに落ちます（件数だけ 232 になって気づきにくい）。
   // kb/ は js/ と同じ高さにあるので、js/ の1つ上を基準にします。
-  const appRoot = new URL("../", import.meta.url);
+  const appRoot = APP_ROOT;
   const base = new URL(KB_INDEX_URL, appRoot).toString();
 
   let manifest;
@@ -285,7 +286,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     // （同じ文字列を全行に書くと、それだけで100KBを超えるため）。
     const from = doc.dataSource;
     for (const spot of doc.spots ?? []) {
-      // 宿や町の記事は、行き先として並べません（js/notaspot.js）。
+      // 宿や町の記事は、行き先として並べません（packages/core/src/notaspot.js）。
       // 収録からも外してありますが、取り込み直すと戻るので、ここでも見ます。
       if (whyNotASpot(spot)) continue;
       if (from && !spot.dataSource) spot.dataSource = from;
@@ -478,7 +479,7 @@ export function mergeIntoKb(kb, { regions = [], spots = [] } = {}) {
     // 大仏の前に80分立つことになります。
     //
     // まとめるのは、**座標が同じ かつ 名前が同じことを言っている**もの
-    // だけです（js/dedupe.js）。名前が違うもの（小樽美術館と小樽文学館）
+    // だけです（packages/core/src/dedupe.js）。名前が違うもの（小樽美術館と小樽文学館）
     // は残します。同じ建物の別の施設かもしれず、潰すと行けたはずの場所が
     // 消えます。
     const twin = findTwin(kb, s);
@@ -578,7 +579,7 @@ export function searchSpots(kb, queryVector,
 }
 
 /**
- * 旅の目的（デート・アクティブ…）があるときだけ足す重み（js/purpose.js）。
+ * 旅の目的（デート・アクティブ…）があるときだけ足す重み（packages/core/src/purpose.js）。
  *
  * 車や同行者の重み（0.12）より少し大きくしてあります。目的は、書いた
  * 人がいちばん大事にしていることのひとつです。それでも、希望との一致

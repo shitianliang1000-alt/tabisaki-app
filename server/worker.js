@@ -709,7 +709,7 @@ async function yahooTransit(request) {
   //   al=飛行機 / shin=新幹線 / ex=有料特急 / hb=高速バス /
   //   lb=路線バス / sr=船
   //
-  // 画面で選ばれた乗り物に合わせて、呼ぶ側（js/modes.js）が決めます。
+  // 画面で選ばれた乗り物に合わせて、呼ぶ側（packages/core/src/modes.js）が決めます。
   // 渡されなければ、これまでどおり全部使います。
   const flags = { al: 1, shin: 1, ex: 1, hb: 1, lb: 1, sr: 1 };
   const asked = body?.modes;
@@ -904,7 +904,7 @@ function liWithClass(html, name) {
  * 経路に含まれる乗り物の種類。
  *
  * ここで見分けるのは、**指定できる乗り物だけ**です（飛行機と船）。
- * 呼び名を全部付け直すのは画面の仕事で、js/modes.js が持っています。
+ * 呼び名を全部付け直すのは画面の仕事で、packages/core/src/modes.js が持っています。
  * 中継は Cloudflare Worker として単体で動くので js/ を読み込めず、
  * 同じ見分けかたを2か所に置くことになります。そこで**ここは必要最小限**に
  * 絞り、2つの表がずれたら試験（tests/modes.test.js）で落ちるように

@@ -17,7 +17,7 @@
 // そのかわり、取れた／取れなかったの両方を30日ブラウザに保存して、
 // 同じ場所を何度も取りに行かないようにしています。
 
-import { requestSignal } from "./endpoints.js";
+import { requestSignal } from "../packages/core/src/endpoints.js";
 
 const KEY = "tabisaki.photos";
 const TTL_MS = 30 * 24 * 3600 * 1000;

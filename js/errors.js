@@ -65,7 +65,7 @@ const KINDS = {
   // 旅程を組む途中で、通信そのものが切れたとき。
   //
   // 旅先のデータは県ごとに分けてあり、要るぶんだけ取りにいきます
-  // （js/kb.js）。一度開いた土地は端末に残りますが、まだ開いていない
+  // （packages/core/src/kb.js）。一度開いた土地は端末に残りますが、まだ開いていない
   // 土地は圏外では読めません。そのとき画面に出ていたのは、ブラウザの
   // 原文「Failed to fetch」だけでした。
   offline: {
@@ -114,7 +114,7 @@ const NOT_SET = {
       + "実際のダイヤは反映されません。",
     next: "そのまま旅程を作れます。実際のダイヤが要るときは、"
       + "設定 →「開発者向け」から Routes API のキーを入れてください"
-      + "（js/config.js の MAPS_API_KEY でも構いません）。",
+      + "（packages/core/src/config.js の MAPS_API_KEY でも構いません）。",
   },
   ai: {
     title: "AIを使わない設定になっています",
@@ -122,7 +122,7 @@ const NOT_SET = {
       + "旅程は作成できます。",
     next: "そのまま旅程を作れます。収録に無い土地も調べたいときは、"
       + "設定 →「開発者向け」から Gemini のキーを入れてください"
-      + "（js/config.js の GEMINI_API_KEY でも構いません）。",
+      + "（packages/core/src/config.js の GEMINI_API_KEY でも構いません）。",
   },
 };
 
@@ -176,7 +176,7 @@ function hintFor(kind, detail) {
         + "そのキーで Generative Language API が有効かをご確認ください。";
     }
     if (/\b404\b/.test(detail)) {
-      return "指定のモデルが見つかりません。js/config.js の MODEL を、"
+      return "指定のモデルが見つかりません。packages/core/src/config.js の MODEL を、"
         + "利用できるモデルIDに変えてください。";
     }
   }

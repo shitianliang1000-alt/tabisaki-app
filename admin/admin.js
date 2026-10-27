@@ -14,10 +14,10 @@
 
 import { EMBED_MODEL, FALLBACK_MODELS, GEMINI_API_KEY, KB_INDEX_URL,
          LOCAL_BASE_URL, LOCAL_MODEL, MAPS_API_KEY, MODEL, MODEL_PROVIDER,
-         PROXY_URL, USE_ROUTES_API } from "../js/config.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { diagnoseGeminiKey } from "../js/ai.js";
-import { diagnoseMapsKey } from "../js/routes.js";
+         PROXY_URL, USE_ROUTES_API } from "../packages/core/src/config.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { diagnoseGeminiKey } from "../packages/core/src/ai.js";
+import { diagnoseMapsKey } from "../packages/core/src/routes.js";
 import { freshnessOf } from "../js/confidence.js";
 import { hiddenQuality, integrity, misclassified, misclassifiedGroups, search,
          unverified, WHY_LABEL } from "./kbcheck.js";
@@ -193,7 +193,7 @@ async function overview() {
       row("実際に読めた件数", `${num(kb.spots.length)} 件`));
     if (c.spots && c.spots > kb.spots.length) {
       // 読み込むときに、同じ場所・同じ名前のものを1つにまとめています
-      // （js/dedupe.js）。ファイルの中身の食い違いは「kb/ 点検」で見ます。
+      // （packages/core/src/dedupe.js）。ファイルの中身の食い違いは「kb/ 点検」で見ます。
       dataCard.append(note(`ファイルの件数 ${num(c.spots)} のうち、${num(c.spots - kb.spots.length)} 件は読み込み時に`
         + "同じ場所の重複として1つにまとめています。"));
     }
@@ -227,7 +227,7 @@ async function settings() {
   const viaProxy = Boolean(String(PROXY_URL ?? "").trim());
   const local = MODEL_PROVIDER === "local";
 
-  out.append(...section("サイトの設定（js/config.js）",
+  out.append(...section("サイトの設定（packages/core/src/config.js）",
     card(
       row("キーの持ちかた", viaProxy
         ? el("span", {}, pill("プロキシ経由", "ok"), " ", PROXY_URL)
@@ -238,7 +238,7 @@ async function settings() {
       row("経路API", USE_ROUTES_API ? pill("使う", "ok") : el("span", {}, pill("使わない", "warn"), " 距離からの推定になります")),
       row("Gemini キー", viaProxy ? "サーバー側" : (GEMINI_API_KEY ? "設定済み" : "未設定")),
       row("Maps キー", viaProxy ? "サーバー側" : (MAPS_API_KEY ? "設定済み" : "未設定"))),
-    note("ここは読むだけです。値を変えるには js/config.js を直して PR にします（キーはブラウザに置かないため）。")));
+    note("ここは読むだけです。値を変えるには packages/core/src/config.js を直して PR にします（キーはブラウザに置かないため）。")));
 
   if (!(await haveApi())) { out.append(needWorker()); return out; }
   const ov = await api("GET", "overview");

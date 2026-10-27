@@ -17,6 +17,7 @@
 - 手元用の API サーバー（`POST /plan`、`docker compose up`）を足しました（[docs/self-hosting.md](./docs/self-hosting.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 - README と CONTRIBUTING を [UTM](https://github.com/utmapp/UTM) の文書の形（短い README と、くわしい内容を `docs/` に分ける）にそろえました
+- 旅程を組む部分（59ファイル）を `js/` から `packages/core/src/` へ移しました。Web 版・CLI・TUI・API が同じファイルを使います（[packages/core/README.md](./packages/core/README.md)）。画面の動きは変わりません
 
 ## 0.1.0 — 2026-10-25（最初の版にする予定のところ）
 

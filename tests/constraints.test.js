@@ -6,11 +6,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip, validateTrip } from "../js/trip.js";
-import { trimToFit } from "../js/verify.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip, validateTrip } from "../packages/core/src/trip.js";
+import { trimToFit } from "../packages/core/src/verify.js";
 
 const BASE = { name: "鎌倉駅", lat: 35.3190, lng: 139.5500 };
 const d = (s) => new Date(s);

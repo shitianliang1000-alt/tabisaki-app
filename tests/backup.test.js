@@ -14,7 +14,7 @@ import test from "node:test";
 
 import {
   BACKUP_MAX_KM, attachBackups, distanceText, pickBackup, risksOf,
-} from "../js/backup.js";
+} from "../packages/core/src/backup.js";
 
 const d = (s) => new Date(s);
 

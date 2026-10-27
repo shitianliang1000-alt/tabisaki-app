@@ -1,15 +1,16 @@
 // 旅さきの「旅程を組む部分」を、Node.js から使うための入口（packages/core）。
 //
-// 旅程を組む本体は js/ にあります（ブラウザでもそのまま動くように、画面と
-// 切り離して書いてあります。js/pipeline.js の冒頭）。ここはそれを Node.js
-// から呼ぶための薄い層で、次のことだけを受け持ちます。
+// 旅程を組む本体は packages/core/src/ にあります。画面（js/）からは切り離して
+// あり、ブラウザでも Node.js でもそのまま動きます（Web 版の js/app.js も、
+// ここを直に読みます）。この index.mjs は、Node.js から呼ぶための薄い層で、
+// 次のことだけを受け持ちます。
 //
 //   ・知識ベース（kb/）をファイルから読む（ブラウザでは fetch で取るところ）
 //   ・外への通信を切る（AI・経路・天気は使わず、距離からの目安で組みます）
 //   ・入力を確かめ、決まった形のエラー（CoreError）で返す
 //
-// js/ のファイルを packages/core/ へ移すのは、この入口の形が固まってから
-// 少しずつ行います（docs/roadmap.md）。Web 版はこれまでどおり js/ を直接読みます。
+// 中の部品を1つだけ使いたいときは、"tabisaki-core/src/feasibility.js" の
+// ように直に読めます（package.json の exports）。何が中にあるかは README.md に。
 //
 //     import { createCore } from "./packages/core/index.mjs";
 //     const core = await createCore();
@@ -19,12 +20,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// 本体（js/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
+// 本体（src/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const js = (f) => import(pathToFileURL(path.join(ROOT, "js", f)).href);
+const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
 
 /** 決まった形のエラー。code で見分けます。 */
 export class CoreError extends Error {
@@ -122,7 +123,7 @@ export async function normalizeRequest(req = {}) {
  * @param {{root?: string}} [opts]
  */
 export async function createCore({ root = ROOT } = {}) {
-  // 本体（js/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");

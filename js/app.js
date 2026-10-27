@@ -6,33 +6,33 @@
 //   ・結果を描く／エラーを日本語で出す
 //   ・APIキーの疎通確認（「キーを入れたのに効かない」を切り分けるため）
 
-import { TILE_ATTRIBUTION, TILE_URL } from "./config.js";
-import { effectiveConfig } from "./settings.js";
+import { TILE_ATTRIBUTION, TILE_URL } from "../packages/core/src/config.js";
+import { effectiveConfig } from "../packages/core/src/settings.js";
 import { callModel, describeSpot, hasApiKey }
-  from "./ai.js";
-import { discoverArea } from "./discover.js";
+  from "../packages/core/src/ai.js";
+import { discoverArea } from "../packages/core/src/discover.js";
 import { ensureRegions, loadKnowledgeBase, loadRegionIndex, mergeIntoKb, stagedKb }
-  from "./kb.js";
+  from "../packages/core/src/kb.js";
 
 import { resetRoutesBreaker, routesUsage }
-  from "./routes.js";
-import { PLACES, findPlace, nearestPlaceInfo } from "./places.js";
-import { findStop, preloadStops, searchStops } from "./stops.js";
+  from "../packages/core/src/routes.js";
+import { PLACES, findPlace, nearestPlaceInfo } from "../packages/core/src/places.js";
+import { findStop, preloadStops, searchStops } from "../packages/core/src/stops.js";
 import { END_MODES, formatHourField, makeTrip, parseHourField, validateTrip }
-  from "./trip.js";
+  from "../packages/core/src/trip.js";
 import { TripMap, pointsFromItinerary, japaneseControls } from "./map.js";
-import { haversineKm } from "./feasibility.js";
-import { configureQuota, describeUsage, quota } from "./quota.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
+import { configureQuota, describeUsage, quota } from "../packages/core/src/quota.js";
 import { artFor } from "./art.js";
 import { icon } from "./icons.js";
-import { mixTargets } from "./mix.js";
+import { mixTargets } from "../packages/core/src/mix.js";
 import { photoFor } from "./photos.js";
 import { applyEdit, describeEdit, parseEdit } from "./edit.js";
-import { applyReplan } from "./replan.js";
+import { applyReplan } from "../packages/core/src/replan.js";
 import { confidenceOf, describeSource, freshnessOf } from "./confidence.js";
 import { isNetworkFailure, userFacing } from "./errors.js";
 import { spotFit, tripFit } from "./fit.js";
-import { paceBreakdown, slackLevel } from "./score.js";
+import { paceBreakdown, slackLevel } from "../packages/core/src/score.js";
 import { VARIANTS, distinguishOf, recommendOf, summaryOf, tripsFor }
   from "./variants.js";
 import { $, el, loadSketch, openSheet, renderItinerary, renderProgress, renderToday,
@@ -47,8 +47,8 @@ import { requeryNextLeg } from "./nextleg.js";
 import { orderDiff } from "./orderdiff.js";
 import { reachOf } from "./reach.js";
 import { clearTripMode, loadTripMode, saveTripMode } from "./tripmode.js";
-import { searchYahooTransit } from "./yahoo-transit.js";
-import { yahooFlags } from "./modes.js";
+import { searchYahooTransit } from "../packages/core/src/yahoo-transit.js";
+import { yahooFlags } from "../packages/core/src/modes.js";
 import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory, removeHistory,
          savedLabel, thawItinerary } from "./history.js";
@@ -57,13 +57,13 @@ import { closePop, updatePills, wireShell } from "./shell.js";
 import { introGreeting, typePlaceholder, watchReveal } from "./motion.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
-import { hasSubstance, readChat } from "./chatread.js";
-import { readIntent } from "./intent.js";
+import { hasSubstance, readChat } from "../packages/core/src/chatread.js";
+import { readIntent } from "../packages/core/src/intent.js";
 
 // ここまで読めたら、画面の部品はそろっています（js/boot-check.js が見ます）。
 document.documentElement.dataset.booted = "1";
 
-// 旅程を組む部分（js/pipeline.js とその先の約20モジュール、450KBほど）
+// 旅程を組む部分（packages/core/src/pipeline.js とその先の約20モジュール、450KBほど）
 // と、ファイルの書き出し・読み込み（js/transfer.js）は、開いた直後の
 // フォームには要りません。静的に import すると、画面が出る前に全部を
 // 取りに行って読み解くので、使うときに読みます。
@@ -72,7 +72,7 @@ document.documentElement.dataset.booted = "1";
 // 手が空いたら（requestIdleCallback）先に読み始めておきます。
 let pipelineModule = null;
 let transferModule = null;
-const loadPipeline = () => (pipelineModule ??= import("./pipeline.js")
+const loadPipeline = () => (pipelineModule ??= import("../packages/core/src/pipeline.js")
   .catch((e) => { pipelineModule = null; throw e; }));
 const loadTransfer = () => (transferModule ??= import("./transfer.js")
   .catch((e) => { transferModule = null; throw e; }));
@@ -193,7 +193,7 @@ async function boot() {
   // これまでは起動時に全部読んでいました。ところが「島根の旅程」に
   // 使うのは島根のぶんだけで、残り46県は読んで、照合して、捨てて
   // いました。行き先の絞り込みは、地名から**エリアの一覧**だけで
-  // 決まります（js/pipeline.js の scope）。エリアの一覧は
+  // 決まります（packages/core/src/pipeline.js の scope）。エリアの一覧は
   // regions.json（gzip で 66KB）にあり、スポットはそのあとで足ります。
   //
   // ここで取るのは索引とエリアだけです。県ごとの段は、旅程を組む
@@ -1153,7 +1153,7 @@ function wireForm() {
   // アレルギー・ハラール・子ども向けがどこにも入りませんでした。
   // 店は持っていないので変わるのは地図へ渡す言葉までですが、
   // そこが変われば店選びは変わります。
-  // 旅の目的（デート・アクティブ…）。どう過ごしたいか（js/purpose.js）。
+  // 旅の目的（デート・アクティブ…）。どう過ごしたいか（packages/core/src/purpose.js）。
   for (const btn of document.querySelectorAll("#purpose-choice [data-purpose]")) {
     btn.addEventListener("click", () => {
       const on = btn.getAttribute("aria-pressed") !== "true";

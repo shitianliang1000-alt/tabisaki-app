@@ -1,6 +1,6 @@
 # APIキーをブラウザに置かない
 
-`js/config.js` にキーを書くと、**ページを開いた人から見えます**。
+`packages/core/src/config.js` にキーを書くと、**ページを開いた人から見えます**。
 ブラウザから直接 Google を呼ぶ以上、避けられません。
 
 個人利用や localhost ならそのままで構いません。公開サイトにするなら、
@@ -20,7 +20,7 @@ Gemini / Routes API
 
 1. `worker.js`（Cloudflare Worker）か `node-proxy.mjs`（Node）を置く
 2. キーを環境変数／シークレットで渡す
-3. `js/config.js` の `PROXY_URL` にその入口を書く
+3. `packages/core/src/config.js` の `PROXY_URL` にその入口を書く
 
 ```js
 export const PROXY_URL = "https://tabisaki-api.example.workers.dev";
@@ -28,7 +28,7 @@ export const GEMINI_API_KEY = "";   // ← 空のままにします
 export const MAPS_API_KEY   = "";   // ← 空のままにします
 ```
 
-これだけで、`js/endpoints.js` が行き先を切り替え、**キーをヘッダーに
+これだけで、`packages/core/src/endpoints.js` が行き先を切り替え、**キーをヘッダーに
 載せなくなります**。アプリ側のコードはほかに何も変わりません。
 
 ### Cloudflare Worker
@@ -73,7 +73,7 @@ Cloudflare の Workers AI に Gemma 4 があります。`wrangler.jsonc` の
 ```
 
 を入れて配備すると、`POST /cf/generate` が使えます。**Googleのキーは
-要りません。**アプリ側は `js/config.js` の
+要りません。**アプリ側は `packages/core/src/config.js` の
 
 ```js
 export const MODEL_PROVIDER = "cloudflare";   // 既定
@@ -200,6 +200,6 @@ curl "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/analytics_engine
 | 使用量の記録 | 誰の何が高いのかは、記録が無いと分かりません |
 | Google 側のキー制限 | 万一漏れたときの被害を小さくします |
 
-アプリ側の使用量ゲート（`js/quota.js`、50件ごとの確認）は
+アプリ側の使用量ゲート（`packages/core/src/quota.js`、50件ごとの確認）は
 **その端末の中でしか数えていません**。サーバー側の上限の代わりには
 なりません。
