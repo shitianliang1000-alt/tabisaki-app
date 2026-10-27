@@ -125,10 +125,13 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {} } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
