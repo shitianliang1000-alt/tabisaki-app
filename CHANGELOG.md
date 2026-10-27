@@ -8,9 +8,13 @@
 
 ## まだ版にしていない変更
 
+- **ライセンスを The Unlicense から PolyForm Noncommercial License 1.0.0 に変えました（商用利用はできません）。** これより前に公開した版は Unlicense のままです。収録データは、それぞれの提供元の条件に従います
+
 - リポジトリの運用を整えました: Issue・PR のひな形、[CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md)、行動規範、この履歴、版の付けかた、これからの計画（[docs/roadmap.md](./docs/roadmap.md)）
 - 知識ベースの点検（`tools/kb_check.mjs`）を足し、PR ごとと週に1回走らせるようにしました
 - 端末から旅程を組む `./tabisaki plan` と、Node.js から使う入口 `packages/core` を足しました（[docs/cli-usage.md](./docs/cli-usage.md)）
+- 組んだ旅程を端末の中でキーボードだけで見る `./tabisaki tui` を足しました
+- 手元用の API サーバー（`POST /plan`、`docker compose up`）を足しました（[docs/self-hosting.md](./docs/self-hosting.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 
 ## 0.1.0 — 2026-10-25（最初の版にする予定のところ）

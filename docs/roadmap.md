@@ -1,7 +1,7 @@
 # これからの計画（ロードマップ）
 
 **この文書にある機能の多くは、まだありません。** 今あるのは Web 版（チャットの画面・エリアのページ・管理画面）と、
-端末から旅程を組む `./tabisaki plan`、組み立て・公開の道具（`./tabisaki`）です。下の表の「状態」で区別しています。
+端末から旅程を組む `./tabisaki plan`、手元用の API サーバー（`docker compose up`）、組み立て・公開の道具（`./tabisaki`）です。下の表の「状態」で区別しています。
 
 一度に大きく作り変えず、今の Web 版と公開アドレスを保ったまま、少しずつ進めます。
 各項目の詳しい中身は Issue にあります。
@@ -21,7 +21,8 @@
 | ブランチと PR の決まり（[CONTRIBUTING.md](../CONTRIBUTING.md)） | ✅ ある（`main` の保護は持ち主の設定） | #344 |
 | 版の付けかた（[releases.md](./releases.md)） | ✅ ある（最初のタグはまだ） | #346 |
 | 公開先の整理（GitHub Pages はやめ、Cloudflare Worker と PHP 版） | ✅ ある | #339 #347 |
-| 商用利用を認めないライセンスへの変更 | ⏸ 判断待ち | #365 #383 #384 |
+| 商用利用を認めないライセンスへの変更（PolyForm Noncommercial 1.0.0） | ✅ ある | #365 #383 |
+| 非商用の方針に沿った運営・支援のしかた | 📝 計画 | #384 |
 
 ## Phase 2: Web 以外からも使う
 
@@ -29,8 +30,8 @@
 |---|---|---|
 | 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | 🚧 一部（Node.js から使う入口。`js/` の移しはまだ） | #348 |
 | `tabisaki plan "温泉と海" --days=2 --output=markdown` の CLI（[cli-usage.md](./cli-usage.md)） | ✅ ある（通信なし・移動は距離の目安） | #349 |
-| 端末の中で旅程を見る TUI | 📝 計画 | #350 |
-| Docker で動く手元の API（`POST /plan`） | 📝 計画 | #351 |
+| 端末の中で旅程を見る TUI（`./tabisaki tui`、[cli-usage.md](./cli-usage.md)） | ✅ ある（見るだけ。並べ替えはまだ） | #350 |
+| Docker で動く手元の API（`POST /plan`、[self-hosting.md](./self-hosting.md)） | ✅ ある（認証なし・127.0.0.1 だけ） | #351 |
 
 `./tabisaki plan` で旅程を組めます。そのほかのコマンド（build・deploy など）は組み立て・公開の道具です。
 

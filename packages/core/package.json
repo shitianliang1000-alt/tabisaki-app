@@ -6,5 +6,5 @@
   "type": "module",
   "exports": { ".": "./index.mjs" },
   "engines": { "node": ">=22" },
-  "license": "SEE LICENSE IN ../../LICENSE"
+  "license": "PolyForm-Noncommercial-1.0.0"
 }

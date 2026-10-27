@@ -22,6 +22,8 @@ usage() {
 使いかた: ./tabisaki <コマンド>
 
   plan "<希望>" [...] 旅程を組んで端末に出す（tabisaki plan --help で詳しく）
+  tui "<希望>" [...]  組んだ旅程を端末の中で見る（キーボードだけで）
+  api                手元用の API サーバーを動かす（http://127.0.0.1:8787/plan）
   build              Cloudflare 用を .site/ に組み立てる
   php [--zip]        PHP 版を .php-site/ に組み立てる（--zip で tabisaki-php.zip も）
   serve [php|cf]     手元で開く（php: http://127.0.0.1:8090/  cf: 静的ファイルだけ）
@@ -56,8 +58,10 @@ ftp_upload() {
 cmd="${1:-help}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
-  plan|--version) need node "Node.js 22 以上を入れてください。"
+  plan|tui|--version) need node "Node.js 22 以上を入れてください。"
         exec node packages/cli/bin/tabisaki-plan.mjs "$cmd" "$@" ;;
+  api) need node "Node.js 22 以上を入れてください。"
+       exec node packages/server/server.mjs ;;
   build) sh tools/build_worker.sh .site ;;
   php) sh tools/build_php.sh .php-site "${1:-}" ;;
   serve)

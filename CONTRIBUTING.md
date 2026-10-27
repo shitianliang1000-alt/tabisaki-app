@@ -13,7 +13,7 @@
 要るもの: Node.js 22 以上、Python 3（簡単なサーバーに使うだけ）。ビルドは要りません。
 
 ```sh
-git clone https://github.com/shitianliang1000-alt/tabisaki-app.git
+git clone git@github.com:shitianliang1000-alt/tabisaki-app.git   # SSH（鍵の登録: GitHub → Settings → SSH and GPG keys）
 cd tabisaki-app
 python3 -m http.server 8000      # http://localhost:8000/index.html を開く
 ```
@@ -82,5 +82,10 @@ PR の流れ:
 
 利用者から見える変更をしたら、[CHANGELOG.md](./CHANGELOG.md) の「まだ版にしていない変更」に1行足してください。
 版の付けかたは [docs/releases.md](./docs/releases.md) です。
+
+## 7. ライセンス
+
+このリポジトリのプログラムは [PolyForm Noncommercial License 1.0.0](./LICENSE) です。PR で送ってもらったコードや文書も、同じ条件で配ることに同意したものとして扱います。
+外から取り込むデータは、提供元の条件を README の「ライセンス・外部データについて」と `credits.html` に書いてください。
 
 参加する人はみな [行動規範](./CODE_OF_CONDUCT.md) に従います。

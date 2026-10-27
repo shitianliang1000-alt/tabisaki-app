@@ -1,0 +1,15 @@
+# 旅さきの手元用 API サーバー
+#     docker compose up
+#     curl -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{"wish":"温泉と海","days":2}'
+#
+# 認証が無いので、この端末の中（127.0.0.1）からだけ使えるようにしています。
+# ほかの端末から使いたいときも、インターネットにそのまま出さないでください（docs/self-hosting.md）。
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8787:8787"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp

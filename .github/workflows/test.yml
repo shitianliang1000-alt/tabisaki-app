@@ -48,6 +48,26 @@ jobs:
           test -f .site/__site/landing.html && test -f .site/data/areas.json && test -f .site/assets/landing.js
           test -f .site/__admin/index.html
 
+  # 手元用 API サーバー（Dockerfile・compose.yaml）が、組み上がって旅程を返すか。
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run
+        run: |
+          docker build -t tabisaki-api .
+          docker run -d --name api -p 127.0.0.1:8787:8787 tabisaki-api
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:8787/health && break
+            sleep 1
+          done
+          curl -sSf -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' \
+            -d '{"wish":"温泉と海","days":2}' | grep -q '"ok":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{"wish":""}')" = 400
+      - name: Logs
+        if: always()
+        run: docker logs api || true
+
   # 画面のテスト。関数が全部正しくても、ボタンが繋がっていなければ
   # 旅程は作れません（tests/e2e/README.md）。外へは出ない前提で動かします。
   e2e:
