@@ -125,19 +125,13 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
- * userKb にユーザーKBの名前（または overlay の中身）を渡すと、公式の収録に重ねます（docs/user-kb.md）。
- *
- * 利用者がスポットに足した情報（~/.tabisaki/spots.json。docs/spot-data.md）があれば、
- * 確認済みの営業時間・季節の催し・写真と、別名を、その上に重ねます。
- * 重ねたくないときは userData: false（または環境変数 TABISAKI_NO_USER_DATA=1）。
- * userData に文字を渡すと、そのファイルを読みます。
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string|null,
- *          userData?: boolean|string}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
-  userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
