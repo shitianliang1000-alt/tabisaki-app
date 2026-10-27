@@ -172,7 +172,7 @@ test("generate: AI の候補は未確認で、出典は AI と書く", async () 
 
 test("タグを除く・JSON の配列を取り出すのは、長い入力でもすぐ終わる", () => {
   assert.equal(stripHtml("<a href='x'>Taro</a> <b>Y</b>"), "Taro Y");
-  assert.equal(stripHtml("a <script>b"), "a");
+  assert.equal(stripHtml("a <span title='x'"), "a"); // 閉じないタグの中身は捨てる
   assert.equal(jsonArrayIn("x [1,2] y"), "[1,2]");
   assert.equal(jsonArrayIn("]["), null);
   const t = Date.now();
