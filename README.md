@@ -29,8 +29,10 @@
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
+* `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
+* `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
-* Node.js 22 以上だけで動き、`npm install` も外への通信も要らない
+* Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）
 
 ## Install
 

@@ -24,6 +24,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
 
+// 差し替える前の fetch（手元の LLM へ話すときに使います）。
+const nativeFetch = globalThis.fetch;
+
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
 
@@ -44,9 +47,11 @@ export class CoreError extends Error {
  * 外へは出ず、リポジトリの中のファイルだけを返す fetch。
  * kb/・data/ のような相対の場所は、リポジトリの根から引きます。
  */
-export function offlineFetch(root = ROOT) {
-  return async (url) => {
+export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
+  return async (url, init) => {
     const u = String(url?.url ?? url);
+    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
+    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -125,17 +130,27 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
+ * userKb（名前か中身）を渡すと、ユーザーKBを公式の収録に重ねます（home はその置き場）。
+ *
+ * local を渡すと、手元の LLM（Ollama など。OpenAI 互換の /v1/chat/completions）に
+ * 希望文の読み取りと行き先の選定をさせます（Issue #352）。渡さなければ AI は使わず、
+ * 収録データと語句から組みます。どちらでも、時刻と移動の判定はプログラムが行います。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string,
+ *          local?: {model?: string, baseUrl?: string} | null}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {} } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
-  globalThis.fetch = offlineFetch(root);
+export async function createCore({ root = ROOT, providers = {}, userKb = null, home, local = null } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
+  // （手元の LLM を使うときだけ、その行き先へは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
+  const ai = await js("ai.js");
+  ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -166,7 +181,14 @@ export async function createCore({ root = ROOT, providers = {} } = {}) {
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return { request: r, itinerary };
+      if (!local) return { request: r, itinerary };
+      // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
+      // 本体が収録データだけで組み直しています。そのことを隠しません。
+      const { error } = ai.aiStatus();
+      return {
+        request: r, itinerary,
+        ai: { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null },
+      };
     },
   };
 }
@@ -175,3 +197,4 @@ export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
+export * from "./local.mjs";

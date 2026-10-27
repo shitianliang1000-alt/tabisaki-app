@@ -15,5 +15,7 @@
   "plan.footer": "Travel times are estimates from distance (actual connections were not checked). Opening hours may change. Please check before you go.",
   "plan.plainTitle.one": "{title} (from {from}, {n} day)",
   "plan.plainTitle.other": "{title} (from {from}, {n} days)",
+  "plan.aiLocal": "AI: {model} (local LLM) chose the destinations",
+  "plan.aiLocalFailed": "AI: could not reach {model} (local LLM), so destinations were picked from the bundled data ({error})",
   "unit.km": "{km} km"
 }
