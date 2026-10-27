@@ -38,3 +38,17 @@ test("help と --version", () => {
   assert.match(run("help").stdout, /使いかた: tabisaki plan/);
   assert.match(run("--version").stdout, /^tabisaki \d+\.\d+\.\d+\n$/);
 });
+
+test("--lang=en と TABISAKI_LANG で英語の見出しになる。原文の地名はそのまま", () => {
+  const r = run("plan", "温泉と海をゆっくり楽しみたい", "--days=2", "--date=2026-11-07", "--lang=en");
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /## Day 2 \(/);
+  assert.match(r.stdout, /Length: 2 days/);
+  assert.match(r.stdout, /東京駅/);
+  const env = spawnSync(process.execPath, [BIN, "plan", "京都の寺", "--output=text", "--date=2026-11-03"],
+    { encoding: "utf8", env: { ...process.env, TZ: "UTC", TABISAKI_LANG: "en_US.UTF-8" } });
+  assert.match(env.stdout, /^.+ \(from 東京駅, 1 day\)\n\nDay 1, Tue, Nov 3\n/);
+  const bad = run("plan", "x", "--lang=fr");
+  assert.equal(bad.status, 2);
+  assert.match(bad.stderr, /--lang は ja \/ en/);
+});

@@ -1,10 +1,11 @@
 # 旅さきの手元用 API サーバー（docs/self-hosting.md）
 #     docker compose up
-# 依存パッケージはありません。エンジン（js/）と収録データ（kb/）だけを入れます。
+# 依存パッケージはありません。エンジン（js/）と収録データ（kb/）と翻訳（locales/）だけを入れます。
 FROM node:22-alpine
 WORKDIR /app
 COPY js ./js
 COPY kb ./kb
+COPY locales ./locales
 COPY packages ./packages
 COPY package.json LICENSE ./
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787
