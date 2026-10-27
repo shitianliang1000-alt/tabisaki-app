@@ -135,10 +135,19 @@ export async function createCore({ root = ROOT, providers = {} } = {}) {
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
-  const kb = await loadKnowledgeBase();
+  let kb = await loadKnowledgeBase();
+  let overlayReport = null;
+  if (userKb) {
+    const { openStore, applyOverlay } = await import("./userkb.mjs");
+    const { sameThing } = await js("dedupe.js");
+    const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
+    ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
+  }
 
   return {
     kb,
+    /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
+    overlayReport,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
@@ -164,3 +173,4 @@ export async function createCore({ root = ROOT, providers = {} } = {}) {
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
+export * as userkb from "./userkb.mjs";
