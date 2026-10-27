@@ -7,7 +7,7 @@ import {
   applyToSpot, emptyStore, findSpots, freshness, makeField, parseDays, parseHours,
   spotsInArea, validateStore, verifyField,
 } from "../packages/core/spotinfo.mjs";
-import { enrichSpot, generateCandidates } from "../packages/core/enrich.mjs";
+import { enrichSpot, generateCandidates, jsonArrayIn, stripHtml } from "../packages/core/enrich.mjs";
 import { hoursFor } from "../packages/core/src/hours.js";
 
 const TODAY = "2026-10-27";
@@ -168,4 +168,15 @@ test("generate: AI の候補は未確認で、出典は AI と書く", async () 
   await assert.rejects(generateCandidates({ area: "x", url: "", model: "" }), /TABISAKI_LLM_URL/);
   const junk = fakeFetch([[/./, { choices: [{ message: { content: "わかりません" } }] }]]);
   await assert.rejects(generateCandidates({ area: "x", url: "http://h", model: "m", fetchImpl: junk }), /JSON の配列/);
+});
+
+test("タグを除く・JSON の配列を取り出すのは、長い入力でもすぐ終わる", () => {
+  assert.equal(stripHtml("<a href='x'>Taro</a> <b>Y</b>"), "Taro Y");
+  assert.equal(stripHtml("a <script>b"), "a");
+  assert.equal(jsonArrayIn("x [1,2] y"), "[1,2]");
+  assert.equal(jsonArrayIn("]["), null);
+  const t = Date.now();
+  stripHtml("<".repeat(200000));
+  jsonArrayIn("[".repeat(200000));
+  assert.ok(Date.now() - t < 1000);
 });

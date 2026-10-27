@@ -22,7 +22,25 @@ async function getJson(fetchImpl, url) {
   return r.json();
 }
 
-const stripHtml = (s) => String(s ?? "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+/** タグを除いた字だけ（< から > までを1字ずつ読み飛ばす。正規表現の後戻りを使わない）。 */
+export function stripHtml(input) {
+  let out = "";
+  let inTag = false;
+  for (const ch of String(input ?? "")) {
+    if (ch === "<") inTag = true;
+    else if (ch === ">") inTag = false;
+    else if (!inTag) out += ch;
+  }
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/** 文の中の、最初の [ から最後の ] まで（AI が JSON の前後に何か書いても読めるように）。 */
+export function jsonArrayIn(text) {
+  const s = String(text ?? "");
+  const from = s.indexOf("[");
+  const to = s.lastIndexOf("]");
+  return from >= 0 && to > from ? s.slice(from, to + 1) : null;
+}
 
 /** Wikipedia の記事名から Wikidata の項目を取ります。無ければ null。 */
 export async function wikidataFor(title, { fetchImpl = fetch } = {}) {
@@ -118,9 +136,8 @@ export async function generateCandidates({ area, count = 5, url, model, apiKey, 
   if (!r.ok) throw new Error(`AI から答えがありませんでした（${r.status}）`);
   const doc = await r.json();
   const text = String(doc?.choices?.[0]?.message?.content ?? "");
-  const m = /\[[\s\S]*\]/.exec(text);
   let list;
-  try { list = JSON.parse(m?.[0] ?? "null"); } catch { list = null; }
+  try { list = JSON.parse(jsonArrayIn(text) ?? "null"); } catch { list = null; }
   if (!Array.isArray(list)) throw new Error("AI の答えが JSON の配列として読めませんでした");
   const source = { name: `AI（${model}）`, license: "AI の出力（出典なし）", retrievedAt: today };
   return list.slice(0, count)
