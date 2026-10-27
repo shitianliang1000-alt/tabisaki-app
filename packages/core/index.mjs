@@ -59,7 +59,11 @@ export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetc
       const m = /\/(kb\/.+)$/.exec(new URL(u).pathname);
       if (!m) throw new Error(`通信を切っています: ${u}`);
       file = path.join(root, m[1]);
-    } else file = path.join(root, u.replace(/^\.?\//, "").replace(/[?#].*$/, ""));
+    } else {
+      // ? と # から後ろを落とします（正規表現の .*$ は、長い入力で遅くなるので使いません）。
+      const cut = u.search(/[?#]/);
+      file = path.join(root, (cut < 0 ? u : u.slice(0, cut)).replace(/^\.?\//, ""));
+    }
     const rel = path.relative(root, file);
     if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error(`リポジトリの外は読みません: ${u}`);
     let body;
