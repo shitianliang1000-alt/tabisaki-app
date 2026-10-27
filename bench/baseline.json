@@ -1,0 +1,97 @@
+{
+  "note": "旅程の成立率の基準。node tools/plan_bench.mjs --write-baseline で作り直します（docs/benchmarks.md）。",
+  "random": {
+    "seed": 374,
+    "count": 60
+  },
+  "tolerance": {
+    "successRate": 0.03,
+    "itineraries": 1
+  },
+  "suites": {
+    "fixed": {
+      "total": 24,
+      "ok": 24,
+      "successRate": 1,
+      "rates": {
+        "crash": 0,
+        "unreachable": 0,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "itineraries": {
+        "crash": 0,
+        "unreachable": 0,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "violations": {
+        "crash": 0,
+        "unreachable": 0,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "failed": []
+    },
+    "random": {
+      "total": 60,
+      "ok": 49,
+      "successRate": 0.817,
+      "rates": {
+        "crash": 0,
+        "unreachable": 0.017,
+        "empty": 0.033,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0.15,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "itineraries": {
+        "crash": 0,
+        "unreachable": 1,
+        "empty": 2,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 9,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "violations": {
+        "crash": 0,
+        "unreachable": 1,
+        "empty": 2,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 10,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "failed": [
+        "random-374-02",
+        "random-374-06",
+        "random-374-10",
+        "random-374-11",
+        "random-374-15",
+        "random-374-20",
+        "random-374-24",
+        "random-374-44",
+        "random-374-51",
+        "random-374-56",
+        "random-374-59"
+      ]
+    }
+  }
+}

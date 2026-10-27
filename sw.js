@@ -36,7 +36,9 @@
 // v20: こだわりを入力欄の下へ出し、答えに動き（js/motion.js）を足しました。
 // v22: 起動に要る js/ を app.js と chunk-*.js にまとめました（tools/optimize_site.mjs）。
 // v26: 旅程を組む部分を js/ から packages/core/src/ へ移しました（#348）。
-const VERSION = "tabisaki-v26";
+// v27: #396（感想の欄 js/feedback.js）と #398（src/ への移動）の合流で、
+//      v26 のまま中身だけ変わるのを避けるため版を上げました。
+const VERSION = "tabisaki-v27";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -99,6 +101,7 @@ const SHELL_FILES = [
   "./js/confidence.js",
   "./js/edit.js",
   "./js/errors.js",
+  "./js/feedback.js",
   "./js/fit.js",
   "./js/follow.js",
   "./js/history.js",
