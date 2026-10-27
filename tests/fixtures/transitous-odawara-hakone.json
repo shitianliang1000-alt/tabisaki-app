@@ -1,0 +1,128 @@
+{
+ "itineraries": [
+  {
+   "startTime": "2026-10-30T01:02:00Z",
+   "endTime": "2026-10-30T01:27:00Z",
+   "transfers": 0,
+   "legs": [
+    {
+     "mode": "WALK",
+     "from": {
+      "name": "START",
+      "lat": 35.2564,
+      "lon": 139.1556
+     },
+     "to": {
+      "name": "小田原 Odawara",
+      "lat": 35.25642,
+      "lon": 139.1549
+     },
+     "startTime": "2026-10-30T01:02:00Z",
+     "endTime": "2026-10-30T01:07:00Z",
+     "scheduledStartTime": "2026-10-30T01:02:00Z",
+     "scheduledEndTime": "2026-10-30T01:07:00Z"
+    },
+    {
+     "mode": "REGIONAL_RAIL",
+     "from": {
+      "name": "小田原 Odawara",
+      "lat": 35.25642,
+      "lon": 139.1549
+     },
+     "to": {
+      "name": "箱根湯本 Hakone-Yumoto",
+      "lat": 35.23337000000001,
+      "lon": 139.10366999999997
+     },
+     "startTime": "2026-10-30T01:07:00Z",
+     "endTime": "2026-10-30T01:22:00Z",
+     "scheduledStartTime": "2026-10-30T01:07:00Z",
+     "scheduledEndTime": "2026-10-30T01:22:00Z",
+     "routeShortName": "OH",
+     "routeLongName": "箱根登山線 Hakone Tozan Line",
+     "agencyName": "小田急箱根 Odakyu Hakone",
+     "headsign": "(各駅停車 Local) 箱根湯本 Hakone-Yumoto"
+    },
+    {
+     "mode": "WALK",
+     "from": {
+      "name": "箱根湯本 Hakone-Yumoto",
+      "lat": 35.23337000000001,
+      "lon": 139.10366999999997
+     },
+     "to": {
+      "name": "END",
+      "lat": 35.2329,
+      "lon": 139.1067
+     },
+     "startTime": "2026-10-30T01:22:00Z",
+     "endTime": "2026-10-30T01:27:00Z",
+     "scheduledStartTime": "2026-10-30T01:22:00Z",
+     "scheduledEndTime": "2026-10-30T01:27:00Z"
+    }
+   ]
+  },
+  {
+   "startTime": "2026-10-30T01:22:00Z",
+   "endTime": "2026-10-30T01:46:00Z",
+   "transfers": 0,
+   "legs": [
+    {
+     "mode": "WALK",
+     "from": {
+      "name": "START",
+      "lat": 35.2564,
+      "lon": 139.1556
+     },
+     "to": {
+      "name": "小田原 Odawara",
+      "lat": 35.25642,
+      "lon": 139.1549
+     },
+     "startTime": "2026-10-30T01:22:00Z",
+     "endTime": "2026-10-30T01:27:00Z",
+     "scheduledStartTime": "2026-10-30T01:22:00Z",
+     "scheduledEndTime": "2026-10-30T01:27:00Z"
+    },
+    {
+     "mode": "REGIONAL_RAIL",
+     "from": {
+      "name": "小田原 Odawara",
+      "lat": 35.25642,
+      "lon": 139.1549
+     },
+     "to": {
+      "name": "箱根湯本 Hakone-Yumoto",
+      "lat": 35.23337000000001,
+      "lon": 139.10366999999997
+     },
+     "startTime": "2026-10-30T01:27:00Z",
+     "endTime": "2026-10-30T01:41:00Z",
+     "scheduledStartTime": "2026-10-30T01:27:00Z",
+     "scheduledEndTime": "2026-10-30T01:41:00Z",
+     "routeShortName": "OH",
+     "routeLongName": "箱根登山線 Hakone Tozan Line",
+     "agencyName": "小田急箱根 Odakyu Hakone",
+     "headsign": "(各駅停車 Local) 箱根湯本 Hakone-Yumoto"
+    },
+    {
+     "mode": "WALK",
+     "from": {
+      "name": "箱根湯本 Hakone-Yumoto",
+      "lat": 35.23337000000001,
+      "lon": 139.10366999999997
+     },
+     "to": {
+      "name": "END",
+      "lat": 35.2329,
+      "lon": 139.1067
+     },
+     "startTime": "2026-10-30T01:41:00Z",
+     "endTime": "2026-10-30T01:46:00Z",
+     "scheduledStartTime": "2026-10-30T01:41:00Z",
+     "scheduledEndTime": "2026-10-30T01:46:00Z"
+    }
+   ]
+  }
+ ]
+}

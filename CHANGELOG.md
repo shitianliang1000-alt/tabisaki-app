@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- 乗り換え検索で、駅すぱあと・NAVITIME・HERE・Transitous の API を使えるようにしました（中継の `POST /transit`。キーのあるものから順に試します。[docs/transit-apis.md](./docs/transit-apis.md)）
 - **ライセンスを The Unlicense から PolyForm Noncommercial License 1.0.0 に変えました（商用利用はできません）。** これより前に公開した版は Unlicense のままです。収録データは、それぞれの提供元の条件に従います
 
 - リポジトリの運用を整えました: Issue・PR のひな形、[CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md)、行動規範、この履歴、版の付けかた、これからの計画（[docs/roadmap.md](./docs/roadmap.md)）

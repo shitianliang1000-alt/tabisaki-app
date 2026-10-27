@@ -49,6 +49,10 @@ npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put MAPS_API_KEY
 # 任意: チャットのネット検索をウェブ全体にする（無ければ Wikipedia だけ）
 npx wrangler secret put TAVILY_API_KEY
+# 任意: 乗り換え検索の API（docs/transit-apis.md）
+npx wrangler secret put EKISPERT_API_KEY
+npx wrangler secret put NAVITIME_RAPIDAPI_KEY
+npx wrangler secret put HERE_API_KEY
 npx wrangler deploy
 ```
 
