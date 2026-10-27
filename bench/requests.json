@@ -1,0 +1,245 @@
+{
+  "note": "旅程の成立率ベンチマークの、決まった頼みごとの組（tools/plan_bench.mjs）。id を変えると基準と比べられなくなります。",
+  "requests": [
+    {
+      "id": "fixed-01",
+      "wish": "高尾山に登りたい",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-14",
+      "start": "08:00",
+      "back": "19:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-02",
+      "wish": "京都の寺を見たい",
+      "from": "東京駅",
+      "days": 3,
+      "date": "2026-11-14",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-03",
+      "wish": "北海道の自然",
+      "from": "東京駅",
+      "days": 4,
+      "date": "2026-11-14",
+      "start": "06:00",
+      "back": "21:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-04",
+      "wish": "沖縄の海でのんびり",
+      "from": "東京駅",
+      "days": 3,
+      "date": "2026-11-21",
+      "start": "06:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-05",
+      "wish": "大阪で食べ歩き",
+      "from": "名古屋駅",
+      "days": 1,
+      "date": "2026-11-15",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-06",
+      "wish": "東北の温泉",
+      "from": "東京駅",
+      "days": 2,
+      "date": "2026-11-21",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-07",
+      "wish": "金沢で美術館と庭園",
+      "from": "東京駅",
+      "days": 2,
+      "date": "2026-11-16",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "transit"
+    },
+    {
+      "id": "fixed-08",
+      "wish": "箱根の温泉と美術館",
+      "from": "東京駅",
+      "days": 2,
+      "date": "2026-11-16",
+      "start": "08:00",
+      "back": "19:00",
+      "transport": "car"
+    },
+    {
+      "id": "fixed-09",
+      "wish": "鎌倉の寺めぐり",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-23",
+      "start": "09:00",
+      "back": "18:00",
+      "transport": "transit"
+    },
+    {
+      "id": "fixed-10",
+      "wish": "奈良で歴史を学びたい",
+      "from": "新大阪駅",
+      "days": 1,
+      "date": "2026-11-17",
+      "start": "09:00",
+      "back": "18:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-11",
+      "wish": "広島と宮島",
+      "from": "新大阪駅",
+      "days": 2,
+      "date": "2026-11-28",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-12",
+      "wish": "長崎の教会と夜景",
+      "from": "博多駅",
+      "days": 2,
+      "date": "2026-11-28",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-13",
+      "wish": "熊本城と阿蘇",
+      "from": "博多駅",
+      "days": 2,
+      "date": "2026-11-30",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "car"
+    },
+    {
+      "id": "fixed-14",
+      "wish": "松本城と上高地",
+      "from": "名古屋駅",
+      "days": 2,
+      "date": "2026-11-07",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-15",
+      "wish": "日光の滝と東照宮",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-09",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-16",
+      "wish": "函館で夜景と朝市",
+      "from": "札幌駅",
+      "days": 2,
+      "date": "2026-11-07",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-17",
+      "wish": "仙台と松島",
+      "from": "東京駅",
+      "days": 2,
+      "date": "2026-11-02",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "transit"
+    },
+    {
+      "id": "fixed-18",
+      "wish": "伊勢神宮にお参り",
+      "from": "名古屋駅",
+      "days": 1,
+      "date": "2026-11-03",
+      "start": "08:00",
+      "back": "19:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-19",
+      "wish": "子どもと水族館",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-08",
+      "start": "09:00",
+      "back": "18:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-20",
+      "wish": "出雲大社と松江城",
+      "from": "広島駅",
+      "days": 2,
+      "date": "2026-11-14",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "car"
+    },
+    {
+      "id": "fixed-21",
+      "wish": "四国の城めぐり",
+      "from": "新大阪駅",
+      "days": 3,
+      "date": "2026-11-20",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-22",
+      "wish": "屋久島の自然",
+      "from": "博多駅",
+      "days": 3,
+      "date": "2026-11-13",
+      "start": "07:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-23",
+      "wish": "東京で美術館めぐり",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-16",
+      "start": "10:00",
+      "back": "18:00",
+      "transport": "walk"
+    },
+    {
+      "id": "fixed-24",
+      "wish": "別府と湯布院の温泉",
+      "from": "博多駅",
+      "days": 2,
+      "date": "2026-11-21",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    }
+  ]
+}

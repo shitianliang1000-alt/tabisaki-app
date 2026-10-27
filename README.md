@@ -8,7 +8,7 @@
 
 -- <cite>松尾芭蕉『おくのほそ道』, 1702</cite>
 
-旅さきは、「行きたいこと」から旅程をつくる旅行プランナーです。端末（SSH）から使えます。「温泉と海をゆっくり楽しみたい」のような文から、行き先・立ち寄る順番・移動時間・営業時間を考えて、その日に実際に回れる旅程を組みます。同じエンジンの Web 版もあります: <https://tabisaki-github-io.shitianliang1000.workers.dev/>
+旅さきは、「行きたいこと」から旅程をつくる旅行プランナーです。端末（SSH）から使えます。「温泉と海をゆっくり楽しみたい」のような文から、行き先・立ち寄る順番・移動時間・営業時間を考えて、その日に実際に回れる旅程を組みます。
 
 <p align="center">
   <img width="600px" alt="端末の中で旅程を見ている旅さき" src="screen.png">
@@ -18,7 +18,7 @@
 
 * 文で頼むだけで旅程になる（「京都で歴史を感じたい」「温泉に入りつつ海も見たい」）
 * 開館時間・最終入場・移動時間・食事・帰着時刻を守って時刻を割り当てる
-* 全国のエリア **1,371** か所・スポット **54,101** か所を収録（[知識ベース](docs/knowledge-base.md)）
+* 全国のエリア **1,371** か所・スポット **54,101** か所を収録(10月27日現在)（[知識ベース](docs/knowledge-base.md)）
 * 定番と穴場の割合、混雑・天気・日没・季節に合わせた順番
 * 日帰り・複数日・片道・周遊に対応
 * AI が出した場所も、収録の候補と照らし合わせてから使う（無い場所は旅程に入らない）
@@ -57,6 +57,8 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 ### [知識ベース](docs/knowledge-base.md)
 
 ### [多言語対応と翻訳](docs/i18n.md)
+
+### [外のデータの取り口](docs/data-providers.md)
 
 開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
 

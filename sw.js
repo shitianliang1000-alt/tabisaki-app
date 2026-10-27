@@ -35,7 +35,7 @@
 // v13: ホームを挨拶と入力欄だけにし、当日の札と共有を答えに出しました。
 // v20: こだわりを入力欄の下へ出し、答えに動き（js/motion.js）を足しました。
 // v22: 起動に要る js/ を app.js と chunk-*.js にまとめました（tools/optimize_site.mjs）。
-const VERSION = "tabisaki-v25";
+const VERSION = "tabisaki-v26";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -110,6 +110,7 @@ const SHELL_FILES = [
   "./js/errors.js",
   "./js/events.js",
   "./js/feasibility.js",
+  "./js/feedback.js",
   "./js/fit.js",
   "./js/follow.js",
   "./js/geo.js",
@@ -186,6 +187,7 @@ const SHELL_FILES = [
   "./js/verify.js",
   "./js/weather.js",
   "./js/yahoo-transit.js",
+  "./js/providers.js",
 ];
 
 self.addEventListener("install", (e) => {

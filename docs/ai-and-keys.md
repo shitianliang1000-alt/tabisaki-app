@@ -79,5 +79,6 @@ PROXY_URL
 | Leaflet | 地図UI | 地図表示に必要 |
 | Google Gemini | AIによる理解・選定・調査 | ✅ |
 | Google Routes API | 実際の経路・移動時間 | ✅（距離推定にフォールバック） |
+| 乗り換え検索（駅すぱあと・NAVITIME・HERE・Transitous・Yahoo!路線情報） | 電車・バス・飛行機・船の時刻と経路（[transit-apis.md](./transit-apis.md)） | ✅（距離推定にフォールバック） |
 | Open-Meteo | 天気 | ✅ |
 | Wikipedia | スポット写真の取得 | ✅ |

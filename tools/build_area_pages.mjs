@@ -252,11 +252,31 @@ export function sentencesOf(text) {
  * 載せずに、名前と分類だけにします。Wikipedia の書き出しは、読みがな
  * のかっこを落とし、文の切れ目で短くします（途中で切りません）。
  */
+/**
+ * 説明の残りが「（…）」の繰り返しのあと句点、という形かどうか。
+ *
+ * 以前は正規表現 ^(（[^）]*）)+。 で見ていましたが、かっこの組の
+ * 繰り返しはバックトラックで多項式時間になり得る形です
+ * （CodeQL js/polynomial-redos）。意味は変えずに、左から1組ずつ
+ * 走査します（かっこは最初の ） で閉じるので、組の区切りは一意です）。
+ */
+function isParenRun(s) {
+  let i = 0;
+  let groups = 0;
+  while (s[i] === "（") {
+    const close = s.indexOf("）", i + 1);
+    if (close < 0) return false;
+    i = close + 1;
+    groups++;
+  }
+  return groups > 0 && s[i] === "。";
+}
+
 export function readableDescription(spot) {
   const name = String(spot?.name ?? "").trim();
   let d = String(spot?.description ?? "").replace(/\s+/g, " ").trim();
   if (!d) return "";
-  if (name && d.startsWith(name) && /^(（[^）]*）)+。/.test(d.slice(name.length))) return "";
+  if (name && d.startsWith(name) && isParenRun(d.slice(name.length))) return "";
   if (aboutSomethingElse(name, d)) return "";
   // 書き出しの読みがな:「胎内スキー場（たいないスキーじょう）は、」
   d = d.replace(/^([^（。]{1,40})（[^）]*）(は)/, "$1$2");
