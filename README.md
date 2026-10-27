@@ -28,7 +28,7 @@
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
-* `./tabisaki api` で、手元用の API サーバー（`POST /plan`）を立てる。Docker でも動く
+* `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない
 
 ## Install
