@@ -99,6 +99,17 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 - `NO_COLOR=1` を付けると色を使いません。幅の狭い端末では長い名前を切って並べます
 - パイプやファイルへ出すときは使えません（`tabisaki plan` を使ってください）
 
+## スポットに情報を足す（spot・area）
+
+```sh
+./tabisaki spot hours set 雲場池 9:00-17:00 --closed=水 --source=公式サイト
+./tabisaki spot show 雲場池
+./tabisaki area define my-pond --name=軽井沢の池 --center=36.35,138.63 --radius=3
+```
+
+足した情報は手元（`~/.tabisaki/spots.json`）に出典・確認の状態つきで入り、確認済みの営業時間は `plan`・`tui` の旅程に効きます。
+くわしくは [spot-data.md](./spot-data.md)。
+
 ## Node.js から使う（packages/core）
 
 ```js

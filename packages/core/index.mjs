@@ -147,11 +147,20 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
 
   return {
     kb,
     /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
     overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request

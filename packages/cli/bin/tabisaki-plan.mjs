@@ -24,6 +24,8 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --kb=<名前>         ユーザーKB（~/.tabisaki/kbs/<名前>/）を公式の収録に重ねて組む
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
+  tabisaki spot help  スポットに別名・営業時間・季節・写真を足す（出典と確認の状態つき）
+  tabisaki area help  自分でエリアを決める
   tabisaki help       これを出す
   tabisaki --version  版を出す
 
@@ -61,6 +63,10 @@ function usage(message) {
 }
 
 export async function main(argv, { stdout = process.stdout, stderr = process.stderr } = {}) {
+  if (argv[0] === "spot" || argv[0] === "area") {
+    const { main: spotMain } = await import("./spot.mjs");
+    return spotMain(argv, { stdout, stderr });
+  }
   try {
     const { opts, words } = parseArgs(argv);
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }

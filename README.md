@@ -42,6 +42,8 @@ cd tabisaki-app
 
 端末から使う: [docs/cli-usage.md](docs/cli-usage.md)
 
+スポットに別名・営業時間・季節・写真を足す（出典つき）: [docs/spot-data.md](docs/spot-data.md)
+
 手元の API サーバー（Docker）: [docs/self-hosting.md](docs/self-hosting.md)
 
 Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 <https://tabisaki.site.je/>）
