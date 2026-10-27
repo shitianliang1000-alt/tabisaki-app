@@ -119,18 +119,31 @@ export async function normalizeRequest(req = {}) {
 
 /**
  * 旅程を組む道具を用意します（知識ベースを読み込むので、1回だけ呼んで使い回します）。
- * @param {{root?: string}} [opts]
+ *
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
+ *
+ * @param {{root?: string, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT } = {}) {
+export async function createCore({ root = ROOT, userKb, home } = {}) {
   // 本体（js/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
-  const kb = await loadKnowledgeBase();
+  let kb = await loadKnowledgeBase();
+  let overlayReport = null;
+  if (userKb) {
+    const { openStore, applyOverlay } = await import("./userkb.mjs");
+    const { sameThing } = await js("dedupe.js");
+    const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
+    ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
+  }
 
   return {
     kb,
+    /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
+    overlayReport,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
@@ -156,3 +169,4 @@ export async function createCore({ root = ROOT } = {}) {
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
+export * as userkb from "./userkb.mjs";

@@ -21,6 +21,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --transport=<手段>  any / transit / car / walk / local（既定: any）
   --output=<形式>     markdown / text / json（既定: markdown）
   --lang=<言語>       ja / en（既定: ja。環境変数 TABISAKI_LANG でも決められます）
+  --kb=<名前>         ユーザーKB（~/.tabisaki/kbs/<名前>/）を公式の収録に重ねて組む
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
   tabisaki help       これを出す
@@ -33,7 +34,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
 時刻はすべて日本時間です。移動時間は距離からの目安で、実際の乗換は調べません。
 `;
 
-const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang"]);
+const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
 const PLANNED = { local: "#352", model: "#352" };
 
@@ -88,7 +89,11 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
     let result;
     try {
-      const c = await core.createCore();
+      const c = await core.createCore(opts.kb ? { userKb: opts.kb } : {});
+      const rep = c.overlayReport;
+      if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
+        stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
+      }
       result = await c.plan({
         wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
         transport: opts.transport,
@@ -108,7 +113,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
   } catch (e) {
     stderr.write(`tabisaki: ${e?.message ?? e}\n`);
     if (e?.exitCode) return e.exitCode;
-    if (e?.code === "invalid_input" || e?.code === "unknown_place") return 2;
+    if (["invalid_input", "unknown_place", "invalid_name", "not_found"].includes(e?.code)) return 2;
     return 1;
   }
 }
