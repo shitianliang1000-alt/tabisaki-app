@@ -18,6 +18,7 @@
 - API サーバーに鍵（`TABISAKI_API_TOKEN`）・`/v1/` の道・CORS の許可リスト・要求番号（`X-Request-Id`）を足しました。127.0.0.1 以外で待ち受けるときは、鍵が無いと起動しません（[docs/api.md](./docs/api.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 - README と CONTRIBUTING を [UTM](https://github.com/utmapp/UTM) の文書の形（短い README と、くわしい内容を `docs/` に分ける）にそろえました
+- 旅程を英語でも出せるようにしました（`./tabisaki plan --lang=en`、API の `"lang": "en"`）。翻訳の決まりと送りかたは [docs/i18n.md](./docs/i18n.md)、点検は `tools/i18n_check.mjs` です
 
 ## 0.1.0 — 2026-10-25（最初の版にする予定のところ）
 

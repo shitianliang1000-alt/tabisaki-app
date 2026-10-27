@@ -154,3 +154,5 @@ export async function createCore({ root = ROOT } = {}) {
 }
 
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
+export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
+export { resolveLang } from "./locales.mjs";
