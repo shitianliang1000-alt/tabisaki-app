@@ -44,6 +44,8 @@ cd tabisaki-app
 
 手元の API サーバー（Docker）: [docs/self-hosting.md](docs/self-hosting.md)
 
+携帯アプリ（Android の apk・iOS）: [docs/mobile.md](docs/mobile.md)
+
 Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 <https://tabisaki.site.je/>）
 
 ## Development
