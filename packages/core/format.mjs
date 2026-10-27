@@ -1,12 +1,12 @@
 // 組んだ旅程を、文字にする（Markdown・ふつうの文・JSON）。
 // 時刻はすべて日本時間で出します（走らせる端末の時間帯によらず）。
+// 決まった文は locales/*.json から引きます（{ lang: "en" } で英語。docs/i18n.md）。
+// スポットの名前など、収録データの文は原文のままです。
 
-const fmt = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false });
-const dayFmt = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", weekday: "short" });
+import { i18nFor } from "./locales.mjs";
 
-export const hm = (d) => fmt.format(new Date(d));
-const dayLabel = (d) => dayFmt.format(new Date(d));
-const yen = (n) => `${Math.round(n).toLocaleString("ja-JP")}円`;
+const ja = i18nFor("ja");
+export const hm = ja.time;
 
 /** 旅程を、行の並びにします（形式によらない中身）。 */
 export function rows(itinerary) {
@@ -28,41 +28,53 @@ export function rows(itinerary) {
 
 const mark = { spot: "📍", meal: "🍴", transit: "🚃", lodging: "🛏", rest: "☕" };
 
-export function toMarkdown({ request, itinerary }) {
+/** 手元の LLM を使ったときの一言（使えなかったときは、そう書きます）。 */
+function aiLine(ai, i) {
+  if (!ai) return null;
+  return ai.used ? i.t("plan.aiLocal", { model: ai.model })
+    : i.t("plan.aiLocalFailed", { model: ai.model, error: ai.error ?? "" });
+}
+
+export function toMarkdown({ request, itinerary, ai }, { lang } = {}) {
+  const i = i18nFor(lang);
   const out = [];
-  out.push(`# ${itinerary.title ?? "旅程"}`, "");
-  out.push(`- 希望: ${request.wish}`);
-  out.push(`- 出発: ${request.origin.name}（${dayLabel(request.departAt)} ${hm(request.departAt)}）`);
-  out.push(`- 日数: ${request.days}日`);
-  if (Number.isFinite(itinerary.totalCostYen)) out.push(`- 費用の目安: ${yen(itinerary.totalCostYen)}`);
+  out.push(`# ${itinerary.title ?? i.t("plan.title")}`, "");
+  out.push(`- ${i.t("plan.wish", { wish: request.wish })}`);
+  out.push(`- ${i.t("plan.depart", { from: request.origin.name, date: i.date(request.departAt), time: i.time(request.departAt) })}`);
+  out.push(`- ${i.t("plan.days", { n: request.days })}`);
+  if (Number.isFinite(itinerary.totalCostYen)) out.push(`- ${i.t("plan.cost", { cost: i.yen(itinerary.totalCostYen) })}`);
+  if (ai) out.push(`- ${aiLine(ai, i)}`);
   out.push("");
   if (itinerary.headline) out.push(`> ${itinerary.headline}`, "");
   for (const day of rows(itinerary)) {
-    out.push(`## ${day.n}日目${day.date ? `（${dayLabel(day.date)}）` : ""}`, "");
-    out.push("| 時刻 | | 予定 | メモ |", "| --- | --- | --- | --- |");
+    out.push(`## ${day.date ? i.t("plan.dayWithDate", { n: day.n, date: i.date(day.date) }) : i.t("plan.day", { n: day.n })}`, "");
+    out.push(i.t("plan.tableHead"), "| --- | --- | --- | --- |");
     for (const it of day.items) {
-      const memo = [it.hours, it.km !== null ? `${it.km.toFixed(1)}km` : ""].filter(Boolean).join("・");
+      const memo = [it.hours, it.km !== null ? i.km(it.km) : ""].filter(Boolean).join("・");
       const cell = (s) => String(s).replace(/\|/g, "｜").replace(/\n/g, " ");
-      out.push(`| ${hm(it.start)}〜${hm(it.end)} | ${mark[it.kind] ?? ""} | ${cell(it.title)} | ${cell(memo)} |`);
+      const when = i.t("plan.timeRange", { start: i.time(it.start), end: i.time(it.end) });
+      out.push(`| ${when} | ${mark[it.kind] ?? ""} | ${cell(it.title)} | ${cell(memo)} |`);
     }
     out.push("");
   }
   const warn = [...(itinerary.warnings ?? []), ...(itinerary.hoursWarnings ?? [])].map((w) => (typeof w === "string" ? w : w?.message)).filter(Boolean);
-  if (warn.length) out.push("## 注意", "", ...warn.map((w) => `- ${w}`), "");
-  out.push("---", "", "移動時間は距離からの目安です（実際の乗換は調べていません）。営業時間は変わることがあります。出かける前に確かめてください。");
+  if (warn.length) out.push(`## ${i.t("plan.warnings")}`, "", ...warn.map((w) => `- ${w}`), "");
+  out.push("---", "", i.t("plan.footer"));
   return out.join("\n") + "\n";
 }
 
-export function toPlainText({ request, itinerary }) {
-  const out = [`${itinerary.title ?? "旅程"}（${request.origin.name}から・${request.days}日）`];
+export function toPlainText({ request, itinerary, ai }, { lang } = {}) {
+  const i = i18nFor(lang);
+  const out = [i.t("plan.plainTitle", { title: itinerary.title ?? i.t("plan.title"), from: request.origin.name, n: request.days })];
+  if (ai) out.push(aiLine(ai, i));
   for (const day of rows(itinerary)) {
-    out.push("", `${day.n}日目${day.date ? ` ${dayLabel(day.date)}` : ""}`);
-    for (const it of day.items) out.push(`  ${hm(it.start)}  ${it.title}`);
+    out.push("", day.date ? i.t("plan.dayPlain", { n: day.n, date: i.date(day.date) }) : i.t("plan.day", { n: day.n }));
+    for (const it of day.items) out.push(`  ${i.time(it.start)}  ${it.title}`);
   }
   return out.join("\n") + "\n";
 }
 
-export function toJson({ request, itinerary }) {
+export function toJson({ request, itinerary, ai }) {
   return JSON.stringify({
     version: 1,
     request: {
@@ -72,6 +84,7 @@ export function toJson({ request, itinerary }) {
     },
     title: itinerary.title ?? null,
     totalCostYen: itinerary.totalCostYen ?? null,
+    ...(ai ? { ai } : {}),
     days: rows(itinerary),
   }, null, 2) + "\n";
 }

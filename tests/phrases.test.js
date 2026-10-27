@@ -6,12 +6,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { areaNote, areaScope, detectAreas, phraseAreas } from "../js/areas.js";
-import { understandRequest } from "../js/ai.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+import { areaNote, areaScope, detectAreas, phraseAreas } from "../packages/core/src/areas.js";
+import { understandRequest } from "../packages/core/src/ai.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 const trip = (note, from = "東京駅") => makeTrip({

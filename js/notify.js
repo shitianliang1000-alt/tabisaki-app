@@ -24,10 +24,10 @@
 // ■ いつ知らせるか
 //
 // 「出発の15分前」だけでは足りません。空港へは1時間前に着く必要が
-// あり、船はもっと早く締まります（js/modes.js の BOARDING_LEAD_MIN。
+// あり、船はもっと早く締まります（packages/core/src/modes.js の BOARDING_LEAD_MIN。
 // 根拠もそこに書いてあります）。乗り物で変えます。
 
-import { BOARDING_LEAD_MIN } from "./modes.js";
+import { BOARDING_LEAD_MIN } from "../packages/core/src/modes.js";
 
 /**
  * この仕組みでできないこと。画面にそのまま出します。

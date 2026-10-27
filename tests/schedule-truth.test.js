@@ -17,8 +17,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildItinerary } from "../js/planner.js";
-import { computeRoute, resetRoutesBreaker, resetTransitPacing } from "../js/routes.js";
+import { buildItinerary } from "../packages/core/src/planner.js";
+import { computeRoute, resetRoutesBreaker, resetTransitPacing } from "../packages/core/src/routes.js";
 
 const d = (s) => new Date(s);
 
@@ -126,10 +126,10 @@ test("区間ごとに、その区間を通る日時で調べる", async () => {
 // 分かれています。AIが両方から選ぶと片方が黙って消え、その日は
 // 1か所になります。収録を増やすほどひどくなる壊れ方でした。
 
-import { loadKnowledgeBase } from "../js/kb.js";
-import { assignToStays, planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { assignToStays, planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 
@@ -211,7 +211,7 @@ test("駅から出るときは、その駅の名前で調べる", async () => {
 // 拠点のすぐ隣に4か所あるのに、7.3km先の寺から始めて6.6km戻ってくる
 // 1日が、実際に出ていました。1回ぶんはどれも上限の中でした。
 
-import { orderByRoute } from "../js/crowd.js";
+import { orderByRoute } from "../packages/core/src/crowd.js";
 
 test("混雑を避けるためでも、道順から大きく離れない", () => {
   const base = { lat: 35.451, lng: 139.632, name: "桜木町駅" };   // 拠点
@@ -304,7 +304,7 @@ test("電車・バスの一行は、発着と乗換と運賃だけにする", as
 // 予定表としては成立していますが、6時間半をどう過ごすのかは書いて
 // ありません。書いていない時間は、旅程ではありません。
 
-import { longestGap } from "../js/score.js";
+import { longestGap } from "../packages/core/src/score.js";
 
 test("その日の予定が尽きたら、近くから足して埋める", async () => {
   const itin = await planTrip({
@@ -343,7 +343,7 @@ test("空白は、宿のあとを数えない", () => {
 // すでに含んでいます（4:00発で頼んで6:28発の便なら4時間49分）。そこへ
 // waitMinutes をもう一度足していました。
 
-import { arrivalAfter } from "../js/pipeline.js";
+import { arrivalAfter } from "../packages/core/src/pipeline.js";
 
 test("着く時刻は、待ち時間を二度数えない", () => {
   const depart = d("2026-09-13T04:00");

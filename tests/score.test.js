@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { paceBreakdown, pickBest, scoreItinerary, slackLevel }
-  from "../js/score.js";
+  from "../packages/core/src/score.js";
 
 const t = (s) => new Date(`2026-09-12T${s}:00`);
 

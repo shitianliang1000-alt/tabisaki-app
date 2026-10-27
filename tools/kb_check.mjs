@@ -1,7 +1,7 @@
 // 知識ベース（kb/）の点検。
 //
 // 壊れていたら止める「誤り」と、人が見て決める「気になる点」を分けて出します。
-//   ・誤り … 必須の項目が無い、座標が日本の外、id が重なる、営業時間の形が
+//   ・誤り … 必須の項目が無い、座標が日本の外、id が重なる、知らない分類、営業時間の形が
 //            おかしい、索引（index.json）の件数と中身が合わない、など
 //   ・気になる点 … 説明文が無い、営業時間が「目安」のまま、同じ名前が近くに
 //            ある、など（直すかどうかは人が決めます。自動では書き換えません）
@@ -19,6 +19,17 @@ const ROOT = path.join(import.meta.dirname, "..");
 
 export const REQUIRED = ["id", "regionId", "name", "category", "lat", "lng", "fame_tier"];
 export const FAME_TIERS = new Set(["major", "known", "hidden"]);
+// アプリが知っている分類（packages/core/src/feasibility.js の滞在時間・営業時間の表と、
+// ジャンルの表にあるもの）。ここに無い分類は、営業時間も料金も既定値に
+// 黙って落ちるので、誤りとして止めます。足すときは packages/core/src/feasibility.js にも足します。
+export const CATEGORIES = new Set([
+  "観光名所", "寺院", "神社", "教会", "城", "史跡", "世界遺産", "町並み", "建築", "名勝", "天然記念物",
+  "博物館", "美術館", "文化施設", "公園", "庭園", "国立公園", "国定公園", "自然",
+  "山", "登山", "丘", "高原", "峠", "滝", "渓谷", "川", "湖", "島", "岬", "海岸", "海水浴場", "漁港", "灯台",
+  "ダム", "展望台", "ロープウェイ", "乗り物", "温泉", "温泉地", "スキー場",
+  "動物園", "水族館", "牧場", "遊園地", "テーマパーク",
+  "道の駅", "市場", "商店街", "商業施設", "グルメ", "飲食店", "酒蔵", "年中行事",
+]);
 // 日本の範囲（沖ノ鳥島・南鳥島を含む、ゆるい箱）
 const JP = { latMin: 20, latMax: 46, lngMin: 122, lngMax: 154 };
 
@@ -92,6 +103,7 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
       if (s.regionId && listed.size && !listed.has(s.regionId)) {
         errors.push(`${where}: エリア ${s.regionId} が索引のこの段に書かれていません`);
       }
+      if (s.category && !CATEGORIES.has(s.category)) errors.push(`${where}: 分類「${s.category}」は知らない値です`);
       if (s.fame_tier && !FAME_TIERS.has(s.fame_tier)) errors.push(`${where}: fame_tier「${s.fame_tier}」は知らない値です`);
       // 営業時間は「時」の数（9.5 = 9:30）。夜をまたぐ店のため 30 までは許します。
       for (const k of ["open", "close"]) {

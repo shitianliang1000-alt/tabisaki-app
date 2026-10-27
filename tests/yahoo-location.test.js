@@ -15,7 +15,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import worker from "../server/worker.js";
-import { plausibleRoute } from "../js/routes.js";
+import { plausibleRoute } from "../packages/core/src/routes.js";
 
 const ORIGIN = "https://tabisaki.example";
 const html = await readFile(

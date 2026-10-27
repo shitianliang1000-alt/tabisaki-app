@@ -7,8 +7,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { findStop, nearbyStops, nearestStop, resetStopsCache, searchStops }
-  from "../js/stops.js";
-import * as data from "../js/stops-data.js";
+  from "../packages/core/src/stops.js";
+import * as data from "../packages/core/src/stops-data.js";
 
 const FUJI_5GO = { lat: 35.3606, lng: 138.7364 };
 const FUJI_SUMMIT = { lat: 35.3606, lng: 138.7305 };

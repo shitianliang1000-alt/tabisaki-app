@@ -1,11 +1,11 @@
-// チャットに書いた条件を読み取るテスト（js/chatread.js）。
+// チャットに書いた条件を読み取るテスト（packages/core/src/chatread.js）。
 //
 // 書いたことが設定より勝つので、読み違えると「頼んでいない日・駅」で
 // 組まれます。拾いすぎ（「明日から」を出発地と読むなど）を特に見ます。
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasSubstance, readChat, stripOriginPhrase } from "../js/chatread.js";
+import { hasSubstance, readChat, stripOriginPhrase } from "../packages/core/src/chatread.js";
 
 // 2026年10月11日（日）10時
 const NOW = new Date(2026, 9, 11, 10, 0);

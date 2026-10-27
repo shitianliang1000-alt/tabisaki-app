@@ -16,7 +16,7 @@
 // AIキーが無くても動きます。日本語の言い回しから読み取れるぶんは、
 // こちらで読み取ります（`parseEditLocally`）。
 
-import { extractJson } from "./ai.js";
+import { extractJson } from "../packages/core/src/ai.js";
 
 /** パッチの初期値。ここに無いキーは、あとで捨てます。 */
 function emptyPatch() {

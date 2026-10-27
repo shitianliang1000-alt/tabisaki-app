@@ -1,4 +1,4 @@
-// 旅の目的（デート・アクティブ…）のテスト（js/purpose.js）。
+// 旅の目的（デート・アクティブ…）のテスト（packages/core/src/purpose.js）。
 //
 // 目的は選ぶときの重みです。外しはしないこと、並びは目的で変わること、
 // チャットの文から読めることを見ます。
@@ -9,10 +9,10 @@ import { readFileSync } from "node:fs";
 import {
   isPurposeWord, purposeAppeal, purposeGenres, purposeHint, purposeNotes,
   purposePace, readPurposes, stripPurposeWords,
-} from "../js/purpose.js";
-import { searchSpotsByKeyword } from "../js/kb.js";
-import { hasSubstance, readChat } from "../js/chatread.js";
-import { makeTrip } from "../js/trip.js";
+} from "../packages/core/src/purpose.js";
+import { searchSpotsByKeyword } from "../packages/core/src/kb.js";
+import { hasSubstance, readChat } from "../packages/core/src/chatread.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const spot = (id, category, name = id, description = "", fame = 50) =>
   ({ id, category, name, description, fame_score: fame, regionId: "r", genres: [] });

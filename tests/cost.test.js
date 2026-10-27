@@ -11,8 +11,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TUNING } from "../js/config.js";
-import { costBreakdown } from "../js/cost.js";
+import { TUNING } from "../packages/core/src/config.js";
+import { costBreakdown } from "../packages/core/src/cost.js";
 
 /** 1日ぶんの、運転する旅程。 */
 function driveItin(km) {

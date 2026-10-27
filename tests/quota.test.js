@@ -9,7 +9,7 @@ import test from "node:test";
 
 import {
   ApiQuota, QuotaBlockedError, describeUsage, meteredFetch,
-} from "../js/quota.js";
+} from "../packages/core/src/quota.js";
 
 /** 承認を自動で返す門番。何回聞かれたかを数えます。 */
 function autoApprove(answer = true) {

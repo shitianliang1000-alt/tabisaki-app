@@ -8,9 +8,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { discoverArea, validateDiscovered } from "../js/discover.js";
-import { loadKnowledgeBase, mergeIntoKb } from "../js/kb.js";
-import { profileOf } from "../js/feasibility.js";
+import { discoverArea, validateDiscovered } from "../packages/core/src/discover.js";
+import { loadKnowledgeBase, mergeIntoKb } from "../packages/core/src/kb.js";
+import { profileOf } from "../packages/core/src/feasibility.js";
 
 /** 鳥取（収録に無い県）を調べたときの、まっとうな応答。 */
 const TOTTORI = {
@@ -264,7 +264,7 @@ test("ありえない最終入場・定休日は落とす（丸ごと捨ては�
 });
 
 test("調べた営業時間は、最終入場が入っていても未確認のまま", async () => {
-  const { hoursFor } = await import("../js/hours.js");
+  const { hoursFor } = await import("../packages/core/src/hours.js");
   const r = await discoverArea("姫路", { call: stub(HOURS_DOC), useCache: false });
   const castle = r.spots.find((s) => s.name === "姫路城");
   const h = hoursFor(castle, new Date("2026-09-12T10:00"));

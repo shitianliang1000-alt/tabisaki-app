@@ -1,14 +1,20 @@
 # 旅さきの手元用 API サーバー
 #     docker compose up
-#     curl -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{"wish":"温泉と海","days":2}'
+#     curl -X POST http://127.0.0.1:8787/v1/plan -H 'Content-Type: application/json' -d '{"wish":"温泉と海","days":2}'
 #
-# 認証が無いので、この端末の中（127.0.0.1）からだけ使えるようにしています。
-# ほかの端末から使いたいときも、インターネットにそのまま出さないでください（docs/self-hosting.md）。
+# 認証なしで動かすので、この端末の中（127.0.0.1）にだけ出しています。
+# ほかの端末から使うときは、TABISAKI_NO_AUTH を消して TABISAKI_API_TOKEN を入れ、
+# 手前に HTTPS の逆プロキシを置いてください（docs/api.md）。
 services:
   api:
     build: .
     ports:
       - "127.0.0.1:8787:8787"
+    environment:
+      # 入れ物の中では 0.0.0.0 で待ち受けるので、認証なしは明示して許します。
+      # 外に出すのは上の 127.0.0.1:8787 だけです。
+      TABISAKI_NO_AUTH: "1"
+      # TABISAKI_API_TOKEN: "openssl rand -hex 32 で作った鍵"
     restart: unless-stopped
     read_only: true
     tmpfs:

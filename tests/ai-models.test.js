@@ -23,7 +23,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { listModels, rankModels, resetModelDiscovery } from "../js/ai.js";
+import { listModels, rankModels, resetModelDiscovery } from "../packages/core/src/ai.js";
 import worker from "../server/worker.js";
 
 // --- 並べ替え ---------------------------------------------------------------

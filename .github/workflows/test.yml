@@ -28,6 +28,9 @@ jobs:
       # 気になる点を、実行結果のまとめ欄に出します）
       - name: Knowledge base check
         run: node tools/kb_check.mjs --md >> "$GITHUB_STEP_SUMMARY"
+      # 翻訳の点検（原文に無い鍵や差し込みの食い違いは誤りで止め、訳の進み具合をまとめ欄に出す）
+      - name: Translation check
+        run: node tools/i18n_check.mjs --md >> "$GITHUB_STEP_SUMMARY"
       # PHP 版（InfinityFree 向け）を組み立てて、書きまちがいが無いかを見ます。
       - name: PHP site build and lint
         run: |
@@ -48,6 +51,32 @@ jobs:
           test -f .site/__site/landing.html && test -f .site/data/areas.json && test -f .site/assets/landing.js
           test -f .site/__admin/index.html
 
+  # 旅程の成立率（tools/plan_bench.mjs・docs/benchmarks.md）。決まった頼みごとと、
+  # シードを固定したランダムな頼みごとで旅程を組み、営業時間・移動時間・
+  # 同じ場所・重なりの違反を数えます。基準（bench/baseline.json）より悪ければ失敗。
+  # 不成立の旅程は1件ずつ JSON にして添付します（再現の手順つき）。
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Itinerary benchmark
+        run: |
+          set +e
+          node tools/plan_bench.mjs --check --md --out bench-out > bench.md
+          code=$?
+          cat bench.md >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plan-bench
+          path: |
+            bench.md
+            bench-out/
+
   # 手元用 API サーバー（Dockerfile・compose.yaml）が、組み上がって旅程を返すか。
   docker:
     runs-on: ubuntu-latest
@@ -56,14 +85,20 @@ jobs:
       - name: Build and run
         run: |
           docker build -t tabisaki-api .
-          docker run -d --name api -p 127.0.0.1:8787:8787 tabisaki-api
+          # 鍵も TABISAKI_NO_AUTH も無ければ、0.0.0.0 では起動しない（docs/api.md）
+          code=0; timeout 30 docker run --rm tabisaki-api || code=$?
+          test "$code" = 2
+          TOKEN=$(openssl rand -hex 32)
+          docker run -d --name api -p 127.0.0.1:8787:8787 -e TABISAKI_API_TOKEN="$TOKEN" tabisaki-api
           for i in $(seq 1 30); do
-            curl -sSf http://127.0.0.1:8787/health && break
+            curl -sSf http://127.0.0.1:8787/v1/health && break
             sleep 1
           done
-          curl -sSf -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' \
-            -d '{"wish":"温泉と海","days":2}' | grep -q '"ok":true'
-          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/plan -H 'Content-Type: application/json' -d '{"wish":""}')" = 400
+          curl -sSf -X POST http://127.0.0.1:8787/v1/plan -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" -d '{"wish":"温泉と海","days":2}' | grep -q '"ok":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/v1/plan -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d '{"wish":""}')" = 400
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/v1/plan -H 'Content-Type: application/json' -d '{"wish":"温泉"}')" = 401
+          test "$(docker inspect -f '{{.State.Health.Status}}' api)" != unhealthy
       - name: Logs
         if: always()
         run: docker logs api || true

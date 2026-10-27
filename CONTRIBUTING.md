@@ -11,9 +11,10 @@ cd tabisaki-app
 python3 -m http.server 8000      # http://localhost:8000/index.html を開く
 node --test tests/*.test.js       # 単体試験（依存パッケージなしで動きます）
 node tools/kb_check.mjs           # 知識ベースの点検（誤りがあると終了コード 1）
+node tools/plan_bench.mjs --check # 旅程の成立率（基準より悪いと終了コード 1。docs/benchmarks.md）
 ```
 
-SSH の鍵は GitHub → Settings → SSH and GPG keys で登録します。APIキーが無くても旅程は作れます。AI を手元で試したいときは [API_KEYS.md](API_KEYS.md) を見てください（**キーを書いた `js/config.js` は commit しないでください**）。端末で旅程を組んで確かめるときは `./tabisaki plan "温泉と海" --days=2`（[docs/cli-usage.md](docs/cli-usage.md)）、公開と同じ形（Cloudflare 版・PHP 版）で見るときは `./tabisaki help` です。画面の試験（E2E）と読みやすさの試験はブラウザが要ります。手順は [tests/e2e/README.md](tests/e2e/README.md) です。
+SSH の鍵は GitHub → Settings → SSH and GPG keys で登録します。APIキーが無くても旅程は作れます。AI を手元で試したいときは [API_KEYS.md](API_KEYS.md) を見てください（**キーを書いた `packages/core/src/config.js` は commit しないでください**）。端末で旅程を組んで確かめるときは `./tabisaki plan "温泉と海" --days=2`（[docs/cli-usage.md](docs/cli-usage.md)）、公開と同じ形（Cloudflare 版・PHP 版）で見るときは `./tabisaki help` です。画面の試験（E2E）と読みやすさの試験はブラウザが要ります。手順は [tests/e2e/README.md](tests/e2e/README.md) です。
 
 ## Style Guide
 本体はビルドなしでブラウザと Node.js の両方で動く JavaScript（ES modules）です。新しい依存パッケージは、なるべく足さないでください。データを作る道具（`tools/`）は Python と Node.js です。
@@ -32,6 +33,11 @@ SSH の鍵は GitHub → Settings → SSH and GPG keys で登録します。API�
 
 ## Data Sources
 収録データ（`kb/`）は、外のデータを取り込んで作っています。データを足すときは、出典と再配布の条件を確かめてから、`kb/index.json` の `sources`、[credits.html](credits.html)、[docs/data-licenses.md](docs/data-licenses.md) を直してください。条件がはっきりしないものは入れません。作り直す手順は [docs/knowledge-base.md](docs/knowledge-base.md) です。
+
+## Translations
+旅さきの原文は日本語です。英語などへの翻訳は、画面の文を `locales/<言語>.json` に、スポットの名前・説明を `kb/i18n/<言語>/` に書きます。収録ファイルや原文は書き換えません。訳が無いところは日本語の原文が出るので、一部だけの訳でも送ってください。
+
+決まり（鍵と差し込み・数で変わる文・日付と時刻・スポットの訳の原文と出典）と手順は [docs/i18n.md](docs/i18n.md) です。送る前に `node tools/i18n_check.mjs` を通してください。
 
 ## Branches and Pull Requests
 規模が小さいので、`main` と作業用ブランチの2段だけにします（`develop` は置きません）。`main` は公開されている状態なので、直接 push しないでください。作業用ブランチ（`feature/…`・`fix/…`・`docs/…`・`claude/…`）は、1つの PR に1つの目的にします。

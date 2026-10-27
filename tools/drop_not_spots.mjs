@@ -1,8 +1,8 @@
 // 行き先ではないもの（宿・町や会社の記事・湖まるごとの「浜」）を
 // 収録から外す道具。
 //
-// 判定は js/notaspot.js にあります。**ここに規則を書きません。**
-// 読み込み（js/kb.js）も同じ判定で外すので、ここで外し忘れても
+// 判定は packages/core/src/notaspot.js にあります。**ここに規則を書きません。**
+// 読み込み（packages/core/src/kb.js）も同じ判定で外すので、ここで外し忘れても
 // 旅程には出ません。ここで外すのは、エリアのページ（areas/）と
 // 件数の表示と、配る量のためです。
 //
@@ -12,7 +12,7 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { whyNotASpot } from "../js/notaspot.js";
+import { whyNotASpot } from "../packages/core/src/notaspot.js";
 
 const KB = new URL("../kb/", import.meta.url).pathname;
 const write = process.argv.includes("--write");

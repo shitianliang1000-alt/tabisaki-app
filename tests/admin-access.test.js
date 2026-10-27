@@ -117,7 +117,7 @@ test("画面のファイルは、Worker に同梱したものを渡す", async (
   assert.equal(await js.text(), "file:admin.js");
 });
 
-test("画面が読む js/・kb/ は公開サイトから取ってくる。それ以外は取りに行かない", async (t) => {
+test("画面が読む js/・kb/・packages/core/src/ は公開サイトから取ってくる。それ以外は取りに行かない", async (t) => {
   const seen = [];
   t.mock.method(globalThis, "fetch", async (url) => {
     seen.push(String(url));
@@ -126,12 +126,13 @@ test("画面が読む js/・kb/ は公開サイトから取ってくる。それ
   const auth = { Authorization: basic("かぎ-123") };
   const kb = await worker.fetch(get("/private/kb/index.json", auth), env);
   assert.equal(kb.status, 200);
-  const cfg = await worker.fetch(get("/private/js/config.js", auth), env);
+  const cfg = await worker.fetch(get("/private/packages/core/src/config.js", auth), env);
   assert.equal(cfg.status, 200);
-  assert.deepEqual(seen, [`${SITE_ROOT}kb/index.json`, `${SITE_ROOT}js/config.js`]);
+  assert.deepEqual(seen, [`${SITE_ROOT}kb/index.json`, `${SITE_ROOT}packages/core/src/config.js`]);
 
   for (const path of ["/private/server/worker.js", "/private/README.md",
-                      "/private/js/%2e%2e/API_KEYS.md"]) {
+                      "/private/js/%2e%2e/API_KEYS.md",
+                      "/private/packages/core/index.mjs"]) {
     const res = await worker.fetch(get(path, auth), env);
     assert.equal(res.status, 404, path);
   }

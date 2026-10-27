@@ -1,6 +1,6 @@
 // 画面から入れたキーの扱いのテスト。
 //
-// 公開サイト（GitHub Pages）では js/config.js を書き換えられません。
+// 公開サイト（GitHub Pages）では packages/core/src/config.js を書き換えられません。
 // そこで、設定画面から入れたキーを端末の localStorage に残し、
 // config.js より優先して使います。ここでは、その優先順位と、
 // 受け付けない形（http のプロキシ、空白の混じったキー）を固定します。
@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { cspAllows, effectiveConfig, loadSettings, maskKey, normalizeSettings,
-         saveSettings, SETTINGS_KEY } from "../js/settings.js";
+         saveSettings, SETTINGS_KEY } from "../packages/core/src/settings.js";
 
 /** localStorage の最小の代役。 */
 function memStorage() {

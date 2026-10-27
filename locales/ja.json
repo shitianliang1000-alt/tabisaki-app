@@ -1,0 +1,19 @@
+{
+  "_meta": { "lang": "ja", "name": "日本語", "source": true },
+  "plan.title": "旅程",
+  "plan.wish": "希望: {wish}",
+  "plan.depart": "出発: {from}（{date} {time}）",
+  "plan.days.other": "日数: {n}日",
+  "plan.cost": "費用の目安: {cost}",
+  "plan.day": "{n}日目",
+  "plan.dayWithDate": "{n}日目（{date}）",
+  "plan.dayPlain": "{n}日目 {date}",
+  "plan.tableHead": "| 時刻 | | 予定 | メモ |",
+  "plan.timeRange": "{start}〜{end}",
+  "plan.warnings": "注意",
+  "plan.footer": "移動時間は距離からの目安です（実際の乗換は調べていません）。営業時間は変わることがあります。出かける前に確かめてください。",
+  "plan.plainTitle.other": "{title}（{from}から・{n}日）",
+  "plan.aiLocal": "AI: {model}（手元の LLM）が行き先を選びました",
+  "plan.aiLocalFailed": "AI: {model}（手元の LLM）に聞けなかったため、収録データから選びました（{error}）",
+  "unit.km": "{km}km"
+}

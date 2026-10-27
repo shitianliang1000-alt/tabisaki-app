@@ -24,9 +24,10 @@ SSH でつないだ先のサーバーで動かすときも同じです。出力�
 | ✅ できる | 収録の約5万4千か所から行き先と立ち寄りを選び、営業時間・食事・宿・帰りの時刻を考えて時刻を割り付ける |
 | ⚠ 目安 | 移動時間は**直線距離からの推定**です。実際の乗換・時刻表は調べません |
 | ❌ しない | 外への通信（AI・経路・天気・写真）。希望の文の読み取りは、AI を使わない簡易なものです |
-| 📝 計画 | 手元の LLM で読む `--local`・`--model`（Issue #352） |
+| ✅ 選べる | `--local` で、手元の LLM（Ollama など）に希望文を読ませ、行き先を選ばせる（[local-llm.md](./local-llm.md)） |
+| ✅ できる | `tabisaki kb extract`・`tabisaki similar` で、地域の切り出しと似たスポットの検索（[kb-extract.md](./kb-extract.md)） |
 
-Web 版と同じエンジン（`js/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
+Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
 
 ## オプション
 
@@ -37,8 +38,10 @@ Web 版と同じエンジン（`js/`）で組むので、AI を使わないと�
 | `--date=<YYYY-MM-DD>` | 明日 | 出発日 |
 | `--start=<HH:MM>` | 08:00 | 出発の時刻 |
 | `--back=<HH:MM>` | 20:00 | 最終日に出発地へ帰り着く時刻 |
+| `--kb=<名前>` | なし | ユーザーKB（`~/.tabisaki/kbs/<名前>/`）を公式の収録に重ねて組む（[docs/user-kb.md](./user-kb.md)） |
 | `--transport=<手段>` | any | `any` / `transit`（電車・バス）/ `car` / `walk` / `local`（普通列車だけ） |
-| `--output=<形式>` | markdown | `markdown` / `text` / `json` / `ics`（カレンダー） |
+| `--output=<形式>` | markdown | `markdown` / `text` / `json` |
+| `--lang=<言語>` | ja | `ja` / `en`。環境変数 `TABISAKI_LANG` でも決められます（[i18n.md](i18n.md)）。地名やスポットの名前は原文のままです |
 
 時刻はすべて日本時間です（端末の時間帯によりません）。
 
@@ -74,7 +77,7 @@ Web 版と同じエンジン（`js/`）で組むので、AI を使わないと�
 |---|---|
 | 0 | 組めた |
 | 1 | 組めなかった（エンジンの中のエラー） |
-| 2 | 使いかたのまちがい（希望の文が無い、知らない駅、日数がおかしい、など） |
+| 2 | 使いかたのまちがい（希望の文が無い、知らない駅、日数がおかしい、`--kb` の名前が無い、など） |
 
 ## 端末の中で見る（TUI）
 
@@ -97,15 +100,16 @@ Web 版と同じエンジン（`js/`）で組むので、AI を使わないと�
 - `NO_COLOR=1` を付けると色を使いません。幅の狭い端末では長い名前を切って並べます
 - パイプやファイルへ出すときは使えません（`tabisaki plan` を使ってください）
 
-## カレンダーへ・声から
+## スポットに情報を足す（spot・area）
 
 ```sh
-./tabisaki plan "温泉" --output=ics > trip.ics                       # カレンダーに取り込むファイル
-./tabisaki sync "温泉" --caldav-url=https://…/calendars/me/travel/   # CalDAV に直接（確かめてから書く）
-./tabisaki voice-plan wish.wav                                      # 手元の whisper.cpp で声を文字にして組む
+./tabisaki spot hours set 雲場池 9:00-17:00 --closed=水 --source=公式サイト
+./tabisaki spot show 雲場池
+./tabisaki area define my-pond --name=軽井沢の池 --center=36.35,138.63 --radius=3
 ```
 
-`sync` だけは、指定したカレンダーへ通信します。合言葉の渡しかた・書く範囲・消しかたは [calendar-and-voice.md](./calendar-and-voice.md) にあります。
+足した情報は手元（`~/.tabisaki/spots.json`）に出典・確認の状態つきで入り、確認済みの営業時間は `plan`・`tui` の旅程に効きます。
+くわしくは [spot-data.md](./spot-data.md)。
 
 ## Node.js から使う（packages/core）
 
@@ -119,4 +123,4 @@ console.log(toMarkdown(result));
 
 - 入力のまちがいは `CoreError` で、`code` が `invalid_input`（入力の形）・`unknown_place`（知らない駅）・`plan_failed`（組めなかった）のどれかです
 - `createCore()` はその process の `fetch` を「リポジトリの中だけを読む」ものに差し替え、時間帯を日本時間にします
-- 今の `packages/core` は、`js/` のエンジンを Node.js から呼ぶための入口です。`js/` のファイルを `packages/core/` へ移すのは、この形が固まってから少しずつ行います（[roadmap.md](./roadmap.md)）
+- 旅程を組む本体は `packages/core/src/` にあり、Web 版（`js/app.js`）も同じファイルを読みます。中の部品だけを使うときは `packages/core/src/feasibility.js` のように直に読めます（[packages/core/README.md](../packages/core/README.md)）

@@ -18,6 +18,7 @@ Thumbs.db
 /tmp/
 /dist/
 /.site/
+/bench-out/
 
 # ウィキペディアから落とした素データ。**収録そのものではありません。**
 # tools/fetch_wikipedia_lists.py が落とし、tools/import_wikipedia_lists.py が
@@ -37,3 +38,5 @@ Thumbs.db
 /.php-site/
 /tabisaki-php.zip
 /.env.deploy
+# tabisaki kb extract / kb index が作るもの（作り直せます）
+/.tabisaki/

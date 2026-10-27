@@ -1,30 +1,35 @@
 // 旅さきの「旅程を組む部分」を、Node.js から使うための入口（packages/core）。
 //
-// 旅程を組む本体は js/ にあります（ブラウザでもそのまま動くように、画面と
-// 切り離して書いてあります。js/pipeline.js の冒頭）。ここはそれを Node.js
-// から呼ぶための薄い層で、次のことだけを受け持ちます。
+// 旅程を組む本体は packages/core/src/ にあります。画面（js/）からは切り離して
+// あり、ブラウザでも Node.js でもそのまま動きます（Web 版の js/app.js も、
+// ここを直に読みます）。この index.mjs は、Node.js から呼ぶための薄い層で、
+// 次のことだけを受け持ちます。
 //
 //   ・知識ベース（kb/）をファイルから読む（ブラウザでは fetch で取るところ）
 //   ・外への通信を切る（AI・経路・天気は使わず、距離からの目安で組みます）
 //   ・入力を確かめ、決まった形のエラー（CoreError）で返す
 //
-// js/ のファイルを packages/core/ へ移すのは、この入口の形が固まってから
-// 少しずつ行います（docs/roadmap.md）。Web 版はこれまでどおり js/ を直接読みます。
+// 中の部品を1つだけ使いたいときは、"tabisaki-core/src/feasibility.js" の
+// ように直に読めます（package.json の exports）。何が中にあるかは README.md に。
 //
 //     import { createCore } from "./packages/core/index.mjs";
 //     const core = await createCore();
 //     const result = await core.plan({ wish: "温泉と海をゆっくり", from: "東京駅", days: 2 });
 
 import { readFile } from "node:fs/promises";
+import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// 本体（js/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
+// 本体（src/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
 
+// 差し替える前の fetch（手元の LLM へ話すときに使います）。
+const nativeFetch = globalThis.fetch;
+
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const js = (f) => import(pathToFileURL(path.join(ROOT, "js", f)).href);
+const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
 
 /** 決まった形のエラー。code で見分けます。 */
 export class CoreError extends Error {
@@ -43,9 +48,11 @@ export class CoreError extends Error {
  * 外へは出ず、リポジトリの中のファイルだけを返す fetch。
  * kb/・data/ のような相対の場所は、リポジトリの根から引きます。
  */
-export function offlineFetch(root = ROOT) {
-  return async (url) => {
+export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
+  return async (url, init) => {
     const u = String(url?.url ?? url);
+    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
+    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -53,7 +60,11 @@ export function offlineFetch(root = ROOT) {
       const m = /\/(kb\/.+)$/.exec(new URL(u).pathname);
       if (!m) throw new Error(`通信を切っています: ${u}`);
       file = path.join(root, m[1]);
-    } else file = path.join(root, u.replace(/^\.?\//, "").replace(/[?#].*$/, ""));
+    } else {
+      // ? と # から後ろを落とします（正規表現の .*$ は、長い入力で遅くなるので使いません）。
+      const cut = u.search(/[?#]/);
+      file = path.join(root, (cut < 0 ? u : u.slice(0, cut)).replace(/^\.?\//, ""));
+    }
     const rel = path.relative(root, file);
     if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error(`リポジトリの外は読みません: ${u}`);
     let body;
@@ -119,25 +130,57 @@ export async function normalizeRequest(req = {}) {
 
 /**
  * 旅程を組む道具を用意します（知識ベースを読み込むので、1回だけ呼んで使い回します）。
- * @param {{root?: string}} [opts]
+ *
+ * providers で、外のデータの取り口を選べます（docs/data-providers.md）。
+ * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
+ * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
+ *
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
+ *
+ * @param {{root?: string, providers?: {routing?: string, weather?: string,
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT } = {}) {
-  // 本体（js/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
+  const { useProviders } = await js("providers.js");
+  useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
-  const kb = await loadKnowledgeBase();
+  const ai = await js("ai.js");
+  ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
+  let kb = await loadKnowledgeBase();
+  let overlayReport = null;
+  if (userKb) {
+    const { openStore, applyOverlay } = await import("./userkb.mjs");
+    const { sameThing } = await js("dedupe.js");
+    const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
+    ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
+  }
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
 
   return {
     kb,
+    /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
+    overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
      * @returns {Promise<{request: object, itinerary: object}>}
      */
     async plan(request) {
-      const r = await normalizeRequest(request);
+      const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
+      const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
@@ -148,20 +191,14 @@ export async function createCore({ root = ROOT } = {}) {
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return { request: r, itinerary };
+      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
     },
   };
 }
 
-/**
- * 組んだ旅程を .ics にします（Web 版の「カレンダーに入れる」と同じ中身）。
- * @param {{request: object, itinerary: object}} result createCore().plan の結果
- * @param {{seed?: string, now?: Date}} [opts] seed を同じにすると、同じ予定として上書きされます
- */
-export async function toIcs(result, opts = {}) {
-  const { toIcs: ics } = await js("ical.js");
-  const { tripSeed } = await import("./caldav.mjs");
-  return ics(result.itinerary, { seed: opts.seed ?? tripSeed(result.request), now: opts.now });
-}
-
+export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
+export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
+export { resolveLang } from "./locales.mjs";
+export * as userkb from "./userkb.mjs";
+export * from "./local.mjs";
