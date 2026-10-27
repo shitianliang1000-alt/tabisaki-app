@@ -17,6 +17,7 @@
 - 組んだ旅程を端末の中でキーボードだけで見る `./tabisaki tui` を足しました
 - 手元用の API サーバー（`POST /plan`、`docker compose up`）を足しました（[docs/self-hosting.md](./docs/self-hosting.md)）
 - API サーバーに鍵（`TABISAKI_API_TOKEN`）・`/v1/` の道・CORS の許可リスト・要求番号（`X-Request-Id`）を足しました。127.0.0.1 以外で待ち受けるときは、鍵が無いと起動しません（[docs/api.md](./docs/api.md)）
+- 端末版にプラグイン（第1版）を足しました。旅程のひな形と行き先の除外を JSON で足せます。コードは動かさず、`tabisaki plugins trust` で控えたものだけを読みます（[docs/plugins.md](./docs/plugins.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 - 経路・天気・地名・スポットの取り口を差し替えられるようにしました。キー不要の `mock` と通信しない `off` もあります（[docs/data-providers.md](./docs/data-providers.md)）
 - README と CONTRIBUTING を [UTM](https://github.com/utmapp/UTM) の文書の形（短い README と、くわしい内容を `docs/` に分ける）にそろえました

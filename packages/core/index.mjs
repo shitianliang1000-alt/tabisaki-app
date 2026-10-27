@@ -17,6 +17,7 @@
 //     const result = await core.plan({ wish: "温泉と海をゆっくり", from: "東京駅", days: 2 });
 
 import { readFile } from "node:fs/promises";
+import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -167,7 +168,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
      * @returns {Promise<{request: object, itinerary: object}>}
      */
     async plan(request) {
-      const r = await normalizeRequest(request);
+      const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
+      const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
@@ -178,11 +180,12 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return { request: r, itinerary };
+      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
     },
   };
 }
 
+export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";

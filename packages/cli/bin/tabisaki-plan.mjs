@@ -56,6 +56,37 @@ export function parseArgs(argv) {
   return { opts, words };
 }
 
+const STATUS = { enabled: "使う", untrusted: "まだ控えていない", changed: "中身が変わった（控え直すまで使わない）", invalid: "宣言にまちがい" };
+
+async function plugins([sub = "list", id], { stdout }) {
+  const p = await import("../../core/plugins.mjs");
+  const dir = p.pluginDir();
+  if (sub === "list") {
+    const all = await p.scanPlugins(dir);
+    stdout.write(`置き場所: ${dir}\n`);
+    if (!all.length) stdout.write("プラグインはありません\n");
+    for (const x of all) {
+      const m = x.manifest;
+      stdout.write(`${x.id}${m ? ` ${m.version}（${m.name}・${m.author}・${m.license}）` : ""}: ${STATUS[x.status]}\n`);
+      for (const e of x.errors ?? []) stdout.write(`  - ${e}\n`);
+    }
+    return 0;
+  }
+  if (!id) throw usage(`tabisaki plugins ${sub} <id> の形で書いてください`);
+  if (sub === "trust") {
+    const x = await p.trustPlugin(dir, id);
+    const c = x.manifest.contributes;
+    stdout.write(`${id} ${x.manifest.version} を控えました（sha256 ${x.sha256.slice(0, 12)}…）。` +
+      `ひな形 ${(c.templates ?? []).length} 個・除外 ${(c.constraints ?? []).length} 個\n`);
+    return 0;
+  }
+  if (sub === "untrust") {
+    stdout.write((await p.untrustPlugin(dir, id)) ? `${id} を控えから外しました。消すときは ${dir}/${id} を消してください\n` : `${id} は控えにありません\n`);
+    return 0;
+  }
+  throw usage(`plugins のあとは list / trust / untrust のどれかです`);
+}
+
 function usage(message) {
   const e = new Error(message);
   e.exitCode = 2;
@@ -72,6 +103,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
+    if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     const wish = rest.join(" ").trim();
     if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
@@ -95,7 +127,9 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
     let result;
     try {
-      const c = await core.createCore(opts.kb ? { userKb: opts.kb } : {});
+      // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
+      const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
+      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}) });
       const rep = c.overlayReport;
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
@@ -107,6 +141,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     } finally {
       console.log = log; console.warn = warn; console.info = info;
     }
+    if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);
