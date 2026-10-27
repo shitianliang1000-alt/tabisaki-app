@@ -19,7 +19,7 @@ import test from "node:test";
 import {
   COMPANIONS, accessAppeal, accessNote, attachAccess, hardnessOf,
   normalizeCompanions, walkLoadNote,
-} from "../js/access.js";
+} from "../packages/core/src/access.js";
 
 const spot = (name, category) => ({ id: name, name, category });
 

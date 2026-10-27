@@ -1,27 +1,30 @@
 // 画面の描画。DOM 操作はここに閉じ込め、ロジックは他のモジュールに任せます。
 
 import { directionsFromHereUrl, linksForItem, mapsSearchUrl } from "./links.js";
-import { TIER_LABEL } from "./mix.js";
-import { profileOf } from "./feasibility.js";
-import { crowdLevel } from "./crowd.js";
-import { describeHours, hoursFor } from "./hours.js";
-import { describeTransit } from "./transit.js";
+import { TIER_LABEL } from "../packages/core/src/mix.js";
+import { profileOf } from "../packages/core/src/feasibility.js";
+import { crowdLevel } from "../packages/core/src/crowd.js";
+import { describeHours, hoursFor } from "../packages/core/src/hours.js";
+import { describeTransit } from "../packages/core/src/transit.js";
 import { artFor } from "./art.js";
 import { confidenceOf, describeSource, freshnessOf, reservationOf }
   from "./confidence.js";
-import { paceBreakdown, slackLevel } from "./score.js";
+import { paceBreakdown, slackLevel } from "../packages/core/src/score.js";
 import { VARIANTS } from "./variants.js";
 import { qualityOf, spotFit, tripFit } from "./fit.js";
 import { currentStep } from "./today.js";
 import { photoFor, photoPageOf } from "./photos.js";
-import { estimatedTravel } from "./reliability.js";
-import { isTouring, longDriveNote, restSlots } from "./touring.js";
+import { estimatedTravel } from "../packages/core/src/reliability.js";
+import { isTouring, longDriveNote, restSlots } from "../packages/core/src/touring.js";
 import { itineraryText } from "./share.js";
-import { KIND_NOTE } from "./modes.js";
+import { KIND_NOTE } from "../packages/core/src/modes.js";
 import { icon } from "./icons.js";
 import { NOTICE_LIMITS } from "./notify.js";
 import { describeOrderDiff } from "./orderdiff.js";
 import { laterToday } from "./tripmode.js";
+import { ISSUES, PACE, STATUS, clearFeedback, feedbackFor, issueUrl, loadFeedback,
+         removeFeedback, reportMarkdown, saveFeedback, spotsOf, summarize, tripKey,
+         tripStarted } from "./feedback.js";
 
 // 行の先頭の記号の「名前」です。形は js/icons.js が持っています。
 //
@@ -906,7 +909,7 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     //
     // **予報ではありません。** 過去の観測の平均です。ここを読み違えると
     // 「10月20日は24℃」になるので、文のほうにも必ず書いてあります
-    // （js/normals.js の describeNormals）。
+    // （packages/core/src/normals.js の describeNormals）。
     if (rp.normals?.text) {
       box.append(el("p", { class: "normals" },
         icon("sunset"),
@@ -1107,8 +1110,8 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
 
     // その日ぜんぶに関わる一言。行ごとの注記とは別に、日の頭に置きます。
     //
-    //   passNote  … 同じ会社に何回乗るか（js/tickets.js）
-    //   walkLoad  … 移動だけでどれだけ歩くか（js/access.js）
+    //   passNote  … 同じ会社に何回乗るか（packages/core/src/tickets.js）
+    //   walkLoad  … 移動だけでどれだけ歩くか（packages/core/src/access.js）
     //
     // walkLoad は書き足されていたのに、**どこにも出していませんでした**。
     // 数えたものを画面に出さないのは、数えていないのと同じです。
@@ -1159,6 +1162,10 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
     more.append(...detail);
     container.append(more);
   }
+
+  // 行ってきた旅の感想（任意）。旅が始まったあとにだけ、畳んで出します。
+  const fb = handlers.feedback === false ? null : feedbackBox(itin, handlers.now);
+  if (fb) container.append(fb);
 
   // 旅程を文字で渡す。同行者に送るのは LINE やメールなので、
   // いま画面に出ているとおりの時刻と場所を、そのまま貼れる形にします。
@@ -1238,6 +1245,126 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
                        onClick: handlers.onExport },
           el("span", {}, "この旅程をファイルで渡す"))
       : null)].filter(Boolean));
+}
+
+/**
+ * 行ってきた旅の感想（js/feedback.js）。
+ *
+ * 書かなくても何も変わりません。畳んだまま出し、開いた人だけが選びます。
+ * 残すのは端末の中だけで、送るのは利用者が「GitHub で知らせる」を
+ * 押して、開いた画面で自分で送ったときだけです。
+ */
+export function feedbackBox(itin, now = new Date()) {
+  if (!tripStarted(itin, now)) return null;
+  const key = tripKey(itin);
+  const spots = spotsOf(itin);
+  if (!key || !spots.length) return null;
+  const saved = feedbackFor(key, undefined, now);
+  const before = new Map((saved?.spots ?? []).map((s) => [s.spotId, s]));
+
+  const box = el("details", { class: "more feedback" });
+  box.append(el("summary", {},
+    el("span", {}, "この旅はどうでしたか？（任意）"),
+    el("span", { class: "more-count" }, saved ? "記録あり" : "")));
+  const form = el("form", { class: "panel feedback-form" });
+  form.append(el("p", { class: "fb-note" },
+    "見込みと違ったところを選んでください。この端末の中にだけ残り、"
+    + "どこにも送りません。書かなくても、使えることは何も変わりません。"));
+
+  const rows = spots.map((s, i) => {
+    const prev = before.get(s.spotId);
+    const status = el("select", { name: `st${i}`, "aria-label": `${s.name || "立ち寄り先"}に行けたか` },
+      el("option", { value: "" }, "—"),
+      ...Object.entries(STATUS).map(([k, label]) => {
+        const o = el("option", { value: k }, label);
+        if (prev?.status === k) o.selected = true;
+        return o;
+      }));
+    const checks = Object.entries(ISSUES).map(([k, label]) => {
+      const c = el("input", { type: "checkbox", value: k });
+      if (prev?.issues.includes(k)) c.checked = true;
+      return el("label", { class: "fb-chip" }, c, el("span", {}, label));
+    });
+    const row = el("fieldset", { class: "fb-spot" },
+      el("legend", {}, s.name || s.spotId), status, el("div", { class: "fb-chips" }, ...checks));
+    return { s, status, checks: () => [...row.querySelectorAll("input:checked")].map((c) => c.value), row };
+  });
+  form.append(...rows.map((r) => r.row));
+
+  const paceBox = el("fieldset", { class: "fb-pace" }, el("legend", {}, "全体の詰め具合"));
+  for (const [k, label] of Object.entries(PACE)) {
+    const r = el("input", { type: "radio", name: "pace", value: k });
+    if (saved?.pace === k) r.checked = true;
+    paceBox.append(el("label", { class: "fb-chip" }, r, el("span", {}, label)));
+  }
+  form.append(paceBox);
+
+  const said = el("p", { class: "fb-said", role: "status" });
+  const report = el("div", { class: "fb-report" });
+  const showReport = () => {
+    report.textContent = "";
+    const list = loadFeedback(undefined, now);
+    if (!list.length) return;
+    const md = reportMarkdown(summarize(list));
+    const pre = el("pre", { class: "fb-md" }, md);
+    const copy = el("button", { type: "button", class: "md-btn md-btn--tonal md-state" },
+      el("span", {}, "まとめをコピー"));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(md);
+        copy.querySelector("span").textContent = "コピーしました";
+      } catch {
+        copy.querySelector("span").textContent = "コピーできませんでした";
+      }
+    });
+    const clear = el("button", { type: "button", class: "md-btn md-btn--outlined md-state" },
+      el("span", {}, "感想の記録をすべて消す"));
+    clear.addEventListener("click", () => {
+      clearFeedback();
+      report.textContent = "";
+      said.textContent = "この端末の感想をすべて消しました。";
+    });
+    report.append(
+      el("p", { class: "fb-note" },
+        `この端末に残っている感想 ${list.length}件のまとめです。送るときは、中身を確かめてから`
+        + "コピーするか、GitHub の画面で送ってください（GitHub のアカウントが要ります）。"),
+      pre,
+      el("div", { class: "actions" }, copy,
+        el("a", { class: "md-btn md-btn--outlined md-state", href: issueUrl(md),
+                  target: "_blank", rel: "noopener noreferrer" },
+          el("span", {}, "GitHub で開発者に知らせる")),
+        clear));
+  };
+
+  const save = el("button", { type: "submit", class: "md-btn md-btn--filled md-state" },
+    el("span", {}, "この端末に残す"));
+  const drop = el("button", { type: "button", class: "md-btn md-btn--outlined md-state" },
+    el("span", {}, "この旅の感想を消す"));
+  drop.addEventListener("click", () => {
+    removeFeedback(key, undefined, now);
+    for (const r of rows) r.status.value = "";
+    for (const c of form.querySelectorAll("input")) c.checked = false;
+    said.textContent = "この旅の感想を消しました。";
+    showReport();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const entry = saveFeedback({
+      key,
+      region: String(itin.regionName ?? "").slice(0, 40),
+      pace: form.querySelector("input[name=pace]:checked")?.value ?? "",
+      spots: rows.map((r) => ({ spotId: r.s.spotId, name: r.s.name,
+                                 status: r.status.value, issues: r.checks() })),
+    }, undefined, now);
+    said.textContent = entry
+      ? "この端末に残しました。ありがとうございます。"
+      : "選んだものがありません。何も残していません。";
+    showReport();
+  });
+  form.append(el("div", { class: "actions" }, save, drop), said, report);
+  box.append(form);
+  if (saved) showReport();
+  return box;
 }
 
 /** その日の一行要約。開いていない日でも中身が想像できるように。 */
@@ -2065,7 +2192,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
       line.append(" ", srcChip(c, "", src));
     }
     info.append(line);
-    // 乗り物ならではの断り書き（js/modes.js の KIND_NOTE）。
+    // 乗り物ならではの断り書き（packages/core/src/modes.js の KIND_NOTE）。
     //
     // 「4時間46分」とだけ出しても、空路の区間は現地で足りません。
     // 空港には早く着く必要があり、搭乗券は別に取る必要があります。
@@ -2101,7 +2228,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
         icon(item.requeried.level === "push" ? "warn" : "transit"),
         el("span", {}, item.requeried.text)));
     }
-    // 切符のこと（js/tickets.js）。
+    // 切符のこと（packages/core/src/tickets.js）。
     //
     // 「15,290円」と書いてあっても、当日みどりの窓口の前で止まります。
     // 新幹線は乗車券と特急券の2枚で、指定席か自由席かを買うときに
@@ -2112,7 +2239,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
         icon("ticket"),
         el("span", {}, t.text)));
     }
-    // 終電の線（js/lasttrain.js）。
+    // 終電の線（packages/core/src/lasttrain.js）。
     //
     // 「18:40発」とだけ書いてあっても、あと何分粘れるのかが
     // 分かりません。その駅の終電を並べて置きます。
@@ -2148,7 +2275,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
             + `（1回15分・合計${rest.minutes}分）。${rest.note}`)));
       }
     }
-    // 移動そのものの楽しみ（js/scenic.js）。
+    // 移動そのものの楽しみ（packages/core/src/scenic.js）。
     //
     // 走る道と乗る路線では、**確かさが違います**。路線は調べた結果に
     // 名前が書いてあるので言い切れますが、どの道を通るかは分かりません。
@@ -2231,7 +2358,7 @@ function renderItem(item, index, itin, handlers, sunNote) {
       el("span", {}, parts.join(""))));
   }
 
-  // 同行者のための一言（js/access.js）。
+  // 同行者のための一言（packages/core/src/access.js）。
   //
   // 収録に「バリアフリーかどうか」はありません。持っているのは分類
   // だけなので、**「行けません」とは言いません**。何がつらい分類
@@ -2494,7 +2621,7 @@ export function openSheet(item, { onClose, describe }) {
     row(day.closed ? "この日は" : "見学できる時間", hours),
     row("入場料", prof.fee === 0 ? "無料" : `¥${prof.fee.toLocaleString()}`),
     // いつの情報か。出どころ（下の印）と鮮度は別のことなので、並べて出します。
-    // 収録の日付は「取り込んだ日」です（js/kb.js の FETCHED_ON）。
+    // 収録の日付は「取り込んだ日」です（packages/core/src/kb.js の FETCHED_ON）。
     row("情報の日付", freshnessOf(spot.fetchedAt).text)));
 
   // 情報の出どころ。営業時間と料金で違うことがあるので、分けて出します。

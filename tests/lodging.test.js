@@ -8,13 +8,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { haversineKm } from "../js/feasibility.js";
-import { loadKnowledgeBase } from "../js/kb.js";
-import { STAYABLE, lodgingScore, pickLodging } from "../js/lodging.js";
-import { buildItinerary } from "../js/planner.js";
-import { findPlace } from "../js/places.js";
-import { planTrip } from "../js/pipeline.js";
-import { makeTrip } from "../js/trip.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { STAYABLE, lodgingScore, pickLodging } from "../packages/core/src/lodging.js";
+import { buildItinerary } from "../packages/core/src/planner.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const kb = await loadKnowledgeBase();
 

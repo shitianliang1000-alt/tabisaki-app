@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { describeHours, hoursFor, lastEntryOffsetFor } from "../js/hours.js";
+import { describeHours, hoursFor, lastEntryOffsetFor } from "../packages/core/src/hours.js";
 
 const d = (s) => new Date(s);
 const MON = "2026-09-07T10:00";   // 月曜
@@ -136,7 +136,7 @@ test("休みの日は、そのことを先に言う", () => {
 // ここが本題です。最終入場を知っていても、判定に使わなければ意味がありません。
 
 test("最終入場を過ぎていたら、候補から落とす", async () => {
-  const { REJECT, checkSpot } = await import("../js/feasibility.js");
+  const { REJECT, checkSpot } = await import("../packages/core/src/feasibility.js");
   const castle = { id: "c", name: "テスト城", category: "城",
                    lat: 35.0, lng: 135.0,
                    hours: { open: 9, close: 17, lastEntry: 16.5 } };
@@ -159,7 +159,7 @@ test("最終入場を過ぎていたら、候補から落とす", async () => {
 });
 
 test("年末年始の休館日は、朝に着いても落とす", async () => {
-  const { REJECT, checkSpot } = await import("../js/feasibility.js");
+  const { REJECT, checkSpot } = await import("../packages/core/src/feasibility.js");
   const museum = { id: "m", name: "テスト博物館", category: "博物館",
                    lat: 35.0, lng: 135.0,
                    hours: { open: 9, close: 17, closedDates: ["12-29..01-03"] } };
@@ -170,7 +170,7 @@ test("年末年始の休館日は、朝に着いても落とす", async () => {
 });
 
 test("冬期休業の展望台は、その期間だけ落とす", async () => {
-  const { checkSpot } = await import("../js/feasibility.js");
+  const { checkSpot } = await import("../packages/core/src/feasibility.js");
   const spot = { id: "v", name: "テスト展望台", category: "展望台",
                  lat: 35.0, lng: 135.0,
                  hours: { open: 9, close: 17, closedSeasons: [["11-15", "04-20"]] } };
@@ -182,7 +182,7 @@ test("冬期休業の展望台は、その期間だけ落とす", async () => {
 });
 
 test("土曜だけ遅くまで開く場所は、土曜に遅く着いても通す", async () => {
-  const { checkSpot } = await import("../js/feasibility.js");
+  const { checkSpot } = await import("../packages/core/src/feasibility.js");
   const spot = { id: "a", name: "テスト美術館", category: "美術館",
                  lat: 35.0, lng: 135.0,
                  hours: { open: 10, close: 17, byDay: { 6: { open: 10, close: 20 } } } };
@@ -199,7 +199,7 @@ test("土曜だけ遅くまで開く場所は、土曜に遅く着いても通�
 // 片方だけ直すと、ふるいを通ったものが旅程では閉館時刻で通ってしまいます。
 
 test("旅程を組むときも、最終入場で判定する", async () => {
-  const { verifyOrder } = await import("../js/verify.js");
+  const { verifyOrder } = await import("../packages/core/src/verify.js");
   const at = { lat: 35.0, lng: 135.0 };
   const castle = { id: "c", name: "テスト城", category: "城", ...at,
                    hours: { open: 9, close: 17, lastEntry: 16.5 } };
@@ -214,7 +214,7 @@ test("旅程を組むときも、最終入場で判定する", async () => {
 });
 
 test("旅程を組むときも、期間の休業を見る", async () => {
-  const { verifyOrder } = await import("../js/verify.js");
+  const { verifyOrder } = await import("../packages/core/src/verify.js");
   const at = { lat: 35.0, lng: 135.0 };
   const spot = { id: "v", name: "テスト展望台", category: "展望台", ...at,
                  hours: { open: 9, close: 17, closedSeasons: [["11-15", "04-20"]] } };

@@ -11,7 +11,7 @@
 //   したがって travelMode:"TRANSIT" は **投げません**。投げれば必ず
 //   失敗し、それでも課金対象のリクエストは1回消費されます。
 //
-//   代わりに、駅・バス停の位置（js/stops.js）を使って組み立てます。
+//   代わりに、駅・バス停の位置（packages/core/src/stops.js）を使って組み立てます。
 //
 //     出発地 →(徒歩・Routes APIで実測)→ 最寄り駅
 //     最寄り駅 →(距離からの目安)→ 目的地の最寄り駅
@@ -46,8 +46,15 @@ import { summarizeTransitLeg, summarizeYahooRoute, transitFieldMask }
   from "./transit.js";
 import { KIND_NOTE, asksTimetable, classifyLine, kindsOf, preferredKinds,
   yahooFlags } from "./modes.js";
-import { resetYahooCooldown, resetYahooPace, searchYahooTransit, yahooCooldown }
-  from "./yahoo-transit.js";
+import { getProvider } from "./providers.js";
+
+// 公共交通の経路は、いま選ばれている取り口（providers.js）から引きます。
+// 本体は取り口の名前（Yahoo!など）を知らず、決まった形の答えだけを使います。
+const routing = () => getProvider("routing");
+const searchYahooTransit = (from, to, opts) => routing().search(from, to, opts);
+const yahooCooldown = () => routing().cooldown();
+const resetYahooCooldown = () => routing().resetCooldown();
+const resetYahooPace = () => routing().resetPace();
 
 /**
  * どこへ投げるか。
@@ -195,7 +202,7 @@ export function pickMode(points, transport = "any") {
   if (transport === "transit+car") return "TRANSIT";
   // 空路・船・普通列車のみ。どれも「時刻表に聞く」移動なので、
   // Googleに渡す手段としては TRANSIT です。**どの乗り物を使うかは
-  // Yahoo!に渡す旗（js/modes.js）で決まります。** ここで DRIVE に
+  // Yahoo!に渡す旗（packages/core/src/modes.js）で決まります。** ここで DRIVE に
   // 落とすと、飛行機の区間を車の道のりとして計算してしまいます。
   if (transport === "air" || transport === "ferry"
       || transport === "local" || transport === "air+car") return "TRANSIT";
@@ -389,7 +396,7 @@ function readableError(text) {
 /**
  * 1区間ぶんの「なんとなくの目安」。
  *
- * 両端の近くに停留所（駅・バス停、js/stops.js）が見つかれば、
+ * 両端の近くに停留所（駅・バス停、packages/core/src/stops.js）が見つかれば、
  * 「起点→最寄り停留所は徒歩」「停留所どうしは目安の速さ」
  * 「最寄り停留所→終点は徒歩」の3つに分けて見積もります。
  * 見つからなければ、これまでどおり直線距離1本の目安にします。
@@ -650,7 +657,8 @@ async function computeViaStations(points, opts) {
     // やめると言われたら、残りの区間は聞きません。外れた区間を
     // 目安で埋めて続けると、要らない問い合わせが最後まで走ります。
     opts.signal?.throwIfAborted();
-    const hit = (!onFoot && yahooBudget > 0 && !yahooCooldown().waiting)
+    const hit = (!onFoot && yahooBudget > 0 && routing().available !== false
+        && !yahooCooldown().waiting)
       ? await yahooLeg(points[i], points[i + 1],
                        { ...opts, departAt: at, tries: yahooBudget })
       : null;
@@ -1749,7 +1757,7 @@ export async function diagnoseYahooTransit(signal) {
   const hakone = { lat: 35.2325, lng: 139.1063, name: "箱根湯本駅" };
   // どこへ投げたのかを必ず出します。
   //
-  // 中継の入口は2か所から決まります。設定画面に入れた値と、js/config.js。
+  // 中継の入口は2か所から決まります。設定画面に入れた値と、packages/core/src/config.js。
   // **設定画面のほうが勝ちます。**以前どこかで入れた古い入口が残っていると、
   // config.js を直しても効かず、画面には「接続できませんでした」としか
   // 出ませんでした。どちらを使ったかが分かれば、その場で気づけます。
@@ -1758,7 +1766,7 @@ export async function diagnoseYahooTransit(signal) {
     try {
       const url = endpointFor("yahoo:transit", {}, cfg);
       const from = cfg.from?.proxyUrl === "settings" ? "設定画面"
-        : cfg.from?.proxyUrl === "config" ? "js/config.js" : "未設定";
+        : cfg.from?.proxyUrl === "config" ? "packages/core/src/config.js" : "未設定";
       return `\n投げ先: ${url}（${from}）`;
     } catch (e) {
       return `\n投げ先を決められません: ${String(e?.message ?? e)}`;

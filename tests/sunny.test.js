@@ -1,8 +1,8 @@
-// 「明日晴れていて、東京に近いところ」のテスト（js/sunny.js）。
+// 「明日晴れていて、東京に近いところ」のテスト（packages/core/src/sunny.js）。
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { radiusFor, readWish, regionsWithin, skyOf, stripNear, wishScope } from "../js/sunny.js";
+import { radiusFor, readWish, regionsWithin, skyOf, stripNear, wishScope } from "../packages/core/src/sunny.js";
 
 test("晴れ・近いの頼みを読む", () => {
   assert.deepEqual(readWish("明日晴れている東京に近いところに行きたい"),

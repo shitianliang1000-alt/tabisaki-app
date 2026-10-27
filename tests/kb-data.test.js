@@ -12,8 +12,8 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { loadKnowledgeBase } from "../js/kb.js";
-import { genresForCategory, profileOf } from "../js/feasibility.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { genresForCategory, profileOf } from "../packages/core/src/feasibility.js";
 
 const KB_DIR = path.join(import.meta.dirname, "..", "kb");
 const has = fs.existsSync(path.join(KB_DIR, "index.json"));

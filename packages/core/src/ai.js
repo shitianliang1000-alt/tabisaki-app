@@ -166,7 +166,7 @@ export async function diagnoseGeminiKey(signal) {
       + "キーを貼ってください。未設定でも語句検索で動きますが、AIによる"
       + "選定は行われません。" };
   }
-  // どこへ投げたのかを出します。中継の入口は設定画面と js/config.js の
+  // どこへ投げたのかを出します。中継の入口は設定画面と packages/core/src/config.js の
   // 2か所から決まり、**設定画面のほうが勝ちます**。古い入口が残っていると
   // config.js を直しても効かないので、そこで気づけるようにします。
   const cfg = net();
@@ -174,7 +174,7 @@ export async function diagnoseGeminiKey(signal) {
     try {
       const url = endpointFor("gemini:generate", { model: MODEL }, cfg);
       const from = cfg.from?.proxyUrl === "settings" ? "設定画面"
-        : cfg.from?.proxyUrl === "config" ? "js/config.js" : "中継なし（直接）";
+        : cfg.from?.proxyUrl === "config" ? "packages/core/src/config.js" : "中継なし（直接）";
       return `\n投げ先: ${url}（${from}）`;
     } catch (e) {
       return `\n投げ先を決められません: ${String(e?.message ?? e)}`;
@@ -524,7 +524,7 @@ async function callCloudflare(model, prompt, opts = {}) {
   // Workers AI は中継の中で動きます。中継が無ければ、行き先がありません。
   if (!usingProxy(cfg)) {
     throw new Error("Workers AI を使うには PROXY_URL（Cloudflare Worker）が"
-      + "要ります。js/config.js をご確認ください");
+      + "要ります。packages/core/src/config.js をご確認ください");
   }
   const url = endpointFor("cf:generate", {}, cfg);
   const text = schema
@@ -735,7 +735,7 @@ export async function callModel(prompt, opts = {}) {
       `設定したモデル（${[MODEL, ...FALLBACK_MODELS].join("・")}）は、`
       + "このキーでは使えませんでした。"
       + `使えるのは ${discovered.slice(0, 6).join("・")} などです。`
-      + "js/config.js の MODEL を書き換えてください。");
+      + "packages/core/src/config.js の MODEL を書き換えてください。");
     err.status = lastErr?.status ?? 404;
     err.models = discovered;
     throw err;
@@ -796,7 +796,7 @@ const UNDERSTAND_SCHEMA = {
     // 指す日本の地名。辞書に無い言い回しを、モデルが読み替えます。
     places: S.strList("略した言い方・俗称が指す、日本の都市・地域の名前（例: 三都心→東京・大阪・名古屋）。普通の地名は入れない。無ければ空"),
     // 名前のある旅のしかた（「最長片道切符」「国道1号線の旅」など）。
-    // 行き先ではなく旅の形なので、地名と同じには扱えません（js/journeys.js）。
+    // 行き先ではなく旅の形なので、地名と同じには扱えません（packages/core/src/journeys.js）。
     journey: {
       type: "OBJECT",
       properties: {
@@ -813,7 +813,7 @@ const UNDERSTAND_SCHEMA = {
   required: ["searchText", "interests", "pace", "budgetHint", "keywords", "avoid"],
   propertyOrdering: ["searchText", "interests", "pace", "budgetHint", "keywords", "avoid"],
 };
-// 複数の地名をひとまとめに言う呼び名（「三都心」「京阪神」）。js/areas.js の
+// 複数の地名をひとまとめに言う呼び名（「三都心」「京阪神」）。packages/core/src/areas.js の
 // 辞書に無い言い方を、具体的な地名に直すためのものです。
 UNDERSTAND_SCHEMA.properties.phrases = {
   type: "ARRAY",

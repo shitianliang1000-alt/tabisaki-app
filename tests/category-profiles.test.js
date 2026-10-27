@@ -7,7 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 
-import { profileOf } from "../js/feasibility.js";
+import { profileOf } from "../packages/core/src/feasibility.js";
 
 /** 収録に実際に出てくる分類を、ぜんぶ集めます。 */
 function categoriesInKb() {

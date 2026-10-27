@@ -25,10 +25,10 @@
 //
 // 「何mまでを着いたとするか」は場所によって違います。神社の境内は
 // 200m、駅は50m、国立公園は数km。**収録に広さはありません。**
-// だから分類から目安を持ちます（js/access.js が足のつらさを分類から
+// だから分類から目安を持ちます（packages/core/src/access.js が足のつらさを分類から
 // 持っているのと同じ考えかたです）。それに端末の誤差を足します。
 
-import { haversineKm } from "./feasibility.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
 
 /**
  * 分類ごとの「着いたとみなす」半径（m）。

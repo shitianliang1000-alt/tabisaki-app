@@ -17,7 +17,7 @@ import { readFile } from "node:fs/promises";
 import {
   TIGHT_MIN, attachLastTrain, clockMinutes, lastRideOf, lastTrainNote,
   lateMinutes, marginMinutes, stationsOf,
-} from "../js/lasttrain.js";
+} from "../packages/core/src/lasttrain.js";
 import { parseRouteDetail, parseSummary, routeBlocks }
   from "../server/worker.js";
 

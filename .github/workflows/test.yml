@@ -51,6 +51,32 @@ jobs:
           test -f .site/__site/landing.html && test -f .site/data/areas.json && test -f .site/assets/landing.js
           test -f .site/__admin/index.html
 
+  # 旅程の成立率（tools/plan_bench.mjs・docs/benchmarks.md）。決まった頼みごとと、
+  # シードを固定したランダムな頼みごとで旅程を組み、営業時間・移動時間・
+  # 同じ場所・重なりの違反を数えます。基準（bench/baseline.json）より悪ければ失敗。
+  # 不成立の旅程は1件ずつ JSON にして添付します（再現の手順つき）。
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Itinerary benchmark
+        run: |
+          set +e
+          node tools/plan_bench.mjs --check --md --out bench-out > bench.md
+          code=$?
+          cat bench.md >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plan-bench
+          path: |
+            bench.md
+            bench-out/
+
   # 手元用 API サーバー（Dockerfile・compose.yaml）が、組み上がって旅程を返すか。
   docker:
     runs-on: ubuntu-latest

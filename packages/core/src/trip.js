@@ -253,14 +253,14 @@ export function makeTrip(init = {}) {
      *
      * 収録に「バリアフリーかどうか」はありません。持っているのは
      * 分類だけです。だから**外しはせず**、選ぶときに後ろへ回して、
-     * 「何がつらいか」と「公式で確かめて」を書きます（js/access.js）。
+     * 「何がつらいか」と「公式で確かめて」を書きます（packages/core/src/access.js）。
      */
     /**
      * 旅の目的。"date" | "active" | "relax" | "kids" | "learn"。
      *
      * 興味（温泉・歴史…）は「何が見たいか」、目的は「どう過ごしたいか」
      * です。同じ箱根でも、デートとアクティブでは回る場所が違います。
-     * 選ぶときの重みだけで、外しはしません（js/purpose.js）。
+     * 選ぶときの重みだけで、外しはしません（packages/core/src/purpose.js）。
      */
     purposes: normalizePurposes(init.purposes),
     companions: (Array.isArray(init.companions) ? init.companions : [])

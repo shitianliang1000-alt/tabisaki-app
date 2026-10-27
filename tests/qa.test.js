@@ -6,7 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { replyText } from "../js/ai.js";
+import { replyText } from "../packages/core/src/ai.js";
 import { answerQuestion, isQuestion, itineraryContext, routeText, dateAnswer, readReply,
   rememberQa, resolveRef, MEMORY_SIZE } from "../js/qa.js";
 

@@ -20,7 +20,7 @@ import test from "node:test";
 import {
   PASS_RIDES, attachTickets, operatorOf, passNote, ridesByOperator,
   ticketNote,
-} from "../js/tickets.js";
+} from "../packages/core/src/tickets.js";
 
 // --- 会社を読む -------------------------------------------------------------
 

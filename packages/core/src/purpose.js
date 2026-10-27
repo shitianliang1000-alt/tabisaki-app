@@ -9,10 +9,10 @@
 // 「デートで」と書いても、どこにも効いていませんでした（「デート」を
 // 名前や説明に含む場所を探しに行き、ほとんど何にも当たりません）。
 //
-// ここで決めるのは、**選ぶときの重み**だけです（js/kb.js）。
+// ここで決めるのは、**選ぶときの重み**だけです（packages/core/src/kb.js）。
 // 外しはしません。デートで寺に行く人も、子連れで山に登る人もいます。
 // 同じくらいの点なら目的に合うほうを先に、というだけです
-// （js/access.js の同行者と同じ考えかたです）。
+// （packages/core/src/access.js の同行者と同じ考えかたです）。
 //
 // 分類（category）と、名前・説明の語から見ます。収録に「デート向き」
 // という印はないので、言えるのは「そういう場所が多い」までです。
@@ -186,7 +186,7 @@ export function isPurposeWord(word) {
 /**
  * 目的の言い回しを文から消します（「デート向けにして」→「にして」）。
  * チャットで目的だけを言い直した返信を、条件の言い直しとして
- * 扱うためです（js/chatread.js の hasSubstance）。
+ * 扱うためです（packages/core/src/chatread.js の hasSubstance）。
  */
 export function stripPurposeWords(text) {
   let s = String(text ?? "");

@@ -28,7 +28,7 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | 🚧 一部（Node.js から使う入口。`js/` の移しはまだ） | #348 |
+| 旅程を組む部分を `packages/core` に分ける（Node.js からも使える） | ✅ ある（本体は `packages/core/src/`。Web 版もここを読む） | #348 |
 | `tabisaki plan "温泉と海" --days=2 --output=markdown` の CLI（[cli-usage.md](./cli-usage.md)） | ✅ ある（通信なし・移動は距離の目安） | #349 |
 | 端末の中で旅程を見る TUI（`./tabisaki tui`、[cli-usage.md](./cli-usage.md)） | ✅ ある（見るだけ。並べ替えはまだ） | #350 |
 | Docker で動く手元の API（`POST /v1/plan`、[self-hosting.md](./self-hosting.md)） | ✅ ある（認証なし・127.0.0.1 だけ） | #351 |
@@ -39,9 +39,9 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| 手元の LLM（Ollama など）で旅程を組む | 🚧 一部（`js/config.js` の `MODEL_PROVIDER = "local"`） | #352 |
+| 手元の LLM（Ollama など）で旅程を組む | 🚧 一部（`packages/core/src/config.js` の `MODEL_PROVIDER = "local"`） | #352 |
 | 地域ごとの知識ベースの切り出し・似たスポットの検索 | 📝 計画 | #353 |
-| 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 📝 計画 | #354〜#358 #360 |
+| 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
 | スポットの補完・写真・季節・営業時間・別名 | 🚧 一部（Wikipedia の写真、営業時間の目安） | #361 |
 | 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
@@ -52,13 +52,14 @@
 | 項目 | 状態 | Issue |
 |---|---|---|
 | Yahoo! から取っているデータを、別の API に移す | ⏸ 判断待ち（移り先・費用） | #367 |
-| 外部データの取り口を差し替えられる形にする | 📝 計画 | #369 |
+| 外部データの取り口を差し替えられる形にする（[docs/data-providers.md](data-providers.md)） | ✅ ある | #369 |
 | 知識ベースの点検（PR ごと・週に1回、`tools/kb_check.mjs`） | ✅ ある | #370 #374 #345 |
+| 旅程の成立率ベンチマーク（PR ごと、[benchmarks.md](./benchmarks.md)） | ✅ ある | #374 |
 | スポット情報の訂正を Issue で受け付ける | ✅ ある（ひな形） | #371 |
 | 速さの基準と計測 | 🚧 一部（CLS の試験） | #372 |
 | 旅程づくりから地図までの画面の試験（E2E） | ✅ ある（`tests/e2e/`） | #373 |
 | 多言語対応（決まり・翻訳の流れ・英語の旅程。Web 版の画面はこれから） | 🚧 一部（[i18n.md](i18n.md)） | #379 |
-| 実際に回れたかの任意の感想 | 📝 計画 | #382 |
+| 実際に回れたかの任意の感想（端末の中だけ。[docs/feedback.md](feedback.md)） | ✅ ある | #382 |
 | 文書の見直し | 🚧 一部 | #366 #386 |
 | 発信・コミュニティの計画（[community.md](./community.md)） | 🚧 一部（計画だけ。投稿・Discussions はまだ） | #381 |
 

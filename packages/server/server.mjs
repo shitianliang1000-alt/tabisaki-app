@@ -20,7 +20,7 @@
 //   /plan と /health は前の名前で、同じものを返します。
 
 import http from "node:http";
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const VERSION = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
@@ -73,12 +73,21 @@ export function loadConfig(env = process.env, { readFile = (f) => readFileSync(f
   };
 }
 
-const digest = (t) => createHash("sha256").update(t).digest();
+// トークンの照合値。速いハッシュ（SHA-256 など）だと、照合値が漏れたときに
+// 総当たりで元のトークンを当てられてしまいます（CodeQL
+// js/insufficient-password-hash）。scrypt でわざと時間のかかる形にします。
+// 塩は起動のたびに作り、照合値もメモリの中だけに置きます（ディスクに残しません）。
+const TOKEN_HASH_LEN = 32;
+const sealToken = (token) => {
+  const salt = randomBytes(16);
+  return { salt, hash: scryptSync(String(token), salt, TOKEN_HASH_LEN) };
+};
 /** 時間の差で鍵を当てられないように、長さをそろえてから比べます。 */
 function tokenOk(given, wanted) {
-  const g = digest(given);
   let ok = false;
-  for (const w of wanted) if (timingSafeEqual(g, w)) ok = true;
+  for (const w of wanted) {
+    if (timingSafeEqual(scryptSync(String(given), w.salt, TOKEN_HASH_LEN), w.hash)) ok = true;
+  }
   return ok;
 }
 
@@ -115,7 +124,7 @@ export async function createServer({
   const L = { ...LIMITS, ...limits };
   const lib = await import("../core/index.mjs");
   core ??= await lib.createCore();
-  const wanted = tokens.map(digest);
+  const wanted = tokens.map(sealToken);
   const auth = wanted.length > 0;
   const okHosts = new Set([...LOOPBACK, ...hosts]);
   let running = 0;

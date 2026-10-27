@@ -23,7 +23,7 @@
 // 出典: © OpenStreetMap contributors（ODbL）、Wikidata（CC0）
 
 import { readFile, writeFile } from "node:fs/promises";
-import { nearestStop } from "../js/stops-data.js";
+import { nearestStop } from "../packages/core/src/stops-data.js";
 
 const [, , osmPath, wdPath, outPath = "kb/ropeways.json"] = process.argv;
 if (!osmPath) {

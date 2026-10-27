@@ -4,10 +4,10 @@
 // 入れた時点で「新幹線・特急で約3時間」と見えていたほうが、
 // 日帰りでは無理だと先に気づけます。
 //
-// 直線距離から見積もる目安です（js/geo.js の travelMinutes）。
+// 直線距離から見積もる目安です（packages/core/src/geo.js の travelMinutes）。
 // 経路は調べません。だから必ず「約」と「目安」を付けて出します。
-import { haversineKm } from "./feasibility.js";
-import { travelLabel, travelMinutes } from "./geo.js";
+import { haversineKm } from "../packages/core/src/feasibility.js";
+import { travelLabel, travelMinutes } from "../packages/core/src/geo.js";
 import { fmtMinutes } from "./orderdiff.js";
 
 /** 日帰りで往復すると、観光の時間がほとんど残らない片道の長さ（分）。 */

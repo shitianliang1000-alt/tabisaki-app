@@ -9,7 +9,7 @@
  *   node server/node-proxy.mjs
  *
  * 本番では、この前に必ず TLS を置いてください（Nginx / Caddy など）。
- * js/config.js の PROXY_URL は https でなければ受け付けません。
+ * packages/core/src/config.js の PROXY_URL は https でなければ受け付けません。
  *
  * ここが守っていること
  * --------------------

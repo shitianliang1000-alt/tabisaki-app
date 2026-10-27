@@ -19,7 +19,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { coLocated, dedupeSpots, sameThing, samePoint } from "../js/dedupe.js";
+import { coLocated, dedupeSpots, sameThing, samePoint } from "../packages/core/src/dedupe.js";
 
 const at = (name, lat, lng, over = {}) =>
   ({ id: name, name, lat, lng, ...over });

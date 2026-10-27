@@ -4,7 +4,7 @@
   "private": true,
   "description": "旅さき: 旅程を組む部分を Node.js から使う入口",
   "type": "module",
-  "exports": { ".": "./index.mjs" },
+  "exports": { ".": "./index.mjs", "./format": "./format.mjs", "./src/*": "./src/*" },
   "engines": { "node": ">=22" },
   "license": "PolyForm-Noncommercial-1.0.0"
 }

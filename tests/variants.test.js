@@ -13,7 +13,7 @@ import test from "node:test";
 
 import { VARIANTS, distinguishOf, recommendOf, summaryOf, tripsFor }
   from "../js/variants.js";
-import { makeTrip } from "../js/trip.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const d = (s) => new Date(s);
 const TRIP = () => makeTrip({
@@ -127,9 +127,9 @@ test("案ごとの見出し（何か所・移動・自由時間）を作れる",
 test("3案を作るとき、希望文の読み取りは1回でよい", async () => {
   // 変わるのはペースと穴場の割合だけで、希望文は同じです。
   // 案ごとに読み取り直すと、同じ文をモデルに3回投げることになります。
-  const { loadKnowledgeBase } = await import("../js/kb.js");
-  const { planTrip } = await import("../js/pipeline.js");
-  const { findPlace } = await import("../js/places.js");
+  const { loadKnowledgeBase } = await import("../packages/core/src/kb.js");
+  const { planTrip } = await import("../packages/core/src/pipeline.js");
+  const { findPlace } = await import("../packages/core/src/places.js");
   const kb = await loadKnowledgeBase();
   const base = makeTrip({
     origin: findPlace("東京駅"),

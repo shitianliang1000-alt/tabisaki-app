@@ -1,15 +1,16 @@
 // 旅さきの「旅程を組む部分」を、Node.js から使うための入口（packages/core）。
 //
-// 旅程を組む本体は js/ にあります（ブラウザでもそのまま動くように、画面と
-// 切り離して書いてあります。js/pipeline.js の冒頭）。ここはそれを Node.js
-// から呼ぶための薄い層で、次のことだけを受け持ちます。
+// 旅程を組む本体は packages/core/src/ にあります。画面（js/）からは切り離して
+// あり、ブラウザでも Node.js でもそのまま動きます（Web 版の js/app.js も、
+// ここを直に読みます）。この index.mjs は、Node.js から呼ぶための薄い層で、
+// 次のことだけを受け持ちます。
 //
 //   ・知識ベース（kb/）をファイルから読む（ブラウザでは fetch で取るところ）
 //   ・外への通信を切る（AI・経路・天気は使わず、距離からの目安で組みます）
 //   ・入力を確かめ、決まった形のエラー（CoreError）で返す
 //
-// js/ のファイルを packages/core/ へ移すのは、この入口の形が固まってから
-// 少しずつ行います（docs/roadmap.md）。Web 版はこれまでどおり js/ を直接読みます。
+// 中の部品を1つだけ使いたいときは、"tabisaki-core/src/feasibility.js" の
+// ように直に読めます（package.json の exports）。何が中にあるかは README.md に。
 //
 //     import { createCore } from "./packages/core/index.mjs";
 //     const core = await createCore();
@@ -20,12 +21,12 @@ import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// 本体（js/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
+// 本体（src/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const js = (f) => import(pathToFileURL(path.join(ROOT, "js", f)).href);
+const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
 
 /** 決まった形のエラー。code で見分けます。 */
 export class CoreError extends Error {
@@ -120,19 +121,38 @@ export async function normalizeRequest(req = {}) {
 
 /**
  * 旅程を組む道具を用意します（知識ベースを読み込むので、1回だけ呼んで使い回します）。
- * @param {{root?: string}} [opts]
+ *
+ * providers で、外のデータの取り口を選べます（docs/data-providers.md）。
+ * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
+ * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
+ *
+ * @param {{root?: string, providers?: {routing?: string, weather?: string,
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
+ *          plugins?: object[]}} [opts]
  */
-export async function createCore({ root = ROOT, plugins = [] } = {}) {
-  // 本体（js/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+export async function createCore({ root = ROOT, providers = {}, userKb, home, plugins = [] } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
+  const { useProviders } = await js("providers.js");
+  useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
+  let kb = await loadKnowledgeBase();
+  let overlayReport = null;
+  if (userKb) {
+    const { openStore, applyOverlay } = await import("./userkb.mjs");
+    const { sameThing } = await js("dedupe.js");
+    const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
+    ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
+  }
   // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
-  const kb = applyConstraints(await loadKnowledgeBase(), plugins);
+  kb = applyConstraints(kb, plugins);
 
   return {
     kb,
+    /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
+    overlayReport,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
@@ -160,3 +180,4 @@ export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } fro
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
+export * as userkb from "./userkb.mjs";

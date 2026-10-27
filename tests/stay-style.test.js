@@ -14,8 +14,8 @@ import test from "node:test";
 
 import {
   STAY_STYLES, allocateDays, pickBase, planStays, suggestRegionCount,
-} from "../js/stays.js";
-import { makeTrip } from "../js/trip.js";
+} from "../packages/core/src/stays.js";
+import { makeTrip } from "../packages/core/src/trip.js";
 
 const region = (id, name, lat, lng) => ({
   id, name, lat, lng, station: `${name}駅`,
@@ -116,7 +116,7 @@ test("条件に、宿の取りかたが入る", () => {
 // しか見えませんでした。
 
 test("同じ土地を指す名前は、1つにまとめる", async () => {
-  const { dedupeAreaNames, joinAreaNames } = await import("../js/stays.js");
+  const { dedupeAreaNames, joinAreaNames } = await import("../packages/core/src/stays.js");
   assert.deepEqual(dedupeAreaNames(["京都", "東山", "京都市"]), ["京都", "東山"]);
   assert.equal(joinAreaNames(["京都", "東山", "京都市"]), "京都・東山");
   assert.equal(joinAreaNames(["出雲", "出雲市"]), "出雲");
@@ -125,21 +125,21 @@ test("同じ土地を指す名前は、1つにまとめる", async () => {
 });
 
 test("末尾の呼び名だけを落とす（途中の字は残す）", async () => {
-  const { joinAreaNames } = await import("../js/stays.js");
+  const { joinAreaNames } = await import("../packages/core/src/stays.js");
   // 「市川」の「市」を落とすと、別の土地になります。
   assert.equal(joinAreaNames(["市川", "市川市"]), "市川");
   assert.equal(joinAreaNames(["市川", "川崎"]), "市川・川崎");
 });
 
 test("中に入っているだけの名前は、まとめない", async () => {
-  const { joinAreaNames } = await import("../js/stays.js");
+  const { joinAreaNames } = await import("../packages/core/src/stays.js");
   // 「出雲」と「出雲大社」は別のものです。ここまで寄せると、行き先が
   // 消えます。
   assert.equal(joinAreaNames(["出雲", "出雲大社"]), "出雲・出雲大社");
 });
 
 test("まとめたあとで数え直す（4つ以上は省略）", async () => {
-  const { joinAreaNames } = await import("../js/stays.js");
+  const { joinAreaNames } = await import("../packages/core/src/stays.js");
   // まとめる前は4つでも、まとめて3つなら全部書けます。
   assert.equal(joinAreaNames(["京都", "東山", "嵐山", "京都市"]),
     "京都・東山・嵐山");
@@ -147,7 +147,7 @@ test("まとめたあとで数え直す（4つ以上は省略）", async () => {
 });
 
 test("空や壊れた名前でも落ちない", async () => {
-  const { dedupeAreaNames, joinAreaNames } = await import("../js/stays.js");
+  const { dedupeAreaNames, joinAreaNames } = await import("../packages/core/src/stays.js");
   assert.deepEqual(dedupeAreaNames(null), []);
   assert.deepEqual(dedupeAreaNames(["", null, undefined, "市"]), []);
   assert.equal(joinAreaNames([]), "");

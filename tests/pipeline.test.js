@@ -10,11 +10,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadKnowledgeBase } from "../js/kb.js";
-import { planTrip } from "../js/pipeline.js";
-import { findPlace } from "../js/places.js";
-import { makeTrip } from "../js/trip.js";
-import { areaScope, detectAreas } from "../js/areas.js";
+import { loadKnowledgeBase } from "../packages/core/src/kb.js";
+import { planTrip } from "../packages/core/src/pipeline.js";
+import { findPlace } from "../packages/core/src/places.js";
+import { makeTrip } from "../packages/core/src/trip.js";
+import { areaScope, detectAreas } from "../packages/core/src/areas.js";
 
 const kb = await loadKnowledgeBase();
 
@@ -230,7 +230,7 @@ test("天気が取れなくても、旅程はそのまま出る", async () => {
 test("予報の出ない先の旅には、その時期の平年が付く", async () => {
   // 予報は16日先までです。宿の都合で1か月先に組む旅には、いまの画面は
   // 天気の話をいっさいしませんでした。**予報ではなく**、過去の観測の
-  // 平均を添えます（js/normals.js）。取りにいく先は注入します。
+  // 平均を添えます（packages/core/src/normals.js）。取りにいく先は注入します。
   const normals = async () => ({ ok: true,
     text: "11月20日ごろの平年は、最高 15℃・最低 6℃ です。"
       + "これは予報ではなく、過去の観測の平均です。",
@@ -267,7 +267,7 @@ test("天気を使わない指定ができる（軽量モード用）", async ()
 // なり、1日2〜3か所で残りが空きます。実際に行く人も、その場合は隣の
 // エリアまで足を延ばします。足りているときは広げません（指定は指定です）。
 
-import { spotsNeededFor, widenScopeForDays } from "../js/pipeline.js";
+import { spotsNeededFor, widenScopeForDays } from "../packages/core/src/pipeline.js";
 
 test("収録が足りない日数では、近いエリアを足す", async () => {
   const kb = await loadKnowledgeBase();
@@ -338,7 +338,7 @@ test("日数が増えれば、立ち寄りも増える", async () => {
 
 test("旅程に出る時刻と、調べた便の時刻がそろう", async () => {
   const { resetRoutesBreaker, resetTransitPacing, clearRouteCache } =
-    await import("../js/routes.js");
+    await import("../packages/core/src/routes.js");
   resetRoutesBreaker();
   resetTransitPacing();
   clearRouteCache();
@@ -384,7 +384,7 @@ test("旅程に出る時刻と、調べた便の時刻がそろう", async () =>
   };
   // 停留所は一度読んだら覚えたままです。このファイルの前のテストが
   // 素のfetchで読みに行って空になっているので、読み直させます。
-  const { resetStopsCache } = await import("../js/stops.js");
+  const { resetStopsCache } = await import("../packages/core/src/stops.js");
   resetStopsCache();
   try {
     const itin = await planTrip({
@@ -426,7 +426,7 @@ test("旅程に出る時刻と、調べた便の時刻がそろう", async () =>
 // 「0.0kmを11分」は歩きようがありません。
 
 test("同じ場所は、名前が違っても1回だけ置く", async () => {
-  const { dropSamePlace } = await import("../js/pipeline.js");
+  const { dropSamePlace } = await import("../packages/core/src/pipeline.js");
   const takaoTop = { id: "takao-2", name: "高尾山山頂",
                      lat: 35.6252, lng: 139.2434 };
   const takao = { id: "lm-60", name: "高尾山", lat: 35.6253, lng: 139.2436 };
@@ -438,7 +438,7 @@ test("同じ場所は、名前が違っても1回だけ置く", async () => {
 });
 
 test("300m離れていれば、別の場所として置く", async () => {
-  const { dropSamePlace } = await import("../js/pipeline.js");
+  const { dropSamePlace } = await import("../packages/core/src/pipeline.js");
   // 薬王院と山頂は346m。参道を登る別の場所です。
   const top = { id: "a", lat: 35.6252, lng: 139.2434 };
   const temple = { id: "b", lat: 35.6256, lng: 139.2472 };
@@ -446,7 +446,7 @@ test("300m離れていれば、別の場所として置く", async () => {
 });
 
 test("旅程に、同じ場所が2回出てこない", async () => {
-  const { haversineKm } = await import("../js/feasibility.js");
+  const { haversineKm } = await import("../packages/core/src/feasibility.js");
   const itin = await planTrip({
     trip: trip({ note: "高尾山に登りたい",
                  departAt: new Date("2026-08-31T09:00"),
@@ -531,8 +531,8 @@ test("名前のある列車を書いたら、その列車の行き先を地名�
   // 「熱海」しか無いので、2日ぶんの立ち寄りが足りずに範囲が広がる
   // ことがあります。**寄せられているか**を見るのは areas の側の仕事に
   // して、ここでは「読み取ったことが伝わるか」を見ます。
-  const { detectAreas } = await import("../js/areas.js");
-  const { readIntent } = await import("../js/intent.js");
+  const { detectAreas } = await import("../packages/core/src/areas.js");
+  const { readIntent } = await import("../packages/core/src/intent.js");
   const toward = readIntent("サフィール踊り子に乗りたい").toward;
   const areas = detectAreas(`サフィール踊り子に乗りたい ${toward.join(" ")}`, kb);
   assert.ok(areas.length,

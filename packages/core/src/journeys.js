@@ -50,7 +50,7 @@ export const KNOWN_JOURNEYS = [
   },
   {
     // 片道で通す旅です。出発地が南なら、南から北へたどります
-    // （向きは js/pipeline.js が出発地から決めます）。
+    // （向きは packages/core/src/pipeline.js が出発地から決めます）。
     name: "日本縦断",
     re: /日本(列島)?縦断|列島縦断/,
     meaning: "日本列島を、端から端まで片道で通して旅すること",

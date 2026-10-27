@@ -9,10 +9,10 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
-import { namedSpotAreas } from "../js/areas.js";
-import { insideOf } from "../js/shapes.js";
+import { namedSpotAreas } from "../packages/core/src/areas.js";
+import { insideOf } from "../packages/core/src/shapes.js";
 import { isInfoDesk, isLocalFacility, isLodging, isNotAPlace, isPassage, isUmbrella,
-  whyNotASpot } from "../js/notaspot.js";
+  whyNotASpot } from "../packages/core/src/notaspot.js";
 
 const at = (name, category = "観光名所", extra = {}) =>
   ({ id: name, name, category, lat: 35, lng: 136, ...extra });
