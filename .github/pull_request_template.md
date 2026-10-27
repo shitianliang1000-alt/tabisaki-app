@@ -11,6 +11,7 @@ Fixes #
 - [ ] `node --test tests/*.test.js` が通る
 - [ ] 画面を変えたら、携帯の幅と暗い配色でも見た
 - [ ] Cloudflare 版と PHP 版（`php/`）の両方に入れた（画面を変えたとき）
+- [ ] 文を足したら `locales/ja.json` に置き、`node tools/i18n_check.mjs` が通る（翻訳の決まりは `docs/i18n.md`）
 - [ ] `kb/` を変えたら `node tools/kb_check.mjs` が通り、出典を `kb/index.json` と `credits.html` に書いた
 - [ ] 利用者から見える変更なら、`CHANGELOG.md` に1行足した
 
