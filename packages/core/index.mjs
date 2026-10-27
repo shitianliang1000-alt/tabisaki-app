@@ -126,9 +126,9 @@ export async function normalizeRequest(req = {}) {
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {} } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
