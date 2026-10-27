@@ -58,7 +58,7 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 
 ### [多言語対応と翻訳](docs/i18n.md)
 
-開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
+開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。行ってきた旅の感想の扱い（何を残し、いつ消えるか）は [docs/feedback.md](docs/feedback.md) にあります。
 
 ## Related
 
