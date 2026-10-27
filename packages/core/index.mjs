@@ -125,10 +125,19 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
+ * userKb にユーザーKBの名前（または overlay の中身）を渡すと、公式の収録に重ねます（docs/user-kb.md）。
+ *
+ * 利用者がスポットに足した情報（~/.tabisaki/spots.json。docs/spot-data.md）があれば、
+ * 確認済みの営業時間・季節の催し・写真と、別名を、その上に重ねます。
+ * 重ねたくないときは userData: false（または環境変数 TABISAKI_NO_USER_DATA=1）。
+ * userData に文字を渡すと、そのファイルを読みます。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string|null,
+ *          userData?: boolean|string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {} } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
+  userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
@@ -144,11 +153,20 @@ export async function createCore({ root = ROOT, providers = {} } = {}) {
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
 
   return {
     kb,
     /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
     overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
