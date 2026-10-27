@@ -120,11 +120,19 @@ export async function normalizeRequest(req = {}) {
 
 /**
  * 旅程を組む道具を用意します（知識ベースを読み込むので、1回だけ呼んで使い回します）。
- * @param {{root?: string}} [opts]
+ *
+ * providers で、外のデータの取り口を選べます（docs/data-providers.md）。
+ * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
+ * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
+ *
+ * @param {{root?: string, providers?: {routing?: string, weather?: string,
+ *          geocoding?: string, spots?: string}}} [opts]
  */
-export async function createCore({ root = ROOT } = {}) {
+export async function createCore({ root = ROOT, providers = {} } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
+  const { useProviders } = await js("providers.js");
+  useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
@@ -155,3 +163,5 @@ export async function createCore({ root = ROOT } = {}) {
 }
 
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
+export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
+export { resolveLang } from "./locales.mjs";

@@ -46,8 +46,15 @@ import { summarizeTransitLeg, summarizeYahooRoute, transitFieldMask }
   from "./transit.js";
 import { KIND_NOTE, asksTimetable, classifyLine, kindsOf, preferredKinds,
   yahooFlags } from "./modes.js";
-import { resetYahooCooldown, resetYahooPace, searchYahooTransit, yahooCooldown }
-  from "./yahoo-transit.js";
+import { getProvider } from "./providers.js";
+
+// 公共交通の経路は、いま選ばれている取り口（providers.js）から引きます。
+// 本体は取り口の名前（Yahoo!など）を知らず、決まった形の答えだけを使います。
+const routing = () => getProvider("routing");
+const searchYahooTransit = (from, to, opts) => routing().search(from, to, opts);
+const yahooCooldown = () => routing().cooldown();
+const resetYahooCooldown = () => routing().resetCooldown();
+const resetYahooPace = () => routing().resetPace();
 
 /**
  * どこへ投げるか。
@@ -650,7 +657,8 @@ async function computeViaStations(points, opts) {
     // やめると言われたら、残りの区間は聞きません。外れた区間を
     // 目安で埋めて続けると、要らない問い合わせが最後まで走ります。
     opts.signal?.throwIfAborted();
-    const hit = (!onFoot && yahooBudget > 0 && !yahooCooldown().waiting)
+    const hit = (!onFoot && yahooBudget > 0 && routing().available !== false
+        && !yahooCooldown().waiting)
       ? await yahooLeg(points[i], points[i + 1],
                        { ...opts, departAt: at, tries: yahooBudget })
       : null;

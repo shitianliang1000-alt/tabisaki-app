@@ -49,7 +49,7 @@ import { critique, relaxForItinerary, relaxForUnreachable } from "./relax.js";
 import { itineraryCrowd, spreadCrowds } from "./crowd.js";
 import { costBreakdown } from "./cost.js";
 import { sunNotes, sunTimes } from "./sun.js";
-import { forecastFor, summarizeDay } from "./weather.js";
+import { summarizeDay } from "./weather.js";
 import { normalsFor } from "./normals.js";
 import { suggestReplan } from "./replan.js";
 import { attachBackups } from "./backup.js";
@@ -60,7 +60,7 @@ import { attachShapes } from "./shapes.js";
 import { attachAccess } from "./access.js";
 import { attachLastTrain } from "./lasttrain.js";
 import { attachTickets } from "./tickets.js";
-import { searchYahooTransit } from "./yahoo-transit.js";
+import { getProvider } from "./providers.js";
 import { yahooFlags } from "./modes.js";
 import { nearestStop } from "./stops.js";
 import { eventNotesFor } from "./events.js";
@@ -984,7 +984,7 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   //     どの駅から乗るのかが分からないので、終電も聞けません。
   itin.lastTrainCount = await attachLastTrain(itin, async (from, to, when) => {
     try {
-      return await searchYahooTransit(from, to, {
+      return await getProvider("routing").search(from, to, {
         departAt: when, search: "last",
         modes: yahooFlags(trip.transport ?? "any"),
         signal: opts.signal,
@@ -2092,7 +2092,8 @@ function candidatePool(candidates) {
 async function buildReplan(itin, candidates, opts = {}) {
   if (opts.useWeather === false) return { suggestions: [], notes: [] };
 
-  const getForecast = opts.forecast ?? forecastFor;
+  const getForecast = opts.forecast
+    ?? ((at, date, o) => getProvider("weather").forecast(at, date, o));
   const weather = {};
   const sunset = {};
   const daySummaries = [];

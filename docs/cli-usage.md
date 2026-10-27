@@ -39,6 +39,7 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 | `--back=<HH:MM>` | 20:00 | 最終日に出発地へ帰り着く時刻 |
 | `--transport=<手段>` | any | `any` / `transit`（電車・バス）/ `car` / `walk` / `local`（普通列車だけ） |
 | `--output=<形式>` | markdown | `markdown` / `text` / `json` |
+| `--lang=<言語>` | ja | `ja` / `en`。環境変数 `TABISAKI_LANG` でも決められます（[i18n.md](i18n.md)）。地名やスポットの名前は原文のままです |
 
 時刻はすべて日本時間です（端末の時間帯によりません）。
 

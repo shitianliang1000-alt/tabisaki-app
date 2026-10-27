@@ -2,6 +2,7 @@ import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
 import { currentSettings, record, Stats, SWITCHABLE } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
+import { providerStatus, transitHandler, TransitError } from "./transit.js";
 
 // 管理画面の件数・設定の置き場（Durable Object）。wrangler.jsonc の STATS。
 export { Stats };
@@ -56,6 +57,10 @@ function allowList(env) {
 const COST = {
   "/status": 0,
   "/yahoo/transit": 1,
+  // 乗り換え検索（server/transit.js）。有料の API は、その会社との
+  // 契約の回数で止まります。ここは取り違えたときの歯止めだけです。
+  "/transit": 1,
+  "/transit/providers": 0,
   "/routes": 3,
   "/gemini/generate": 5,
   "/gemini/embed": 1,
@@ -79,6 +84,8 @@ const COST = {
 /** その入口が、どちらの枠か。 */
 const POOL = {
   "/yahoo/transit": "free",
+  "/transit": "free",
+  "/transit/providers": "free",
   "/metrics": "free",
 };
 
@@ -283,6 +290,9 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/routes")) return cors(await routes(request, env), origin, allow);
       if (path.endsWith("/cf/generate")) return cors(await cfGenerate(request, env), origin, allow);
       if (path.endsWith("/yahoo/transit")) return cors(await yahooTransit(request), origin, allow);
+      // どの乗り換え検索が使えるか（キーの値は返しません）。
+      if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
+      if (path.endsWith("/transit")) return cors(await transit(request, env, settings), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
       if (path.endsWith("/web/search")) return cors(await webSearch(request, env, ctx), origin, allow);
       // 鍵が入っているかどうかだけを答えます（値は返しません）。
@@ -294,7 +304,12 @@ async function relay(request, env, ctx) {
           secrets: {
             MAPS_API_KEY: hasSecret(env, "MAPS_API_KEY"),
             GEMINI_API_KEY: hasSecret(env, "GEMINI_API_KEY"),
+            EKISPERT_API_KEY: hasSecret(env, "EKISPERT_API_KEY"),
+            NAVITIME_RAPIDAPI_KEY: hasSecret(env, "NAVITIME_RAPIDAPI_KEY"),
+            HERE_API_KEY: hasSecret(env, "HERE_API_KEY"),
           },
+          // 乗り換え検索の順番と、使えるもの（server/transit.js）。
+          transit: providerStatus(env),
           // Workers AI が使えるなら、AIのキーは要りません。
           workersAi: Boolean(env.AI),
           allowOrigin: allow,
@@ -636,6 +651,36 @@ async function geminiModels(env) {
     // 通すのは Gemma だけなので、一覧も Gemma だけにします。
     .filter((n) => /gemma/i.test(n));
   return json({ models: names });
+}
+
+/**
+ * 乗り換え検索（POST /transit）。どの API で引くかは server/transit.js が
+ * 決めます。Yahoo!路線情報だけはこのファイルにあるので、ここから渡します。
+ */
+async function transit(request, env, settings = null) {
+  const body = await readJson(request);
+  // 管理画面で /yahoo/transit を止めていたら、自動の順番からも外します。
+  if (settings?.disabled?.includes("/yahoo/transit")) env = { ...env, YAHOO_TRANSIT: "off" };
+  const yahoo = async (q) => {
+    const res = await yahooTransit(new Request("https://transit.invalid/yahoo/transit", {
+      method: "POST",
+      body: JSON.stringify({
+        from: q.from, to: q.to, fromAt: q.fromAt, toAt: q.toAt,
+        departAt: q.at.toISOString(), search: q.search, modes: q.modes, prefer: q.prefer,
+      }),
+    }));
+    if (res.status === 429) throw new TransitError("rate_limited", "Yahoo!路線情報から断られています", { status: 429, retryable: true });
+    if (!res.ok) throw new TransitError("upstream", `Yahoo!路線情報が ${res.status} でした`, { retryable: res.status >= 500 });
+    return res.json();
+  };
+  try {
+    return json(await transitHandler(body, env, { yahoo }));
+  } catch (e) {
+    if (!(e instanceof TransitError)) throw e;
+    return fail(e.status, e.code.toUpperCase(), e.message,
+      { service: "transit", retryable: e.retryable,
+        ...(e.status === 429 ? { retryAfter: 60, headers: { "Retry-After": "60" } } : {}) });
+  }
 }
 
 async function yahooTransit(request) {

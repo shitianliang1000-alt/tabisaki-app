@@ -161,6 +161,7 @@ const SHELL_FILES = [
   "./packages/core/src/places.js",
   "./packages/core/src/planner.js",
   "./packages/core/src/purpose.js",
+  "./packages/core/src/providers.js",
   "./packages/core/src/quota.js",
   "./packages/core/src/relax.js",
   "./packages/core/src/reliability.js",

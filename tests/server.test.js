@@ -32,6 +32,14 @@ test("POST /plan で旅程が JSON で返る", async () => {
   assert.match(j.markdown, /## 1日目/);
 });
 
+test("lang で Markdown の言語を選べる。知らない言語は 400", async () => {
+  const j = await (await s.post({ wish: "温泉と海", date: "2026-11-07", markdown: true, lang: "en" })).json();
+  assert.match(j.markdown, /## Day 1/);
+  const bad = await s.post({ wish: "温泉と海", lang: "fr" });
+  assert.equal(bad.status, 400);
+  assert.equal((await bad.json()).error.code, "invalid_input");
+});
+
 test("GET /health", async () => {
   const j = await (await fetch(`${s.base}/health`)).json();
   assert.equal(j.ok, true);

@@ -23,12 +23,13 @@
 * 日帰り・複数日・片道・周遊に対応
 * AI が出した場所も、収録の候補と照らし合わせてから使う（無い場所は旅程に入らない）
 * API キーが無くても動く（移動時間は距離からの目安、行き先は収録データから）
+* 旅程を英語でも出せる（`--lang=en`。翻訳は [docs/i18n.md](docs/i18n.md)）
 
 ## 端末（SSH）での機能
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
-* `./tabisaki api` で、手元用の API サーバー（`POST /plan`）を立てる。Docker でも動く
+* `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない
 
 ## Install
@@ -54,6 +55,10 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 ### [AI と API キー](docs/ai-and-keys.md)
 
 ### [知識ベース](docs/knowledge-base.md)
+
+### [多言語対応と翻訳](docs/i18n.md)
+
+### [外のデータの取り口](docs/data-providers.md)
 
 開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
 
