@@ -29,9 +29,28 @@ function net() {
   const c = effectiveConfig();
   // from（その値がどこから来たか）も持って回ります。落としていたので、
   // 中継を通していても診断に「中継なし（直接）」と出ていました。
+  // 端末から手元のモデルを使うときは、中継を通しません（手元で完結させます）。
+  if (runtimeLocal) return { proxyUrl: "", geminiKey: "", localBaseUrl: runtimeLocal.baseUrl, from: c.from };
   return { proxyUrl: c.proxyUrl, geminiKey: c.geminiKey,
            localBaseUrl: LOCAL_BASE_URL, from: c.from };
 }
+
+/**
+ * 手元のモデルへ、その場で切り替えます（端末の `tabisaki plan --local`）。
+ *
+ * ブラウザ版は js/config.js の MODEL_PROVIDER で決まります。端末から使う
+ * ときは設定ファイルを書き換えずに、モデルと行き先だけを渡します。
+ * null を渡すと、config.js の設定に戻ります。
+ *
+ * @param {{model?: string, baseUrl?: string} | null} opts
+ */
+let runtimeLocal = null;
+export function useLocalModel(opts) {
+  runtimeLocal = opts ? { model: opts.model || LOCAL_MODEL,
+                          baseUrl: opts.baseUrl || LOCAL_BASE_URL } : null;
+  resolved = null;
+}
+const localModel = () => runtimeLocal?.model ?? LOCAL_MODEL;
 
 /**
  * 自分で立てたモデルを使うか（Gemma など）。
@@ -53,12 +72,12 @@ function net() {
  * 作られても、そこで落ちます。旅程が壊れる方向には効きません。
  */
 export function usingLocalModel() {
-  return MODEL_PROVIDER === "local";
+  return Boolean(runtimeLocal) || MODEL_PROVIDER === "local";
 }
 
 /** 中継（Cloudflare Worker）の中で動かすか。Googleのキーは要りません。 */
 export function usingCloudflare() {
-  return MODEL_PROVIDER === "cloudflare";
+  return !runtimeLocal && MODEL_PROVIDER === "cloudflare";
 }
 
 /** そのモデルは Gemma か。Gemini とは、できることが違います。 */
@@ -141,12 +160,12 @@ export async function diagnoseGeminiKey(signal) {
   if (usingLocalModel()) {
     try {
       await callLocal("OKとだけ返してください。", { temperature: 0, signal });
-      return { ok: true, model: LOCAL_MODEL,
-        message: `${LOCAL_MODEL} に接続できました`
+      return { ok: true, model: localModel(),
+        message: `${localModel()} に接続できました`
           + "（自分で立てたモデルです。検索による裏取りは行いません）。" };
     } catch (e) {
       return { ok: false, message:
-        `${LOCAL_MODEL} に接続できませんでした（${e.message}）。`
+        `${localModel()} に接続できませんでした（${e.message}）。`
         + "サーバーが動いているか、LOCAL_BASE_URL が合っているかを"
         + "確認してください。" };
     }
@@ -482,7 +501,7 @@ async function callLocal(prompt, opts = {}) {
   const { signal, temperature = 0.4, topP, schema, system = true } = opts;
   const url = endpointFor("local:generate", {}, net());
   const body = {
-    model: LOCAL_MODEL,
+    model: localModel(),
     messages: [
       ...(system ? [{ role: "system", content: SYSTEM }] : []),
       { role: "user", content: prompt },
@@ -689,7 +708,7 @@ export async function callModel(prompt, opts = {}) {
     // 検索は使えません。呼び出し側が search を渡してきても外します。
     // 黙って無視すると、「調べたつもりの推測」が返ります。
     const { search: _drop, ...rest } = opts;
-    resolved = LOCAL_MODEL;
+    resolved = localModel();
     return callLocal(prompt, rest);
   }
   if (!hasApiKey()) {

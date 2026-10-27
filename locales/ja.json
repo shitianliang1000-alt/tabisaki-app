@@ -13,5 +13,7 @@
   "plan.warnings": "注意",
   "plan.footer": "移動時間は距離からの目安です（実際の乗換は調べていません）。営業時間は変わることがあります。出かける前に確かめてください。",
   "plan.plainTitle.other": "{title}（{from}から・{n}日）",
+  "plan.aiLocal": "AI: {model}（手元の LLM）が行き先を選びました",
+  "plan.aiLocalFailed": "AI: {model}（手元の LLM）に聞けなかったため、収録データから選びました（{error}）",
   "unit.km": "{km}km"
 }

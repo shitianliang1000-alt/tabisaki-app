@@ -25,6 +25,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
 
+// 差し替える前の fetch（手元の LLM へ話すときに使います）。
+const nativeFetch = globalThis.fetch;
+
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
 
@@ -45,9 +48,11 @@ export class CoreError extends Error {
  * 外へは出ず、リポジトリの中のファイルだけを返す fetch。
  * kb/・data/ のような相対の場所は、リポジトリの根から引きます。
  */
-export function offlineFetch(root = ROOT) {
-  return async (url) => {
+export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
+  return async (url, init) => {
     const u = String(url?.url ?? url);
+    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
+    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -55,7 +60,11 @@ export function offlineFetch(root = ROOT) {
       const m = /\/(kb\/.+)$/.exec(new URL(u).pathname);
       if (!m) throw new Error(`通信を切っています: ${u}`);
       file = path.join(root, m[1]);
-    } else file = path.join(root, u.replace(/^\.?\//, "").replace(/[?#].*$/, ""));
+    } else {
+      // ? と # から後ろを落とします（正規表現の .*$ は、長い入力で遅くなるので使いません）。
+      const cut = u.search(/[?#]/);
+      file = path.join(root, (cut < 0 ? u : u.slice(0, cut)).replace(/^\.?\//, ""));
+    }
     const rel = path.relative(root, file);
     if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error(`リポジトリの外は読みません: ${u}`);
     let body;
@@ -140,6 +149,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
+  const ai = await js("ai.js");
+  ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -190,3 +201,4 @@ export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
+export * from "./local.mjs";

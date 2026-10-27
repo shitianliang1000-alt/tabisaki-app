@@ -26,7 +26,7 @@ test("--output=json は JSON として読める", () => {
 
 test("使いかたのまちがいは終了コード 2 と、理由の1行", () => {
   for (const args of [["plan"], ["plan", "x", "--days=abc"], ["plan", "x", "--from=どこか"],
-    ["plan", "x", "--nope=1"], ["plan", "x", "--local"], ["fly"], ["plan", "x", "--output=pdf"]]) {
+    ["plan", "x", "--nope=1"], ["plan", "x", "--model=gemma4:e2b"], ["plan", "x", "--local=1"], ["fly"], ["plan", "x", "--output=pdf"]]) {
     const r = run(...args);
     assert.equal(r.status, 2, `${args.join(" ")}: ${r.stderr}`);
     assert.match(r.stderr, /^tabisaki: /);

@@ -24,6 +24,8 @@
 - 旅程を組む部分（59ファイル）を `js/` から `packages/core/src/` へ移しました。Web 版・CLI・TUI・API が同じファイルを使います（[packages/core/README.md](./packages/core/README.md)）。画面の動きは変わりません
 - 旅程を英語でも出せるようにしました（`./tabisaki plan --lang=en`、API の `"lang": "en"`）。翻訳の決まりと送りかたは [docs/i18n.md](./docs/i18n.md)、点検は `tools/i18n_check.mjs` です
 - 行ってきた旅の「見込みと違ったところ」を、任意で端末の中に残せるようにしました。送るのは利用者が GitHub の画面で自分で送ったときだけです（[docs/feedback.md](./docs/feedback.md)）
+- 手元の LLM（Ollama など）で旅程を組めるようにしました（`./tabisaki plan --local`、確かめとモデルの取得は `./tabisaki local setup --pull`。[docs/local-llm.md](./docs/local-llm.md)）
+- 知識ベースを地域ごとに切り出し（`./tabisaki kb extract --region=関東`）、似たスポットを探せるようにしました（`./tabisaki similar "清水寺"`。[docs/kb-extract.md](./docs/kb-extract.md)）
 
 ## 0.1.0 — 2026-10-25（最初の版にする予定のところ）
 
