@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 process.env.TZ = "Asia/Tokyo";
-const { hoursFor } = await import("../js/hours.js");
+const { hoursFor } = await import("../packages/core/src/hours.js");
 const {
   auditItinerary, randomRequests, rng, summarize, compare, loadFixedRequests, HARD_KINDS,
 } = await import("../tools/plan_bench.mjs");

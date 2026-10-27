@@ -86,8 +86,8 @@ async function bundleApp(esbuild, dist) {
   // 先に入れるファイル（sw.js）にも足します。
   const swPath = join(dist, "sw.js");
   const sw = await readFile(swPath, "utf8");
-  const marker = '  "./js/access.js",\n';
-  if (!sw.includes(marker)) throw new Error("sw.js に js/access.js の行が見つかりません");
+  const marker = '  "./packages/core/src/access.js",\n';
+  if (!sw.includes(marker)) throw new Error("sw.js に packages/core/src/access.js の行が見つかりません");
   await writeFile(swPath, sw.replace(marker, chunks.map((n) => `  "./js/${n}",\n`).join("") + marker));
   console.log(`bundle js/app.js: ${chunks.length} chunks`);
 }
@@ -111,7 +111,7 @@ async function main() {
     console.log(`::warning::${msg}`);
     return;
   }
-  for (const [sub, ext, loader] of [["js", ".js", "js"], ["css", ".css", "css"]]) {
+  for (const [sub, ext, loader] of [["js", ".js", "js"], ["packages/core/src", ".js", "js"], ["css", ".css", "css"]]) {
     const r = await minifyDir(esbuild, join(dist, sub), ext, loader);
     const kb = (n) => `${Math.round(n / 1024)}KB`;
     console.log(`minify ${sub}/: ${r.files} files, ${kb(r.before)} -> ${kb(r.after)}`);

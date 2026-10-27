@@ -14,7 +14,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { detectAreas, variantsOf } from "../js/areas.js";
+import { detectAreas, variantsOf } from "../packages/core/src/areas.js";
 
 const KB = {
   regions: [

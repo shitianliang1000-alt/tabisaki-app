@@ -20,6 +20,7 @@
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 - 経路・天気・地名・スポットの取り口を差し替えられるようにしました。キー不要の `mock` と通信しない `off` もあります（[docs/data-providers.md](./docs/data-providers.md)）
 - README と CONTRIBUTING を [UTM](https://github.com/utmapp/UTM) の文書の形（短い README と、くわしい内容を `docs/` に分ける）にそろえました
+- 旅程を組む部分（59ファイル）を `js/` から `packages/core/src/` へ移しました。Web 版・CLI・TUI・API が同じファイルを使います（[packages/core/README.md](./packages/core/README.md)）。画面の動きは変わりません
 - 旅程を英語でも出せるようにしました（`./tabisaki plan --lang=en`、API の `"lang": "en"`）。翻訳の決まりと送りかたは [docs/i18n.md](./docs/i18n.md)、点検は `tools/i18n_check.mjs` です
 - 行ってきた旅の「見込みと違ったところ」を、任意で端末の中に残せるようにしました。送るのは利用者が GitHub の画面で自分で送ったときだけです（[docs/feedback.md](./docs/feedback.md)）
 

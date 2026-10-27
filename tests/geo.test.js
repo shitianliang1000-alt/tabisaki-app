@@ -7,10 +7,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { estimateMinutes, haversineKm, isSlowTerrain, taxiMinutes }
-  from "../js/feasibility.js";
+  from "../packages/core/src/feasibility.js";
 import {
   airportDistanceKm, islandOf, onEarth, travelLabel, travelMinutes,
-} from "../js/geo.js";
+} from "../packages/core/src/geo.js";
 
 const TOKYO = { name: "東京駅", lat: 35.6812, lng: 139.7671 };
 const HAKATA = { name: "博多", lat: 33.5897, lng: 130.4207 };

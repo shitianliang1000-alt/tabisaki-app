@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LONG_DRIVE_MIN, drivingAppeal, drivingMinutesByDay, drivingNote, isTouring, longDriveNote, restSlots } from "../js/touring.js";
+import { LONG_DRIVE_MIN, drivingAppeal, drivingMinutesByDay, drivingNote, isTouring, longDriveNote, restSlots } from "../packages/core/src/touring.js";
 
 test("車かどうかを見分ける", () => {
   assert.equal(isTouring({ transport: "car" }), true);

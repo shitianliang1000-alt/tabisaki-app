@@ -6,9 +6,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { costBreakdown, fareFor } from "../js/cost.js";
-import { isScenic, sunNotes, sunTimes } from "../js/sun.js";
-import { nearestPlaceInfo } from "../js/places.js";
+import { costBreakdown, fareFor } from "../packages/core/src/cost.js";
+import { isScenic, sunNotes, sunTimes } from "../packages/core/src/sun.js";
+import { nearestPlaceInfo } from "../packages/core/src/places.js";
 
 // --- 日の出・日の入り -------------------------------------------------------
 // 国立天文台の公表値（東京）と比べます。数分の差までを合格とします。
