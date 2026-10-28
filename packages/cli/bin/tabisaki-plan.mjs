@@ -280,7 +280,11 @@ export async function main(argv, {
       const core = await import("../../core/index.mjs");
       return await runJourney(cmd, rest, opts, {
         stdout, stderr,
-        core: () => import("../../core/index.mjs"),
+        core: async () => {
+          const coreModule = await import("../../core/index.mjs");
+          const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await coreModule.loadPlugins();
+          return coreModule.createCore({ plugins });
+        },
         format: { toJson: core.toJson, toPlainText: core.toPlainText, toMarkdown: core.toMarkdown },
       });
     }
