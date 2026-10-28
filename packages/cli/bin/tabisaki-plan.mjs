@@ -280,10 +280,10 @@ export async function main(argv, {
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
     if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
+    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     if (cmd !== "sync" && (opts["caldav-url"] !== undefined || opts["dry-run"] || opts.remove)) {
       throw usage("CalDAV 用の --caldav-url / --dry-run / --yes / --remove は tabisaki sync で使ってください");
     }
-    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     let wish;
     if (cmd === "voice-plan") {
       const recognized = await voicePlan(opts, rest, { stderr, stdin, env });

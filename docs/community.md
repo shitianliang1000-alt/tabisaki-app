@@ -23,7 +23,7 @@
 すでにあるもの:
 
 * Web 版: <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 <https://tabisaki.site.je/>）
-* 端末の画面: [screen.png](../screen.png)
+* 端末の画面: [screen.png](../screen.png)、README の録画 [images/demo.gif](./images/demo.gif)（作り直しは `tools/record_demo.py`）
 * Web 版の動き: プロジェクトのファイル `screens/app-motion/app-motion.mp4`（リポジトリには入れていません）
 
 これから用意するもの:
