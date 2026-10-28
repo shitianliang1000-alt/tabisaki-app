@@ -44,6 +44,16 @@ async function resolveFile(f) {
  * @param {{stdout, stderr, core: () => Promise<object>, format: object}} io
  */
 export async function runJourney(cmd, files, opts, { stdout, stderr, core, format }) {
+  const allowedOptions = {
+    build: new Set(["output", "lang"]),
+    test: new Set(),
+    diff: new Set(),
+    narrate: new Set(["style"]),
+  }[cmd];
+  for (const key of Object.keys(opts)) {
+    if (["help", "version"].includes(key)) continue;
+    if (!allowedOptions?.has(key)) throw usage(`tabisaki ${cmd} では --${key} は使えません`);
+  }
   const want = cmd === "diff" ? 2 : 1;
   if (files.length !== want) {
     throw usage(cmd === "diff" ? "比べる2つのファイルを書いてください。例: tabisaki diff plan-a.yaml plan-b.yaml"
