@@ -58,7 +58,7 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 `;
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
-  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url"]);
+  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style"]);
 // 値を取らないもの。
 const FLAGS = new Set(["help", "version", "local", "pull", "dry-run", "yes", "remove"]);
 // 旅程を組むコマンド。
