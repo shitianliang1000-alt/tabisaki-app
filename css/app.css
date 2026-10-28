@@ -3389,7 +3389,7 @@ body[data-view="form"] .pop { bottom: auto; top: calc(100% + 8px); }
 .pop .date-presets { margin: 0 0 10px; }
 .pop .when-row { display: grid; gap: 8px; }
 .pop .mix-quick { width: 100%; margin: 0 0 10px; background: var(--hig-fill-2); }
-.pop .mix-quick > button { flex: 1; min-height: 36px; font-size: var(--hig-t-footnote); }
+.pop .mix-quick > button { flex: 1; min-height: var(--hig-touch, 44px); font-size: var(--hig-t-footnote); }
 
 /* --- やりとり --- */
 .thread {
