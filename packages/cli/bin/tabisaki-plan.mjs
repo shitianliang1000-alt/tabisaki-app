@@ -123,8 +123,6 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     const [cmd, ...rest] = words;
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
     if (cmd === "plugins") return await plugins(rest, { stdout });
-    if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
-    if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
     if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
     const wish = rest.join(" ").trim();
     if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
@@ -161,7 +159,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     try {
       // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
       const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
-      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}), local });
+      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}) });
       const rep = c.overlayReport;
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);

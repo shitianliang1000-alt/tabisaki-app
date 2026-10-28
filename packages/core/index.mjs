@@ -141,11 +141,9 @@ export async function normalizeRequest(req = {}) {
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
  *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
-  userData = !process.env.TABISAKI_NO_USER_DATA, plugins = [], local = null } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
-  // （手元の LLM を使うときだけ、その行き先へは通します）。
-  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
+export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+  globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -168,8 +166,6 @@ export async function createCore({ root = ROOT, providers = {}, userKb = null, h
     const store = await loadStore(typeof userData === "string" ? userData : storePath());
     userSpots = applyStoreToKb(kb, store);
   }
-  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
-  kb = applyConstraints(kb, plugins);
 
   return {
     kb,
@@ -195,15 +191,7 @@ export async function createCore({ root = ROOT, providers = {}, userKb = null, h
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      const out = { request: r, itinerary };
-      if (found) out.template = { plugin: found.plugin, name: found.template.name };
-      if (local) {
-        // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
-        // 本体が収録データだけで組み直しています。そのことを隠しません。
-        const { error } = ai.aiStatus();
-        out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
-      }
-      return out;
+      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
     },
   };
 }
