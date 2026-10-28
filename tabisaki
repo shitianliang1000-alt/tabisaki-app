@@ -23,10 +23,15 @@ usage() {
 
   plan "<希望>" [...] 旅程を組んで端末に出す（tabisaki plan --help で詳しく）
   tui "<希望>" [...]  組んだ旅程を端末の中で見る（キーボードだけで）
-  build <trip.yaml>  旅程ファイルから旅程を組む（docs/journey-as-code.md）
-  test <trip.yaml>   組んだ旅程が、ファイルの条件を守っているか確かめる
-  diff <a> <b>       2つの旅程ファイルの違いを出す
-  narrate <trip.yaml> [--style=blog|diary|guide|haiku]  旅の文にする
+  plan … --local     手元の LLM（Ollama など）で組む（docs/local-llm.md）
+  local setup        手元の LLM を確かめる（--pull でモデルを取る）
+  kb extract --region=関東   地域の知識ベースを .tabisaki/kb/ に切り出す（docs/kb-extract.md）
+  similar "<名前>"   似たスポットを探す（例: ./tabisaki similar 清水寺）
+  plugins [...]      プラグインを見る・控える（docs/plugins.md）
+  spot <…>           スポットに別名・営業時間・季節・写真を足す（tabisaki spot help）
+  area <…>           自分でエリアを決める・一覧（tabisaki area help）
+  sync "<希望>" --caldav-url=<URL> [...]  旅程を CalDAV のカレンダーに書く（確かめてから）
+  voice-plan <録音.wav> [...]  手元の whisper.cpp で声を文字にして組む
   api                手元用の API サーバーを動かす（http://127.0.0.1:8787/v1/plan）
   build              （ファイルを付けないとき）Cloudflare 用を .site/ に組み立てる
   php [--zip]        PHP 版を .php-site/ に組み立てる（--zip で tabisaki-php.zip も）
@@ -62,7 +67,7 @@ ftp_upload() {
 cmd="${1:-help}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
-  plan|tui|diff|narrate|--version) need node "Node.js 22 以上を入れてください。"
+  plan|tui|local|kb|similar|spot|area|plugins|--version) need node "Node.js 22 以上を入れてください。"
         exec node packages/cli/bin/tabisaki-plan.mjs "$cmd" "$@" ;;
   # build・test は、旅程ファイルを付けたときだけ旅程のコマンドです。
   # 付けなければ、これまでどおりサイトの組み立て・リポジトリの試験です。

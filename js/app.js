@@ -7,6 +7,7 @@
 //   ・APIキーの疎通確認（「キーを入れたのに効かない」を切り分けるため）
 
 import { TILE_ATTRIBUTION, TILE_URL } from "../packages/core/src/config.js";
+import { isNativeApp, shareBase } from "./native.js";
 import { effectiveConfig } from "../packages/core/src/settings.js";
 import { callModel, describeSpot, hasApiKey }
   from "../packages/core/src/ai.js";
@@ -59,6 +60,7 @@ import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeS
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "../packages/core/src/chatread.js";
 import { readIntent } from "../packages/core/src/intent.js";
+import { setupVoiceInput } from "./voice.js";
 
 // ここまで読めたら、画面の部品はそろっています（js/boot-check.js が見ます）。
 document.documentElement.dataset.booted = "1";
@@ -302,6 +304,10 @@ async function openSharedTrip() {
  */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || !isSecureContext) return;
+  // 携帯アプリ（mobile/。Capacitor）では、画面も収録もはじめからアプリの
+  // 中にあります。Service Worker を挟むと、アプリを更新しても古い控えが
+  // 出つづけることがあるので、登録しません。
+  if (isNativeApp()) return;
   // 起動を待たせません。読み込みが終わってから登録します。
   addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
@@ -1249,6 +1255,18 @@ function wireForm() {
   // Enter で送ります（Shift + Enter で改行）。変換中の Enter は、
   // 字を決めるためのものなので送りません。
   $("#note").addEventListener("input", updateModeHint);
+  // 声で書く（js/voice.js）。使えないブラウザでは、マイクは出ません。
+  // 聞き取った文は欄に入れるだけで、送るのは人です。
+  const voiceHint = $("#voice-hint");
+  setupVoiceInput({
+    button: $("#voice"),
+    field: $("#note"),
+    hint: (text) => {
+      if (!voiceHint) return;
+      voiceHint.textContent = text ?? "";
+      voiceHint.hidden = !text;
+    },
+  });
   $("#note").addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.keyCode === 229) return;
     if (e.metaKey || e.ctrlKey) return;   // 下の Ctrl/⌘ + Enter に任せます
@@ -1664,7 +1682,7 @@ async function shareTripLink(itin, trip) {
       state: formState(),
       trip: freezeItinerary(trip ?? null),
       itin: freezeItinerary(itin ?? null),
-    }, `${location.origin}${location.pathname}`);
+    }, shareBase());
   } catch { url = null; }
   if (!url) {
     setBadge("旅程が長すぎてリンクにできません。「この旅程をファイルで渡す」をお使いください");
@@ -1691,7 +1709,7 @@ async function shareTripLink(itin, trip) {
 
 async function shareConditions() {
   const packed = pack(JSON.stringify(formState()));
-  const url = `${location.origin}${location.pathname}?p=${packed}`;
+  const url = `${shareBase()}?p=${packed}`;
   // 共有シートのある端末（携帯）では、それを開きます。コピーして
   // LINE を開いて貼る、の3手が1手になります。
   if (navigator.share && (!navigator.canShare || navigator.canShare({ url }))) {

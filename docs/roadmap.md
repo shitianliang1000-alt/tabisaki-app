@@ -42,11 +42,10 @@
 | 手元の LLM（Ollama など）で旅程を組む | ✅ `tabisaki plan --local`・`tabisaki local setup`（[local-llm.md](./local-llm.md)） | #352 |
 | 地域ごとの知識ベースの切り出し・似たスポットの検索 | ✅ `tabisaki kb extract`・`kb index`・`similar`（[kb-extract.md](./kb-extract.md)） | #353 |
 | 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
-| 旅程を YAML で書いて組む・試す・比べる・文にする（[journey-as-code.md](./journey-as-code.md)） | ✅ ある（文はひな形。AI で書くのは #352 の後） | #359 |
-| 旅程ファイルの lint・fmt | 📝 計画 | #364 |
+| 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
 | スポットの補完・写真・季節・営業時間・別名、自分で決めるエリア（`./tabisaki spot`・`area`、[spot-data.md](./spot-data.md)） | ✅ ある（端末から。出典・確認の状態・鮮度つき。Web 版の画面にはまだ出ない） | #361 |
 | 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
-| カレンダーとの同期・声での入力 | 🚧 一部（`.ics` の書き出し） | #363 |
+| カレンダーとの同期・声での入力 | ✅ 段階 2 まで（`tabisaki sync`・`voice-plan`・Web 版のマイク。[calendar-and-voice.md](./calendar-and-voice.md)） | #363 |
 
 ## Phase 6: 品質・データ・参加のしやすさ
 

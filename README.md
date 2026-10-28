@@ -29,9 +29,11 @@
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
-* 旅程を YAML のファイルに書いて、`build`・`test`・`diff`・`narrate` で組む・確かめる・比べる・文にする（[Journey as Code](docs/journey-as-code.md)）
+* 旅程をカレンダーへ（Web 版は .ics、端末は `./tabisaki sync` で CalDAV に直接）。声で希望を伝えることもできる（[カレンダーと声](docs/calendar-and-voice.md)）
+* `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
+* `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
-* Node.js 22 以上だけで動き、`npm install` も外への通信も要らない
+* Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）
 
 ## Install
 
@@ -43,7 +45,11 @@ cd tabisaki-app
 
 端末から使う: [docs/cli-usage.md](docs/cli-usage.md)
 
+スポットに別名・営業時間・季節・写真を足す（出典つき）: [docs/spot-data.md](docs/spot-data.md)
+
 手元の API サーバー（Docker）: [docs/self-hosting.md](docs/self-hosting.md)
+
+携帯アプリ（Android の apk・iOS）: [docs/mobile.md](docs/mobile.md)
 
 Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 <https://tabisaki.site.je/>）
 
