@@ -279,9 +279,21 @@ export async function main(argv, {
     if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
-    if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
-    const wish = rest.join(" ").trim();
-    if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
+    if (!COMMANDS.has(cmd)) throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
+    if (cmd === "plan" || cmd === "tui") {
+      if (opts["caldav-url"] !== undefined) throw usage("--caldav-url は sync で使います");
+      if (opts["dry-run"]) throw usage("--dry-run は sync で使います");
+      if (opts.remove) throw usage("--remove は sync で使います");
+      if (opts.yes) throw usage("--yes は sync と voice-plan で使います");
+    }
+    let wish = rest.join(" ").trim();
+    if (cmd === "voice-plan") {
+      const heard = await voicePlan(opts, rest, { stdout, stderr, stdin, env });
+      if (typeof heard === "number") return heard;
+      wish = heard;
+    }
+    if (!wish) throw usage(`希望の文を書いてください。例: tabisaki plan "温泉と海をゆっくり楽しみたい"`);
     if (cmd === "tui" && !(process.stdin.isTTY && process.stdout.isTTY)) {
       throw usage("tui は端末の中で動かしてください（パイプやファイルに出すときは tabisaki plan）");
     }
@@ -301,31 +313,7 @@ export async function main(argv, {
       local = { baseUrl, model };
       stderr.write(`手元の LLM（${model}）で組んでいます。数分かかることがあります…\n`);
     }
-    // 本体のログ（console.log・warn）は stderr へ。stdout は旅程だけにします（パイプで使えるように）。
-    const log = console.log;
-    const warn = console.warn;
-    const info = console.info;
-    const toErr = (...a) => stderr.write(a.map(String).join(" ") + "\n");
-    const quiet = () => {};
-    console.log = console.info = process.env.TABISAKI_DEBUG ? toErr : quiet;
-    console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
-    let result;
-    try {
-      // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
-      const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
-      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}), local });
-      const rep = c.overlayReport;
-      if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
-        stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
-      }
-      result = await c.plan({
-        wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
-        transport: opts.transport,
-      });
-    } finally {
-      console.log = log; console.warn = warn; console.info = info;
-    }
-    if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
+    const result = await quietly(stderr, () => planWith(core, opts, wish, { stderr, local }));
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);
