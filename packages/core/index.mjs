@@ -140,12 +140,13 @@ export async function normalizeRequest(req = {}) {
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
  *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
- *          local?: {model?: string, baseUrl?: string}, plugins?: object[],
- *          userData?: boolean|string}} [opts]
+ *          userData?: boolean|string, local?: {model?: string, baseUrl?: string} | null,
+ *          plugins?: object[]}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
-  local = null, plugins = [], userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
+export async function createCore({ root = ROOT, providers = {}, userKb, home, userData = !process.env.TABISAKI_NO_USER_DATA,
+  local = null, plugins = [] } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
+  // （手元の LLM を使うときだけ、その行き先へは通します）。
   globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
@@ -162,8 +163,6 @@ export async function createCore({ root = ROOT, providers = {}, userKb = null, h
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
-  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
-  kb = applyConstraints(kb, plugins);
   let userSpots = 0;
   if (userData) {
     const { loadStore, storePath } = await import("./userdata.mjs");
@@ -171,6 +170,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb = null, h
     const store = await loadStore(typeof userData === "string" ? userData : storePath());
     userSpots = applyStoreToKb(kb, store);
   }
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  if (plugins.length) kb = applyConstraints(kb, plugins);
 
   return {
     kb,
