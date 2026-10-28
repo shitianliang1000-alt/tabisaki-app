@@ -17,12 +17,16 @@
 //     const result = await core.plan({ wish: "温泉と海をゆっくり", from: "東京駅", days: 2 });
 
 import { readFile } from "node:fs/promises";
+import { applyConstraints, applyTemplate, findTemplate } from "./plugins.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // 本体（src/）は「端末の時計＝日本時間」の前提で、getHours() で時刻を割り付けます。
 // サーバーや CI（多くは UTC）で走らせても同じ旅程になるよう、日本時間にそろえます。
 process.env.TZ = "Asia/Tokyo";
+
+// 差し替える前の fetch（手元の LLM へ話すときに使います）。
+const nativeFetch = globalThis.fetch;
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);
@@ -44,9 +48,11 @@ export class CoreError extends Error {
  * 外へは出ず、リポジトリの中のファイルだけを返す fetch。
  * kb/・data/ のような相対の場所は、リポジトリの根から引きます。
  */
-export function offlineFetch(root = ROOT) {
-  return async (url) => {
+export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
+  return async (url, init) => {
     const u = String(url?.url ?? url);
+    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
+    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -54,7 +60,11 @@ export function offlineFetch(root = ROOT) {
       const m = /\/(kb\/.+)$/.exec(new URL(u).pathname);
       if (!m) throw new Error(`通信を切っています: ${u}`);
       file = path.join(root, m[1]);
-    } else file = path.join(root, u.replace(/^\.?\//, "").replace(/[?#].*$/, ""));
+    } else {
+      // ? と # から後ろを落とします（正規表現の .*$ は、長い入力で遅くなるので使いません）。
+      const cut = u.search(/[?#]/);
+      file = path.join(root, (cut < 0 ? u : u.slice(0, cut)).replace(/^\.?\//, ""));
+    }
     const rel = path.relative(root, file);
     if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error(`リポジトリの外は読みません: ${u}`);
     let body;
@@ -126,19 +136,26 @@ export async function normalizeRequest(req = {}) {
  * 既定は経路・天気とも "off"（通信せず、距離からの目安で組みます）。
  * "mock" を選ぶと、キー無しで決まった答えを返す取り口になります。
  *
- * userKb で、ユーザーKB（~/.tabisaki/kbs/<名前>/ の名前か、読み込み済みの overlay）を重ねます。
+ * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
+ * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
+ *          userData?: boolean|string, local?: {model?: string, baseUrl?: string} | null,
+ *          plugins?: object[]}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
-  globalThis.fetch = offlineFetch(root);
+export async function createCore({ root = ROOT, providers = {}, userKb, home, userData = !process.env.TABISAKI_NO_USER_DATA,
+  local = null, plugins = [] } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
+  // （手元の LLM を使うときだけ、その行き先へは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
   const { planTrip } = await js("pipeline.js");
   const { makeTrip } = await js("trip.js");
+  const ai = await js("ai.js");
+  ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -147,18 +164,30 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
+  let userSpots = 0;
+  if (userData) {
+    const { loadStore, storePath } = await import("./userdata.mjs");
+    const { applyStoreToKb } = await import("./spotinfo.mjs");
+    const store = await loadStore(typeof userData === "string" ? userData : storePath());
+    userSpots = applyStoreToKb(kb, store);
+  }
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  if (plugins.length) kb = applyConstraints(kb, plugins);
 
   return {
     kb,
     /** ユーザーKBを重ねたときの報告（足した・直した・消した数、見失った差分、公式との食い違い）。 */
     overlayReport,
+    /** 足した情報（spots.json）を重ねたスポットの数。 */
+    userSpots,
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
      * @returns {Promise<{request: object, itinerary: object}>}
      */
     async plan(request) {
-      const r = await normalizeRequest(request);
+      const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
+      const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
@@ -170,12 +199,22 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return { request: r, itinerary };
+      const out = { request: r, itinerary };
+      if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (local) {
+        // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
+        // 本体が収録データだけで組み直しています。そのことを隠しません。
+        const { error } = ai.aiStatus();
+        out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
+      }
+      return out;
     },
   };
 }
 
+export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
+export * from "./local.mjs";
