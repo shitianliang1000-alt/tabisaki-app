@@ -1,0 +1,7 @@
+{
+  "note": "速さの上限。超えたら CI が失敗します（tools/perf_bench.mjs・tools/perf_web.mjs --check）。CI の機械は手元より遅いので、手元の値の2〜3倍を上限にしています。Web は Google の「良い」の線です（docs/performance.md）。",
+  "slowerFactor": 1.5,
+  "cli": { "startupMs": 300, "planMs": 4000, "planRssMb": 400 },
+  "kb": { "indexMs": 100, "loadMs": 2000, "shardMaxMs": 150, "heapMb": 250 },
+  "web": { "lcpMs": 2500, "inpMs": 200, "cls": 0.1 }
+}

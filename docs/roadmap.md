@@ -45,7 +45,7 @@
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
 | スポットの補完・写真・季節・営業時間・別名、自分で決めるエリア（`./tabisaki spot`・`area`、[spot-data.md](./spot-data.md)） | ✅ ある（端末から。出典・確認の状態・鮮度つき。Web 版の画面にはまだ出ない） | #361 |
 | 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
-| カレンダーとの同期・声での入力 | 🚧 一部（`.ics` の書き出し） | #363 |
+| カレンダーとの同期・声での入力 | ✅ 段階 2 まで（`tabisaki sync`・`voice-plan`・Web 版のマイク。[calendar-and-voice.md](./calendar-and-voice.md)） | #363 |
 
 ## Phase 6: 品質・データ・参加のしやすさ
 
@@ -56,7 +56,7 @@
 | 知識ベースの点検（PR ごと・週に1回、`tools/kb_check.mjs`） | ✅ ある | #370 #374 #345 |
 | 旅程の成立率ベンチマーク（PR ごと、[benchmarks.md](./benchmarks.md)） | ✅ ある | #374 |
 | スポット情報の訂正を Issue で受け付ける | ✅ ある（ひな形） | #371 |
-| 速さの基準と計測 | 🚧 一部（CLS の試験） | #372 |
+| 速さの基準と計測（[performance.md](./performance.md)） | ✅ ある（CLI・KB・Web の LCP/INP/CLS、PR ごと） | #372 |
 | 旅程づくりから地図までの画面の試験（E2E） | ✅ ある（`tests/e2e/`） | #373 |
 | 多言語対応（決まり・翻訳の流れ・英語の旅程。Web 版の画面はこれから） | 🚧 一部（[i18n.md](i18n.md)） | #379 |
 | 実際に回れたかの任意の感想（端末の中だけ。[docs/feedback.md](feedback.md)） | ✅ ある | #382 |

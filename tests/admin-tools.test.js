@@ -10,7 +10,7 @@ import { hiddenQuality, integrity, misclassified, unverified } from "../admin/kb
 import { conditions, planOutcome, rounds, timing, usersByDay } from "../admin/statview.js";
 import { cleanExtra, conditionsOf, metricBody } from "../js/metrics.js";
 import { applyEdits } from "../server/kbedit.js";
-import { cleanEdit, cleanSettings, Stats, forgetSettings } from "../server/stats.js";
+import { cleanEdit, FLUSH_MS, Stats } from "../server/stats.js";
 import worker, { metricRecord, usageOf, limitsFrom, secsBucket } from "../server/worker.js";
 
 // --- kb/ の点検 -----------------------------------------------------------------
@@ -161,12 +161,55 @@ test("Stats: 数えて、利用者は日ごとの塩つきハッシュで区別�
   assert.equal(sum.errors.length, 1);
 });
 
-test("設定: 止められる入口と、上限の数だけを通す", () => {
-  assert.deepEqual(cleanSettings({ disabled: ["/routes", "/etc/passwd"], limits: { paid: { minute: "30", hour: 200 }, free: { minute: -1, hour: 5 } } }),
-    { disabled: ["/routes"], limits: { paid: { minute: 30, hour: 200 } } });
-  assert.deepEqual(cleanSettings(null), { disabled: [], limits: null });
-  assert.equal(limitsFrom({}, { limits: { paid: { minute: 7, hour: 9 } } }).paid.minute, 7);
-  assert.equal(limitsFrom({ RATE_PAID_PER_MINUTE: "11" }, null).paid.minute, 11);
+test("上限は環境変数だけで決まる（管理画面の「設定」はやめた）", () => {
+  assert.equal(limitsFrom({ RATE_PAID_PER_MINUTE: "11" }).paid.minute, 11);
+  assert.equal(limitsFrom({}).paid.minute > 0, true);
+});
+
+// Durable Object の無料枠は、書き込む行が1日10万行まで。1回ごとに書かない。
+test("Stats: 件数はメモリに貯め、まとめて書く（同じ鍵は1行）", async () => {
+  const mem = new Mem(); let puts = 0; let rows = 0; let alarms = 0;
+  const put = mem.put.bind(mem);
+  mem.put = async (k, v) => { puts++; rows += typeof k === "object" ? Object.keys(k).length : 1; return put(k, v); };
+  mem.setAlarm = async () => { alarms++; };
+  const s = new Stats({ storage: mem }, {});
+  for (let i = 0; i < 100; i++) {
+    await call(s, "POST", "/record", { ip: "198.51.100.1", items: [["req", "/routes", 1], ["country", "JP", 1]] });
+  }
+  // 100回呼んでも、書いたのはその日の塩の1行だけ。予約も1回だけ。
+  assert.equal(rows, 1, "1回ごとに書いています");
+  assert.equal(alarms, 1, "1回ごとに予約しています");
+  assert.ok(FLUSH_MS <= 60_000, "まとめる間隔が長すぎると、落ちたときに失うぶんが増えます");
+  // 予約の時刻が来たら、まとめて書く。鍵は req・country・user の3つ。
+  rows = 0;
+  await s.alarm();
+  assert.equal(rows, 3 + 1, "まとめて書いていません（3行 + 片付けた日の印）");
+  const day = Object.values((await call(s, "GET", "/summary?days=1")).counts)[0];
+  assert.equal(day.req["/routes"], 100);
+  assert.equal(day.country.JP, 100);
+});
+
+test("Stats: 管理画面で見るときは、まだ書いていないぶんも数える", async () => {
+  const s = stats();
+  await call(s, "POST", "/record", { items: [["req", "/routes", 1]] });
+  const day = Object.values((await call(s, "GET", "/summary?days=1")).counts)[0];
+  assert.equal(day.req["/routes"], 1);
+});
+
+test("Stats: 誤りが続いても、1回に書くのは決まった数まで", async () => {
+  const s = stats();
+  for (let i = 0; i < 200; i++) {
+    await call(s, "POST", "/record", { items: [["req", "/routes", 1]], error: { code: "HTTP 500", path: "/routes" } });
+  }
+  assert.ok((await call(s, "GET", "/summary?days=1")).errors.length <= 20);
+});
+
+test("Stats: 片付けで、やめた「設定」の残りも消す", async () => {
+  const mem = new Mem();
+  await mem.put("settings", { disabled: ["/routes"], limits: null });
+  const s = new Stats({ storage: mem }, {});
+  await s.alarm();
+  assert.equal(await mem.get("settings"), undefined);
 });
 
 test("変更待ち: 形を絞り、同じものは1つにする", async () => {
@@ -210,15 +253,17 @@ const W = "https://w.example";
 test("管理用の書き込みは、合言葉と見出しと同じ出どころがそろったときだけ", async () => {
   const s = stats();
   const env = { ADMIN_PASSWORD: "pw", STATS: { idFromName: () => "g", get: () => ({ fetch: (u, i) => s.fetch(new Request(u, i)) }) } };
-  forgetSettings();
-  const put = (headers) => worker.fetch(new Request(`${W}/private/api/settings`, { method: "PUT", body: JSON.stringify({ disabled: ["/routes"] }), headers }), env);
+  const put = (headers) => worker.fetch(new Request(`${W}/private/api/edits`, { method: "POST", body: JSON.stringify({ op: "delete", id: "a-1", regionId: "r1", name: "N" }), headers }), env);
 
   assert.equal((await put({})).status, 401);                                        // 合言葉なし
   assert.equal((await put({ ...auth })).status, 403);                               // 見出しなし
   assert.equal((await put({ ...auth, "X-Admin-Request": "1", Origin: "https://evil.example" })).status, 403);
   const good = await put({ ...auth, "X-Admin-Request": "1", Origin: W });
   assert.equal(good.status, 200);
-  assert.deepEqual((await call(s, "GET", "/settings")).settings.disabled, ["/routes"]);
+  assert.equal((await call(s, "GET", "/edits")).edits.length, 1);
+  // 「設定」の入口はもう無い。
+  const gone = await worker.fetch(new Request(`${W}/private/api/settings`, { method: "PUT", body: "{}", headers: { ...auth, "X-Admin-Request": "1", Origin: W } }), env);
+  assert.equal(gone.status, 404);
 });
 
 test("公開側の入口からは、管理用の書き込みに届かない", async () => {
@@ -227,15 +272,4 @@ test("公開側の入口からは、管理用の書き込みに届かない", as
   const res = await worker.fetch(new Request(`${W}/edits`, { method: "POST", headers: { Origin: "https://shitianliang1000-alt.github.io" }, body: "{}" }), env);
   assert.equal(res.status, 404);
   assert.deepEqual((await call(s, "GET", "/edits")).edits, []);
-});
-
-test("管理画面で止めた入口は、外へ出ずに断る", async () => {
-  const s = stats();
-  await call(s, "PUT", "/settings", { disabled: ["/routes"] });
-  forgetSettings();
-  const env = { STATS: { idFromName: () => "g", get: () => ({ fetch: (u, i) => s.fetch(new Request(u, i)) }) } };
-  const res = await worker.fetch(new Request(`${W}/routes`, { method: "POST", headers: { Origin: "https://shitianliang1000-alt.github.io", "Content-Type": "application/json" }, body: "{}" }), env);
-  assert.equal(res.status, 503);
-  assert.equal((await res.json()).error.code, "DISABLED");
-  forgetSettings();
 });

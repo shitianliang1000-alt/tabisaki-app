@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- 収録の分類とエリアの取り違えを直しました（スキー場が「温泉」、美術館が「博物館」、千葉の博物館が東京のエリアに入る、など約1,700件）。清水寺のような有名どころが「穴場」に出ないようにし、休館中・閉館の場所を行き先から外しました。「紅葉」「夜景」「世界遺産」で探せるタグ、例年の見頃、定番の回り方（10本）を足しました
 - 乗り換え検索で、駅すぱあと・NAVITIME・HERE・Transitous の API を使えるようにしました（中継の `POST /transit`。キーのあるものから順に試します。[docs/transit-apis.md](./docs/transit-apis.md)）
 - **ライセンスを The Unlicense から PolyForm Noncommercial License 1.0.0 に変えました（商用利用はできません）。** これより前に公開した版は Unlicense のままです。収録データは、それぞれの提供元の条件に従います
 
@@ -17,6 +18,8 @@
 - 組んだ旅程を端末の中でキーボードだけで見る `./tabisaki tui` を足しました
 - 手元用の API サーバー（`POST /plan`、`docker compose up`）を足しました（[docs/self-hosting.md](./docs/self-hosting.md)）
 - API サーバーに鍵（`TABISAKI_API_TOKEN`）・`/v1/` の道・CORS の許可リスト・要求番号（`X-Request-Id`）を足しました。127.0.0.1 以外で待ち受けるときは、鍵が無いと起動しません（[docs/api.md](./docs/api.md)）
+- 組んだ旅程を CalDAV のカレンダー（Nextcloud・iCloud・Fastmail など）に書く `./tabisaki sync` と、`--output=ics` を足しました。同じ旅は上書きし、`--remove` で消せます（[docs/calendar-and-voice.md](./docs/calendar-and-voice.md)）
+- 声で希望を伝えられるようにしました: Web 版は入力欄のマイク（聞き取った文は欄に入れるだけで送りません）、端末は手元の whisper.cpp を使う `./tabisaki voice-plan`
 - 端末版にプラグイン（第1版）を足しました。旅程のひな形と行き先の除外を JSON で足せます。コードは動かさず、`tabisaki plugins trust` で控えたものだけを読みます（[docs/plugins.md](./docs/plugins.md)）
 - README の古い説明（⚙ 設定からキーを入れる、など）を今のつくりに合わせました
 - 経路・天気・地名・スポットの取り口を差し替えられるようにしました。キー不要の `mock` と通信しない `off` もあります（[docs/data-providers.md](./docs/data-providers.md)）

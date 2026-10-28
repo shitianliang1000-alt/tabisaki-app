@@ -185,7 +185,7 @@ p, li { text-wrap: pretty; }
   display: inline-flex; align-items: center; gap: 8px;
   color: inherit; text-decoration: none; border-radius: 8px;
 }
-.brand-home:hover .brand-name { text-decoration: underline; text-underline-offset: 3px; }
+@media (hover: hover) { .brand-home:hover .brand-name { text-decoration: underline; text-underline-offset: 3px; } }
 .brand-home:focus-visible { outline: 2px solid var(--hig-label); outline-offset: 3px; }
 .brand-name {
   font-size: var(--hig-t-title3, 1.25rem); font-weight: 700; letter-spacing: .02em;
@@ -3207,6 +3207,37 @@ body[data-view="result"] .dock { padding-top: 4px; }
   font-size: var(--hig-t-footnote); line-height: 1.4;
 }
 .mode-hint[hidden] { display: none; }
+/* 声で書くときの案内。聞き取り中の文も、ここに出します。 */
+.voice-hint {
+  margin: 0 0 6px 10px; padding: 0 4px;
+  color: var(--chat-ink-2, var(--hig-label-2));
+  font-size: var(--hig-t-footnote); line-height: 1.5;
+}
+.voice-hint[hidden] { display: none; }
+.voice-btn {
+  flex: none; display: grid; place-items: center;
+  width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--chat-ink-2);
+  cursor: pointer;
+}
+.voice-btn[hidden] { display: none; }
+.voice-btn .ic { width: 20px; height: 20px; }
+.voice-btn.is-listening { background: var(--chat-hover); color: var(--chat-accent); }
+/* 携帯の幅では、マイクの分だけ条件の札が詰まります。札の記号を外して、
+   「東京駅から」の頭が欠けないようにします（字のほうが大事です）。 */
+@media (max-width: 440px) {
+  .composer-row:has(.voice-btn:not([hidden])) .cond-pill .ic { display: none; }
+}
+/* それでも入りきらないときは、頭からではなく、うしろを隠します。 */
+.cond-pills { justify-content: safe flex-end; }
+@media (hover: hover) and (pointer: fine) {
+  .voice-btn:hover { background: var(--chat-hover); color: var(--chat-ink); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .voice-btn.is-listening .ic { animation: voice-pulse 1.2s ease-in-out infinite; }
+  @keyframes voice-pulse { 50% { opacity: .45; } }
+}
 .mode-hint .ic { width: 16px; height: 16px; flex: none; }
 .composer {
   position: relative;

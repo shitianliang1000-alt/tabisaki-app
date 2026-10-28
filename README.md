@@ -40,7 +40,7 @@ cd tabisaki-app
 
 * 文で頼むだけで旅程になる（「京都で歴史を感じたい」「温泉に入りつつ海も見たい」）
 * 開館時間・最終入場・移動時間・食事・帰着時刻を守って時刻を割り当てる
-* 全国のエリア **1,371** か所・スポット **54,101** か所を収録(10月27日現在)（[知識ベース](docs/knowledge-base.md)）
+* 全国のエリア **1,371** か所・スポット **54,100** か所を収録(10月27日現在)（[知識ベース](docs/knowledge-base.md)）
 * 定番と穴場の割合、混雑・天気・日没・季節に合わせた順番
 * 日帰り・複数日・片道・周遊に対応
 * AI が出した場所も、収録の候補と照らし合わせてから使う（無い場所は旅程に入らない）
@@ -51,6 +51,7 @@ cd tabisaki-app
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
+* 旅程をカレンダーへ（Web 版は .ics、端末は `./tabisaki sync` で CalDAV に直接）。声で希望を伝えることもできる（[カレンダーと声](docs/calendar-and-voice.md)）
 * `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
