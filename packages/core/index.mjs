@@ -139,11 +139,14 @@ export async function normalizeRequest(req = {}) {
  * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
+ *          local?: {model?: string, baseUrl?: string}, plugins?: object[],
+ *          userData?: boolean|string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
+  local = null, plugins = [], userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
-  globalThis.fetch = offlineFetch(root);
+  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -159,6 +162,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
     const doc = typeof userKb === "string" ? await openStore(home ? { home } : {}).load(userKb) : userKb;
     ({ kb, report: overlayReport } = applyOverlay(kb, doc, { sameThing }));
   }
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  kb = applyConstraints(kb, plugins);
   let userSpots = 0;
   if (userData) {
     const { loadStore, storePath } = await import("./userdata.mjs");
@@ -191,7 +196,15 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
+      const out = { request: r, itinerary };
+      if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (local) {
+        // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
+        // 本体が収録データだけで組み直しています。そのことを隠しません。
+        const { error } = ai.aiStatus();
+        out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
+      }
+      return out;
     },
   };
 }
