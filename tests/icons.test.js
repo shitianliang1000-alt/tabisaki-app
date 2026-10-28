@@ -171,7 +171,8 @@ test("index.html に直に書いた形が、icons.js とずれていない", () 
   // 「こだわり」の項目と、その一覧の「閉じる」、4つの「戻る」が無くなり、
   // 「条件をリセット」の項目が増えました（4つの項目の記号は、列にあったときと同じ）。
   // 2026-10-23: 右上の設定（歯車）を消しました。
-  assert.equal(paths.length, 25, `直書きの記号が ${paths.length} 個です`);
+  // 2026-10-27: 入力欄に「声で書く」のマイクが増えました（#363）。
+  assert.equal(paths.length, 26, `直書きの記号が ${paths.length} 個です`);
   const known = new Set(iconNames().map((n) => iconPath(n)));
   for (const d of paths) {
     assert.ok(known.has(d), `icons.js に無い形が index.html にあります: ${d}`);
