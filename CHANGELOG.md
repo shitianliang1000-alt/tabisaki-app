@@ -10,6 +10,7 @@
 
 - 収録の分類とエリアの取り違えを直しました（スキー場が「温泉」、美術館が「博物館」、千葉の博物館が東京のエリアに入る、など約1,700件）。清水寺のような有名どころが「穴場」に出ないようにし、休館中・閉館の場所を行き先から外しました。「紅葉」「夜景」「世界遺産」で探せるタグ、例年の見頃、定番の回り方（10本）を足しました
 - 乗り換え検索で、駅すぱあと・NAVITIME・HERE・Transitous の API を使えるようにしました（中継の `POST /transit`。キーのあるものから順に試します。[docs/transit-apis.md](./docs/transit-apis.md)）
+- アプリの乗り換え検索を中継の `/transit` に切り替えました。キーが無くても Yahoo!路線情報で引けない区間は Transitous で引き直し、旅程には答えた API の名前が出ます
 - **ライセンスを The Unlicense から PolyForm Noncommercial License 1.0.0 に変えました（商用利用はできません）。** これより前に公開した版は Unlicense のままです。収録データは、それぞれの提供元の条件に従います
 
 - リポジトリの運用を整えました: Issue・PR のひな形、[CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md)、行動規範、この履歴、版の付けかた、これからの計画（[docs/roadmap.md](./docs/roadmap.md)）

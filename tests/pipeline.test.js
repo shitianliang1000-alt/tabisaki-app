@@ -354,7 +354,8 @@ test("旅程に出る時刻と、調べた便の時刻がそろう", async () =>
   const real = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     const u = String(url);
-    if (!u.includes("yahoo/transit")) {
+    // 乗り換えは中継の /transit（古い中継なら /yahoo/transit）へ聞きます。
+    if (!/\/transit$/.test(u)) {
       const path = u.startsWith("file:")
         ? new URL(u).pathname
         : root + u.replace(/^\.?\//, "").replace(/^.*\/kb\//, "kb/");

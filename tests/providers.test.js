@@ -17,11 +17,14 @@ import {
 const TOKYO = { name: "東京駅", lat: 35.6812, lng: 139.7671 };
 const HAKONE = { name: "箱根湯本駅", lat: 35.2325, lng: 139.1063 };
 
-test("既定は、いまの取り口（Yahoo!・Open-Meteo・手元の収録・kb/）", () => {
+test("既定は、いまの取り口（中継の乗り換え検索・Open-Meteo・手元の収録・kb/）", () => {
   resetProviders();
   const all = listProviders();
   assert.deepEqual(Object.keys(all), [...PROVIDER_KINDS]);
-  assert.equal(all.routing.active, "yahoo");
+  assert.equal(all.routing.active, "transit");
+  for (const n of ["yahoo", "ekispert", "navitime", "here", "transitous"]) {
+    assert.ok(all.routing.names.includes(n), `routing に ${n} がありません`);
+  }
   assert.equal(all.weather.active, "open-meteo");
   assert.equal(all.geocoding.active, "local");
   assert.equal(all.spots.active, "kb");
@@ -38,7 +41,7 @@ test("切り替えると getProvider がそれを返し、元に戻せる", () =
   assert.equal(getProvider("weather").name, "off");
   assert.equal(getProvider("geocoding").name, "gsi");
   resetProviders();
-  assert.equal(getProvider("routing").name, "yahoo");
+  assert.equal(getProvider("routing").name, "transit");
 });
 
 test("登録の無い名前・種類・足りない関数は断る", () => {
@@ -278,4 +281,59 @@ test("国土地理院が断ったら、番号に合った ProviderError", async 
 test("mock の知識ベースは、渡した中身をそのまま返す", async () => {
   const kb = { regions: [{ id: "r1" }], spots: [] };
   assert.equal(await createMockSpots(kb).load(), kb);
+});
+
+test("乗り換え検索は中継の /transit へ聞き、名指しした API を provider で渡す", async () => {
+  const { createTransitRouting } = await import("../packages/core/src/providers.js");
+  const sent = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: JSON.parse(init.body) });
+    return { ok: true, status: 200, json: async () => ({
+      routed: true, minutes: 40, summary: "10:00 発→ 10:40 着",
+      provider: "transitous", providerLabel: "Transitous" }) };
+  };
+  try {
+    const named = createTransitRouting("transitous", "Transitous");
+    named.resetCooldown();
+    const r = await named.search(TOKYO, HAKONE, { pace: false });
+    assert.match(sent[0].url, /\/transit$/);
+    assert.doesNotMatch(sent[0].url, /yahoo\/transit$/);
+    assert.equal(sent[0].body.provider, "transitous");
+    assert.equal(r.provider, "transitous");
+    assert.equal(r.providerLabel, "Transitous");
+
+    // 既定（中継に任せる）は auto を渡し、答えた API の名前をそのまま返す。
+    const auto = getProvider("routing");
+    await auto.search(TOKYO, HAKONE, { pace: false });
+    assert.equal(sent[1].body.provider, "auto");
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test("中継が古く /transit が無ければ（404）、/yahoo/transit で引き直す", async () => {
+  const sent = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    sent.push(u);
+    if (!u.endsWith("yahoo/transit")) {
+      return { ok: false, status: 404, headers: { get: () => null }, text: async () => "" };
+    }
+    return { ok: true, status: 200, json: async () => ({ routed: true, minutes: 90 }) };
+  };
+  try {
+    yahooRouting.resetCooldown();
+    const r = await getProvider("routing").search(TOKYO, HAKONE,
+      { pace: false, retryWaits: [] });
+    assert.equal(sent.length, 2);
+    assert.match(sent[0], /\/transit$/);
+    assert.match(sent[1], /yahoo\/transit$/);
+    // 古い中継は provider を書かないので、Yahoo!の答えとして扱う。
+    assert.equal(r.provider, "yahoo");
+    assert.equal(r.minutes, 90);
+  } finally {
+    globalThis.fetch = real;
+  }
 });

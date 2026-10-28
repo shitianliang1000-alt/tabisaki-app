@@ -9,7 +9,7 @@
 // 本体はその形だけを使います。取り口を替えるときは、同じ形を返す
 // アダプタを1つ書いて登録し、useProvider() で選ぶだけです。
 //
-//   routing   … 2地点の公共交通の経路（いまは Yahoo!路線情報を中継経由で）
+//   routing   … 2地点の公共交通の経路（中継の /transit 経由。駅すぱあと・NAVITIME・HERE・Yahoo!・Transitous）
 //   weather   … その場所・その日の時間ごとの予報（いまは Open-Meteo）
 //   geocoding … 地名・駅名から位置（いまは手元の収録。国土地理院も用意）
 //   spots     … 観光地の知識ベース（いまは kb/ の JSON）
@@ -142,25 +142,49 @@ export function toProviderError(e, provider = "") {
 
 const idle = () => ({ waiting: false, seconds: 0, reason: "", retryable: false });
 
-/** Yahoo!路線情報（自前の中継 server/worker.js 経由）。 */
-export const yahooRouting = {
-  kind: "routing",
-  name: "yahoo",
-  label: "Yahoo!路線情報（中継経由）",
-  available: true,
-  async search(from, to, opts = {}) {
-    let doc;
-    try {
-      doc = await searchYahooTransit(from, to, opts);
-    } catch (e) {
-      throw toProviderError(e, "yahoo");
-    }
-    return doc ? { ...doc, provider: "yahoo" } : null;
-  },
-  cooldown: (now) => yahooCooldown(now),
-  resetCooldown: () => resetYahooCooldown(),
-  resetPace: () => resetYahooPace(),
-};
+/**
+ * 乗り換え検索（自前の中継 server/worker.js の POST /transit 経由）。
+ *
+ * 中継が、駅すぱあと・NAVITIME・HERE・Yahoo!路線情報・Transitous の
+ * どれかで引きます（server/transit.js、docs/transit-apis.md）。
+ * "transit" は「中継に任せる」で、キーの入っているものから順に試します。
+ * ほかの名前は、その API だけで引きます。キーは中継だけが持ちます。
+ */
+export function createTransitRouting(name = "transit", label = "乗り換え検索（中継が選ぶ）") {
+  // "transit" は名指ししません（config.js の TRANSIT_PROVIDER に従います）。
+  const provider = name === "transit" ? undefined : name;
+  return {
+    kind: "routing",
+    name,
+    label,
+    available: true,
+    async search(from, to, opts = {}) {
+      let doc;
+      try {
+        doc = await searchYahooTransit(from, to, provider ? { provider, ...opts } : opts);
+      } catch (e) {
+        throw toProviderError(e, name);
+      }
+      // 答えた API は中継が provider に書きます。古い中継は書かないので、
+      // そのときは頼んだ名前（任せたなら Yahoo!）にします。
+      return doc ? { ...doc, provider: doc.provider ?? provider ?? "yahoo" } : null;
+    },
+    cooldown: (now) => yahooCooldown(now),
+    resetCooldown: () => resetYahooCooldown(),
+    resetPace: () => resetYahooPace(),
+  };
+}
+
+/** 中継に任せる（既定）。キーのある API から順に、引けるまで試します。 */
+export const transitRouting = createTransitRouting();
+/** Yahoo!路線情報（中継経由）だけで引く。 */
+export const yahooRouting = createTransitRouting("yahoo", "Yahoo!路線情報（中継経由）");
+const namedTransit = [
+  ["ekispert", "駅すぱあと Web サービス（中継経由・要キー）"],
+  ["navitime", "NAVITIME Route(totalnavi)（中継経由・要キー）"],
+  ["here", "HERE Public Transit（中継経由・要キー）"],
+  ["transitous", "Transitous（中継経由・キー不要・非商用）"],
+].map(([n, l]) => createTransitRouting(n, l));
 
 const R = 6371;
 const rad = (d) => (d * Math.PI) / 180;
@@ -403,7 +427,7 @@ const REQUIRED = {
   spots: ["load"],
 };
 
-const DEFAULTS = { routing: "yahoo", weather: "open-meteo", geocoding: "local", spots: "kb" };
+const DEFAULTS = { routing: "transit", weather: "open-meteo", geocoding: "local", spots: "kb" };
 
 const registry = new Map(PROVIDER_KINDS.map((k) => [k, new Map()]));
 const active = { ...DEFAULTS };
@@ -468,7 +492,7 @@ export function resetProviders() {
 }
 
 for (const a of [
-  yahooRouting, createMockRouting(), offRouting,
+  transitRouting, yahooRouting, ...namedTransit, createMockRouting(), offRouting,
   openMeteoWeather, createMockWeather(), offWeather,
   localGeocoding, createGsiGeocoding(),
   kbSpots, createMockSpots(),

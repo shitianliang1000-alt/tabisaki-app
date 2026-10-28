@@ -788,7 +788,13 @@ async function computeViaStations(points, opts) {
   const viaStations = plans.filter((p) => p.fromStop && p.toStop).length;
   const parts = [];
   if (searched) {
-    parts.push(`${rideLegs}区間のうち${searched}区間はYahoo!路線情報で検索`
+    // どこで引いたかは、答えた乗り換え検索の名前で書きます。中継が
+    // 駅すぱあとや Transitous に回したのに「Yahoo!」と書くと、
+    // 読む人が時刻を確かめに行く先を間違えます。
+    const labels = [...new Set(yahooLegs.filter(Boolean)
+      .map((l) => l.providerLabel).filter(Boolean))];
+    parts.push(`${rideLegs}区間のうち${searched}区間は`
+      + `${labels.length ? labels.join("・") : "Yahoo!路線情報"}で検索`
       + (retried ? `（${retried}区間は聞き直し）` : ""));
   }
   if (walkLegs) parts.push(`${walkLegs}区間は徒歩`);
@@ -1049,14 +1055,23 @@ async function yahooLegUncached(a, b, opts) {
       // 旅程の1行としては長すぎます。読む人が知りたいのは、何時に出て
       // 何時に着くか、乗り換えが何回か、いくらか、の3つです。
       line: [transitLine(yahoo, walkA + walkB, total) ?? yahoo.summary
-        ?? "Yahoo!路線情報", ...accessNotes(sideA, sideB)].join("・"),
+        ?? yahoo.providerLabel ?? "Yahoo!路線情報", ...accessNotes(sideA, sideB)].join("・"),
       routed: true,
+      // どの乗り換え検索が答えたか（駅すぱあと・NAVITIME・HERE・Yahoo!・
+      // Transitous。中継の POST /transit が付けます）。
+      provider: yahoo.provider ?? null,
+      providerLabel: yahoo.providerLabel ?? null,
       searchedAt: yahoo.searchedAt ?? null,
       stations: byLocation
         ? { from: steps?.boardAt ?? from.name ?? null,
             to: steps?.alightAt ?? to.name ?? null, walkMeasured: true }
         : { from: from.name, to: to.name, walkMeasured: false },
-      yahoo: yahoo.meta ?? null,
+      // 答えた乗り換え検索の名前も、便の中身といっしょに持たせます
+      // （旅程の「どこまで確かめたか」に、その名前で出ます）。
+      yahoo: yahoo.meta
+        ? { ...yahoo.meta, provider: yahoo.provider ?? undefined,
+            providerLabel: yahoo.providerLabel ?? undefined }
+        : null,
       // 乗る路線と乗り場の手順（どのバスに、どこから乗るのか）。
       // 旅程の行の「乗換の手順」で開けます。
       transit: steps ?? undefined,
@@ -1764,7 +1779,7 @@ export async function diagnoseYahooTransit(signal) {
   const cfg = effectiveConfig();
   const where = (() => {
     try {
-      const url = endpointFor("yahoo:transit", {}, cfg);
+      const url = endpointFor("transit", {}, cfg);
       const from = cfg.from?.proxyUrl === "settings" ? "設定画面"
         : cfg.from?.proxyUrl === "config" ? "packages/core/src/config.js" : "未設定";
       return `\n投げ先: ${url}（${from}）`;
@@ -1777,7 +1792,7 @@ export async function diagnoseYahooTransit(signal) {
       { departAt: neutralDepartureTime(), signal });
     if (r?.routed && r.minutes > 0) {
       return { ok: true, code: "ok",
-        message: `Yahoo!路線情報に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
+        message: `${r.providerLabel ?? "Yahoo!路線情報"}に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
           + `${r.summary ? "・" + r.summary : ""}）。` + where };
     }
     return { ok: false, code: "no-route",
