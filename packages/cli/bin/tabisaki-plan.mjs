@@ -279,8 +279,16 @@ export async function main(argv, {
     if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
-    if (cmd !== "plan" && cmd !== "tui") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
-    const wish = rest.join(" ").trim();
+    if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
+    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    let wish;
+    if (cmd === "voice-plan") {
+      const recognized = await voicePlan(opts, rest, { stderr, stdin, env });
+      if (typeof recognized === "number") return recognized;
+      wish = recognized;
+    } else {
+      wish = rest.join(" ").trim();
+    }
     if (!wish) throw usage(`希望の文を書いてください。例: tabisaki ${cmd} "温泉と海をゆっくり楽しみたい"`);
     if (cmd === "tui" && !(process.stdin.isTTY && process.stdout.isTTY)) {
       throw usage("tui は端末の中で動かしてください（パイプやファイルに出すときは tabisaki plan）");
@@ -290,6 +298,7 @@ export async function main(argv, {
     const core = await import("../../core/index.mjs");
     if (opts.lang !== undefined && !core.pickLang(opts.lang)) throw usage(`--lang は ${core.LANGS.join(" / ")} のどれかです`);
     const lang = core.resolveLang(opts.lang);
+    const days = opts.days === undefined ? undefined : Number(opts.days);
     if ((opts.model || opts["llm-url"]) && !opts.local) throw usage("--model と --llm-url は --local といっしょに使います");
     let local = null;
     if (opts.local) {
