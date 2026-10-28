@@ -9,6 +9,7 @@ import { KB_INDEX_URL } from "./config.js";
 import { drivingAppeal } from "./touring.js";
 import { accessAppeal } from "./access.js";
 import { purposeAppeal } from "./purpose.js";
+import { TAGS, spotTags } from "./tags.js";
 import { genresForCategory } from "./feasibility.js";
 import { betterOf, dedupeSpots, samePoint, sameThing } from "./dedupe.js";
 import { whyNotASpot } from "./notaspot.js";
@@ -281,6 +282,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
   }));
 
   const spots = [];
+  let skipped = 0;
   for (const doc of docs) {
     // 出どころがシャード側にまとめて書かれていることがあります
     // （同じ文字列を全行に書くと、それだけで100KBを超えるため）。
@@ -288,7 +290,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     for (const spot of doc.spots ?? []) {
       // 宿や町の記事は、行き先として並べません（packages/core/src/notaspot.js）。
       // 収録からも外してありますが、取り込み直すと戻るので、ここでも見ます。
-      if (whyNotASpot(spot)) continue;
+      if (whyNotASpot(spot)) { skipped++; continue; }
       if (from && !spot.dataSource) spot.dataSource = from;
       spots.push(spot);
     }
@@ -305,6 +307,8 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     source: "remote", manifest, regions, spots: unique, ...idx,
     // まとめた件数。画面の「収録◯件」を、実際に行ける数に合わせます。
     merged,
+    // 行き先ではないので外した件数（休館中など。収録に残してあるもの）
+    skipped,
     // 出典の表示が求められるデータを含みます（国土数値情報など）。
     // 画面から消さないでください。
     attribution: manifest.sources ?? [],
@@ -394,7 +398,9 @@ export async function ensureShards(kb, files, opts = {}) {
     const from = doc.dataSource;
     const spots = [];
     for (const spot of doc.spots ?? []) {
-      if (whyNotASpot(spot)) continue;
+      // 休館中のように収録に残してあるものは、外した数を数えておきます
+      // （収録◯件と、実際に行ける数の差の説明に使います）。
+      if (whyNotASpot(spot)) { kb.skipped = (kb.skipped ?? 0) + 1; continue; }
       if (from && !spot.dataSource) spot.dataSource = from;
       hydrate(spot, kb.regionsById.get(spot.regionId));
       spots.push(spot);
@@ -628,6 +634,8 @@ function accessBonus(spot, companions) {
  * 大量に上位を占め、草津や箱根が消えました。名前に当たったのか、
  * 説明文に当たったのかは、同じ1件ではありません。
  */
+const TAG_BY_LABEL = new Map(Object.entries(TAGS).map(([id, label]) => [label, id]));
+
 const FIELD_WEIGHT = {
   name: 1.0, category: 0.6, genre: 0.5, region: 0.15, description: 0.3,
 };
@@ -655,12 +663,17 @@ export function searchSpotsByKeyword(kb, keywords,
       .sort((a, b) => b.key - a.key || a.i - b.i)
       .slice(0, limit).map(({ spot, bonus }) => ({ spot, score: 0.1 + bonus }));
   }
+  // 「夜景」「紅葉」「世界遺産」のようにタグの名前そのものの語は、タグでも当てます
+  // （packages/core/src/tags.js。分類は「寺院」でも、紅葉の名所は紅葉で探せるように）。
+  const tagOf = new Map(terms.map((t) => [t, TAG_BY_LABEL.get(t)]).filter(([, id]) => id));
   const out = [];
   for (const spot of kb.spots) {
     let score = 0;
+    let tags = null;
     for (const t of terms) {
       if (spot.name.includes(t)) score += FIELD_WEIGHT.name;
       else if ((spot.category ?? "").includes(t)) score += FIELD_WEIGHT.category;
+      else if (tagOf.has(t) && (tags ??= spotTags(spot)).includes(tagOf.get(t))) score += FIELD_WEIGHT.category;
       else if ((spot.genres ?? []).includes(t)) score += FIELD_WEIGHT.genre;
       else if ((spot.description ?? "").includes(t)) score += FIELD_WEIGHT.description;
       else if ((spot.region ?? "").includes(t)

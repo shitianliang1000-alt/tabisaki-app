@@ -257,6 +257,11 @@ export function whyNotASpot(spot) {
   // 利用者が足したもの・調べて足したもの（source: "ai"）は、名指しで
   // 頼まれた場所なので判定しません。
   if (spot?.source === "ai" || spot?.source === "user") return null;
+  // 閉館・休館中（kb/curated.json で人が確かめて付けたもの）。
+  // 閉館したものは収録から外し（drop_not_spots.mjs）、休館中のものは
+  // 再開に備えて収録に残したまま、読み込むときに外します。
+  if (spot?.status === "closed") return "閉館";
+  if (spot?.status === "temporarily_closed") return "休館中";
   if (isLodging(spot)) return "宿";
   if (isUmbrella(spot)) return "まとめすぎ";
   if (isInfoDesk(spot)) return "案内所";

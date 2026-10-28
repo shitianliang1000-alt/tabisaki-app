@@ -76,3 +76,36 @@ test("kb_check の分類は、アプリの営業時間の表と食い違わな�
   const src = (await import("node:fs")).readFileSync(new URL("../packages/core/src/feasibility.js", import.meta.url), "utf8");
   for (const c of CATEGORIES) assert.ok(src.includes(`${c}:`), `packages/core/src/feasibility.js に分類「${c}」がありません`);
 });
+
+test("人が足した項目（タグ・休館・見頃）の形を確かめる", () => {
+  const base = { id: "a", regionId: "r1", name: "どこか", category: "寺院", lat: 35, lng: 135, fame_tier: "known" };
+  const ok = fakeKb([{ ...base, tags: ["autumn_foliage"], status: "temporarily_closed",
+    season: [{ key: "autumn", label: "紅葉", from: "11-15", to: "12-05" }], best_time: ["morning"] }]);
+  try { assert.deepEqual(checkKb(ok).errors, []); } finally { rmSync(ok, { recursive: true }); }
+  const bad = fakeKb([{ ...base, tags: ["nope"], status: "gone",
+    season: [{ key: "autumn", label: "紅葉", from: "11/15", to: "12-05" }], best_time: ["noon"] }]);
+  try {
+    const errs = checkKb(bad).errors.join("\n");
+    for (const w of ["タグ「nope」", "status「gone」", "season の形", "best_time の形"]) assert.match(errs, new RegExp(w));
+  } finally { rmSync(bad, { recursive: true }); }
+});
+
+test("定番コースの id と、となり同士の距離を確かめる", () => {
+  const base = { regionId: "r1", category: "寺院", fame_tier: "known" };
+  const dir = fakeKb([
+    { ...base, id: "a", name: "A", lat: 35, lng: 135 },
+    { ...base, id: "b", name: "B", lat: 35.005, lng: 135 },
+    { ...base, id: "c", name: "C", lat: 35.5, lng: 135 },
+  ]);
+  try {
+    writeFileSync(path.join(dir, "model_courses.json"), JSON.stringify({ courses: [
+      { id: "ok", name: "近い", spots: ["a", "b"] },
+      { id: "far", name: "遠い", spots: ["b", "c"] },
+      { id: "gone", name: "無い", spots: ["a", "zzz"] },
+    ] }));
+    const errs = checkKb(dir).errors.join("\n");
+    assert.doesNotMatch(errs, /model_courses.json ok/);
+    assert.match(errs, /model_courses.json far: B → C/);
+    assert.match(errs, /model_courses.json gone: スポット zzz/);
+  } finally { rmSync(dir, { recursive: true }); }
+});

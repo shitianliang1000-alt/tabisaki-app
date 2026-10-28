@@ -1,0 +1,493 @@
+{
+ "closed": [
+  {
+   "id": "p27-2309",
+   "name": "原美術館",
+   "note": "2021年1月に閉館（収蔵品は群馬の原美術館ARCへ）。収録から外しました"
+  }
+ ],
+ "about": "人が確かめて足した、スポットごとの補い（tools/apply_curated.mjs が kb/ のシャードに当てます）。見頃は例年の目安で、その年の気温で1〜2週間ずれます。",
+ "spots": {
+  "wd-Q11288816": {
+   "tags": [
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "04-20",
+     "to": "05-05"
+    }
+   ]
+  },
+  "lm-39": {
+   "tags": [
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "04-20",
+     "to": "05-05"
+    }
+   ]
+  },
+  "kyoto-higashiyama-1": {
+   "fame_tier": "major",
+   "tags": [
+    "world_heritage",
+    "autumn_foliage",
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "03-25",
+     "to": "04-10"
+    },
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q2166743": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q2380134": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-10",
+     "to": "12-05"
+    }
+   ]
+  },
+  "gc-98f7ba12b3": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-10",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q2859566": {
+   "tags": [
+    "autumn_foliage",
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "03-28",
+     "to": "04-10"
+    },
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q1157535": {
+   "tags": [
+    "world_heritage",
+    "cherry_blossom",
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "03-25",
+     "to": "04-10"
+    },
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q1036938": {
+   "tags": [
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "04-01",
+     "to": "04-25"
+    }
+   ]
+  },
+  "wd-Q1741668": {
+   "tags": [
+    "world_heritage",
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "04-01",
+     "to": "04-25"
+    }
+   ]
+  },
+  "wp-0f62fb66e6": {
+   "fame_tier": "known",
+   "tags": [
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "04-05",
+     "to": "04-20"
+    }
+   ]
+  },
+  "lm-58": {
+   "tags": [
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "03-25",
+     "to": "04-05"
+    }
+   ]
+  },
+  "gc-36f1c16924": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "10-15",
+     "to": "11-05"
+    }
+   ]
+  },
+  "ov-bcf0537c18": {
+   "fame_tier": "known",
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-10",
+     "to": "11-30"
+    }
+   ]
+  },
+  "lm-40": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "10-20",
+     "to": "11-05"
+    }
+   ]
+  },
+  "himeji-1": {
+   "tags": [
+    "world_heritage",
+    "cherry_blossom"
+   ],
+   "season": [
+    {
+     "key": "sakura",
+     "label": "桜",
+     "from": "03-28",
+     "to": "04-10"
+    }
+   ]
+  },
+  "lm-50": {
+   "tags": [
+    "flowers"
+   ],
+   "season": [
+    {
+     "key": "flowers",
+     "label": "梅",
+     "from": "02-20",
+     "to": "03-20"
+    }
+   ]
+  },
+  "wp-fcf0a8a832": {
+   "fame_tier": "known",
+   "tags": [
+    "flowers"
+   ],
+   "season": [
+    {
+     "key": "flowers",
+     "label": "ラベンダー",
+     "from": "07-01",
+     "to": "07-31"
+    }
+   ]
+  },
+  "wd-Q17229517": {
+   "fame_tier": "known",
+   "tags": [
+    "illumination",
+    "flowers"
+   ]
+  },
+  "hakodate-1": {
+   "tags": [
+    "night_view"
+   ],
+   "best_time": [
+    "night"
+   ]
+  },
+  "wd-Q6406436": {
+   "tags": [
+    "night_view"
+   ],
+   "best_time": [
+    "night"
+   ]
+  },
+  "nagasaki-4": {
+   "tags": [
+    "night_view"
+   ],
+   "best_time": [
+    "night"
+   ]
+  },
+  "lm-76": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "lm-77": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "nara-1": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "nara-2": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "nara-4": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "lm-83": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "miyajima-1": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "nikko-1": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "nikko-4": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "wd-Q1348249": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "lm-55": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "miyajima-2": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "lm-105": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "wp-7d3b56f6a8": {
+   "tags": [
+    "world_heritage"
+   ]
+  },
+  "wd-Q2660144": {
+   "tags": [
+    "world_heritage",
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "10-25",
+     "to": "11-15"
+    }
+   ]
+  },
+  "wp-b9c2e726e8": {
+   "fame_tier": "major",
+   "tags": [
+    "world_heritage",
+    "historical_street"
+   ]
+  },
+  "wd-Q1759226": {
+   "tags": [
+    "world_heritage",
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q1089767": {
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q11060322": {
+   "fame_tier": "known",
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-15",
+     "to": "12-05"
+    }
+   ]
+  },
+  "wd-Q6897278": {
+   "fame_tier": "known",
+   "tags": [
+    "autumn_foliage"
+   ],
+   "season": [
+    {
+     "key": "autumn",
+     "label": "紅葉",
+     "from": "11-10",
+     "to": "11-30"
+    }
+   ]
+  },
+  "kanazawa-1": {
+   "tags": [
+    "garden"
+   ],
+   "season": [
+    {
+     "key": "snow",
+     "label": "雪吊り",
+     "from": "11-01",
+     "to": "03-15"
+    }
+   ]
+  },
+  "lm-78": {
+   "tags": [
+    "power_spot"
+   ],
+   "best_time": [
+    "morning"
+   ]
+  },
+  "ise-1": {
+   "tags": [
+    "power_spot"
+   ],
+   "best_time": [
+    "morning"
+   ]
+  },
+  "izumo-1": {
+   "tags": [
+    "power_spot"
+   ]
+  },
+  "p27-2209": {
+   "status": "temporarily_closed",
+   "note": "2019年の台風で被災し休館中（移転して再開する計画）"
+  },
+  "wp-5041ab76d9": {
+   "category": "史跡"
+  }
+ }
+}
