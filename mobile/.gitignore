@@ -1,0 +1,9 @@
+# 組み立てるたびに作り直すもの。リポジトリには入れません。
+node_modules/
+/www/
+/android/
+/ios/
+*.apk
+*.aab
+*.ipa
+/out/
