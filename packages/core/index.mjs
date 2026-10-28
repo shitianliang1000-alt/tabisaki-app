@@ -139,11 +139,15 @@ export async function normalizeRequest(req = {}) {
  * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
+ *          userData?: boolean|string, local?: {model?: string, baseUrl?: string} | null,
+ *          plugins?: object[]}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
-  globalThis.fetch = offlineFetch(root);
+export async function createCore({ root = ROOT, providers = {}, userKb, home, userData = !process.env.TABISAKI_NO_USER_DATA,
+  local = null, plugins = [] } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
+  // （手元の LLM を使うときだけ、その行き先へは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -166,6 +170,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
     const store = await loadStore(typeof userData === "string" ? userData : storePath());
     userSpots = applyStoreToKb(kb, store);
   }
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  if (plugins.length) kb = applyConstraints(kb, plugins);
 
   return {
     kb,
@@ -191,9 +197,29 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
+      const out = { request: r, itinerary };
+      if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (local) {
+        // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
+        // 本体が収録データだけで組み直しています。そのことを隠しません。
+        const { error } = ai.aiStatus();
+        out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
+      }
+      return out;
     },
   };
+}
+
+/**
+ * 組んだ旅程を .ics（iCalendar）にします。UID は旅の条件から決まるので、同じ旅は同じ予定になります。
+ * @param {{request: object, itinerary: object}} result core.plan() の返り値
+ * @param {{seed?: string, now?: Date}} [opts]
+ */
+export async function toIcs(result, opts = {}) {
+  // .ics の書き出しは Web 版の画面の部品なので js/ に残っています。
+  const { toIcs: ics } = await import(pathToFileURL(path.join(ROOT, "js", "ical.js")).href);
+  const { tripSeed } = await import("./caldav.mjs");
+  return ics(result.itinerary, { seed: opts.seed ?? tripSeed(result.request), now: opts.now });
 }
 
 export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";

@@ -60,6 +60,7 @@ import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeS
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat } from "../packages/core/src/chatread.js";
 import { readIntent } from "../packages/core/src/intent.js";
+import { setupVoiceInput } from "./voice.js";
 
 // ここまで読めたら、画面の部品はそろっています（js/boot-check.js が見ます）。
 document.documentElement.dataset.booted = "1";
