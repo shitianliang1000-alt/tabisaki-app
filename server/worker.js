@@ -24,7 +24,10 @@ const DEFAULT_ALLOW_ORIGIN = "https://shitianliang1000-alt.github.io";
 // このサイト自身の置き場（InfinityFree の PHP 版）。ALLOW_ORIGIN を Cloudflare
 // 側で設定していても、ここは常に通します（足し忘れで、AI・電車・バスが
 // 「このサイトからは呼べません」になるのを防ぎます）。
-const OWN_ORIGINS = ["https://tabisaki.site.je", "http://tabisaki.site.je"];
+const OWN_ORIGINS = ["https://tabisaki.site.je", "http://tabisaki.site.je",
+  // 携帯アプリ（mobile/。Capacitor）の画面の出どころ。mobile/capacitor.config.json
+  // の server.hostname と同じ名前です（Android は https://、iOS は capacitor://）。
+  "https://app.tabisaki", "capacitor://app.tabisaki"];
 
 function allowList(env) {
   const raw = String(env?.ALLOW_ORIGIN ?? "").trim();

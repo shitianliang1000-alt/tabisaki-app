@@ -58,3 +58,17 @@ test("PHP 版の置き場（tabisaki.site.je）は、ALLOW_ORIGIN に書いて�
     assert.equal(acao(res), origin);
   }
 });
+
+test("携帯アプリ（mobile/）の画面からも、ALLOW_ORIGIN に書いていなくても通す", async () => {
+  // mobile/capacitor.config.json の server.hostname と合わせます。
+  const cfg = JSON.parse(await import("node:fs").then((fs) =>
+    fs.promises.readFile(new URL("../mobile/capacitor.config.json", import.meta.url), "utf8")));
+  const host = cfg.server.hostname;
+  for (const origin of [`https://${host}`, `capacitor://${host}`]) {
+    const res = await worker.fetch(new Request("https://example.com/yahoo/transit", {
+      method: "OPTIONS", headers: { Origin: origin },
+    }), { ALLOW_ORIGIN: A });
+    assert.equal(res.status, 204, origin);
+    assert.equal(acao(res), origin);
+  }
+});

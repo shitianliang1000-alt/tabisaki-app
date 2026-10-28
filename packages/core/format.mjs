@@ -28,7 +28,14 @@ export function rows(itinerary) {
 
 const mark = { spot: "📍", meal: "🍴", transit: "🚃", lodging: "🛏", rest: "☕" };
 
-export function toMarkdown({ request, itinerary }, { lang } = {}) {
+/** 手元の LLM を使ったときの一言（使えなかったときは、そう書きます）。 */
+function aiLine(ai, i) {
+  if (!ai) return null;
+  return ai.used ? i.t("plan.aiLocal", { model: ai.model })
+    : i.t("plan.aiLocalFailed", { model: ai.model, error: ai.error ?? "" });
+}
+
+export function toMarkdown({ request, itinerary, ai }, { lang } = {}) {
   const i = i18nFor(lang);
   const out = [];
   out.push(`# ${itinerary.title ?? i.t("plan.title")}`, "");
@@ -36,6 +43,7 @@ export function toMarkdown({ request, itinerary }, { lang } = {}) {
   out.push(`- ${i.t("plan.depart", { from: request.origin.name, date: i.date(request.departAt), time: i.time(request.departAt) })}`);
   out.push(`- ${i.t("plan.days", { n: request.days })}`);
   if (Number.isFinite(itinerary.totalCostYen)) out.push(`- ${i.t("plan.cost", { cost: i.yen(itinerary.totalCostYen) })}`);
+  if (ai) out.push(`- ${aiLine(ai, i)}`);
   out.push("");
   if (itinerary.headline) out.push(`> ${itinerary.headline}`, "");
   for (const day of rows(itinerary)) {
@@ -55,9 +63,10 @@ export function toMarkdown({ request, itinerary }, { lang } = {}) {
   return out.join("\n") + "\n";
 }
 
-export function toPlainText({ request, itinerary }, { lang } = {}) {
+export function toPlainText({ request, itinerary, ai }, { lang } = {}) {
   const i = i18nFor(lang);
   const out = [i.t("plan.plainTitle", { title: itinerary.title ?? i.t("plan.title"), from: request.origin.name, n: request.days })];
+  if (ai) out.push(aiLine(ai, i));
   for (const day of rows(itinerary)) {
     out.push("", day.date ? i.t("plan.dayPlain", { n: day.n, date: i.date(day.date) }) : i.t("plan.day", { n: day.n }));
     for (const it of day.items) out.push(`  ${i.time(it.start)}  ${it.title}`);
@@ -65,7 +74,7 @@ export function toPlainText({ request, itinerary }, { lang } = {}) {
   return out.join("\n") + "\n";
 }
 
-export function toJson({ request, itinerary }) {
+export function toJson({ request, itinerary, ai }) {
   return JSON.stringify({
     version: 1,
     request: {
@@ -75,6 +84,7 @@ export function toJson({ request, itinerary }) {
     },
     title: itinerary.title ?? null,
     totalCostYen: itinerary.totalCostYen ?? null,
+    ...(ai ? { ai } : {}),
     days: rows(itinerary),
   }, null, 2) + "\n";
 }
