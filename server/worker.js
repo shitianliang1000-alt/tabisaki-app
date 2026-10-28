@@ -1,5 +1,5 @@
 import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
-import { currentSettings, record, Stats, SWITCHABLE } from "./stats.js";
+import { ENDPOINTS, record, Stats } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
@@ -94,24 +94,20 @@ export const LIMITS = {
   paid: { minute: 60, hour: 400 },
 };
 
-/**
- * 環境変数があれば、そちらを使います。管理画面で上限を決めてあれば
- * （server/stats.js の settings.limits）、それがいちばん先です。
- */
-export function limitsFrom(env, settings = null) {
+/** 環境変数があれば、そちらを使います。 */
+export function limitsFrom(env) {
   const n = (v, fallback) => {
     const x = Number(v);
     return Number.isFinite(x) && x > 0 ? x : fallback;
   };
-  const set = settings?.limits ?? {};
   return {
     free: {
-      minute: n(set.free?.minute, n(env?.RATE_FREE_PER_MINUTE, LIMITS.free.minute)),
-      hour: n(set.free?.hour, n(env?.RATE_FREE_PER_HOUR, LIMITS.free.hour)),
+      minute: n(env?.RATE_FREE_PER_MINUTE, LIMITS.free.minute),
+      hour: n(env?.RATE_FREE_PER_HOUR, LIMITS.free.hour),
     },
     paid: {
-      minute: n(set.paid?.minute, n(env?.RATE_PAID_PER_MINUTE, LIMITS.paid.minute)),
-      hour: n(set.paid?.hour, n(env?.RATE_PAID_PER_HOUR, LIMITS.paid.hour)),
+      minute: n(env?.RATE_PAID_PER_MINUTE, LIMITS.paid.minute),
+      hour: n(env?.RATE_PAID_PER_HOUR, LIMITS.paid.hour),
     },
   };
 }
@@ -174,7 +170,8 @@ export default {
     }
     const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
-    if (request.method === "POST") {
+    // /metrics は、その中で出来事と一緒に1回で数えます（Durable Object を2回呼ばない）。
+    if (request.method === "POST" && endpointOf(url.pathname.replace(/\/+$/, "")) !== "/metrics") {
       const work = record(env, usageOf(request, url, res.status));
       if (ctx?.waitUntil) ctx.waitUntil(work); else await work;
     }
@@ -204,9 +201,9 @@ export async function withNotFoundPage(request, env, res) {
   });
 }
 
-/** その入口の名前（数えるとき・止めるときの鍵）。 */
+/** その入口の名前（数えるときの鍵）。 */
 export function endpointOf(path) {
-  return [...SWITCHABLE, "/status"].find((p) => path.endsWith(p)) ?? "other";
+  return [...ENDPOINTS, "/status"].find((p) => path.endsWith(p)) ?? "other";
 }
 
 /**
@@ -224,9 +221,8 @@ export function usageOf(request, url, status) {
   };
 }
 
-/** 管理画面の「設定」に出すもの。鍵は、入っているかどうかだけです。 */
+/** 管理画面の「概要」に出すもの。鍵は、入っているかどうかだけです。 */
 async function overviewFor(env, selfOrigin) {
-  const settings = await currentSettings(env);
   return {
     secrets: {
       GEMINI_API_KEY: hasSecret(env, "GEMINI_API_KEY"),
@@ -240,10 +236,7 @@ async function overviewFor(env, selfOrigin) {
     },
     allowOrigin: [...allowList(env), selfOrigin],
     rateLimit: String(env?.RATE_LIMIT ?? "").toLowerCase() === "off" ? "off" : "on",
-    limitsDefault: limitsFrom(env),
-    limits: limitsFrom(env, settings),
-    settings,
-    switchable: SWITCHABLE,
+    limits: limitsFrom(env),
   };
 }
 
@@ -267,14 +260,7 @@ async function relay(request, env, ctx) {
     const path = new URL(request.url).pathname.replace(/\/+$/, "");
     // 重さに応じて数えます（Geminiの1回と /status の1回は別ものです）。
     // 枠は2つ。無料のYahoo!が、お金のかかるGeminiの枠を食べません。
-    // 管理画面で止めた入口は、外へ取りに行く前に断ります。
-    const settings = await currentSettings(env);
-    if (settings.disabled.includes(endpointOf(path))) {
-      return cors(fail(503, "DISABLED",
-        "この機能はいま止めています。しばらくしてから、もう一度お試しください。",
-        { retryable: false }), origin, allow);
-    }
-    const gate = await rateCheck(env, ip, costOf(path), poolOf(path), settings);
+    const gate = await rateCheck(env, ip, costOf(path), poolOf(path));
     if (!gate.ok) {
       return cors(fail(429, "RATE_LIMITED",
         "いま利用が集中しています。1分ほどおいてから、もう一度お試しください。",
@@ -292,7 +278,7 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/yahoo/transit")) return cors(await yahooTransit(request), origin, allow);
       // どの乗り換え検索が使えるか（キーの値は返しません）。
       if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
-      if (path.endsWith("/transit")) return cors(await transit(request, env, settings), origin, allow);
+      if (path.endsWith("/transit")) return cors(await transit(request, env), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
       if (path.endsWith("/web/search")) return cors(await webSearch(request, env, ctx), origin, allow);
       // 鍵が入っているかどうかだけを答えます（値は返しません）。
@@ -315,9 +301,7 @@ async function relay(request, env, ctx) {
           allowOrigin: allow,
           // あと何点使えるか。無料枠は使い切ると**その日は誰も使えません**。
           // 止まってから気づくのでは遅いので、先に見えるようにします。
-          usage: await rateUsage(env, ip, settings),
-          // 管理画面で止めている入口。アプリはこれを見て、先に断れます。
-          disabled: settings.disabled,
+          usage: await rateUsage(env, ip),
         }), origin, allow);
       }
     } catch (e) {
@@ -368,7 +352,10 @@ export async function metrics(request, env) {
     console.error(e);
   }
   // 管理画面のための件数（server/stats.js）。決まった言葉と数だけです。
-  await record(env, metricRecord(event, detail, cleanExtra(body)));
+  // 入口・国・利用者の件数も、ここで一緒に数えます（Durable Object は1回だけ）。
+  const usage = usageOf(request, new URL(request.url), 204);
+  const r = metricRecord(event, detail, cleanExtra(body));
+  await record(env, { ...r, ip: usage.ip, items: [...usage.items, ...r.items] });
   return new Response(null, { status: 204 });
 }
 
@@ -657,10 +644,8 @@ async function geminiModels(env) {
  * 乗り換え検索（POST /transit）。どの API で引くかは server/transit.js が
  * 決めます。Yahoo!路線情報だけはこのファイルにあるので、ここから渡します。
  */
-async function transit(request, env, settings = null) {
+async function transit(request, env) {
   const body = await readJson(request);
-  // 管理画面で /yahoo/transit を止めていたら、自動の順番からも外します。
-  if (settings?.disabled?.includes("/yahoo/transit")) env = { ...env, YAHOO_TRANSIT: "off" };
   const yahoo = async (q) => {
     const res = await yahooTransit(new Request("https://transit.invalid/yahoo/transit", {
       method: "POST",
@@ -1200,13 +1185,13 @@ export function poolOf(path) {
   return "paid";
 }
 
-async function rateCheck(env, ip, cost, pool = "paid", settings = null) {
+async function rateCheck(env, ip, cost, pool = "paid") {
   if (!env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off") {
     return { ok: true };
   }
   const id = env.RATE.idFromName(ip); const stub = env.RATE.get(id);
   const q = new URLSearchParams({ cost: String(cost), pool,
-                                  limits: JSON.stringify(limitsFrom(env, settings)) });
+                                  limits: JSON.stringify(limitsFrom(env)) });
   return (await stub.fetch(`https://rate/check?${q}`)).json();
 }
 
@@ -1217,18 +1202,60 @@ async function rateCheck(env, ip, cost, pool = "paid", settings = null) {
  * 入れていたので、外から見ると usage.usage になり、画面には
  * 「1分 undefined/undefined点」と出ていました。ここで開いて渡します。
  */
-async function rateUsage(env, ip, settings = null) {
+async function rateUsage(env, ip) {
   if (!env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off") {
     return null;
   }
   const id = env.RATE.idFromName(ip); const stub = env.RATE.get(id);
-  const q = new URLSearchParams({ limits: JSON.stringify(limitsFrom(env, settings)) });
+  const q = new URLSearchParams({ limits: JSON.stringify(limitsFrom(env)) });
   const body = await (await stub.fetch(`https://rate/usage?${q}`)).json();
   return body?.usage ?? body ?? null;
 }
 
+// 回数の記録を書く間隔。Durable Object の無料枠は「書き込む行が1日10万行」
+// までで、以前は呼び出しのたびに記録と予約（alarm）を書いていました。
+// 断ったときにまで書いていたので、叩かれるほど書き込みが増えていました。
+//
+// いまは記録をメモリに持ち、書くのは RATE_SAVE_MS に1回だけです（断ったときは
+// 書きません）。Durable Object は使われているあいだメモリを保つので、数え
+// かたは変わりません。しばらく使われずに落ちたときだけ、最後の数十秒ぶんを
+// 数えそこねます（1時間の枠が少し甘くなるだけで、1分の枠は元から過ぎています）。
+export const RATE_SAVE_MS = 30_000;
+const HOUR_MS = 3_600_000;
+
 export class RateLimiter {
-  constructor(state) { this.state = state; }
+  constructor(state) {
+    this.state = state;
+    this.hits = null;       // [時刻, 点数, 枠] の並び。null はまだ読んでいない
+    this.savedAt = 0;       // 最後に書いた時刻
+    this.alarmAt = 0;       // 予約してある片付けの時刻
+  }
+
+  /** 記録を（まだなら）読みます。古い形の記録も読めるようにしておきます。 */
+  async load() {
+    if (this.hits) return this.hits;
+    // 記録は [時刻, 点数, 枠] の組です。形を変えてきたので、古い記録も
+    // 読めるようにしておきます（配備の切り替わりで落ちないように）。
+    //   時刻だけ          → 1点・paid
+    //   [時刻, 点数]      → paid
+    //   [時刻, 点数, 枠]  → そのまま
+    const raw = (await this.state.storage.get("hits")) ?? [];
+    this.hits = raw.map((h) => (Array.isArray(h)
+      ? [h[0], h[1] ?? 1, h[2] === "free" ? "free" : "paid"]
+      : [h, 1, "paid"]));
+    return this.hits;
+  }
+
+  /** 間隔が空いていれば、記録を書きます。片付けの予約は30分に1回まで。 */
+  async save(now, force = false) {
+    if (!force && now - this.savedAt < RATE_SAVE_MS) return;
+    this.savedAt = now;
+    await this.state.storage.put("hits", this.hits);
+    if (this.alarmAt < now + HOUR_MS / 2) {
+      this.alarmAt = now + HOUR_MS;
+      await this.state.storage.setAlarm(this.alarmAt);
+    }
+  }
 
   async fetch(request) {
     const url = new URL(request.url);
@@ -1243,16 +1270,9 @@ export class RateLimiter {
 
     return this.state.blockConcurrencyWhile(async () => {
       const now = Date.now();
-      // 記録は [時刻, 点数, 枠] の組です。形を変えてきたので、古い記録も
-      // 読めるようにしておきます（配備の切り替わりで落ちないように）。
-      //   時刻だけ          → 1点・paid
-      //   [時刻, 点数]      → paid
-      //   [時刻, 点数, 枠]  → そのまま
-      const raw = (await this.state.storage.get("hits")) ?? [];
-      const hits = raw.map((h) => (Array.isArray(h)
-        ? [h[0], h[1] ?? 1, h[2] === "free" ? "free" : "paid"]
-        : [h, 1, "paid"]));
-      const recent = hits.filter(([t]) => now - t < 3_600_000);
+      const hits = await this.load();
+      const recent = hits.filter(([t]) => now - t < HOUR_MS);
+      this.hits = recent;
 
       const sum = (list, kind) => list
         .filter(([, , k]) => k === kind)
@@ -1268,19 +1288,17 @@ export class RateLimiter {
                       paid: shape("paid") };
       if (peek) return json({ ok: true, usage });
 
+      // 断るときは書きません（叩かれても書き込みが増えないように）。
       const lim = limits[pool];
       if (sum(lastMinute, pool) + cost > lim.minute) {
-        await this.state.storage.put("hits", recent);
         return json({ ok: false, retryAfter: 60, usage });
       }
       if (sum(recent, pool) + cost > lim.hour) {
-        await this.state.storage.put("hits", recent);
         return json({ ok: false, retryAfter: 600, usage });
       }
       if (cost > 0) {
         recent.push([now, cost, pool]);
-        await this.state.storage.put("hits", recent);
-        await this.state.storage.setAlarm(now + 3_600_000);
+        await this.save(now);
       }
       const after = pool === "paid"
         ? { ...usage, minute: usage.minute + cost, hour: usage.hour + cost,
@@ -1292,7 +1310,19 @@ export class RateLimiter {
     });
   }
 
-  async alarm() { await this.state.storage.deleteAll(); }
+  /** 1時間より前の記録を捨てます。残りがあれば、もう一度予約します。 */
+  async alarm() {
+    const now = Date.now();
+    this.alarmAt = 0;
+    const recent = (await this.load()).filter(([t]) => now - t < HOUR_MS);
+    if (!recent.length) {
+      this.hits = []; this.savedAt = 0;
+      await this.state.storage.deleteAll();
+      return;
+    }
+    this.hits = recent;
+    await this.save(now, true);
+  }
 }
 function json(obj) { return new Response(JSON.stringify(obj), { headers: { "Content-Type": "application/json" } }); }
 /**

@@ -4,8 +4,8 @@
 // 「Gemini」「Routes API」「知識ベース」は、運用する人の言葉です。
 //
 // ここが答えるのは、運用する人が知りたいことです。
-//   概要 / 設定 / 使用量 / 旅程の結果 / エラー / kb/ 点検 / スポット
-// 件数・設定・変更待ちは Worker が持っていて（server/stats.js）、この画面は
+//   概要 / 使用量 / 旅程の結果 / エラー / kb/ 点検 / スポット
+// 件数・変更待ちは Worker が持っていて（server/stats.js）、この画面は
 // /private/api/ を通して読み書きします。**書き込みはこの画面からだけ**です
 // （公開サイトからは届きません。server/admin.js）。
 //
@@ -121,7 +121,7 @@ async function haveApi() {
 
 const needWorker = () => note(
   "この項目は、Worker から開いたときだけ使えます（…workers.dev/admin）。"
-  + "手元の簡易サーバーでは、件数も設定も変更待ちもありません。");
+  + "手元の簡易サーバーでは、件数も変更待ちもありません。");
 
 // --- kb/ をそのまま読む -----------------------------------------------------
 let rawKb = null;
@@ -173,7 +173,7 @@ const editButton = (label, edit) => {
 // タブ
 // ============================================================================
 const TABS = [
-  ["overview", "概要"], ["settings", "設定"], ["usage", "使用量"],
+  ["overview", "概要"], ["usage", "使用量"],
   ["plans", "旅程の結果"], ["errors", "エラー"], ["kb", "kb/ 点検"], ["spots", "スポット"],
 ];
 
@@ -219,15 +219,16 @@ async function overview() {
     }
     out.append(srcCard);
   }
+  // つながり（読むだけ）。以前は「設定」のタブにありました。
+  await connection(out);
   return out;
 }
 
-async function settings() {
-  const out = el("div");
+async function connection(out) {
   const viaProxy = Boolean(String(PROXY_URL ?? "").trim());
   const local = MODEL_PROVIDER === "local";
 
-  out.append(...section("サイトの設定（packages/core/src/config.js）",
+  out.append(...section("サイトの構成（packages/core/src/config.js）",
     card(
       row("キーの持ちかた", viaProxy
         ? el("span", {}, pill("プロキシ経由", "ok"), " ", PROXY_URL)
@@ -255,49 +256,12 @@ async function settings() {
       row("ネット検索", ov.secrets.TAVILY_API_KEY ? pill("Tavily（TAVILY_API_KEY あり）", "ok") : el("span", {}, pill("Wikipedia だけ", "warn"), " TAVILY_API_KEY を入れると、ふつうのウェブ検索になります")),
       row("呼び出しを許すサイト", ov.allowOrigin.join(", "), "mono"))));
 
-  // 入口の入り切り
-  const disabled = new Set(ov.settings.disabled);
-  const boxes = ov.switchable.map((p) => {
-    const cb = el("input", { type: "checkbox" });
-    cb.checked = !disabled.has(p);
-    cb.addEventListener("change", () => (cb.checked ? disabled.delete(p) : disabled.add(p)));
-    return row(p, el("label", {}, cb, " 使う"));
-  });
-  // 回数の上限
-  const lim = ov.limits; const base = ov.limitsDefault;
-  const field = (pool, unit) => {
-    const i = el("input", { type: "number", min: "1", step: "1", value: String(lim[pool][unit]), class: "num-in" });
-    return i;
-  };
-  const f = { free: { minute: field("free", "minute"), hour: field("free", "hour") },
-              paid: { minute: field("paid", "minute"), hour: field("paid", "hour") } };
-  const msg = el("span", { class: "v" }, "");
-  const save = el("button", { class: "act", type: "button" }, "保存する");
-  save.addEventListener("click", async () => {
-    save.disabled = true; msg.textContent = "保存しています…";
-    try {
-      const body = {
-        disabled: [...disabled],
-        limits: {
-          free: { minute: f.free.minute.value, hour: f.free.hour.value },
-          paid: { minute: f.paid.minute.value, hour: f.paid.hour.value },
-        },
-      };
-      await api("PUT", "settings", body);
-      msg.textContent = "保存しました（反映まで最大30秒）";
-    } catch (e) { msg.textContent = `保存できませんでした: ${e.message}`; }
-    save.disabled = false;
-  });
-  out.append(...section("機能の入り切り",
-    card(...boxes),
-    note("切った入口は 503 を返し、外のサービスを呼びません（課金も止まります）。アプリは距離からの推定などに落ちます。")));
-  out.append(...section("使用量の調整（1つのIPあたり）",
+  const lim = ov.limits;
+  out.append(...section("回数の上限（1つのIPあたり）",
     card(
-      row("無料枠（Yahoo!）1分", f.free.minute), row("無料枠（Yahoo!）1時間", f.free.hour),
-      row("課金される側（Gemini・Routes）1分", f.paid.minute), row("課金される側 1時間", f.paid.hour),
-      row("既定値", `無料 ${base.free.minute}/${base.free.hour}、課金 ${base.paid.minute}/${base.paid.hour}（1分/1時間）`),
-      el("div", { class: "row" }, save, msg)),
-    note("上限は、超えると 429 を返す点数です（Gemini 5点、Routes 3点、Yahoo! 1点）。環境変数 RATE_*_PER_MINUTE より、ここで決めた値が先に効きます。")));
+      row("無料枠（Yahoo!）", `1分 ${lim.free.minute}点 / 1時間 ${lim.free.hour}点`),
+      row("課金される側（Gemini・Routes）", `1分 ${lim.paid.minute}点 / 1時間 ${lim.paid.hour}点`)),
+    note("超えると 429 を返します（Gemini 5点、Routes 3点、Yahoo! 1点）。変えるときは Worker の環境変数 RATE_FREE_PER_MINUTE・RATE_PAID_PER_HOUR などを使います。")));
 
   // 疎通
   const result = el("span", { class: "v" }, "まだ確かめていません");
@@ -526,7 +490,7 @@ async function spotsPage() {
   return out;
 }
 
-const PAGES = { overview, settings, usage, plans, errors, kb: kbPage, spots: spotsPage };
+const PAGES = { overview, usage, plans, errors, kb: kbPage, spots: spotsPage };
 
 async function render() {
   const id = PAGES[location.hash.slice(1)] ? location.hash.slice(1) : "overview";
