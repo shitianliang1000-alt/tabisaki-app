@@ -247,3 +247,55 @@ test("上限は、中継の環境変数で変えられる", async () => {
   assert.equal(u.paid.minuteLimit, 7);
   assert.equal(u.free.minuteLimit, 999);
 });
+
+// --- 書き込みの数 -----------------------------------------------------------
+// Durable Object の無料枠は「書き込む行が1日10万行」まで。超えると、
+// その日はレート制限ごと止まります（2026-10-27 に一度当たりました）。
+
+/** 書いた回数を数える代役。 */
+function countingState() {
+  const map = new Map();
+  const n = { puts: 0, alarms: 0 };
+  return {
+    n,
+    storage: {
+      get: async (k) => map.get(k),
+      put: async (k, v) => { n.puts++; map.set(k, v); },
+      deleteAll: async () => map.clear(),
+      setAlarm: async () => { n.alarms++; },
+    },
+    blockConcurrencyWhile: (fn) => fn(),
+  };
+}
+
+test("続けて呼ばれても、毎回は書かない", async () => {
+  const state = countingState();
+  const rl = new RateLimiter(state);
+  for (let i = 0; i < 30; i++) {
+    const r = await (await rl.fetch(
+      new Request("https://rate/check?cost=1&pool=free"))).json();
+    assert.equal(r.ok, true);
+  }
+  assert.equal(state.n.puts, 1, "呼ばれるたびに書いています");
+  assert.equal(state.n.alarms, 1, "呼ばれるたびに予約しています");
+  // 書いていなくても、数えかたは同じ（メモリに持っている）。
+  const usage = await (await rl.fetch(new Request("https://rate/usage"))).json();
+  assert.equal(usage.usage.free.minute, 30);
+});
+
+test("断るときは書かない（叩かれても書き込みが増えない）", async () => {
+  const state = countingState();
+  const rl = new RateLimiter(state);
+  for (let i = 0; i < 50; i++) {
+    await rl.fetch(new Request(`https://rate/check?cost=5${LIM(600, 10)}`));
+  }
+  assert.equal(state.n.puts, 1, "断った回数だけ書いています");
+});
+
+test("書いた記録は、落ちて作り直されたあとも読める", async () => {
+  const state = countingState();
+  await new RateLimiter(state).fetch(new Request("https://rate/check?cost=5"));
+  const again = new RateLimiter(state);
+  const u = await (await again.fetch(new Request("https://rate/usage"))).json();
+  assert.equal(u.usage.paid.minute, 5);
+});

@@ -45,7 +45,7 @@
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
 | スポットの補完・写真・季節・営業時間・別名、自分で決めるエリア（`./tabisaki spot`・`area`、[spot-data.md](./spot-data.md)） | ✅ ある（端末から。出典・確認の状態・鮮度つき。Web 版の画面にはまだ出ない） | #361 |
 | 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
-| カレンダーとの同期・声での入力 | 🚧 一部（`.ics` の書き出し） | #363 |
+| カレンダーとの同期・声での入力 | ✅ 段階 2 まで（`tabisaki sync`・`voice-plan`・Web 版のマイク。[calendar-and-voice.md](./calendar-and-voice.md)） | #363 |
 
 ## Phase 6: 品質・データ・参加のしやすさ
 
