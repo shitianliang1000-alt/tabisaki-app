@@ -138,12 +138,20 @@ export async function normalizeRequest(req = {}) {
  * userKb を渡すと、公式の kb/ にユーザーKBの差分を重ねてから組みます（docs/user-kb.md）。
  * 名前（~/.tabisaki/kbs/<名前>/）か、読み込み済みの overlay を渡します。kb/ は書き換えません。
  *
+ * local を渡すと、手元の LLM（Ollama など。OpenAI 互換の /v1/chat/completions）に
+ * 希望文の読み取りと行き先の選定をさせます（Issue #352）。渡さなければ AI は使わず、
+ * 収録データと語句から組みます。どちらでも、時刻と移動の判定はプログラムが行います。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
- *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
+ *          geocoding?: string, spots?: string}, userKb?: string|object|null, home?: string|null,
+ *          userData?: boolean|string, plugins?: object[],
+ *          local?: {model?: string, baseUrl?: string} | null}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
-  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
-  globalThis.fetch = offlineFetch(root);
+export async function createCore({ root = ROOT, providers = {}, userKb = null, home = null,
+  userData = !process.env.TABISAKI_NO_USER_DATA, plugins = [], local = null } = {}) {
+  // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
+  // （手元の LLM を使うときだけ、その行き先へは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -166,6 +174,8 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
     const store = await loadStore(typeof userData === "string" ? userData : storePath());
     userSpots = applyStoreToKb(kb, store);
   }
+  // プラグイン（docs/plugins.md）は、控えたものだけが渡されます。除外はここで一度だけ当てます。
+  kb = applyConstraints(kb, plugins);
 
   return {
     kb,
@@ -191,7 +201,15 @@ export async function createCore({ root = ROOT, providers = {}, userKb, home } =
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
-      return found ? { request: r, itinerary, template: { plugin: found.plugin, name: found.template.name } } : { request: r, itinerary };
+      const out = { request: r, itinerary };
+      if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (local) {
+        // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
+        // 本体が収録データだけで組み直しています。そのことを隠しません。
+        const { error } = ai.aiStatus();
+        out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
+      }
+      return out;
     },
   };
 }
