@@ -38,10 +38,10 @@ usage() {
   sync "<希望>" --caldav-url=<URL> [...]  旅程を CalDAV のカレンダーに書く（確かめてから）
   voice-plan <録音.wav> [...]  手元の whisper.cpp で声を文字にして組む
   api                手元用の API サーバーを動かす（http://127.0.0.1:8787/v1/plan）
-  build              Cloudflare 用を .site/ に組み立てる
+  build              （ファイルを付けないとき）Cloudflare 用を .site/ に組み立てる
   php [--zip]        PHP 版を .php-site/ に組み立てる（--zip で tabisaki-php.zip も）
   serve [php|cf]     手元で開く（php: http://127.0.0.1:8090/  cf: 静的ファイルだけ）
-  test               試験（単体・PHP の書きまちがい）
+  test               （ファイルを付けないとき）試験（単体・PHP の書きまちがい）
   deploy cf          Cloudflare に上げる（npx wrangler deploy。ログインか CLOUDFLARE_API_TOKEN が要ります）
   deploy ftp         PHP 版を FTP で InfinityFree に上げる（FTP_HOST・FTP_USER・FTP_PASS が要ります）
   help               これを出す
@@ -75,9 +75,16 @@ case "$cmd" in
   plan|tui|spot|area|plugins|local|kb|similar|--version) need node "Node.js 22 以上を入れてください。"
   plan|tui|local|kb|similar|spot|area|plugins|--version) need node "Node.js 22 以上を入れてください。"
         exec node packages/cli/bin/tabisaki-plan.mjs "$cmd" "$@" ;;
+  # build・test は、旅程ファイルを付けたときだけ旅程のコマンドです。
+  # 付けなければ、これまでどおりサイトの組み立て・リポジトリの試験です。
+  build|test) if [ $# -gt 0 ]; then need node "Node.js 22 以上を入れてください。"
+        exec node packages/cli/bin/tabisaki-plan.mjs "$cmd" "$@"; fi
+        if [ "$cmd" = build ]; then sh tools/build_worker.sh .site; else
+          node --test tests/*.test.js
+          if command -v php >/dev/null 2>&1; then for f in php/*.php php/inc/*.php; do php -l "$f" >/dev/null; done; echo "php -l ok"; fi
+        fi ;;
   api) need node "Node.js 22 以上を入れてください。"
        exec node packages/server/server.mjs ;;
-  build) sh tools/build_worker.sh .site ;;
   php) sh tools/build_php.sh .php-site "${1:-}" ;;
   serve)
     case "${1:-php}" in
@@ -90,9 +97,6 @@ case "$cmd" in
           (cd .site && python3 -m http.server 8000) ;;
       *) usage; exit 2 ;;
     esac ;;
-  test)
-    node --test tests/*.test.js
-    if command -v php >/dev/null 2>&1; then for f in php/*.php php/inc/*.php; do php -l "$f" >/dev/null; done; echo "php -l ok"; fi ;;
   deploy)
     # 試験が通ったものだけを上げます（SKIP_TESTS=1 で飛ばせますが、勧めません）。
     if [ "${SKIP_TESTS:-}" != "1" ]; then

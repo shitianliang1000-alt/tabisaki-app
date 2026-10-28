@@ -106,6 +106,7 @@ const TRANSPORTS = ["any", "transit", "car", "walk", "local"];
  * @property {string} [start="08:00"] 出発時刻
  * @property {string} [back="20:00"] 最終日に帰り着く時刻
  * @property {string} [transport="any"] any / transit / car / walk / local
+ * @property {{spotIds?: string[], avoidSpotIds?: string[]}} [must] 必ず立ち寄る・使わないスポットID
  */
 export async function normalizeRequest(req = {}) {
   const { findPlace } = await js("places.js");
@@ -199,6 +200,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       const trip = makeTrip({
         origin: r.origin, departAt: r.departAt, arriveBy: r.arriveBy,
         note: r.wish, interests: [], transport: r.transport,
+        must: request.must ? { spotIds: [...(request.must.spotIds ?? [])], avoidSpotIds: [...(request.must.avoidSpotIds ?? [])] } : undefined,
       });
       let itinerary;
       try {

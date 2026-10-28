@@ -1,0 +1,14 @@
+# hakone.yaml を日帰りにした案。比べるときは:
+#   ./tabisaki diff examples/trips/hakone.yaml examples/trips/hakone-quick.yaml
+version: 1
+title: 箱根を日帰りで
+wish: 箱根で温泉と美術館をゆっくり楽しみたい
+from: 東京駅
+date: "2026-11-07"
+days: 1
+start: "08:00"
+back: "21:00"
+transport: transit
+constraints:
+  must_visit: [ポーラ美術館]
+  budget_yen: 30000

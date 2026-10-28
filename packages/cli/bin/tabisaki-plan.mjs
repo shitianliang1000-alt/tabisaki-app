@@ -11,6 +11,7 @@
 // 終了コード: 0 = 組めた、1 = 組めなかった、2 = 使いかたのまちがい
 
 import { readFileSync } from "node:fs";
+import { JOURNEY_COMMANDS, JOURNEY_HELP, runJourney } from "../../journey/cli.mjs";
 
 const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
@@ -57,7 +58,7 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 `;
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
-  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url"]);
+  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style"]);
 // 値を取らないもの。
 const FLAGS = new Set(["help", "version", "local", "pull", "dry-run", "yes", "remove"]);
 // 旅程を組むコマンド。
@@ -275,6 +276,18 @@ export async function main(argv, {
     const { opts, words } = parseArgs(argv);
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
+    if (JOURNEY_COMMANDS.includes(cmd)) {
+      const core = await import("../../core/index.mjs");
+      return await runJourney(cmd, rest, opts, {
+        stdout, stderr,
+        core: async () => {
+          const coreModule = await import("../../core/index.mjs");
+          const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await coreModule.loadPlugins();
+          return coreModule.createCore({ plugins });
+        },
+        format: { toJson: core.toJson, toPlainText: core.toPlainText, toMarkdown: core.toMarkdown },
+      });
+    }
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
     if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
@@ -349,7 +362,7 @@ export async function main(argv, {
     stdout.write(text);
     return 0;
   } catch (e) {
-    stderr.write(`tabisaki: ${e?.message ?? e}\n`);
+    for (const line of String(e?.message ?? e).split("\n")) stderr.write(`tabisaki: ${line}\n`);
     if (e?.exitCode) return e.exitCode;
     if (["invalid_input", "unknown_place", "invalid_name", "not_found", "bad_url", "setup", "auth"].includes(e?.code)) return 2;
     return 1;
