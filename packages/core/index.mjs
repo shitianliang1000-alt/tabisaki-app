@@ -141,7 +141,7 @@ export async function normalizeRequest(req = {}) {
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
  *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string}} [opts]
  */
-export async function createCore({ root = ROOT, providers = {}, userKb, home } = {}) {
+export async function createCore({ root = ROOT, providers = {}, userKb, userData, home, local = null, plugins = [] } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません。
   globalThis.fetch = offlineFetch(root);
   const { useProviders } = await js("providers.js");
