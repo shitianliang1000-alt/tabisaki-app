@@ -137,7 +137,8 @@ test("全部読めば、段の合計から「同じ場所」を引いた件数�
   try {
     await ensureAllSpots(kb);
     assert.ok(kb.merged > 0, "1組もまとめていません");
-    assert.equal(kb.spots.length + kb.merged, kb.manifest.counts.spots);
+    // 休館中のように、収録に残したまま読み込みで外すもの（kb.skipped）も足します。
+    assert.equal(kb.spots.length + kb.merged + (kb.skipped ?? 0), kb.manifest.counts.spots);
     assert.equal(kb.spotsById.size, kb.spots.length);
     assert.equal(hasAllShards(kb), true);
     assert.equal(got.length, kb.manifest.shards.length);

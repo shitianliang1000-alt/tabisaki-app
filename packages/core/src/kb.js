@@ -282,6 +282,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
   }));
 
   const spots = [];
+  let skipped = 0;
   for (const doc of docs) {
     // 出どころがシャード側にまとめて書かれていることがあります
     // （同じ文字列を全行に書くと、それだけで100KBを超えるため）。
@@ -289,7 +290,7 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     for (const spot of doc.spots ?? []) {
       // 宿や町の記事は、行き先として並べません（packages/core/src/notaspot.js）。
       // 収録からも外してありますが、取り込み直すと戻るので、ここでも見ます。
-      if (whyNotASpot(spot)) continue;
+      if (whyNotASpot(spot)) { skipped++; continue; }
       if (from && !spot.dataSource) spot.dataSource = from;
       spots.push(spot);
     }
@@ -306,6 +307,8 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     source: "remote", manifest, regions, spots: unique, ...idx,
     // まとめた件数。画面の「収録◯件」を、実際に行ける数に合わせます。
     merged,
+    // 行き先ではないので外した件数（休館中など。収録に残してあるもの）
+    skipped,
     // 出典の表示が求められるデータを含みます（国土数値情報など）。
     // 画面から消さないでください。
     attribution: manifest.sources ?? [],
@@ -395,7 +398,9 @@ export async function ensureShards(kb, files, opts = {}) {
     const from = doc.dataSource;
     const spots = [];
     for (const spot of doc.spots ?? []) {
-      if (whyNotASpot(spot)) continue;
+      // 休館中のように収録に残してあるものは、外した数を数えておきます
+      // （収録◯件と、実際に行ける数の差の説明に使います）。
+      if (whyNotASpot(spot)) { kb.skipped = (kb.skipped ?? 0) + 1; continue; }
       if (from && !spot.dataSource) spot.dataSource = from;
       hydrate(spot, kb.regionsById.get(spot.regionId));
       spots.push(spot);
