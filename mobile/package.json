@@ -1,0 +1,16 @@
+{
+  "name": "tabisaki-mobile",
+  "private": true,
+  "description": "旅さきの携帯アプリ（Android・iOS）の殻。中身は Web 版の dist/ をそのまま入れます。",
+  "type": "module",
+  "scripts": {
+    "build:android": "sh build.sh android",
+    "build:ios": "sh build.sh ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  }
+}

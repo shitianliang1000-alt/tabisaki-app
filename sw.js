@@ -38,7 +38,8 @@
 // v26: 旅程を組む部分を js/ から packages/core/src/ へ移しました（#348）。
 // v27: #396（感想の欄 js/feedback.js）と #398（src/ への移動）の合流で、
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
-const VERSION = "tabisaki-v27";
+// v28: 携帯アプリ用の js/native.js を足しました（#385）。
+const VERSION = "tabisaki-v28";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -109,6 +110,7 @@ const SHELL_FILES = [
   "./js/icons.js",
   "./js/links.js",
   "./js/map.js",
+  "./js/native.js",
   "./js/nextleg.js",
   "./js/notify.js",
   "./js/online.js",

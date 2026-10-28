@@ -24,7 +24,8 @@ SSH でつないだ先のサーバーで動かすときも同じです。出力�
 | ✅ できる | 収録の約5万4千か所から行き先と立ち寄りを選び、営業時間・食事・宿・帰りの時刻を考えて時刻を割り付ける |
 | ⚠ 目安 | 移動時間は**直線距離からの推定**です。実際の乗換・時刻表は調べません |
 | ❌ しない | 外への通信（AI・経路・天気・写真）。希望の文の読み取りは、AI を使わない簡易なものです |
-| 📝 計画 | 手元の LLM で読む `--local`・`--model`（Issue #352） |
+| ✅ 選べる | `--local` で、手元の LLM（Ollama など）に希望文を読ませ、行き先を選ばせる（[local-llm.md](./local-llm.md)） |
+| ✅ できる | `tabisaki kb extract`・`tabisaki similar` で、地域の切り出しと似たスポットの検索（[kb-extract.md](./kb-extract.md)） |
 
 Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
 
@@ -98,6 +99,17 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 - 部品の本（blessed・Ink）は使わず、少しの制御文字だけで描きます。SSH の先や古い端末でも動き、依存も増えません
 - `NO_COLOR=1` を付けると色を使いません。幅の狭い端末では長い名前を切って並べます
 - パイプやファイルへ出すときは使えません（`tabisaki plan` を使ってください）
+
+## スポットに情報を足す（spot・area）
+
+```sh
+./tabisaki spot hours set 雲場池 9:00-17:00 --closed=水 --source=公式サイト
+./tabisaki spot show 雲場池
+./tabisaki area define my-pond --name=軽井沢の池 --center=36.35,138.63 --radius=3
+```
+
+足した情報は手元（`~/.tabisaki/spots.json`）に出典・確認の状態つきで入り、確認済みの営業時間は `plan`・`tui` の旅程に効きます。
+くわしくは [spot-data.md](./spot-data.md)。
 
 ## Node.js から使う（packages/core）
 

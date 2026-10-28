@@ -1,0 +1,20 @@
+{
+  "about": "似たスポット検索（tabisaki similar）の評価用。上位5件のうち categories に入るものの割合（precision@5）を測る。tools/similar_eval.mjs と tests/kbtools.test.js が使う。",
+  "cases": [
+    { "query": "清水寺", "categories": ["寺院"] },
+    { "query": "金閣寺", "categories": ["寺院"] },
+    { "query": "厳島神社", "categories": ["神社"] },
+    { "query": "華厳滝", "categories": ["滝"] },
+    { "query": "姫路城", "categories": ["城"] },
+    { "query": "兼六園", "categories": ["庭園", "公園"] },
+    { "query": "草津温泉", "categories": ["温泉"] },
+    { "query": "富士山", "categories": ["山"] },
+    { "query": "旭山動物園", "categories": ["動物園"] },
+    { "query": "美ら海水族館", "categories": ["水族館"] },
+    { "query": "国立西洋美術館", "categories": ["美術館", "博物館"] },
+    { "query": "鳥取砂丘", "categories": ["観光名所", "自然", "海岸", "天然記念物", "名勝"] },
+    { "query": "紅葉の寺", "categories": ["寺院"] },
+    { "query": "海が見える温泉", "categories": ["温泉"] },
+    { "query": "城跡と石垣", "categories": ["城", "史跡"] }
+  ]
+}

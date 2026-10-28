@@ -39,11 +39,11 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| 手元の LLM（Ollama など）で旅程を組む | 🚧 一部（`packages/core/src/config.js` の `MODEL_PROVIDER = "local"`） | #352 |
-| 地域ごとの知識ベースの切り出し・似たスポットの検索 | 📝 計画 | #353 |
+| 手元の LLM（Ollama など）で旅程を組む | ✅ `tabisaki plan --local`・`tabisaki local setup`（[local-llm.md](./local-llm.md)） | #352 |
+| 地域ごとの知識ベースの切り出し・似たスポットの検索 | ✅ `tabisaki kb extract`・`kb index`・`similar`（[kb-extract.md](./kb-extract.md)） | #353 |
 | 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
-| スポットの補完・写真・季節・営業時間・別名 | 🚧 一部（Wikipedia の写真、営業時間の目安） | #361 |
+| スポットの補完・写真・季節・営業時間・別名、自分で決めるエリア（`./tabisaki spot`・`area`、[spot-data.md](./spot-data.md)） | ✅ ある（端末から。出典・確認の状態・鮮度つき。Web 版の画面にはまだ出ない） | #361 |
 | 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
 | カレンダーとの同期・声での入力 | 🚧 一部（`.ics` の書き出し） | #363 |
 
@@ -67,9 +67,9 @@
 
 | 項目 | 状態 | Issue |
 |---|---|---|
-| プラグインの仕組み（危険の洗い出しから） | 📝 計画 | #375 |
+| プラグインの仕組み（[plugins.md](./plugins.md)） | 🚧 一部（データだけの第1版: ひな形と除外。CLI で使える） | #375 |
 | 公開 API の認証・回数の制限（[api.md](./api.md)） | ✅ ある（鍵・回数・CORS・Host の確かめ） | #376 |
 | JS/TS・Python の SDK | 📝 計画 | #377 |
 | 書き出し・外部サービス連携の順番 | 📝 計画 | #378 |
-| 携帯アプリ化（今は PWA としてホーム画面に置けます） | 📝 計画 | #385 |
+| 携帯アプリ化（Capacitor で Android の apk を作れる。iOS は Xcode で。[mobile.md](./mobile.md)） | 🚧 一部（試験版。ストアはまだ） | #385 |
 | 公共交通オープンデータ（ODPT）の時刻表との連携 | 📝 計画 | — |
