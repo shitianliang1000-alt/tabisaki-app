@@ -3,16 +3,38 @@
 [![KB Check](https://github.com/shitianliang1000-alt/tabisaki-app/actions/workflows/kb-check.yml/badge.svg)][2]
 [![Web](https://img.shields.io/badge/Web-%E6%97%85%E3%81%95%E3%81%8D-0D96F6?logo=cloudflare&logoColor=white)][3]
 [![License](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-24292F)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-5FA04E?logo=nodedotjs&logoColor=white)](docs/cli-usage.md)
+[![Dependencies](https://img.shields.io/badge/npm_install-%E4%B8%8D%E8%A6%81-2EA44F)](docs/architecture.md)
 
 > 月日は百代の過客にして、行かふ年も又旅人也。
 
 -- <cite>松尾芭蕉『おくのほそ道』, 1702</cite>
 
-旅さきは、「行きたいこと」から旅程をつくる旅行プランナーです。端末（SSH）から使えます。「温泉と海をゆっくり楽しみたい」のような文から、行き先・立ち寄る順番・移動時間・営業時間を考えて、その日に実際に回れる旅程を組みます。
+**文ひとつで、その日に本当に回れる旅程を。端末から、SSH の先からでも。**
+
+旅さきは、「行きたいこと」から旅程をつくる旅行プランナーです。「鎌倉でお寺と海を歩いて回りたい」のような文から、行き先・立ち寄る順番・移動時間・営業時間を考えて、時刻つきの旅程を組みます。Node.js だけで動き、`npm install` も API キーも要りません。
+
+<sub>A trip planner for Japan that runs in your terminal: one sentence in, a timed itinerary that respects opening hours and travel time out. Works over SSH, no dependencies, no API key. Noncommercial license.</sub>
 
 <p align="center">
-  <img width="600px" alt="端末の中で旅程を見ている旅さき" src="screen.png">
+  <img width="720px" alt="./tabisaki plan で鎌倉の旅程が出て、./tabisaki tui で日と予定をキーボードで見ている録画" src="docs/images/demo.gif">
 </p>
+
+## 30 秒で試す
+
+Node.js 22 以上があれば、次の 3 行で旅程が出ます（外への通信はしません）。
+
+```sh
+git clone https://github.com/shitianliang1000-alt/tabisaki-app.git
+cd tabisaki-app
+./tabisaki plan "鎌倉でお寺と海を歩いて回りたい"
+```
+
+`./tabisaki tui "鎌倉でお寺と海を歩いて回りたい" --days=2` で、端末の中でキーボードだけで見られます。ブラウザで試すなら [Web 版][3] です。
+
+| Web | 端末（plan） | 端末（tui） |
+|:---:|:---:|:---:|
+| <img width="300" alt="Web 版で、鎌倉の旅程の候補（ゆったり・王道・探索）が出た画面" src="docs/images/web.png"> | <img width="300" alt="./tabisaki plan で時刻つきの旅程が出た端末" src="docs/images/cli.png"> | <img width="300" alt="./tabisaki tui で1日目の予定を選んでいる端末" src="docs/images/tui.png"> |
 
 ## Features
 
