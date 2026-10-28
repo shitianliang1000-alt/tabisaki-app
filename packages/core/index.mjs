@@ -218,6 +218,18 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
   };
 }
 
+/**
+ * 組んだ旅程を .ics（iCalendar）にします。UID は旅の条件から決まるので、同じ旅は同じ予定になります。
+ * @param {{request: object, itinerary: object}} result core.plan() の返り値
+ * @param {{seed?: string, now?: Date}} [opts]
+ */
+export async function toIcs(result, opts = {}) {
+  // .ics の書き出しは Web 版の画面の部品なので js/ に残っています。
+  const { toIcs: ics } = await import(pathToFileURL(path.join(ROOT, "js", "ical.js")).href);
+  const { tripSeed } = await import("./caldav.mjs");
+  return ics(result.itinerary, { seed: opts.seed ?? tripSeed(result.request), now: opts.now });
+}
+
 export { loadPlugins, scanPlugins, pluginDir, validateManifest, PLUGIN_API } from "./plugins.mjs";
 export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";

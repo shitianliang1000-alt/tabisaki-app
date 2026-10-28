@@ -30,6 +30,8 @@ usage() {
   plugins [...]      プラグインを見る・控える（docs/plugins.md）
   spot <…>           スポットに別名・営業時間・季節・写真を足す（tabisaki spot help）
   area <…>           自分でエリアを決める・一覧（tabisaki area help）
+  sync "<希望>" --caldav-url=<URL> [...]  旅程を CalDAV のカレンダーに書く（確かめてから）
+  voice-plan <録音.wav> [...]  手元の whisper.cpp で声を文字にして組む
   api                手元用の API サーバーを動かす（http://127.0.0.1:8787/v1/plan）
   build              Cloudflare 用を .site/ に組み立てる
   php [--zip]        PHP 版を .php-site/ に組み立てる（--zip で tabisaki-php.zip も）
