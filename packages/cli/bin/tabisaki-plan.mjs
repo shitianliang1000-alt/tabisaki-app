@@ -276,6 +276,14 @@ export async function main(argv, {
     const { opts, words } = parseArgs(argv);
     if (opts.version) { stdout.write(`tabisaki ${VERSION}\n`); return 0; }
     const [cmd, ...rest] = words;
+    if (JOURNEY_COMMANDS.includes(cmd)) {
+      const core = await import("../../core/index.mjs");
+      return await runJourney(cmd, rest, opts, {
+        stdout, stderr,
+        core: () => import("../../core/index.mjs"),
+        format: { toJson: core.toJson, toPlainText: core.toPlainText, toMarkdown: core.toMarkdown },
+      });
+    }
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
     if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
@@ -331,7 +339,7 @@ export async function main(argv, {
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
       }
-      return c.plan({
+      result = await c.plan({
         wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
         transport: opts.transport,
       });
