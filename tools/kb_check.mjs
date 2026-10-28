@@ -14,6 +14,8 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
+import { TAGS } from "../packages/core/src/tags.js";
+import { categoryFix } from "./kb_rules.mjs";
 
 const ROOT = path.join(import.meta.dirname, "..");
 
@@ -30,6 +32,12 @@ export const CATEGORIES = new Set([
   "動物園", "水族館", "牧場", "遊園地", "テーマパーク",
   "道の駅", "市場", "商店街", "商業施設", "グルメ", "飲食店", "酒蔵", "年中行事",
 ]);
+export const STATUSES = new Set(["open", "closed", "temporarily_closed", "seasonal"]);
+export const BEST_TIMES = new Set(["morning", "evening", "sunset", "night"]);
+const MMDD = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+// 定番コースで、となりのスポットまでこれより離れていたら誤り（バスで移る区間も含めた上限）
+export const COURSE_HOP_KM = 5;
+
 // 日本の範囲（沖ノ鳥島・南鳥島を含む、ゆるい箱）
 const JP = { latMin: 20, latMax: 46, lngMin: 122, lngMax: 154 };
 
@@ -73,6 +81,9 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
   let withDesc = 0;
   let withHours = 0;
   let estHours = 0;
+  const suspectOnsen = [];
+  const noDescKnown = [];
+  const byId = new Map();
 
   for (const shard of index.shards ?? []) {
     if (!existsSync(path.join(dir, shard.file))) {
@@ -92,6 +103,7 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
         if (s[k] === undefined || s[k] === null || s[k] === "") errors.push(`${where}: ${k} がありません`);
       }
       if (s.id) {
+        byId.set(s.id, s);
         if (ids.has(s.id)) errors.push(`${where}: id が重なっています`);
         ids.add(s.id);
       }
@@ -117,7 +129,28 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
       for (const k of ["dwell", "fee"]) {
         if (s[k] !== undefined && (!isNum(s[k]) || s[k] < 0)) errors.push(`${where}: ${k} がおかしいです（${s[k]}）`);
       }
+      // 人が足した項目（kb/curated.json → tools/apply_curated.mjs）
+      if (s.tags !== undefined) {
+        if (!Array.isArray(s.tags)) errors.push(`${where}: tags が配列ではありません`);
+        else for (const tg of s.tags) if (!(tg in TAGS)) errors.push(`${where}: タグ「${tg}」は知らない値です（packages/core/src/tags.js）`);
+      }
+      if (s.status !== undefined && !STATUSES.has(s.status)) errors.push(`${where}: status「${s.status}」は知らない値です`);
+      if (s.best_time !== undefined && !(Array.isArray(s.best_time) && s.best_time.every((b) => BEST_TIMES.has(b)))) {
+        errors.push(`${where}: best_time の形がおかしいです`);
+      }
+      if (s.season !== undefined) {
+        const ok = Array.isArray(s.season) && s.season.every((x) => x?.key && x?.label && MMDD.test(x.from ?? "") && MMDD.test(x.to ?? ""));
+        if (!ok) errors.push(`${where}: season の形がおかしいです（{key, label, from: "MM-DD", to: "MM-DD"}）`);
+      }
+      // 名前と分類が食い違っている（tools/fix_kb_quality.mjs --write で直せます）
+      const fix = categoryFix(s);
+      if (fix) warnings.push(`分類の取り違え: ${s.name}（${s.category} → ${fix.to}）`);
+      // 「温泉」なのに名前に湯も温泉も無い（健康センター・宿のことが多い）
+      if (s.category === "温泉" && s.name && !/温泉|湯|泉|スパ|spa|SPA|銭湯|サウナ/.test(s.name)) {
+        suspectOnsen.push(s.name);
+      }
       if (s.description) withDesc++;
+      else if (s.fame_tier !== "hidden") noDescKnown.push(s.name);
       if (isNum(s.open)) withHours++;
       else estHours++;
       if (s.name) {
@@ -149,7 +182,45 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
     }
   }
 
+  if (suspectOnsen.length) {
+    warnings.push(`「温泉」なのに名前に湯・温泉の無いもの ${suspectOnsen.length}件（健康センター・宿のことが多い）: ${suspectOnsen.slice(0, 8).join("、")}…`);
+  }
+  if (noDescKnown.length) {
+    warnings.push(`有名・定番なのに説明文が無いもの ${noDescKnown.length}件: ${noDescKnown.slice(0, 8).join("、")}…`);
+  }
+
+  // 人が足した補い（kb/curated.json）と、定番の回り方（kb/model_courses.json）
+  if (existsSync(path.join(dir, "curated.json"))) {
+    const cur = read("curated.json");
+    for (const id of Object.keys(cur.spots ?? {})) {
+      if (!byId.has(id)) errors.push(`curated.json: ${id} が kb/ にありません（node tools/apply_curated.mjs で確かめられます）`);
+    }
+    for (const c of cur.closed ?? []) {
+      if (byId.has(c.id)) errors.push(`curated.json: 閉館した ${c.name}（${c.id}）が収録に戻っています`);
+    }
+  }
+  let courses = 0;
+  if (existsSync(path.join(dir, "model_courses.json"))) {
+    const seen = new Set();
+    for (const c of read("model_courses.json").courses ?? []) {
+      courses++;
+      const at = `model_courses.json ${c.id ?? "(id なし)"}`;
+      if (!c.id || !c.name || !Array.isArray(c.spots) || c.spots.length < 2) { errors.push(`${at}: id・name・2か所以上の spots が要ります`); continue; }
+      if (seen.has(c.id)) errors.push(`${at}: id が重なっています`);
+      seen.add(c.id);
+      if (c.regionId && !regionIds.has(c.regionId)) errors.push(`${at}: エリア ${c.regionId} がありません`);
+      const list = c.spots.map((id) => byId.get(id));
+      c.spots.forEach((id, i) => { if (!list[i]) errors.push(`${at}: スポット ${id} がありません`); });
+      for (let i = 1; i < list.length; i++) {
+        if (!list[i - 1] || !list[i]) continue;
+        const d = km(list[i - 1], list[i]);
+        if (d > COURSE_HOP_KM) errors.push(`${at}: ${list[i - 1].name} → ${list[i].name} が ${d.toFixed(1)}km 離れています`);
+      }
+    }
+  }
+
   const stats = {
+    modelCourses: courses,
     spots: total,
     regions: regions.length,
     shards: (index.shards ?? []).length,

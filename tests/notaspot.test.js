@@ -104,6 +104,12 @@ test("湖や海まるごとを、1つの浜にしない", () => {
   assert.equal(isUmbrella(at("琵琶湖", "湖")), false);
 });
 
+test("閉館・休館中は行き先にしない", () => {
+  assert.equal(whyNotASpot(at("原美術館", "美術館", { status: "closed" })), "閉館");
+  assert.equal(whyNotASpot(at("川崎市市民ミュージアム", "博物館", { status: "temporarily_closed" })), "休館中");
+  assert.equal(whyNotASpot(at("東京国立博物館", "博物館", { status: "open" })), null);
+});
+
 test("調べて足した場所は、判定しない", () => {
   assert.equal(whyNotASpot(at("ホテルニューオータニ", "観光名所",
     { source: "ai" })), null);
@@ -114,7 +120,9 @@ test("収録に、行き先ではないものが残っていない", () => {
   const left = [];
   for (const f of readdirSync(dir).filter((x) => /^spots-.*\.json$/.test(x))) {
     for (const s of JSON.parse(readFileSync(new URL(f, dir), "utf8")).spots) {
-      if (whyNotASpot(s)) left.push(s.name);
+      // 休館中は再開に備えて残します（読み込むときに外れます）
+      const why = whyNotASpot(s);
+      if (why && why !== "休館中") left.push(s.name);
     }
   }
   assert.deepEqual(left.slice(0, 10), [],

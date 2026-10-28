@@ -60,8 +60,20 @@ function inRange(today, from, to) {
 export function seasonalFor(spot, date) {
   if (!spot || !(date instanceof Date)) return [];
   const today = mmdd(date);
-  return SEASONS.filter((s) =>
-    inRange(today, s.from, s.to) && s.categories.includes(spot.category));
+  // その場所の例年の見頃（kb/curated.json）があれば、そちらを先に使います。
+  // 見頃が合わない日は、同じ種類の大まかな時期の話もしません（弘前の桜は3月には咲きません）。
+  const own = Array.isArray(spot.season) ? spot.season.filter((s) => s?.from && s?.to) : [];
+  const out = own.filter((s) => inRange(today, s.from, s.to)).map((s) => ({
+    // 場所ごとの見頃は、旅程の注意で他の場所とまとめないよう、場所ごとの key にします。
+    key: `${s.key}:${spot.id ?? spot.name}`, label: s.label, from: s.from, to: s.to,
+    text: `${s.label}の見頃です（例年 ${s.from.replace("-", "/")}〜${s.to.replace("-", "/")}ごろ。その年の気温でずれます）。`,
+  }));
+  const ownKeys = new Set(own.map((s) => s.key));
+  for (const s of SEASONS) {
+    if (ownKeys.has(s.key)) continue;
+    if (inRange(today, s.from, s.to) && s.categories.includes(spot.category)) out.push(s);
+  }
+  return out;
 }
 
 /**

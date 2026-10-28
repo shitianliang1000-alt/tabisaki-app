@@ -25,7 +25,8 @@ const drops = [];
 for (const [file, doc] of shards) {
   for (const s of doc.spots) {
     const why = whyNotASpot(s);
-    if (why) drops.push({ file, why, s });
+    // 休館中は再開に備えて残します（読み込むときに外れます）
+    if (why && why !== "休館中") drops.push({ file, why, s });
   }
 }
 

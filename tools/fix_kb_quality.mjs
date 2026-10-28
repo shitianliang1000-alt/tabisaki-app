@@ -4,7 +4,7 @@
 //     node tools/fix_kb_quality.mjs --write   # kb/ に書き戻す（そのあと clean_names.mjs --write で数え直し）
 //
 // 直すのは、名前を見れば分類がはっきりするものと、別の県のエリアにぶら下がっているものだけです。
-// 迷うもの（「温泉」なのに健康センターらしい、など）は tools/kb_audit.mjs が「要確認」に出します。
+// 迷うもの（「温泉」なのに健康センターらしい、など）は tools/kb_check.mjs が「気になる点」に出します。
 // ルールは tools/kb_rules.mjs にあり、試験（tests/kb-quality.test.js）も同じものを使います。
 
 import { readFileSync, writeFileSync } from "node:fs";
