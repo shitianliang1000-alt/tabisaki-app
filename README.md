@@ -29,6 +29,7 @@
 
 * `./tabisaki plan` で旅程を Markdown・テキスト・JSON で出す
 * `./tabisaki tui` で、端末の中でキーボードだけで見る（j/k・h/l・Enter・q）
+* 旅程をカレンダーへ（Web 版は .ics、端末は `./tabisaki sync` で CalDAV に直接）。声で希望を伝えることもできる（[カレンダーと声](docs/calendar-and-voice.md)）
 * `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く

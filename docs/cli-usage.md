@@ -40,7 +40,7 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 | `--back=<HH:MM>` | 20:00 | 最終日に出発地へ帰り着く時刻 |
 | `--kb=<名前>` | なし | ユーザーKB（`~/.tabisaki/kbs/<名前>/`）を公式の収録に重ねて組む（[docs/user-kb.md](./user-kb.md)） |
 | `--transport=<手段>` | any | `any` / `transit`（電車・バス）/ `car` / `walk` / `local`（普通列車だけ） |
-| `--output=<形式>` | markdown | `markdown` / `text` / `json` |
+| `--output=<形式>` | markdown | `markdown` / `text` / `json` / `ics`（カレンダー） |
 | `--lang=<言語>` | ja | `ja` / `en`。環境変数 `TABISAKI_LANG` でも決められます（[i18n.md](i18n.md)）。地名やスポットの名前は原文のままです |
 
 時刻はすべて日本時間です（端末の時間帯によりません）。
@@ -99,6 +99,16 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 - 部品の本（blessed・Ink）は使わず、少しの制御文字だけで描きます。SSH の先や古い端末でも動き、依存も増えません
 - `NO_COLOR=1` を付けると色を使いません。幅の狭い端末では長い名前を切って並べます
 - パイプやファイルへ出すときは使えません（`tabisaki plan` を使ってください）
+
+## カレンダーへ・声から
+
+```sh
+./tabisaki plan "温泉" --output=ics > trip.ics                       # カレンダーに取り込むファイル
+./tabisaki sync "温泉" --caldav-url=https://…/calendars/me/travel/   # CalDAV に直接（確かめてから書く）
+./tabisaki voice-plan wish.wav                                      # 手元の whisper.cpp で声を文字にして組む
+```
+
+`sync` だけは、指定したカレンダーへ通信します。合言葉の渡しかた・書く範囲・消しかたは [calendar-and-voice.md](./calendar-and-voice.md) にあります。
 
 ## スポットに情報を足す（spot・area）
 

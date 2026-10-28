@@ -25,7 +25,7 @@
 //
 // ブラウザが出す「ユーザー名」は何でもかまいません。見るのは合言葉だけです。
 
-import { forgetSettings, forward } from "./stats.js";
+import { forward } from "./stats.js";
 import { openKbPullRequest } from "./github.js";
 
 export const ADMIN_PREFIX = "/private/";
@@ -129,12 +129,6 @@ async function serveApi(request, env, url, path, overview) {
   if (m === "GET" && path === "overview") return apiJson({ ok: true, ...(overview ? await overview() : {}) });
   if (m === "GET" && path === "stats") {
     return forward(env, "GET", `/summary?days=${encodeURIComponent(url.searchParams.get("days") ?? "30")}`);
-  }
-  if (path === "settings" && m === "GET") return forward(env, "GET", "/settings");
-  if (path === "settings" && m === "PUT") {
-    const res = await forward(env, "PUT", "/settings", await body());
-    forgetSettings();
-    return res;
   }
   if (path === "edits" && m === "GET") return forward(env, "GET", "/edits");
   if (path === "edits" && m === "POST") return forward(env, "POST", "/edits", await body());
