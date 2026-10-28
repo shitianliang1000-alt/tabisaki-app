@@ -1,0 +1,93 @@
+{
+  "note": "速さの基準。node tools/perf_bench.mjs --write-baseline（と tools/perf_web.mjs --write-baseline）で作り直します（docs/performance.md）。",
+  "measuredOn": "linux x64・node v22.22.0",
+  "cli": {
+    "startupMs": 37,
+    "planMs": 1504,
+    "planRssMb": 175,
+    "plans": [
+      {
+        "wish": "温泉と海をゆっくり",
+        "days": 2,
+        "ms": 897
+      },
+      {
+        "wish": "京都の寺を見たい",
+        "days": 3,
+        "ms": 1321
+      },
+      {
+        "wish": "北海道の自然",
+        "days": 4,
+        "ms": 1504
+      }
+    ]
+  },
+  "kb": {
+    "indexMs": 7,
+    "loadMs": 528,
+    "shardMaxMs": 8,
+    "heapMb": 78,
+    "shardCount": 47,
+    "totalKb": 11727,
+    "slowest": [
+      {
+        "file": "spots-jp20-nagano.json",
+        "kb": 748,
+        "ms": 8
+      },
+      {
+        "file": "spots-jp13-tokyo.json",
+        "kb": 534,
+        "ms": 6
+      },
+      {
+        "file": "spots-jp01-hokkaido.json",
+        "kb": 477,
+        "ms": 5
+      },
+      {
+        "file": "spots-jp26-kyoto.json",
+        "kb": 393,
+        "ms": 5
+      },
+      {
+        "file": "spots-jp15-niigata.json",
+        "kb": 438,
+        "ms": 4
+      }
+    ]
+  },
+  "web": {
+    "app.phone": {
+      "lcpMs": 388,
+      "inpMs": 112,
+      "cls": 0
+    },
+    "about.phone": {
+      "lcpMs": 360,
+      "inpMs": 16,
+      "cls": 0
+    },
+    "area.phone": {
+      "lcpMs": 320,
+      "inpMs": 16,
+      "cls": 0
+    },
+    "app.pc": {
+      "lcpMs": 280,
+      "inpMs": 64,
+      "cls": 0
+    },
+    "about.pc": {
+      "lcpMs": 144,
+      "inpMs": 16,
+      "cls": 0
+    },
+    "area.pc": {
+      "lcpMs": 128,
+      "inpMs": 16,
+      "cls": 0
+    }
+  }
+}
