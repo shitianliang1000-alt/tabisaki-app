@@ -1,0 +1,72 @@
+{
+ "version": 1,
+ "generatedBy": "tools/build_attribution.mjs",
+ "sources": [
+  {
+   "id": "kb-spots",
+   "name": "旅さきプロジェクト収集データ（位置・カテゴリ・営業時間等の構造的事実）",
+   "license": "Project data",
+   "attribution": "旅さき (tabisaki)",
+   "appliesTo": [
+    "kb/spots-*.json の構造フィールド",
+    "kb/regions.json",
+    "kb/index.json"
+   ]
+  },
+  {
+   "id": "wikipedia",
+   "name": "Wikipedia（説明文・wikipedia フィールドの参照先テキスト）",
+   "license": "CC BY-SA 4.0",
+   "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.ja",
+   "attribution": "Wikipedia contributors",
+   "appliesTo": [
+    "スポットの description の素材",
+    "kb/summaries.json の summary 文"
+   ]
+  },
+  {
+   "id": "osm",
+   "name": "OpenStreetMap（将来の OSM PBF 補完フィールド用に予約）",
+   "license": "ODbL 1.0",
+   "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+   "attribution": "© OpenStreetMap contributors",
+   "appliesTo": [
+    "（現行 kb には未収録。混入した場合はこの出典表示が必須）"
+   ]
+  }
+ ],
+ "artifacts": [
+  {
+   "file": "kb/spots-*.json",
+   "derivedFrom": [
+    "kb-spots",
+    "wikipedia"
+   ],
+   "note": "構造フィールドはプロジェクトデータ、description は Wikipedia 由来の素材を含む"
+  },
+  {
+   "file": "kb/tags-*.json",
+   "derivedFrom": [
+    "kb-spots",
+    "wikipedia"
+   ],
+   "note": "カテゴリ等の構造情報が主根拠だが、説明文由来の判定を含むため両出典を併記する"
+  },
+  {
+   "file": "kb/summaries.json",
+   "derivedFrom": [
+    "kb-spots",
+    "wikipedia"
+   ],
+   "note": "summary 文は CC BY-SA 4.0、件数等の構造部分はプロジェクトデータ"
+  },
+  {
+   "file": "kb/regions.json",
+   "derivedFrom": [
+    "kb-spots"
+   ],
+   "note": "プロジェクトデータのみ"
+  }
+ ],
+ "displayText": "旅さきプロジェクト収集データ（位置・カテゴリ・営業時間等の構造的事実）: 旅さき (tabisaki)（Project data） / Wikipedia（説明文・wikipedia フィールドの参照先テキスト）: Wikipedia contributors（CC BY-SA 4.0）"
+}
