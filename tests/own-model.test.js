@@ -85,7 +85,8 @@ test("自前のモデルが落ちていたら、AI Studio に聞き直す", asyn
   const seen = [];
   const res = await withFetch(async (url) => {
     seen.push(String(url));
-    if (String(url).startsWith("https://own.example")) return new Response("down", { status: 503 });
+    const u = new URL(String(url));
+    if (u.protocol === "https:" && u.host === "own.example") return new Response("down", { status: 503 });
     return ok({ candidates: [{ content: { parts: [{ text: "AI Studio です" }] } }] });
   }, () => call({ OWN_MODEL_URL: "https://own.example", GEMINI_API_KEY: "g" }));
   assert.equal(res.status, 200);
