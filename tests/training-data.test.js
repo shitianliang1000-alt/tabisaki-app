@@ -107,3 +107,14 @@ test("採点は OpenAI 互換の入口に聞く（偽の入口）", async () => 
   const { summary } = await evaluate(rows, { url: "http://own.example", model: "m", known, fetchImpl });
   assert.equal(summary["unknown.refused"], 1);
 });
+
+test("非商用で出すときに足せる区分と、重みのライセンスの下限", async () => {
+  const { NONCOMMERCIAL_EXTRA, weightsLicenseFloor, DEFAULT_GROUPS } = await import("../tools/export_training_data.mjs");
+  assert.ok(!NONCOMMERCIAL_EXTRA.includes("unknown"));
+  assert.match(weightsLicenseFloor(DEFAULT_GROUPS), /Apache/);
+  assert.match(weightsLicenseFloor([...DEFAULT_GROUPS, "kokudo-noncommercial"]), /非商用/);
+  const ds = await buildDataset({ kb: fakeKb(), plans: false, evalRate: 0, groups: [...DEFAULT_GROUPS, ...NONCOMMERCIAL_EXTRA] });
+  const all = JSON.stringify(ds.train);
+  assert.ok(all.includes("非商用寺") && all.includes("ヤフー寺"));
+  assert.match(ds.manifest.weightsLicense, /非商用/);
+});

@@ -6,6 +6,9 @@
 //   node tools/export_training_data.mjs --no-plans      # 旅程の例を作らない（速い）
 //   node tools/export_training_data.mjs --with-cc-by-sa # Wikipedia 由来（CC BY-SA）も入れる
 //   node tools/export_training_data.mjs --with-odbl     # OpenStreetMap 由来（ODbL）も入れる
+//   node tools/export_training_data.mjs --with-kokudo   # 国土数値情報（非商用）も入れる。重みは非商用・公開前に窓口へ確認
+//   node tools/export_training_data.mjs --with-yahoo    # Yahoo! の座標を含む一覧も入れる。保存・再配布の可否は未確認
+//   node tools/export_training_data.mjs --noncommercial # 上の4つをまとめて入れる（重みを非商用で出す前提）
 //   node tools/export_training_data.mjs --verify=any    # 裏取りの済んでいないものも入れる
 //
 // 書くもの
@@ -14,8 +17,8 @@
 //   manifest.json   何を何件入れ、何を何件、なぜ外したか
 //
 // **ライセンスで外すもの（既定）**。くわしくは docs/own-model.md の「学習に使ってよいデータ」。
-//   国土数値情報（src=kokudo、文化施設 P27）   非商用・再配布不可。学習にも使いません
-//   座標つき観光地一覧（src=tourlist-geocoded） 座標の9割が Yahoo! の API。保存・再配布の可否が未確認
+//   国土数値情報（src=kokudo、文化施設 P27）   非商用・複製物の再配布不可。--with-kokudo で入れられます
+//   座標つき観光地一覧（src=tourlist-geocoded） 座標の9割が Yahoo! の API。保存・再配布の可否が未確認。--with-yahoo
 //   OpenStreetMap（src=osm-tourlist）           ODbL（share-alike）。--with-odbl で入れられます
 //   Wikipedia（src=wikipedia*・説明文）         CC BY-SA。--with-cc-by-sa で入れられます
 //   出どころ不明（src=opendata）                 条件が分からないので入れません
@@ -58,6 +61,18 @@ export function licenseOf(spot) {
 
 /** 既定で学習に入れる区分。 */
 export const DEFAULT_GROUPS = ["cc0", "project", "permissive"];
+
+/** 重みを非商用で出すときに足せる区分（--noncommercial）。出どころ不明（unknown）は入れません。 */
+export const NONCOMMERCIAL_EXTRA = ["cc-by-sa", "odbl", "kokudo-noncommercial", "yahoo-unclear"];
+
+/** 入れた区分から、重みにつけられるライセンスの下限を決めます（manifest に書きます）。 */
+export function weightsLicenseFloor(groups) {
+  if (groups.includes("kokudo-noncommercial") || groups.includes("yahoo-unclear")) {
+    return "非商用に限る（国土数値情報・Yahoo! 由来を含む。公開前に提供元へ確認）";
+  }
+  if (groups.includes("cc-by-sa") || groups.includes("odbl")) return "継承（CC BY-SA / ODbL）の条件を確認";
+  return "Apache-2.0 で出せる（出典の表示は要る）";
+}
 
 /** 裏取り（kb/verification-*.json・kb/verification.json）の状態を、3段に分けます。 */
 export function verifyLevel(status) {
@@ -252,6 +267,7 @@ export async function buildDataset({
       version: EXPORT_VERSION,
       kbHash: kb.kbHash,
       options: { groups, verify, withText: textOk, plans: Boolean(plans && core), evalRate },
+      weightsLicense: weightsLicenseFloor(groups),
       counts: {
         spotsInKb: kb.spots.length, spotsUsed: kept.length, train: train.length, eval: evalSet.length,
         byTask: countBy([...train, ...evalSet], (r) => r.meta.task),
@@ -284,6 +300,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const groups = [...DEFAULT_GROUPS];
   if (has("with-cc-by-sa")) groups.push("cc-by-sa");
   if (has("with-odbl")) groups.push("odbl");
+  if (has("with-kokudo")) groups.push("kokudo-noncommercial");
+  if (has("with-yahoo")) groups.push("yahoo-unclear");
+  if (has("noncommercial")) groups.push(...NONCOMMERCIAL_EXTRA.filter((g) => !groups.includes(g)));
   let core = null;
   let planRequests = [];
   if (!has("no-plans")) {
@@ -292,7 +311,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     core = await createCore();
     planRequests = [...bench.loadFixedRequests(), ...bench.randomRequests(Number(opt("seed") ?? 7001), Number(opt("plans") ?? 120))];
   }
-  const ds = await buildDataset({ groups, verify: opt("verify") ?? "verified", withText: has("with-cc-by-sa"), core, planRequests });
+  const ds = await buildDataset({ groups, verify: opt("verify") ?? "verified", withText: groups.includes("cc-by-sa"), core, planRequests });
   mkdirSync(out, { recursive: true });
   writeFileSync(path.join(out, "train.jsonl"), toJsonl(ds.train));
   writeFileSync(path.join(out, "eval.jsonl"), toJsonl(ds.eval));
