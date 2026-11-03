@@ -37,6 +37,19 @@ const browser = await chromium.launch({
   executablePath: EXE,
   args: ["--no-sandbox"],
 });
+// 足りない条件を聞くカード（#440、js/slotcard.js）は出さずに組みます
+// （ここで測るのは組み上がった画面です）。「次からは聞かずに組む」を
+// 選んだ人として開きます。
+{
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts) => {
+    const ctx = await newContext(opts);
+    await ctx.addInitScript(() => {
+      try { localStorage.setItem("tabisaki.askSlots", "off"); } catch { /* 無くても動きます */ }
+    });
+    return ctx;
+  };
+}
 
 let failures = 0;
 
