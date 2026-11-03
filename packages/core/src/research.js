@@ -107,7 +107,7 @@ const safeLlm = async (llm, task, payload, schema) => {
  *          origin?: {name: string, lat: number, lng: number}, llm?: Function,
  *          maxSearches?: number, maxSpots?: number}} opts
  *   llm は async (task, payload, schema) → JSON。task は "query" か "extract"。
- * @returns {Promise<{status: "answered"|"kb"|"out_of_scope", message: string,
+ * @returns {Promise<{status: "answered"|"kb"|"special"|"out_of_scope", message: string,
  *   spots: object[], order: object[], prefecture: string|null, sources: object[],
  *   searches: number, question: object|null, alternatives: object[], trace: object[]}>}
  */
@@ -128,7 +128,7 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
   let query = "";
   let lastResults = [];
   const result = { status: null, message: "", spots: [], order: [], prefecture: null, sources,
-    searches: 0, question: null, alternatives: [], journey: null, trace };
+    searches: 0, question: null, alternatives: [], journey: null, special: null, trace };
 
   const act = async (thought, tool, args) => {
     const obs = await tools.call(tool, args);
@@ -150,6 +150,15 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
       }
       const j = await act("名のある旅のしかたか確かめる", "search_special_journey", { text: text.slice(0, 200) });
       if (j.ok && j.data.found) journey = j.data.journey;
+      // 特殊な旅の形（青春18きっぷ・世界遺産全制覇…）は、ネットで調べず、
+      // その形の処理（special.js）に回します。
+      if (j.ok && j.data.special) {
+        result.status = "special";
+        result.special = j.data.special;
+        result.message = `「${j.data.special.name}」の旅として、専用の組みかたで組みます。`;
+        state = STATES.DONE;
+        continue;
+      }
       const { keywords } = extractKeywords(text);
       for (const k of keywords.slice(0, 8)) {
         const r = await act(`「${k}」が収録にあるか`, "search_spots", { keywords: [k], limit: 5 });
