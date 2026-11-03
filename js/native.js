@@ -6,6 +6,14 @@
 
 import { PROXY_URL } from "../packages/core/src/config.js";
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 /** 携帯アプリの中で開いているか。Capacitor が window.Capacitor を置きます。 */
 export function isNativeApp(cap = globalThis.Capacitor) {
   try {
@@ -27,7 +35,7 @@ export function isNativeApp(cap = globalThis.Capacitor) {
  */
 export function shareBase(loc = globalThis.location, native = isNativeApp(), site = PROXY_URL) {
   if (native && /^https:\/\//.test(String(site ?? ""))) {
-    return `${String(site).replace(/\/+$/, "")}/app`;
+    return `${trimSlashes(String(site))}/app`;
   }
   return `${loc.origin}${loc.pathname}`;
 }

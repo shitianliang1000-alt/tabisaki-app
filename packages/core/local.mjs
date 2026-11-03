@@ -8,6 +8,14 @@
 // 外へは出ません。話す相手は、利用者が指した行き先（既定は 127.0.0.1:11434）
 // だけです。モデルの取得（ollama pull）は、明示して頼まれたときだけ行います。
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 /** 既定で勧めるモデル。端末向けの大きさで、日本語の指示にも素直に従います。 */
 export const DEFAULT_LOCAL_MODEL = "gemma4:e2b";
 
@@ -31,7 +39,7 @@ export function resolveBaseUrl(explicit, env = process.env) {
   let u;
   try { u = new URL(raw); } catch { throw localError("bad_url", `LLM の行き先が URL になっていません: ${raw}`); }
   if (u.hostname === "0.0.0.0") u.hostname = "127.0.0.1";
-  return u.origin + u.pathname.replace(/\/+$/, "").replace(/\/v1$/, "");
+  return u.origin + trimSlashes(u.pathname).replace(/\/v1$/, "");
 }
 
 export function localError(code, message) {

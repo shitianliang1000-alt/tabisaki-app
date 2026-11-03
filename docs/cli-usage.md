@@ -25,6 +25,7 @@ SSH でつないだ先のサーバーで動かすときも同じです。出力�
 | ⚠ 目安 | 移動時間は**直線距離からの推定**です。実際の乗換・時刻表は調べません |
 | ❌ しない | 外への通信（AI・経路・天気・写真）。希望の文の読み取りは、AI を使わない簡易なものです |
 | ✅ 選べる | `--local` で、手元の LLM（Ollama など）に希望文を読ませ、行き先を選ばせる（[local-llm.md](./local-llm.md)） |
+| ✅ 選べる | `--hybrid` で、手元の LLM とクラウドのモデルを確信度で使い分ける。記録は `tabisaki router`（[model-router.md](./model-router.md)） |
 | ✅ できる | `tabisaki kb extract`・`tabisaki similar` で、地域の切り出しと似たスポットの検索（[kb-extract.md](./kb-extract.md)） |
 
 Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を使わないときの Web 版と同じ旅程になります。
