@@ -51,8 +51,9 @@ export class CoreError extends Error {
 export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
   return async (url, init) => {
     const u = String(url?.url ?? url);
-    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
-    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
+    // 手元の LLM（--local）と、使い分け（--hybrid）のクラウドの入口だけは、利用者が指した行き先へ通します。
+    const allowed = (Array.isArray(allow) ? allow : [allow]).filter(Boolean);
+    if (allowed.some((a) => u === a || u.startsWith(`${a}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -75,6 +76,14 @@ export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetc
     }
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
   };
+}
+
+/** 使い分けのとき、外へ通してよい行き先（手元の LLM とクラウドの入口）。 */
+function cloudAllow(hybrid) {
+  const list = [hybrid.local?.baseUrl ?? "http://localhost:11434"];
+  if (hybrid.cloud?.proxyUrl) list.push(String(hybrid.cloud.proxyUrl).replace(/\/+$/, ""));
+  if (hybrid.cloud?.geminiKey) list.push("https://generativelanguage.googleapis.com");
+  return list;
 }
 
 /** "2026-11-01" と "08:00" から、日本時間の Date を作ります。 */
@@ -148,16 +157,24 @@ export async function normalizeRequest(req = {}) {
  * 利用者がスポットに足した情報（~/.tabisaki/spots.json。docs/spot-data.md）があれば重ねます。
  * 重ねたくないときは userData: false（または環境変数 TABISAKI_NO_USER_DATA=1）。
  *
+ * hybrid を渡すと、手元の LLM とクラウドのモデルを頼みごとに使い分けます（Issue #439。
+ * docs/model-router.md）。手元で答え、確信度が threshold 未満ならクラウドに聞き直します。
+ * クラウドの入口は hybrid.cloud（{geminiKey} か {proxyUrl}）です。使い分けの記録は
+ * hybrid.onRecord に1件ずつ渡し、結果の ai.routes にも入れます。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
  *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
  *          plugins?: object[], local?: {model?: string, baseUrl?: string}|null,
+ *          hybrid?: {local?: {model?: string, baseUrl?: string}, threshold?: number,
+ *                    cloud?: {proxyUrl?: string, geminiKey?: string},
+ *                    onRecord?: (entry: object) => void}|null,
  *          userData?: boolean|string}} [opts]
  */
 export async function createCore({ root = ROOT, providers = {}, plugins = [], userKb = null, home = null,
-  local = null, userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
+  local = null, hybrid = null, userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
-  // （手元の LLM を使うときだけ、その行き先へは通します）。
-  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
+  // （手元の LLM と、使い分けのクラウドの入口だけは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: hybrid ? cloudAllow(hybrid) : (local?.baseUrl ?? null) });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -165,6 +182,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
   const { makeTrip } = await js("trip.js");
   const ai = await js("ai.js");
   ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
+  if (hybrid) ai.useHybrid(hybrid);
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -203,6 +221,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         must: request.must ? { spotIds: [...(request.must.spotIds ?? [])], avoidSpotIds: [...(request.must.avoidSpotIds ?? [])] } : undefined,
       });
       let itinerary;
+      const routesBefore = hybrid ? (ai.lastRoute()?.seq ?? 0) : 0;
       try {
         itinerary = await planTrip({ trip, kb });
       } catch (e) {
@@ -210,6 +229,13 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       }
       const out = { request: r, itinerary };
       if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (hybrid) {
+        const { error } = ai.aiStatus();
+        const routes = ai.routeEntries().filter((e) => e.seq > routesBefore);
+        out.ai = { provider: "hybrid", model: ai.resolvedModel() ?? hybrid.local?.model ?? null,
+                   used: !error, error: error ?? null, threshold: ai.routerThreshold(), routes };
+        return out;
+      }
       if (!local) return out;
       // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
       // 本体が収録データだけで組み直しています。そのことを隠しません。
