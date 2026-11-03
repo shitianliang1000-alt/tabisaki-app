@@ -200,6 +200,8 @@ AI                     プログラム
 │   │       ├── match.js               # 希望に応えられたかの判定
 │   │       ├── replan.js              # 天気・混雑等による再計画
 │   │       ├── relax.js               # 制約を緩めた場合の代替案
+│   │       ├── research.js            # 収録に無い要望を調べる Research Agent（最大3回）
+│   │       ├── tools.js               # Agent が使う道具の登録所（JSON Schema・優先順位）
 │   │       ├── story.js               # 旅程の意味づけ
 │   │       ├── geo.js                 # 国・空路・時差などの地理処理
 │   │       ├── places.js              # 出発地・終着地候補

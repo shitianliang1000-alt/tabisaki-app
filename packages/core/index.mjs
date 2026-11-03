@@ -250,6 +250,43 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
       return out;
     },
+    /**
+     * 道具の登録所（Issue #437。docs/research-agent.md）。
+     * search を渡すと web_search が使えるようになります（async (q) → [{title,url,snippet}]）。
+     */
+    async tools({ search = null } = {}) {
+      const { createDefaultTools } = await js("tools.js");
+      return createDefaultTools({ kb, search });
+    },
+    /**
+     * 収録に無い要望を調べてから組みます（Research Agent。Issue #436）。
+     *
+     * 調べて見つけたスポットを「必ず立ち寄る」にして、いつもの流れで旅程にします。
+     * 収録で足りるときは調べずに組み、対応できないときは旅程を作らず、
+     * 理由と代わりの案（research.alternatives）を返します。
+     *
+     * @param {PlanRequest} request
+     * @param {{search?: Function, llm?: Function, maxSearches?: number}} [opts]
+     * @returns {Promise<{research: object, request?: object, itinerary?: object}>}
+     */
+    async research(request, { search = null, llm = null, maxSearches } = {}) {
+      const r0 = await normalizeRequest(request);
+      const { createDefaultTools } = await js("tools.js");
+      const { runResearch, modelLlm } = await js("research.js");
+      const tools = createDefaultTools({ kb, search });
+      // 手元の LLM があれば、調べる語づくりと場所の拾い出しを手伝わせます。
+      const helper = llm ?? (local ? modelLlm((p, o) => ai.callModelJson(p, o)) : null);
+      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches });
+      if (research.status === "out_of_scope") return { research };
+      if (research.status === "kb") return { research, ...(await this.plan(request)) };
+      const ids = research.order.map((s) => s.id);
+      // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
+      // （県の名前は足しません。県全体に広がり、県庁所在地が選ばれてしまうため）
+      const wish = `${research.order.map((s) => s.name).join("・")}をめぐる`;
+      const planned = await this.plan({ ...request, wish,
+        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } });
+      return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+    },
   };
 }
 
