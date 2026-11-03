@@ -121,7 +121,7 @@ export async function extractRegion(spec, { root = ROOT } = {}) {
     sources: manifest.sources ?? [],
     spotsBySrc: Object.fromEntries(Object.entries(bySrc).sort()),
     notice: "外から取り込んだデータは、それぞれの提供元の条件に従います（docs/data-licenses.md・credits.html）。"
-      + "国土数値情報の観光資源（src=kokudo）・文化施設は非商用で、再配布できるかは確かめていません。",
+      + "国土数値情報の観光資源（src=kokudo）・文化施設は非商用です。元のデータとして人に配らないでください。",
     regions,
     spots,
   };
