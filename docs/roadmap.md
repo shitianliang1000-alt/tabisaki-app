@@ -41,6 +41,7 @@
 |---|---|---|
 | 手元の LLM（Ollama など）で旅程を組む | ✅ `tabisaki plan --local`・`tabisaki local setup`（[local-llm.md](./local-llm.md)） | #352 |
 | 手元とクラウドのモデルを確信度で使い分ける | ✅ `tabisaki plan --hybrid`・`tabisaki router`（[model-router.md](./model-router.md)） | #439 |
+| 自前でチューニングした Gemma（学習データの書き出し・採点・中継の切り替え） | 🚧 準備だけ。学習・公開はまだ（[own-model.md](./own-model.md)） | — |
 | 地域ごとの知識ベースの切り出し・似たスポットの検索 | ✅ `tabisaki kb extract`・`kb index`・`similar`（[kb-extract.md](./kb-extract.md)） | #353 |
 | 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
