@@ -28,6 +28,7 @@ import { isPurposeWord, purposeGenres, purposeHint, purposeNotes,
          purposePace, readPurposes } from "./purpose.js";
 import { readWish, stripNear, wishScope } from "./sunny.js";
 import { nightTrainLeg } from "./trains.js";
+import { groundItinerary } from "./grounding.js";
 import { TUNING } from "./config.js";
 import { discoverArea, resolveDestination } from "./discover.js";
 import { atHour, estimateMinutes, haversineKm } from "./feasibility.js";
@@ -168,8 +169,19 @@ const JOURNEY_WORDS = /^(移動|楽しみ|楽しむ|青春|18|きっぷ|切符|�
  * @param {(step:number, note?:string)=>void} [args.onProgress]
  * @returns {Promise<object>} 表示用の旅程
  */
-export async function planTrip({ trip, kb, onProgress = () => {},
-                                 ...opts }) {
+export async function planTrip(args) {
+  // 組み立ての出口は、ここ1つだけです。どの道で組んだ旅程も、
+  // 裏取り（grounding.js）を通ってから外へ出ます（issue #447）。
+  const itin = await assembleTrip(args);
+  return groundItinerary(itin, { kb: args.kb, trip: args.trip });
+}
+
+/**
+ * 旅程を組み立てます（裏取りの前）。外へは出しません。
+ * 呼ぶのは planTrip だけです。
+ */
+async function assembleTrip({ trip, kb, onProgress = () => {},
+                              ...opts }) {
     const hours = (trip.arriveBy - trip.departAt) / 3600000;
   // 「やめる」（js/app.js の AbortController）。
   //
@@ -774,6 +786,8 @@ export async function planTrip({ trip, kb, onProgress = () => {},
   // 1日が始まる前に着いてしまい、何もできなかった時間。助言に使います。
   itin.morningIdleMin = checked.result.morningIdleMin ?? 0;
   itin.headline = proposal.fromModel ? proposal.headline : "";
+  // AIが書いた文かどうか。裏取りで、固有名を確かめる相手を決めます。
+  itin.fromModel = proposal.fromModel === true;
   itin.rationale = proposal.rationale;
   itin.verifyNote = buildVerifyNote(checked, repaired, proposal);
   itin.rounds = usedRounds;
