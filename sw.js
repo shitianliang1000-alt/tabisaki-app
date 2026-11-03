@@ -40,7 +40,8 @@
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
 // v28: 携帯アプリ用の js/native.js を足しました（#385）。
 // v29: 声で書く js/voice.js を足しました（#363）。
-const VERSION = "tabisaki-v29";
+// v30: Research Agent（packages/core/src/research.js・tools.js）を足しました（#436 #437）。
+const VERSION = "tabisaki-v30";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -171,6 +172,7 @@ const SHELL_FILES = [
   "./packages/core/src/providers.js",
   "./packages/core/src/quota.js",
   "./packages/core/src/relax.js",
+  "./packages/core/src/research.js",
   "./packages/core/src/reliability.js",
   "./packages/core/src/replan.js",
   "./packages/core/src/romaji.js",
@@ -191,6 +193,7 @@ const SHELL_FILES = [
   "./packages/core/src/sunny.js",
   "./packages/core/src/tags.js",
   "./packages/core/src/tickets.js",
+  "./packages/core/src/tools.js",
   "./packages/core/src/touring.js",
   "./packages/core/src/trains.js",
   "./packages/core/src/transit.js",
