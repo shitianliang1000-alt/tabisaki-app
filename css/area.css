@@ -37,7 +37,17 @@ a { color: var(--md-sys-color-primary); }
   padding: 20px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left));
 }
 .crumbs { font-size: var(--hig-t-footnote); color: var(--hig-label-2); }
-h1 { font-size: var(--hig-t-title1); line-height: 1.3; margin: 12px 0 8px; }
+/* 見出しとロゴは Times New Roman と明朝（2026-11、トップ・チャットとそろえます）。 */
+h1, .area-bar .brand {
+  font-family: "Times New Roman", Times, "Liberation Serif", Tinos,
+    "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
+}
+h1 { font-size: var(--hig-t-title1); line-height: 1.3; margin: 12px 0 8px; letter-spacing: -.01em; }
+.area-bar {
+  position: sticky; top: 0; z-index: 5;
+  background: color-mix(in srgb, var(--hig-card) 78%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
+}
 h2 { font-size: var(--hig-t-title3); margin: 0 0 12px; }
 .lead { font-size: var(--hig-t-body); color: var(--hig-label-2); margin-top: 0; }
 .fine { font-size: var(--hig-t-footnote); color: var(--hig-label-2); }

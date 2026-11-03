@@ -79,8 +79,7 @@
      ここに並んでいるのが、このアプリの外部依存のすべてです。
        tile.osm       … 地図のタイル
        upload.wikimedia … スポットの写真
-       fonts.googleapis.com … 挨拶用スタイルシート
-       fonts.gstatic.com     … 挨拶用フォントファイル
+       fonts.googleapis.com / fonts.gstatic.com … 外のウェブフォント用（2026-11 から読み込みなし）
        *.googleapis   … AI と経路（キーを直に持つ場合）
        open-meteo     … 天気
        ja.wikipedia   … 写真の在りかを聞く
@@ -128,13 +127,11 @@
      日本ではない場所（アメリカ）が出ました。14KB を待つ数十ミリ秒より、
      地図が壊れないほうが大事です。tests/leaflet-css.test.js が見張ります。 -->
 <link rel="stylesheet" href="vendor/leaflet.css">
-<!-- はじめの画面の挨拶だけ Zen Maru Gothic を使います。
-     Google Fonts に接続できない場合は CSS の sans-serif にフォールバックします。
-     ロゴの「旅さき」と「どんな旅にしますか？」は、圏外でも表示できるよう
+<!-- 挨拶とロゴは Times New Roman と明朝（端末の字。読み込みはありません）。
+     「どんな旅にしますか？」は、圏外でも表示できるよう
      同梱の Noto Sans JP の一部を使います。 -->
 
 <!-- 1. 配色（Apple のシステムカラー） 2. 部品 3. このアプリの並べかた -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400&display=swap">
 <link rel="stylesheet" href="css/hig-tokens.css">
 <link rel="stylesheet" href="css/hig.css">
 <link rel="stylesheet" href="css/app.css">
