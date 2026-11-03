@@ -24,6 +24,14 @@
 // 待たせません（sendBeacon は、ページを閉じる瞬間でも送れて、返事を
 // 待ちません）。
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 /** 数える出来事。ここに無いものは送りません。 */
 export const EVENTS = new Set([
   "plan_ok",        // 旅程ができた
@@ -180,7 +188,7 @@ export function track(event, detail = "", {
   storage = globalThis.localStorage,
   extra = null,
 } = {}) {
-  const base = String(proxyUrl ?? "").trim().replace(/\/+$/, "");
+  const base = trimSlashes(String(proxyUrl ?? "").trim());
   if (!/^https:\/\//i.test(base)) return false;
   if (!metricsEnabled(storage) || browserOptedOut(nav)) return false;
   const body = metricBody(event, detail, extra);

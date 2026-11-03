@@ -258,7 +258,8 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
       : ['出力は {"answer": "答えの文", "place": "答えで話した行き先の地名。無ければ空"} の JSON だけ。']),
   ].join("\n");
   const ask = async (found) => readReply(await call(build(found),
-    { temperature: 0.3, search, system: false, signal: opts.signal }));
+    // web: 検索の抜き書きを渡す2回目は、使い分け（ハイブリッド）のときクラウドに回します。
+    { temperature: 0.3, search, system: false, signal: opts.signal, task: "qa", web: found !== null }));
   try {
     let out = await ask(null);
     let found = null;

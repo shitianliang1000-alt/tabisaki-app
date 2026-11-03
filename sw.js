@@ -40,7 +40,6 @@
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
 // v28: 携帯アプリ用の js/native.js を足しました（#385）。
 // v29: 声で書く js/voice.js を足しました（#363）。
-// v30: Research Agent（packages/core/src/research.js・tools.js）を足しました（#436 #437）。
 const VERSION = "tabisaki-v30";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
@@ -151,6 +150,7 @@ const SHELL_FILES = [
   "./packages/core/src/events.js",
   "./packages/core/src/feasibility.js",
   "./packages/core/src/geo.js",
+  "./packages/core/src/grounding.js",
   "./packages/core/src/hours.js",
   "./packages/core/src/intent.js",
   "./packages/core/src/journeys.js",
@@ -178,6 +178,7 @@ const SHELL_FILES = [
   "./packages/core/src/romaji.js",
   "./packages/core/src/root.js",
   "./packages/core/src/ropeways.js",
+  "./packages/core/src/router.js",
   "./packages/core/src/routes.js",
   "./packages/core/src/sample-data.js",
   "./packages/core/src/scenic.js",
