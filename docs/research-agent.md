@@ -61,7 +61,7 @@ r.itinerary;         // 見つけたスポットを「必ず立ち寄る」に�
 
 ### 入出力の形（JSON Schema）
 
-道具はそれぞれ `input`・`output` を JSON Schema で持ちます。引数は呼ぶ前に確かめ、合わなければ `invalid_args` で返します。`registry.actionSchema()` は「次にどの道具をどの引数で呼ぶか」の JSON Schema で、AI に出力の形をしばらせる（Guided Decoding）ときに渡します。
+道具はそれぞれ `input`・`output` を JSON Schema で持ちます。引数は呼ぶ前に確かめ、合わなければ `invalid_args` で返します。`registry.actionSchema()` は「次にどの道具をどの引数で呼ぶか」の JSON Schema で、AI に出力の形をしばらせる（Guided Decoding）ときに渡します。推論サーバーへの渡しかた・返事の読み取り・しばりの有無での比べかたは [guided-decoding.md](./guided-decoding.md)（`packages/core/src/guided.js`）にあります。
 
 ### 道具を足す
 

@@ -190,6 +190,9 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
   const ai = await js("ai.js");
   ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
   if (hybrid) ai.useHybrid(hybrid);
+  // 手元のモデルへ JSON を頼むときの形のしばりかた（docs/guided-decoding.md）。
+  // 既定は json_schema。古い vLLM は guided_json、しばりを切って比べるなら off。
+  ai.setLocalGuided(local?.guided ?? hybrid?.local?.guided ?? (globalThis.process?.env?.TABISAKI_GUIDED || "json_schema"));
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {

@@ -58,6 +58,7 @@ cd tabisaki-app
 * `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
 * `./tabisaki plan --hybrid` で、手元の LLM で答え、自信が無いときと Web 検索が要るときだけクラウドに聞き直す（[docs/model-router.md](docs/model-router.md)）
 * 自分でチューニングした Gemma を中継の行き先にする・学習データを書き出す・採点する（[docs/own-model.md](docs/own-model.md)）
+* 手元・自前のモデル（vLLM・Ollama）の出力と道具の呼び出しを JSON Schema でしばる。しばりの有無で崩れを比べる `tools/tool_call_eval.mjs`（[docs/guided-decoding.md](docs/guided-decoding.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）

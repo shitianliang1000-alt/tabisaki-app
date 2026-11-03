@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- 手元の LLM と自前のモデル（vLLM・Ollama など）に JSON を頼むとき、JSON Schema で出力をしばるようにしました（Guided Decoding）。道具の呼び出しの崩れを、しばりの有無で比べる `tools/tool_call_eval.mjs` を足しました（[docs/guided-decoding.md](./docs/guided-decoding.md)）
 - 旅程を出す前の裏取りを必須にしました。立ち寄り・移動・AIの説明文を収録と時刻表に突き合わせ、確かめられないものは外すか、そう書きます。火山・山・水辺・冬の山道には、確かめ先の公的な窓口を書きます（[docs/architecture.md](./docs/architecture.md)）
 - 収録の分類とエリアの取り違えを直しました（スキー場が「温泉」、美術館が「博物館」、千葉の博物館が東京のエリアに入る、など約1,700件）。清水寺のような有名どころが「穴場」に出ないようにし、休館中・閉館の場所を行き先から外しました。「紅葉」「夜景」「世界遺産」で探せるタグ、例年の見頃、定番の回り方（10本）を足しました
 - 乗り換え検索で、駅すぱあと・NAVITIME・HERE・Transitous の API を使えるようにしました（中継の `POST /transit`。キーのあるものから順に試します。[docs/transit-apis.md](./docs/transit-apis.md)）

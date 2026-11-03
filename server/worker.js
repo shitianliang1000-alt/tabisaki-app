@@ -612,11 +612,12 @@ async function gemini(request, env, method) {
   const body = await readJson(request);
   const model = String(body?.model ?? "");
   if (!ALLOWED_MODELS.has(model)) return text("そのモデルは使えません", 400);
-  const { model: _drop, ...payload } = body;
+  // guidedSchema は自前のモデルにだけ使う形のしばり（#435）。Google へは渡しません（400 になります）。
+  const { model: _drop, guidedSchema, ...payload } = body;
   const started = Date.now();
   let ownError = null;
   if (own) {
-    const got = await askOwnModel(payload, env);
+    const got = await askOwnModel(payload, env, { guidedSchema });
     if (got.data) return withSource(json(got.data), "own");
     ownError = got.error;
     if (!ownModelFallbackAllowed(env)) {
