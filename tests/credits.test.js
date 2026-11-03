@@ -8,11 +8,8 @@ test("著作権表記でフォントの配布元とライセンスが区別さ�
   const html = await readFile(new URL("credits.html", root), "utf8");
   const bundledLicense = await readFile(new URL("vendor/fonts/OFL.txt", root), "utf8");
 
-  assert.match(html, /<dt>Zen Maru Gothic（挨拶）<\/dt>/);
-  assert.match(html, /Copyright 2021 The Zen Maru Gothic Authors/);
-  assert.match(html, /href="https:\/\/github\.com\/googlefonts\/zen-marugothic\/blob\/main\/OFL\.txt"/);
-  assert.match(html, /href="https:\/\/fonts\.google\.com\/specimen\/Zen\+Maru\+Gothic"/);
-  assert.match(html, /Google Fonts — Zen Maru Gothic/);
+  // 2026-11 から挨拶は端末の Times New Roman と明朝（読み込まないので表記もしません）。
+  assert.doesNotMatch(html, /Zen Maru Gothic/);
 
   assert.match(html, /<dt>Noto Sans JP（同梱の見出し字）<\/dt>/);
   assert.match(html, /href="https:\/\/fontsource\.org\/fonts\/noto-sans-jp\/about"/);
