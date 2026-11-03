@@ -101,7 +101,7 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 * [OpenStreetMap][4]: 地図と、一部の座標の出どころ（ODbL 1.0）
 * [Wikidata][5] / [Wikipedia][6]: 名前・座標・説明・写真の出どころ
 * [Leaflet][7]: Web 版の地図
-* [国土数値情報][8]: 観光資源・文化施設・鉄道のデータ
+* [国土数値情報][8]: 観光資源・文化施設・鉄道・バス停留所のデータ（データごとの条件は [docs/kokudo-licenses.md](docs/kokudo-licenses.md)）
 
 ## License
 
