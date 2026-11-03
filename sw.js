@@ -177,6 +177,7 @@ const SHELL_FILES = [
   "./packages/core/src/romaji.js",
   "./packages/core/src/root.js",
   "./packages/core/src/ropeways.js",
+  "./packages/core/src/router.js",
   "./packages/core/src/routes.js",
   "./packages/core/src/sample-data.js",
   "./packages/core/src/scenic.js",
