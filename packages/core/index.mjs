@@ -276,3 +276,7 @@ export {
   SLOTS, extractSlots, missingQuestions, confirmLines, startDialog, answerDialog,
   replyDialog, finishDialog, composeNote,
 } from "./src/slots.js";
+// 質問の選択肢を AI が文脈から作る（#441）。
+export {
+  generateChoices, buildChoicePrompt, sanitizeChoices, readChoiceReply, placeChecker, mentionsPlace,
+} from "./src/choices.js";

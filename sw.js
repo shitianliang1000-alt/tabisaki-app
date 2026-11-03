@@ -143,6 +143,7 @@ const SHELL_FILES = [
   "./packages/core/src/backup.js",
   "./packages/core/src/chatread.js",
   "./packages/core/src/slots.js",
+  "./packages/core/src/choices.js",
   "./packages/core/src/config.js",
   "./packages/core/src/cost.js",
   "./packages/core/src/crowd.js",

@@ -3892,6 +3892,9 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
 /* 足りない条件を聞くカード（js/slotcard.js）。 */
 .slot-card { display: grid; gap: 12px; }
 .slot-card .slot-lead { margin: 0; }
+/* AI が選択肢を考えているあいだ（#441）。決め打ちの札は押せます。 */
+.slot-thinking { margin: 0; font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }
+.slot-card[aria-busy="true"] .slot-choices { opacity: .75; }
 .slot-card .slot-known { justify-content: flex-start; max-width: none; }
 .slot-card .slot-known::before { content: none; }
 .slot-q { display: grid; gap: 6px; }
