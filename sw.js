@@ -40,7 +40,7 @@
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
 // v28: 携帯アプリ用の js/native.js を足しました（#385）。
 // v29: 声で書く js/voice.js を足しました（#363）。
-const VERSION = "tabisaki-v30";
+const VERSION = "tabisaki-v31";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -172,6 +172,7 @@ const SHELL_FILES = [
   "./packages/core/src/planner.js",
   "./packages/core/src/purpose.js",
   "./packages/core/src/providers.js",
+  "./packages/core/src/quest.js",
   "./packages/core/src/quota.js",
   "./packages/core/src/relax.js",
   "./packages/core/src/research.js",

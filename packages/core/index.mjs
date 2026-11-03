@@ -276,8 +276,26 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       const tools = createDefaultTools({ kb, search });
       // 手元の LLM があれば、調べる語づくりと場所の拾い出しを手伝わせます。
       const helper = llm ?? (local ? modelLlm((p, o) => ai.callModelJson(p, o)) : null);
-      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches });
+      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches,
+        days: request.days ?? null });
       if (research.status === "out_of_scope") return { research };
+      if (research.status === "quest") {
+        // 一覧を回る旅（#443）は、最初の1回分を旅程にします。道を通しで行く旅は、
+        // 日ごとの区切り（research.quest.stages）が答えで、旅程は組みません
+        // （自転車で数百km の旅を、1つの旅程の時刻表には落とせないため）。
+        const first = research.quest.plan;
+        if (!first?.spotIds?.length) return { research };
+        const planned = await this.plan({ ...request, days: request.days ?? first.days.length,
+          wish: `${first.order.map((s) => s.name).join("・")}をめぐる`,
+          must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...first.spotIds])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } });
+        // 旅程に入りきらなかった一覧の場所は、隠さずに書きます（次の回に回します）。
+        const visited = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? [])
+          .filter((i) => i.kind === "spot").map((i) => i.spotId ?? i.id));
+        const titles = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? []).map((i) => i.title));
+        first.dropped = first.order.filter((s) => !visited.has(s.id) && !titles.has(s.name)).map((s) => s.name);
+        if (first.dropped.length) research.message += `日程に入りきらなかった${first.dropped.join("・")}は、次の回に回してください。`;
+        return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+      }
       if (research.status === "kb") return { research, ...(await this.plan(request)) };
       const ids = research.order.map((s) => s.id);
       // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
