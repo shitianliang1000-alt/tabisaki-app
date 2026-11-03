@@ -18,6 +18,14 @@
 //
 // 参照実装は `server/` にあります（Cloudflare Worker と Node）。
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 const GEMINI_ROOT = "https://generativelanguage.googleapis.com/v1beta";
 const ROUTES_URL =
   "https://routes.googleapis.com/directions/v2:computeRoutes";
@@ -94,7 +102,7 @@ function proxyBase(cfg) {
     throw new Error("PROXY_URL は https で指定してください"
       + "（http では通信の中身が読まれます）");
   }
-  return raw.replace(/\/+$/, "");
+  return trimSlashes(raw);
 }
 
 /**
@@ -119,7 +127,7 @@ export function endpointFor(what, args = {}, cfg = {}) {
                         "web:search": "web/search" }[what] ?? what}`;
   }
   if (what === "local:generate") {
-    const raw = String(cfg.localBaseUrl ?? "").trim().replace(/\/+$/, "");
+    const raw = trimSlashes(String(cfg.localBaseUrl ?? "").trim());
     if (!raw) throw new Error("LOCAL_BASE_URL が未設定です（packages/core/src/config.js）");
     return `${raw}/v1/chat/completions`;
   }

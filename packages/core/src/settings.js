@@ -24,6 +24,14 @@
 
 import { GEMINI_API_KEY, MAPS_API_KEY, PROXY_URL } from "./config.js";
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 export const SETTINGS_KEY = "tabisaki.settings";
 
 /** 設定画面で扱う項目。ここに無いものは保存しません。 */
@@ -70,7 +78,7 @@ export function normalizeSettings(input = {}) {
       errors.push("プロキシの入口は https:// で始まるURLを指定してください"
         + "（http では通信の中身が読まれます）");
     }
-    value.proxyUrl = value.proxyUrl.replace(/\/+$/, "");
+    value.proxyUrl = trimSlashes(value.proxyUrl);
   }
   for (const f of ["geminiKey", "mapsKey"]) {
     // 貼り付けで紛れ込みやすいものだけを落とします。
@@ -166,6 +174,6 @@ export function cspAllows(url, doc = globalThis.document) {
     if (s.startsWith("https://*.")) {
       return origin.endsWith(s.slice("https://*".length));
     }
-    return s.replace(/\/+$/, "") === origin;
+    return trimSlashes(s) === origin;
   });
 }

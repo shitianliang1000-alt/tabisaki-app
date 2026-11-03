@@ -4,6 +4,14 @@ import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 // 管理画面の件数・設定の置き場（Durable Object）。wrangler.jsonc の STATS。
 export { Stats };
 
@@ -174,7 +182,7 @@ export default {
     const res = await relay(request, env, ctx);
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
     // /metrics は、その中で出来事と一緒に1回で数えます（Durable Object を2回呼ばない）。
-    if (request.method === "POST" && endpointOf(url.pathname.replace(/\/+$/, "")) !== "/metrics") {
+    if (request.method === "POST" && endpointOf(trimSlashes(url.pathname)) !== "/metrics") {
       const work = record(env, usageOf(request, url, res.status));
       if (ctx?.waitUntil) ctx.waitUntil(work); else await work;
     }
@@ -214,7 +222,7 @@ export function endpointOf(path) {
  * 捨てます（保存しません）。国は Cloudflare の国コードだけです。
  */
 export function usageOf(request, url, status) {
-  const path = endpointOf(url.pathname.replace(/\/+$/, ""));
+  const path = endpointOf(trimSlashes(url.pathname));
   const items = [["req", path, 1], ["country", request.cf?.country ?? "??", 1]];
   if (status >= 400) items.push(["status", `${path} ${status}`, 1]);
   return {
@@ -260,7 +268,7 @@ async function relay(request, env, ctx) {
         origin, ["*"]);
     }
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
-    const path = new URL(request.url).pathname.replace(/\/+$/, "");
+    const path = trimSlashes(new URL(request.url).pathname);
     // 重さに応じて数えます（Geminiの1回と /status の1回は別ものです）。
     // 枠は2つ。無料のYahoo!が、お金のかかるGeminiの枠を食べません。
     const gate = await rateCheck(env, ip, costOf(path), poolOf(path));
