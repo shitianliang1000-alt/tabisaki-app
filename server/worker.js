@@ -3,6 +3,7 @@ import { ENDPOINTS, record, Stats } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
+import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
 // （CodeQL: polynomial regular expression）ので、正規表現を使わない。
@@ -309,6 +310,8 @@ async function relay(request, env, ctx) {
           transit: providerStatus(env),
           // Workers AI が使えるなら、AIのキーは要りません。
           workersAi: Boolean(env.AI),
+          // 自前のモデルの入口が設定されているか（URL も鍵も返しません）。
+          ownModel: ownModelConfigured(env),
           allowOrigin: allow,
           // あと何点使えるか。無料枠は使い切ると**その日は誰も使えません**。
           // 止まってから気づくのでは遅いので、先に見えるようにします。
@@ -599,19 +602,49 @@ export function cfText(out) {
 }
 
 async function gemini(request, env, method) {
-  const missing = missingSecret(env, "GEMINI_API_KEY");
-  if (missing) return missing;
+  // 自前のモデル（OWN_MODEL_URL）があれば、文の生成はまずそちらへ聞きます
+  // （server/own-model.js・docs/own-model.md）。無ければいままでどおりです。
+  const own = method === "generateContent" && ownModelConfigured(env);
+  if (!own) {
+    const missing = missingSecret(env, "GEMINI_API_KEY");
+    if (missing) return missing;
+  }
   const body = await readJson(request);
   const model = String(body?.model ?? "");
   if (!ALLOWED_MODELS.has(model)) return text("そのモデルは使えません", 400);
   const { model: _drop, ...payload } = body;
+  const started = Date.now();
+  let ownError = null;
+  if (own) {
+    const got = await askOwnModel(payload, env);
+    if (got.data) return withSource(json(got.data), "own");
+    ownError = got.error;
+    if (!ownModelFallbackAllowed(env)) {
+      return text(`自前のモデルが答えませんでした（${ownError}）`, 502);
+    }
+    const missing = missingSecret(env, "GEMINI_API_KEY");
+    if (missing) return missing;
+  }
+  // 自前のモデルを待ったぶん、AI Studio を待つ時間を縮めます（画面は 135 秒で諦めます）。
+  const budget = method === "generateContent"
+    ? Math.max(UPSTREAM_TIMEOUT_MS, AI_TIMEOUT_MS - (Date.now() - started))
+    : UPSTREAM_TIMEOUT_MS;
   const res = await fetch(`${GEMINI_ROOT}/models/${encodeURIComponent(model)}:${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(method === "generateContent" ? AI_TIMEOUT_MS : UPSTREAM_TIMEOUT_MS),
+    signal: AbortSignal.timeout(budget),
   });
-  return passthrough(res, "gemini");
+  const out = await passthrough(res, "gemini");
+  if (!own) return out;
+  return withSource(out, `aistudio-fallback;own=${ownError}`);
+}
+
+/** どのモデルが答えたかを見出しに書きます（中身は変えません）。 */
+function withSource(res, source) {
+  const headers = new Headers(res.headers);
+  headers.set("X-Tabisaki-Model-Source", source);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
 /**

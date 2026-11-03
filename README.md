@@ -54,6 +54,7 @@ cd tabisaki-app
 * 旅程をカレンダーへ（Web 版は .ics、端末は `./tabisaki sync` で CalDAV に直接）。声で希望を伝えることもできる（[カレンダーと声](docs/calendar-and-voice.md)）
 * `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
 * `./tabisaki plan --hybrid` で、手元の LLM で答え、自信が無いときと Web 検索が要るときだけクラウドに聞き直す（[docs/model-router.md](docs/model-router.md)）
+* 自分でチューニングした Gemma を中継の行き先にする・学習データを書き出す・採点する（[docs/own-model.md](docs/own-model.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）
