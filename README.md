@@ -7,7 +7,8 @@
 [![Dependencies](https://img.shields.io/badge/npm_install-%E4%B8%8D%E8%A6%81-2EA44F)](docs/architecture.md)
 
 
-[!WARNING] ⚠️ 注意事項
+## ⚠️ 注意事項
+
 **本プログラムは大半の物をAIを使用して作成したため、間違いなどが多く含まれている可能性があります。重要な情報はご自身で確認して使用してください**
 
 
