@@ -1,0 +1,504 @@
+{
+ "version": 1,
+ "generatedBy": "tools/verify_spots.mjs + manual research (2026-10-31)",
+ "note": "第1段で Wikipedia 記事が存在しなかった71件を個別調査した記録。全件が実在を確認済み。wikipedia 欄は実在する記事タイトルへ修正し、記事が無いものは誤った参照を取り除いた。",
+ "records": {
+  "hakodate-4": {
+   "status": "verified_exists",
+   "name": "元町の教会群",
+   "municipality": "函館市",
+   "source": "https://www.hakobura.jp/spots/934",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11643163": {
+   "status": "verified_exists",
+   "name": "郡山城",
+   "municipality": "紫波町",
+   "source": "https://www.town.shiwa.iwate.jp/soshiki/4_1/2_6_2/956.html/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11620730": {
+   "status": "verified_exists",
+   "name": "葉山",
+   "municipality": "村山市",
+   "source": "https://www.rinya.maff.go.jp/j/kokuyu_rinya/kokumin_mori/katuyo/reku/rekumori/hayama.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11501733": {
+   "status": "verified_exists",
+   "name": "新宮城跡",
+   "municipality": "喜多方市",
+   "source": "https://online.bunka.go.jp/heritages/detail/163308",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q133962750": {
+   "status": "verified_exists",
+   "name": "近津神社",
+   "municipality": "石川町",
+   "source": "https://www.town.ishikawa.fukushima.jp/admin/upfolders/201310/chiikinotakarasagasi_H25.pdf",
+   "checkedAt": "2026-10-31"
+  },
+  "nasu-3": {
+   "status": "verified_exists",
+   "name": "那須ステンドグラス美術館",
+   "municipality": "那須町",
+   "source": "https://sgm-nasu.com/about/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11679369": {
+   "status": "verified_exists",
+   "name": "龍角寺",
+   "municipality": "栄町",
+   "source": "https://www.town.sakae.chiba.jp/page/page001024.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11367543": {
+   "status": "verified_exists",
+   "name": "中野城",
+   "municipality": "千葉市",
+   "source": "https://www.city.chiba.jp/kyodo/katsudo/kenkyuin.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11621034": {
+   "status": "verified_exists",
+   "name": "葛飾八幡宮",
+   "municipality": "市川市",
+   "source": "https://www.katsushikahachimangu.com/",
+   "checkedAt": "2026-10-31"
+  },
+  "hakone-6": {
+   "status": "verified_exists",
+   "name": "箱根強羅公園",
+   "municipality": "箱根町",
+   "source": "https://www.hakonenavi.jp/gorapark/intro/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q112339673": {
+   "status": "verified_exists",
+   "name": "白旗神社・法華堂跡",
+   "municipality": "鎌倉市",
+   "source": "https://www.city.kamakura.kanagawa.jp/treasury/hokkedo.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11483474": {
+   "status": "verified_exists",
+   "name": "平等寺",
+   "municipality": "阿賀町",
+   "source": "https://online.bunka.go.jp/heritages/detail/173902",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11442591": {
+   "status": "verified_exists",
+   "name": "天徳寺",
+   "municipality": "若狭町",
+   "source": "https://www.fuku-e.com/spot/detail_1096.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11520815": {
+   "status": "verified_exists",
+   "name": "本覚寺",
+   "municipality": "永平寺町",
+   "source": "https://ja.wikipedia.org/wiki/%E6%9C%AC%E8%A6%9A%E5%AF%BA_(%E7%A6%8F%E4%BA%95%E7%9C%8C%E6%B0%B8%E5%B9%B3%E5%AF%BA%E7%94%BA)",
+   "checkedAt": "2026-10-31"
+  },
+  "fujisan-1": {
+   "status": "verified_exists",
+   "name": "富士山 吉田口五合目",
+   "municipality": "鳴沢村",
+   "source": "https://www.fujiyoshida.net/spot/index.php?p=14",
+   "checkedAt": "2026-10-31"
+  },
+  "kawaguchiko-3": {
+   "status": "verified_exists",
+   "name": "久保田一竹美術館",
+   "municipality": "富士河口湖町",
+   "source": "https://www.yamanashi-kankou.jp/kankou/spot/p1_4344.html",
+   "checkedAt": "2026-10-31"
+  },
+  "takayama-1": {
+   "status": "verified_exists",
+   "name": "古い町並み（三町）",
+   "municipality": "高山市",
+   "source": "https://www.city.takayama.lg.jp/kurashi/1000021/1000119/1000847/1001005/1001006.html",
+   "checkedAt": "2026-10-31"
+  },
+  "shirakawago-1": {
+   "status": "verified_exists",
+   "name": "荻町合掌造り集落",
+   "municipality": "白川村",
+   "source": "https://www.vill.shirakawa.lg.jp/1346.htm",
+   "checkedAt": "2026-10-31"
+  },
+  "shirakawago-3": {
+   "status": "verified_exists",
+   "name": "荻町城跡展望台",
+   "municipality": "白川村",
+   "source": "https://www.vill.shirakawa.lg.jp/1284.htm",
+   "checkedAt": "2026-10-31"
+  },
+  "shirakawago-4": {
+   "status": "verified_exists",
+   "name": "明善寺郷土館",
+   "municipality": "白川村",
+   "source": "https://shirakawa-go.gr.jp/active/12/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q126650338": {
+   "status": "verified_exists",
+   "name": "正琳寺",
+   "municipality": "稲沢市",
+   "source": "https://www.city.inazawa.aichi.jp/0000002701.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q107542010": {
+   "status": "verified_exists",
+   "name": "祐専寺",
+   "municipality": "稲沢市",
+   "source": "https://aichinow.pref.aichi.jp/spots/detail/3215/",
+   "checkedAt": "2026-10-31"
+  },
+  "atami-2": {
+   "status": "verified_exists",
+   "name": "來宮神社",
+   "municipality": "熱海市",
+   "source": "https://www.ataminews.gr.jp/spot/115/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11519864": {
+   "status": "verified_exists",
+   "name": "本光寺",
+   "municipality": "幸田町",
+   "source": "https://www.town.kota.lg.jp/soshiki/13/720.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q17218812": {
+   "status": "verified_exists",
+   "name": "光通寺",
+   "municipality": "名古屋市",
+   "source": "https://www.city.nagoya.jp/nishi/miryoku/1020474/1020477.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q131412293": {
+   "status": "verified_exists",
+   "name": "八平神社",
+   "municipality": "新城市",
+   "source": "https://online.bunka.go.jp/heritages/detail/285609",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q118827873": {
+   "status": "verified_exists",
+   "name": "専修坊",
+   "municipality": "高浜市",
+   "source": "https://ja.wikipedia.org/wiki/%E5%B0%82%E4%BF%AE%E5%9D%8A",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q126193952": {
+   "status": "verified_exists",
+   "name": "御剱八幡宮",
+   "municipality": "西尾市",
+   "source": "https://www.city.nishio.aichi.jp/sportskanko/bunka/1001473/1002602.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q101584182": {
+   "status": "verified_exists",
+   "name": "敬専寺",
+   "municipality": "刈谷市",
+   "source": "https://ja.wikipedia.org/wiki/%E6%95%AC%E5%B0%82%E5%AF%BA",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q126181343": {
+   "status": "verified_exists",
+   "name": "浄賢寺",
+   "municipality": "西尾市",
+   "source": "https://ja.wikipedia.org/wiki/%E6%B5%84%E8%B3%A2%E5%AF%BA",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q116885623": {
+   "status": "verified_exists",
+   "name": "禅源寺",
+   "municipality": "稲沢市",
+   "source": "https://www.city.inazawa.aichi.jp/0000002649.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q125884327": {
+   "status": "verified_exists",
+   "name": "精界寺",
+   "municipality": "碧南市",
+   "source": "https://www.hekinan-kanko.jp/highlight/detail/77/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11653345": {
+   "status": "verified_exists",
+   "name": "長満寺",
+   "municipality": "幸田町",
+   "source": "https://temple.nichiren.or.jp/3051010-chomanji/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q101520974": {
+   "status": "verified_exists",
+   "name": "順慶寺",
+   "municipality": "刈谷市",
+   "source": "https://www.junkyoji.com/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11679261": {
+   "status": "verified_exists",
+   "name": "龍拈寺",
+   "municipality": "豊橋市",
+   "source": "https://ja.wikipedia.org/wiki/%E9%BE%8D%E6%8B%88%E5%AF%BA",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q97211176": {
+   "status": "verified_exists",
+   "name": "龍江寺",
+   "municipality": "刈谷市",
+   "source": "https://hotokami.jp/area/aichi/Hmrts/Hmrtstr/Dkgms/73871/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11679299": {
+   "status": "verified_exists",
+   "name": "龍照院",
+   "municipality": "蟹江町",
+   "source": "https://www.town.kanie.aichi.jp/soshiki/18/ryuushouin.html",
+   "checkedAt": "2026-10-31"
+  },
+  "ise-1": {
+   "status": "verified_exists",
+   "name": "伊勢神宮 内宮",
+   "municipality": "伊勢市",
+   "source": "https://www.isejingu.or.jp/about/naiku/",
+   "checkedAt": "2026-10-31"
+  },
+  "ise-3": {
+   "status": "verified_exists",
+   "name": "伊勢神宮 外宮",
+   "municipality": "伊勢市",
+   "source": "https://www.isejingu.or.jp/about/geku/",
+   "checkedAt": "2026-10-31"
+  },
+  "ise-4": {
+   "status": "verified_exists",
+   "name": "二見興玉神社（夫婦岩）",
+   "municipality": "伊勢市",
+   "source": "https://ise-kanko.jp/purpose/futamiokitamajinjya/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11452823": {
+   "status": "verified_exists",
+   "name": "実相院",
+   "municipality": "京都市左京区",
+   "source": "https://www.jissoin.com/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q28687358": {
+   "status": "verified_exists",
+   "name": "大宮神社",
+   "municipality": "京丹後市",
+   "source": "http://www.kyoto-jinjacho.or.jp/shrine/16.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q123583251": {
+   "status": "verified_exists",
+   "name": "島田神社",
+   "municipality": "福知山市",
+   "source": "https://www.city.fukuchiyama.lg.jp/soshiki/7/1228.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q113874421": {
+   "status": "verified_exists",
+   "name": "春日神社",
+   "municipality": "京丹後市",
+   "source": "https://okumiya-jinja.com/kyoto/kyoto0026/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q106836668": {
+   "status": "verified_exists",
+   "name": "禅海寺",
+   "municipality": "宮津市",
+   "source": "https://www.town.yosano.lg.jp/assets/bunkazai_shiryo.pdf",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11627446": {
+   "status": "verified_exists",
+   "name": "西園寺",
+   "municipality": "京都市上京区",
+   "source": "https://www.city.kyoto.lg.jp/kamigyo/page/0000012257.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11523750": {
+   "status": "verified_exists",
+   "name": "来迎寺",
+   "municipality": "熊取町",
+   "source": "https://www.town.kumatori.lg.jp/soshiki/shogaigakushu/gyomu/rekishi_bunkazai/bunkazai/2771.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q122900553": {
+   "status": "verified_exists",
+   "name": "阿保神社",
+   "municipality": "松原市",
+   "source": "https://ao-shrine.com/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11494987": {
+   "status": "verified_exists",
+   "name": "慈光院",
+   "municipality": "大和郡山市",
+   "source": "https://yamatoji.nara-kankou.or.jp/01shaji/02tera/02west_area/jikoin/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11388339": {
+   "status": "verified_exists",
+   "name": "光専寺",
+   "municipality": "智頭町",
+   "source": "https://ja.wikipedia.org/wiki/%E5%85%89%E5%B0%82%E5%AF%BA_(%E9%B3%A5%E5%8F%96%E7%9C%8C%E6%99%BA%E9%A0%AD%E7%94%BA)",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q127783953": {
+   "status": "verified_exists",
+   "name": "松養寺",
+   "municipality": "知夫村",
+   "source": "https://www.e-oki.net/spots/6013/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q123524577": {
+   "status": "verified_exists",
+   "name": "宝生院",
+   "municipality": "土庄町",
+   "source": "https://hoshoin.jp/",
+   "checkedAt": "2026-10-31"
+  },
+  "miyajima-5": {
+   "status": "verified_exists",
+   "name": "宮島表参道商店街",
+   "municipality": "廿日市市",
+   "source": "https://dive-hiroshima.com/explore/384/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11679356": {
+   "status": "verified_exists",
+   "name": "龍華寺",
+   "municipality": "世羅町",
+   "source": "https://ja.wikipedia.org/wiki/%E9%BE%8D%E8%8F%AF%E5%AF%BA_(%E5%BA%83%E5%B3%B6%E7%9C%8C%E4%B8%96%E7%BE%85%E7%94%BA)",
+   "checkedAt": "2026-10-31"
+  },
+  "iya-2": {
+   "status": "verified_exists",
+   "name": "大歩危峡",
+   "municipality": "三好市",
+   "source": "https://www.pref.tokushima.lg.jp/japanese/tourism/spot/ooboke-koboke",
+   "checkedAt": "2026-10-31"
+  },
+  "iya-3": {
+   "status": "verified_exists",
+   "name": "落合集落",
+   "municipality": "三好市",
+   "source": "https://www.pref.tokushima.lg.jp/japanese/tourism/spot/ochiaisyuraku",
+   "checkedAt": "2026-10-31"
+  },
+  "iya-4": {
+   "status": "verified_exists",
+   "name": "祖谷渓の小便小僧",
+   "municipality": "三好市",
+   "source": "https://www.pref.tokushima.lg.jp/japanese/tourism/spot/iyakei",
+   "checkedAt": "2026-10-31"
+  },
+  "takamatsu-3": {
+   "status": "verified_exists",
+   "name": "玉藻公園（高松城跡）",
+   "municipality": "高松市",
+   "source": "https://www.city.takamatsu.kagawa.jp/smph/kurashi/kurashi/shisetsu/park/tamamo/index.html",
+   "checkedAt": "2026-10-31"
+  },
+  "takamatsu-4": {
+   "status": "verified_exists",
+   "name": "さぬきうどん巡り",
+   "municipality": "高松市",
+   "source": "https://www.kotoden.co.jp/publichtm/bus/taxi/sightseeing/KSKsightseeing3.html",
+   "checkedAt": "2026-10-31"
+  },
+  "takamatsu-5": {
+   "status": "verified_exists",
+   "name": "四国村ミウゼアム",
+   "municipality": "高松市",
+   "source": "https://www.shikokumura.or.jp/",
+   "checkedAt": "2026-10-31"
+  },
+  "kotohira-2": {
+   "status": "verified_exists",
+   "name": "旧金毘羅大芝居（金丸座）",
+   "municipality": "琴平町",
+   "source": "https://www.town.kotohira.kagawa.jp/site/shikokukonpira-neputamatsuri/6056.html",
+   "checkedAt": "2026-10-31"
+  },
+  "kotohira-3": {
+   "status": "verified_exists",
+   "name": "こんぴら参道",
+   "municipality": "琴平町",
+   "source": "https://www.jalan.net/news/article/732616/",
+   "checkedAt": "2026-10-31"
+  },
+  "naoshima-2": {
+   "status": "verified_exists",
+   "name": "ベネッセハウス ミュージアム",
+   "municipality": "直島町",
+   "source": "https://benesse-artsite.jp/art/benessehouse-museum.html",
+   "checkedAt": "2026-10-31"
+  },
+  "naoshima-4": {
+   "status": "verified_exists",
+   "name": "赤かぼちゃ",
+   "municipality": "直島町",
+   "source": "https://www.my-kagawa.jp/art/feature/naoshima/top",
+   "checkedAt": "2026-10-31"
+  },
+  "matsuyama-3": {
+   "status": "verified_exists",
+   "name": "道後ハイカラ通り",
+   "municipality": "松山市",
+   "source": "https://www.dogo.or.jp/experience/dogo-haikara-dori/",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q21652974": {
+   "status": "verified_exists",
+   "name": "国見山",
+   "municipality": "高知市",
+   "source": "https://www.yamakei-online.com/yamanavi/yama.php?yama_id=20406",
+   "checkedAt": "2026-10-31"
+  },
+  "hakata-3": {
+   "status": "verified_exists",
+   "name": "中洲の屋台",
+   "municipality": "福岡市",
+   "source": "https://www.ana.co.jp/ja/at/japan-travel-planner/fukuoka/0000015.html",
+   "checkedAt": "2026-10-31"
+  },
+  "wd-Q11486003": {
+   "status": "verified_exists",
+   "name": "庚申社",
+   "municipality": "直方市",
+   "source": "http://www.koushinsha.tsurugijinja.jp/",
+   "checkedAt": "2026-10-31"
+  },
+  "beppu-1": {
+   "status": "verified_exists",
+   "name": "別府地獄めぐり（海地獄）",
+   "municipality": "別府市",
+   "source": "https://www.umijigoku.co.jp/",
+   "checkedAt": "2026-10-31"
+  },
+  "beppu-3": {
+   "status": "verified_exists",
+   "name": "明礬温泉 湯の里",
+   "municipality": "別府市",
+   "source": "https://www.japan47go.travel/ja/detail/ca3be9ad-da87-4a52-a5a4-f94af17e3159",
+   "checkedAt": "2026-10-31"
+  },
+  "beppu-4": {
+   "status": "verified_exists",
+   "name": "別府ロープウェイ（鶴見岳）",
+   "municipality": "別府市",
+   "source": "https://www.beppu-ropeway.co.jp/facilities/",
+   "checkedAt": "2026-10-31"
+  }
+ }
+}
