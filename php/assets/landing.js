@@ -381,3 +381,31 @@ const wide = matchMedia("(min-width: 761px)");
 const footOpen = () => $$(".foot-acc details").forEach((d) => { d.open = wide.matches; });
 footOpen();
 wide.addEventListener?.("change", footOpen);
+
+// 映画の場面（#film）。読んだ量を --p に入れて画面を広げ、字を順に出します。
+// 見えているあいだだけ動画を再生します（動きを減らす設定では再生しません）。
+{
+  const film = document.getElementById("film");
+  const frame = film?.querySelector(".film-frame");
+  const video = film?.querySelector("video");
+  const lines = film ? [...film.querySelectorAll("[data-at]")] : [];
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (film && frame) {
+    let on = false;
+    const tick = () => {
+      on = false;
+      const r = film.getBoundingClientRect();
+      const run = Math.max(1, r.height - innerHeight);
+      const p = Math.min(1, Math.max(0, -r.top / run));
+      if (!still) frame.style.setProperty("--p", String(Math.min(1, p / 0.45)));
+      for (const l of lines) l.classList.toggle("in", still || p >= Number(l.dataset.at));
+    };
+    addEventListener("scroll", () => { if (!on) { on = true; requestAnimationFrame(tick); } }, { passive: true });
+    tick();
+    if (video && !still && "IntersectionObserver" in window) {
+      new IntersectionObserver(([e]) => {
+        if (e.isIntersecting) { video.preload = "auto"; video.play().catch(() => {}); } else video.pause();
+      }, { threshold: 0.1 }).observe(film);
+    }
+  }
+}
