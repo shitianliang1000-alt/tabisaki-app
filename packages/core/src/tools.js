@@ -32,6 +32,7 @@ import { findPlace } from "./places.js";
 import { KNOWN_JOURNEYS, NATIONAL_ROUTES, readJourney } from "./journeys.js";
 import { onlySpots } from "./notaspot.js";
 import { canWebSearch, webSearch } from "./ai.js";
+import { cacheKey, createCache } from "./cache.js";
 
 /** 道具の種類と、既定の優先順位。 */
 export const TOOL_PRIORITY = Object.freeze({
@@ -373,8 +374,8 @@ export const searchHistoricalRouteTool = {
 
 /**
  * ネットの検索。何で検索するかは ctx.search（async (q) → [{title,url,snippet}]）で
- * 差し替えます。Web 版は中継の /web/search（ai.js の webSearch）、#438 の
- * Brave LLM Context API とキャッシュもここへ差し込みます。無ければ使えません。
+ * 差し替えます。Web 版は中継の /web/search（ai.js の webSearch。控えつき）。
+ * 無ければ使えません。
  */
 export const webSearchTool = {
   name: "web_search",
@@ -428,10 +429,9 @@ export function createDefaultTools(ctx = {}) {
 //  web_search の検索先
 //
 //  検索先は async (query) → [{title, url, snippet}] の関数です。
-//  Brave LLM Context API（#438）などに替えるときも、この形の関数を作って
-//  createDefaultTools({search}) に渡すだけです。控え（キャッシュ）は
-//  cachedSearch で包みます。控えの置き場は get/set を持つもの（Map でも、
-//  Redis の薄い包みでも）なら何でも使えます。
+//  ほかの検索先に替えるときも、この形の関数を作って createDefaultTools({search})
+//  に渡すだけです。控え（キャッシュ）は cachedSearch で包みます（cache.js。
+//  置き場はメモリ・localStorage・Cache API など get/set/delete を持つもの）。
 // ---------------------------------------------------------------------------
 
 /** Web 版の中継（/web/search。Wikipedia か Tavily）で調べる検索先。使えなければ null。 */
@@ -440,24 +440,20 @@ export function relaySearch() {
 }
 
 /**
- * 検索先を控えで包みます。同じ語は ttlMs のあいだ聞き直しません。
+ * 検索先を控え（cache.js）で包みます。同じ語は ttlMs のあいだ聞き直しません。
+ * 同じ語を同時に頼まれても、聞くのは1回です。何も見つからなかった答えと
+ * 失敗は覚えません（次はまた聞きます）。
+ *
+ * 数は search.stats（当たり・外れ・当たりの割合・時間・費用）で見られます。
  * @param {(q: string) => Promise<object[]>} search
- * @param {{ttlMs?: number, store?: {get: Function, set: Function}, now?: () => number}} [opts]
+ * @param {{ttlMs?: number, store?: object, layers?: object[], costPerCall?: number,
+ *   now?: () => number, timer?: () => number}} [opts]
  */
-export function cachedSearch(search, { ttlMs = 24 * 3600 * 1000, store = new Map(), now = () => Date.now() } = {}) {
-  const stats = { hits: 0, misses: 0 };
-  const fn = async (q) => {
-    const key = String(q ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-    const hit = await store.get(key);
-    if (hit && now() - hit.at < ttlMs) {
-      stats.hits++;
-      return hit.results;
-    }
-    stats.misses++;
-    const results = await search(q);
-    await store.set(key, { at: now(), results });
-    return results;
-  };
-  fn.stats = stats;
+export function cachedSearch(search, { ttlMs = 24 * 3600 * 1000, store, layers, costPerCall = 0, now, timer } = {}) {
+  const cache = createCache({ ttlMs, store, layers, costPerCall, now, timer });
+  const fn = async (q) => (await cache.fetch(cacheKey(q), () => search(q),
+    { keep: (r) => Array.isArray(r) && r.length > 0 })).value;
+  Object.defineProperty(fn, "stats", { get: () => cache.stats() });
+  fn.cache = cache;
   return fn;
 }

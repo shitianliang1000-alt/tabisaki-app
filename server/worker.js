@@ -4,6 +4,7 @@ import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
+import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
 // （CodeQL: polynomial regular expression）ので、正規表現を使わない。
@@ -184,7 +185,7 @@ export default {
     // 使われかたを数えます（server/stats.js）。返事は待たせません。
     // /metrics は、その中で出来事と一緒に1回で数えます（Durable Object を2回呼ばない）。
     if (request.method === "POST" && endpointOf(trimSlashes(url.pathname)) !== "/metrics") {
-      const work = record(env, usageOf(request, url, res.status));
+      const work = record(env, usageOf(request, url, res.status, res.headers));
       if (ctx?.waitUntil) ctx.waitUntil(work); else await work;
     }
     return res;
@@ -222,10 +223,18 @@ export function endpointOf(path) {
  * 1回の呼び出しで数えるもの。IP は Stats がその日の塩でハッシュにして
  * 捨てます（保存しません）。国は Cloudflare の国コードだけです。
  */
-export function usageOf(request, url, status) {
+export function usageOf(request, url, status, headers = null) {
   const path = endpointOf(trimSlashes(url.pathname));
   const items = [["req", path, 1], ["country", request.cf?.country ?? "??", 1]];
   if (status >= 400) items.push(["status", `${path} ${status}`, 1]);
+  // 控えの当たり・外れと、かかった時間の合計（÷件数で平均。#438）。
+  const xc = headers?.get?.("X-Cache");
+  if (xc === "HIT" || xc === "MISS") {
+    const kind = `${path} ${xc === "HIT" ? "hit" : "miss"}`;
+    const dur = Number(/dur=([\d.]+)/.exec(headers.get("Server-Timing") ?? "")?.[1]);
+    items.push(["cache", kind, 1]);
+    if (Number.isFinite(dur)) items.push(["cache_ms", kind, Math.min(60_000, Math.round(dur))]);
+  }
   return {
     ip: request.headers.get("CF-Connecting-IP") ?? "",
     items,
@@ -452,16 +461,53 @@ function plain(s) {
   return String(s ?? "").replace(/[<>]/g, " ");
 }
 
+// 検索の控え（packages/core/src/cache.js。Redis は使いません）。
+// 前から順に、この Worker のメモリ（同じ入れ物の中だけ・すぐ）、
+// Cloudflare の Cache API（データセンターごと・1日）を見ます。
+const WEB_TTL_MS = 24 * 3600 * 1000;
+let webCacheLayers = null;
+function webSearchCache() {
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  if (!webCacheLayers || webCacheLayers.cache !== cache) {
+    const layers = [memoryStore({ maxEntries: 300 })];
+    if (cache) layers.push(cacheApiStore(cache, { base: "https://web.search/v2/", ttlMs: WEB_TTL_MS }));
+    webCacheLayers = { cache, store: createCache({ ttlMs: WEB_TTL_MS, layers }) };
+  }
+  return webCacheLayers.store;
+}
+
+/** 試験用。検索の控えを空にします。 */
+export function resetWebSearchCache() {
+  webCacheLayers = null;
+}
+
 async function webSearch(request, env, ctx) {
   const body = await readJson(request);
   const q = cleanSnippet(body?.q, WEB_QUERY_MAX).replace(/…$/, "");
   if (!q) return text("検索語がありません", 400);
   const want = hasSecret(env, "TAVILY_API_KEY") ? "tavily" : "wikipedia";
-  const cache = typeof caches !== "undefined" ? caches.default : null;
-  const keyOf = (engine) => new Request(`https://web.search/${engine}?q=${encodeURIComponent(q)}`);
-  const hit = cache ? await cache.match(keyOf(want)) : null;
-  if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json" } });
+  let failed = null;
+  const { value, hit, ms } = await webSearchCache().fetch(`${want}:${cacheKey(q)}`, async () => {
+    const out = await askWebSearch(q, env, want);
+    if (!out.ok) failed = out.res;
+    return out.ok ? out : undefined;
+  // 切り替えたときの答えは、覚えておきません（Tavily が戻れば、そちらで聞き直します）。
+  }, { keep: (v) => v.engine === want });
+  // 検索先の失敗はそのまま返します（同時に頼まれた分は、待っていた側も失敗です）。
+  if (failed) return passthrough(failed, "wikipedia");
+  if (!value) return fail(502, "UPSTREAM_ERROR", "検索できませんでした。もう一度お試しください。",
+    { service: "wikipedia", retryable: true });
+  const out = JSON.stringify({ ok: true, engine: value.engine, q, cached: hit, results: value.results });
+  return new Response(out, { headers: {
+    "Content-Type": "application/json", "Cache-Control": "max-age=86400",
+    // 当たり・外れとかかった時間（管理画面の件数と、ブラウザの開発ツールで見られます）。
+    "X-Cache": hit ? "HIT" : "MISS",
+    "Server-Timing": `cache;desc="${hit ? "hit" : "miss"}";dur=${Math.round(ms)}`,
+  } });
+}
 
+/** 検索先に聞きます。{ok, engine, results} か、失敗なら {ok: false, res}。 */
+async function askWebSearch(q, env, want) {
   // Tavily の無料枠（月1,000回）は、使う人全員で1つです。人ごとの枠
   // （/web/search は paid 側で1点）では守れないので、使い切った・断られた・
   // 落ちているときは、Wikipedia に切り替えて答えます。
@@ -487,18 +533,9 @@ async function webSearch(request, env, ctx) {
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   }
-  if (!res.ok) return passthrough(res, engine);
+  if (!res.ok) return { ok: false, res };
   const data = await res.json();
-  const out = JSON.stringify({ ok: true, engine, q,
-    results: engine === "tavily" ? tavilyResults(data) : wikiResults(data) });
-  const resp = new Response(out, { headers: { "Content-Type": "application/json",
-                                               "Cache-Control": "max-age=86400" } });
-  // 切り替えたときの答えは、覚えておきません（Tavily が戻れば、そちらで聞き直します）。
-  if (cache && engine === want) {
-    const put = cache.put(keyOf(engine), resp.clone());
-    if (ctx?.waitUntil) ctx.waitUntil(put); else await put;
-  }
-  return resp;
+  return { ok: true, engine, results: engine === "tavily" ? tavilyResults(data) : wikiResults(data) };
 }
 
 /** 鍵が入っているか（値は見せません）。 */
