@@ -5,40 +5,34 @@
    動き: 見出しが1句ずつ出る／見本が再生される／読むと字に色が乗る／
    使いかたは左が止まり右が進む／カードは横に流れる／数が増える。 */
 :root {
-  /* 2026-11: Apple 風の配色（apple.com の白・#f5f5f7・#1d1d1f と、リンクの青）。
+  /* 2026-11（2つ目）: ryo さんの Figma の新しい案に合わせて、暗い地を基本にします
+     （apple.com の Final Cut Pro のページと同じ、黒に近い紺の地・白い字・青）。
      変数の名前（--clay など）は、これまでの規則をそのまま使うために残しています。 */
-  --bg: #fbfbfd;
-  --bg-2: #f5f5f7;
-  --panel: #ebebf0;
-  --ink: #1d1d1f;
-  --ink-2: #5c5c61;
+  --bg: #0b0d12;
+  --bg-2: #11151d;
+  --panel: #161b24;
+  --ink: #f5f5f7;
+  --ink-2: #a1a1a6;
   --ink-3: #86868b;
-  --line: #d2d2d7;
-  --card: #ffffff;
-  --clay: #0071e3;
-  /* 字に使う青（背景との明るさの差を 4.5 以上に）。 */
-  --clay-ink: #0066cc;
-  /* 白い字を載せるボタンの青。暗い配色でも同じ濃さにします（#2997ff に白は 3:1 しかない）。 */
+  --line: #2c3039;
+  --card: #0e1117;
+  --clay: #2997ff;
+  /* 字に使う青（暗い地の上で 4.5 以上）。 */
+  --clay-ink: #2997ff;
+  /* 白い字を載せるボタンの青（#2997ff に白は 3:1 しかないので、濃い青）。 */
   --btn: #0071e3;
   --olive: #8e8e93;
   --sky: #64aaf0;
-  --sand: #c9d6e8;
-  /* 見出しの字は Times New Roman。和文は明朝に続けます（Times に和字は無いので、
-     英数字だけが Times で出ます）。Times New Roman が無い Linux などでは、
+  --sand: #3a4a63;
+  /* 数字とロゴの字は Times New Roman。和文は明朝に続けます。無い端末では
      同じ字幅の Liberation Serif / Tinos で出ます。 */
   --serif: "Times New Roman", Times, "Liberation Serif", Tinos, "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   --wrap: 1200px;
   --pad: clamp(20px, 5vw, 80px);
   /* Apple の動き: 速く出て、ゆっくり止まる。 */
   --ease: cubic-bezier(.28, .11, .32, 1);
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000; --bg-2: #161617; --panel: #1d1d1f; --ink: #f5f5f7; --ink-2: #a1a1a6;
-    --ink-3: #86868b; --line: #333336; --card: #1c1c1e; --clay: #2997ff; --clay-ink: #2997ff;
-  }
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -85,6 +79,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
   transition: background-color .2s, transform .25s var(--ease), border-color .2s;
 }
 .pill:hover { background: var(--panel); transform: translateY(-1px); }
+.nav .pill:not(.pill-dark) { background: transparent; }
 .pill-quiet { background: transparent; }
 .pill-dark { background: var(--btn); color: #fff; border-color: var(--btn); }
 .pill-dark:hover { background: var(--btn); opacity: .88; }
@@ -101,11 +96,11 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .kicker { display: flex; align-items: baseline; gap: 10px; margin: 0 0 22px; font-size: .9rem; color: var(--ink-2); }
 .dot { flex: none; align-self: flex-start; margin-top: .62em; width: 8px; height: 8px; border-radius: 50%; background: var(--clay); box-shadow: 0 0 0 0 color-mix(in srgb, var(--clay) 60%, transparent); animation: beat 2.4s infinite; }
 @keyframes beat { 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
-.headline { margin: 0; font-family: var(--serif); font-size: clamp(2.3rem, 5.4vw, 4.6rem); line-height: 1.2; letter-spacing: -.015em; font-weight: 400; max-width: 20em; font-feature-settings: "palt" 1; }
+.headline { margin: 0; font-family: var(--sans); font-size: clamp(2.3rem, 5.4vw, 4.6rem); line-height: 1.2; letter-spacing: -.015em; font-weight: 400; max-width: 20em; font-feature-settings: "palt" 1; }
 .headline b { display: block; font-weight: 700; }
 /* 続きの明朝は、1段小さく・少し薄くして、太い一文を先に読ませます。
    同じ大きさだと、携帯では見出しだけで画面が埋まっていました。 */
-.headline .serif { display: block; max-width: 24em; margin-top: .6em; font-family: var(--serif); font-weight: 400; font-size: .46em; line-height: 1.6; color: var(--ink-2); }
+.headline .serif { display: block; max-width: 24em; margin-top: .6em; font-family: var(--sans); font-weight: 400; font-size: .42em; line-height: 1.6; color: var(--ink-2); }
 .w { display: inline; }
 
 /* --- 動く見本 --- */
@@ -222,7 +217,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .how { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad) clamp(80px, 10vw, 140px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 96px); }
 .how-sticky { position: sticky; top: 96px; align-self: start; }
 .eyebrow { margin: 0 0 14px; font-size: .9rem; font-weight: 600; letter-spacing: .04em; color: var(--clay-ink); }
-.title { margin: 0; font-family: var(--serif); font-weight: 700; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.2; letter-spacing: -.01em; font-feature-settings: "palt" 1; }
+.title { margin: 0; font-family: var(--sans); font-weight: 700; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.2; letter-spacing: -.01em; font-feature-settings: "palt" 1; }
 .sub { margin: 14px 0 0; max-width: 36em; color: var(--ink-2); }
 .how-nav { list-style: none; display: flex; gap: 18px; margin: 28px 0; padding: 0; color: var(--ink-2); font-weight: 600; }
 .how-nav li { position: relative; padding-bottom: 6px; transition: color .3s; }
@@ -272,7 +267,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .pick-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease);
   /* エリアの絵は、白い地で浮かないように彩度を少しだけ落とします。 */
   filter: saturate(.85); }
-@media (prefers-color-scheme: dark) { .pick-img img { filter: saturate(.8) brightness(.72); } }
+@media (prefers-color-scheme: dark) { .pick-img img { filter: saturate(.85) brightness(.8); } }
 .pick:hover .pick-img img { transform: scale(1.06); }
 .wx { position: absolute; left: 12px; bottom: 12px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 90%, transparent); font-size: .85rem; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .5s, transform .5s var(--ease); }
 .wx.in { opacity: 1; transform: none; }
@@ -366,10 +361,10 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .faq-list p { margin: 0 0 24px; color: var(--ink-2); max-width: 44em; }
 
 /* --- 終わりの誘い --- */
-.cta { text-align: center; padding: clamp(96px, 14vw, 200px) var(--pad); background: var(--bg-2); position: relative; overflow: hidden; }
+.cta { text-align: center; padding: clamp(96px, 14vw, 200px) var(--pad); background: #121c2e; position: relative; overflow: hidden; }
 .cta::before { content: ""; position: absolute; inset: -30%; background: conic-gradient(from 0deg at 50% 50%, transparent, color-mix(in srgb, var(--clay) 18%, transparent), transparent 40%); animation: turn 26s linear infinite; }
 .cta > * { position: relative; }
-.cta-title { margin: 0; font-family: var(--serif); font-weight: 700; font-size: clamp(2.4rem, 7vw, 5.6rem); line-height: 1.15; letter-spacing: -.015em; font-feature-settings: "palt" 1; }
+.cta-title { margin: 0; font-family: var(--sans); font-weight: 700; font-size: clamp(2.4rem, 7vw, 5.6rem); line-height: 1.15; letter-spacing: -.015em; font-feature-settings: "palt" 1; }
 .cta p { margin: 40px 0 0; }
 .cta .pill-light { background: var(--btn); color: #fff; border-color: var(--btn); }
 
@@ -411,4 +406,44 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
   .js .reveal, .js .headline .w, .js .s-list li, .js .s-lead { opacity: 1 !important; transform: none !important; filter: none !important; }
   .js .scrub .c { opacity: 1 !important; }
   .step { opacity: 1 !important; }
+}
+
+/* --- 映画の場面（Final Cut Pro のページのように、読み進めると広がる動画） --- */
+.film { position: relative; height: 260vh; background: #000; color: #f5f5f7; }
+.film-sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; place-items: center; }
+/* --p（0〜1）は landing.js が読んだ量から入れます。はじめは角の丸い小さな画面、
+   読み進めると画面いっぱいに広がります。 */
+.film-frame { --p: 0; position: absolute; inset: 0; margin: auto; width: calc(72% + 28% * var(--p)); height: calc(62% + 38% * var(--p)); border-radius: calc(28px * (1 - var(--p))); overflow: hidden; background: #000; }
+.film-video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.film-copy { position: relative; z-index: 1; padding: 0 var(--pad); text-align: center; pointer-events: none; text-shadow: 0 2px 30px rgba(0,0,0,.8); }
+.film-line { margin: 0; font-weight: 700; font-size: clamp(2.4rem, 7vw, 6.4rem); line-height: 1.12; letter-spacing: -.02em; font-feature-settings: "palt" 1; }
+.film-line:first-child { font-family: var(--serif); font-weight: 400; }
+.film-sub { max-width: 30em; margin: 28px auto 0; color: #d2d2d7; font-size: clamp(1rem, 1.6vw, 1.3rem); line-height: 1.8; }
+.js .film-line, .js .film-sub { opacity: 0; transform: translateY(30px) scale(.98); transition: opacity .8s var(--ease), transform .9s var(--ease); }
+.js .film-line.in, .js .film-sub.in { opacity: 1; transform: none; }
+
+/* --- 写真のカード（エリア・ギャラリー）としくみのカード --- */
+.photo-row { max-width: var(--wrap); margin: 0 auto; padding: clamp(64px, 9vw, 120px) var(--pad) 0; }
+.photo-row .sub { margin-bottom: 36px; }
+.pcards, .scards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .pcards, .scards { grid-template-columns: 1fr 1fr; } }
+.pcard { display: grid; grid-template-rows: auto auto 1fr auto; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--card); text-decoration: none; transition: transform .45s var(--ease), border-color .3s, box-shadow .45s var(--ease); }
+.pcard:hover { transform: translateY(-6px); border-color: #4a5060; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.pcard img { width: 100%; aspect-ratio: 16 / 9.3; object-fit: cover; transition: transform 1.2s var(--ease); }
+#gallery .pcard img { aspect-ratio: 4 / 2.9; }
+.pcard:hover img { transform: scale(1.05); }
+.pcard b { padding: 16px 18px 4px; font-size: 1.15rem; }
+.pcard span { padding: 0 18px; color: var(--ink-2); font-size: .86rem; line-height: 1.6; }
+.pcard i { display: flex; justify-content: space-between; padding: 12px 18px 16px; font-style: normal; font-size: .82rem; color: var(--clay-ink); }
+.pcard i::after { content: "→"; transition: transform .25s var(--ease); }
+.pcard:hover i::after { transform: translateX(4px); }
+.scard { padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
+.scard b { display: block; margin-bottom: 6px; font-size: 1.05rem; }
+.scard span { color: var(--ink-2); font-size: .88rem; line-height: 1.7; }
+.photo-row + .news, .photo-row:last-of-type { padding-bottom: clamp(64px, 9vw, 120px); }
+@media (prefers-reduced-motion: reduce) {
+  .film { height: auto; }
+  .film-sticky { position: relative; height: 70vh; }
+  .film-frame { --p: 1 !important; }
+  .js .film-line, .js .film-sub { opacity: 1 !important; transform: none !important; }
 }
