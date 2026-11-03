@@ -47,8 +47,12 @@ export function nameScore(a, b) {
   const x = norm(a), y = norm(b);
   if (!x || !y) return 0;
   if (x === y) return 2;
+  // 道路・路線（「権現崎線」）は場所の裏付けにしない。
+  if (/線$/.test(y) && !/線$/.test(x)) return 0;
   const [short, long] = x.length <= y.length ? [x, y] : [y, x];
-  if (short.length >= 3 && long.includes(short) && short.length / long.length >= 0.6) return 1;
+  // 候補の方が短いとき（「宮原八幡宮」に「八幡宮」）は、固有の部分が落ちやすいので厳しめにする。
+  const min = short === y ? 0.75 : 0.6;
+  if (short.length >= 3 && long.includes(short) && short.length / long.length >= min) return 1;
   return 0;
 }
 
@@ -228,6 +232,7 @@ export function merge(prev, hits, checkedAt) {
 }
 
 function apply(outDir) {
+  const spots = loadSpots();
   const prog = Object.fromEntries(Object.keys(SOURCES).map((s) => [s, readProgress(path.join(outDir, `recheck-${s}.jsonl`))]));
   const checkedAt = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
   const counts = {};
@@ -242,7 +247,8 @@ function apply(outDir) {
       for (const s of Object.keys(SOURCES)) {
         const x = prog[s].get(id);
         if (x) seen++;
-        if (x?.status === "hit") hits[s] = x;
+        // 照合ルールを後から厳しくしたときに、古い一致を捨てられるよう名前を比べ直す。
+        if (x?.status === "hit" && nameScore(queryName(spots.get(id) ?? { name: "" }), x.matchedName)) hits[s] = x;
       }
       const rec = merge(r, hits, checkedAt);
       if (rec) {

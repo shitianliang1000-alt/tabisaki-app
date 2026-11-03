@@ -77,3 +77,10 @@ test("kb の検証記録は既知の status だけを使う", () => {
     }
   }
 });
+
+test("候補が短く固有の部分が落ちる名前や、道路名は一致にしない", () => {
+  assert.equal(nameScore("宮原八幡宮", "八幡宮"), 0);
+  assert.equal(nameScore("権現崎", "権現崎線"), 0);
+  assert.equal(nameScore("鶴ヶ城跡", "鶴ヶ城"), 1);
+  assert.equal(nameScore("市浦歴史民俗資料館", "五所川原市市浦歴史民俗資料館"), 1);
+});
