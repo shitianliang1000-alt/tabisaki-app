@@ -6,9 +6,6 @@
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-5FA04E?logo=nodedotjs&logoColor=white)](docs/cli-usage.md)
 [![Dependencies](https://img.shields.io/badge/npm_install-%E4%B8%8D%E8%A6%81-2EA44F)](docs/architecture.md)
 
-> 月日は百代の過客にして、行かふ年も又旅人也。
-
--- <cite>松尾芭蕉『おくのほそ道』, 1702</cite>
 
 **文ひとつで、その日に本当に回れる旅程を。端末から、SSH の先からでも。**
 
