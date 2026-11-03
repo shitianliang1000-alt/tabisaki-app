@@ -238,3 +238,8 @@ export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } fr
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
 export * from "./local.mjs";
+// 足りない条件だけを聞く（#440）。CLI・API からも同じ判断を使えます。
+export {
+  SLOTS, extractSlots, missingQuestions, confirmLines, startDialog, answerDialog,
+  replyDialog, finishDialog, composeNote,
+} from "./src/slots.js";

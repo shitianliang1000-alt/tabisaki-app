@@ -3888,3 +3888,20 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
   background: #faf9f5; color: #141413; font: inherit; font-weight: 600; cursor: pointer;
 }
+
+/* 足りない条件を聞くカード（js/slotcard.js）。 */
+.slot-card { display: grid; gap: 12px; }
+.slot-card .slot-lead { margin: 0; }
+.slot-card .slot-known { justify-content: flex-start; max-width: none; }
+.slot-card .slot-known::before { content: none; }
+.slot-q { display: grid; gap: 6px; }
+.slot-question { margin: 0; font-weight: 600; font-size: var(--hig-t-subhead, 15px); }
+.slot-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.slot-free, .slot-extra-input {
+  font: inherit; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid var(--chat-line); background: transparent; color: inherit;
+  width: 100%; max-width: 32em; box-sizing: border-box;
+}
+.slot-extra { font-size: var(--hig-t-caption1); color: var(--chat-ink-2); margin-bottom: -6px; }
+.slot-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.slot-off { display: inline-flex; align-items: center; gap: 6px; font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }

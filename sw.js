@@ -40,7 +40,8 @@
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
 // v28: 携帯アプリ用の js/native.js を足しました（#385）。
 // v29: 声で書く js/voice.js を足しました（#363）。
-const VERSION = "tabisaki-v29";
+// v30: 足りない条件だけを聞く js/slotcard.js・packages/core/src/slots.js を足しました（#440）。
+const VERSION = "tabisaki-v30";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -123,6 +124,7 @@ const SHELL_FILES = [
   "./js/routemap.js",
   "./js/share.js",
   "./js/shell.js",
+  "./js/slotcard.js",
   "./js/chat.js",
   "./js/motion.js",
   "./js/boot-check.js",
@@ -141,6 +143,7 @@ const SHELL_FILES = [
   "./packages/core/src/areas.js",
   "./packages/core/src/backup.js",
   "./packages/core/src/chatread.js",
+  "./packages/core/src/slots.js",
   "./packages/core/src/config.js",
   "./packages/core/src/cost.js",
   "./packages/core/src/crowd.js",

@@ -58,7 +58,10 @@ import { closePop, updatePills, wireShell } from "./shell.js";
 import { introGreeting, typePlaceholder, watchReveal } from "./motion.js";
 import { answerTurn, askTurn, hasTurn, placeMap, placeToday, resetThread, routeSlot, sayInTurn, startTurn } from "./chat.js";
 import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
-import { hasSubstance, readChat } from "../packages/core/src/chatread.js";
+import { hasSubstance, readChat, stripOriginPhrase } from "../packages/core/src/chatread.js";
+import { detectAreas } from "../packages/core/src/areas.js";
+import { startDialog } from "../packages/core/src/slots.js";
+import { openSlotCard, slotsOff } from "./slotcard.js";
 import { readIntent } from "../packages/core/src/intent.js";
 import { setupVoiceInput } from "./voice.js";
 
@@ -174,6 +177,8 @@ async function boot() {
       note.dispatchEvent(new Event("input", { bubbles: true }));
       state.sentNote = null;
       state.shown = null;
+      state.slotCard?.close();
+      state.slotCard = null;
       resetThread();
       state.qa = [];
       newChat();
@@ -366,6 +371,8 @@ function renderRecent() {
  */
 function openHistory(item) {
   // やりとりは、その旅のものだけにします（前の旅の答えと混ぜない）。
+  state.slotCard?.close();
+  state.slotCard = null;
   resetThread();
   state.qa = [];
   newChat();
@@ -1198,6 +1205,7 @@ function wireForm() {
     });
   }
   wireAreaMap();
+  wireUserSet();
   for (const btn of document.querySelectorAll("[data-example]")) {
     btn.addEventListener("click", () => {
       const note = $("#note");
@@ -2323,6 +2331,14 @@ async function send(textArg) {
   const box = $("#note");
   const text = String(textArg ?? box.value).trim();
   closePop({ restore: false });
+  // 足りない条件を聞いているあいだの返信は、その答えです（js/slotcard.js）。
+  // 何も書かずに送ったら「この内容で組む」と同じです。
+  if (state.slotCard?.active()) {
+    if (textArg == null) clearDraft();
+    if (text) state.slotCard.reply(text);
+    else state.slotCard.finish();
+    return;
+  }
   // 旅の質問なら、文で答えます。旅程は組み直さず、組み立て中でも
   // 止めません（js/qa.js）。
   // 質問か旅程の頼みかは、AIが毎回決めます。AIが使えないとき（鍵なし）と、
@@ -2345,9 +2361,25 @@ async function send(textArg) {
  * @param {string} [note] 組むのに使う文。「そこ行ってみたい」の「そこ」を
  *   前の質問の行き先（「富士山」）に置き換えたもの。無ければ said のまま。
  */
-async function plan(said, textArg, note) {
+async function plan(said, textArg, note, { skipSlots = false } = {}) {
   const text = note || said;
   const prev = state.shown;
+  // はじめの頼みで、旅の形が決まる条件（どこ・いつ／何日・誰と）が
+  // 書いていなければ、足りない分だけ聞きます。書いてあることは聞き
+  // 直しません（packages/core/src/slots.js）。続けての頼みでは聞きません。
+  if (!prev && text && !skipSlots && !slotsOff()) {
+    const dialog = startDialog(text, { areas: areasIn(text), set: { ...state.userSet } });
+    if (dialog.phase === "asking") {
+      if (textArg == null) clearDraft();
+      state.slotCard?.close();
+      count("chat_send", "slots");
+      state.slotCard = openSlotCard(said || text, dialog, (composed) => {
+        state.slotCard = null;
+        plan(said, textArg, composed, { skipSlots: true });
+      });
+      return;
+    }
+  }
   const read = readChat(text);
   const labels = await applyChat(read);
   // 何も書かずに送ったら、はじめは「おまかせ」で、旅程があるときは
@@ -2388,6 +2420,38 @@ async function plan(said, textArg, note) {
   state.sentNote = text;
   saveConditions();
   run();
+}
+
+/** 文に書かれた行き先（収録から）。読み込み前や失敗したときは null（名前だけで読みます）。 */
+function areasIn(text) {
+  if (!state.kb) return null;
+  try {
+    const origin = readChat(text).origin;
+    return detectAreas(origin ? stripOriginPhrase(text, origin) : text, state.kb);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 画面の欄を、利用者が自分で選んだか（「＋」の日時・人数など）。
+ * 選んであれば、文に書いていなくても聞き直しません。
+ */
+function wireUserSet() {
+  state.userSet = {};
+  const on = (sel, key, type = "change") => {
+    document.querySelector(sel)?.addEventListener(type, (e) => {
+      if (e.isTrusted) state.userSet[key] = true;
+    });
+  };
+  on("#depart-at", "start");
+  on("#arrive-by", "nights");
+  on("#people-choice", "travelers");
+  on("#transport-choice", "transport", "click");
+  on("#budget-choice", "budget", "click");
+  for (const b of document.querySelectorAll("[data-day-preset]")) {
+    b.addEventListener("click", (e) => { if (e.isTrusted) state.userSet.start = state.userSet.nights = true; });
+  }
 }
 
 /**
