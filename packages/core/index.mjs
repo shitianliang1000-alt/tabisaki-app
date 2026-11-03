@@ -78,10 +78,17 @@ export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetc
   };
 }
 
+/** 末尾の / を落とします（正規表現の /\/+$/ は、/ が長く続く入力で遅くなるので使いません）。 */
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === "/") end--;
+  return s.slice(0, end);
+}
+
 /** 使い分けのとき、外へ通してよい行き先（手元の LLM とクラウドの入口）。 */
 function cloudAllow(hybrid) {
   const list = [hybrid.local?.baseUrl ?? "http://localhost:11434"];
-  if (hybrid.cloud?.proxyUrl) list.push(String(hybrid.cloud.proxyUrl).replace(/\/+$/, ""));
+  if (hybrid.cloud?.proxyUrl) list.push(trimSlashes(String(hybrid.cloud.proxyUrl)));
   if (hybrid.cloud?.geminiKey) list.push("https://generativelanguage.googleapis.com");
   return list;
 }

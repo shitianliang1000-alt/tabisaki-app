@@ -453,7 +453,8 @@ async function kbCommand(cmd, rest, opts, { stdout, stderr }) {
  */
 function cloudFor(opts, env) {
   const key = String(env.TABISAKI_GEMINI_KEY || env.GEMINI_API_KEY || "").trim();
-  const proxy = String(opts["cloud-url"] || env.TABISAKI_PROXY_URL || "").trim().replace(/\/+$/, "");
+  let proxy = String(opts["cloud-url"] || env.TABISAKI_PROXY_URL || "").trim();
+  while (proxy.endsWith("/")) proxy = proxy.slice(0, -1);
   if (proxy && !/^https:\/\/[^\s/]+/i.test(proxy)) throw usage("--cloud-url は https:// で始まる URL です");
   if (opts["cloud-url"] || (!key && proxy)) return { proxyUrl: proxy, geminiKey: "" };
   if (key) return { proxyUrl: "", geminiKey: key };
