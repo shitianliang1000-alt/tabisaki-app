@@ -66,7 +66,7 @@ async function credit(fileName) {
     const d = await json(u);
     const info = d?.query?.pages?.[0]?.imageinfo?.[0];
     const m = info?.extmetadata ?? {};
-    const strip = (s) => String(s ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim();
+    const strip = (s) => String(s ?? '').replace(/[<>]/g, '').replace(/&amp;/g, '&').trim();
     return {
       author: strip(m.Artist?.value) || '',
       license: strip(m.LicenseShortName?.value) || '',
