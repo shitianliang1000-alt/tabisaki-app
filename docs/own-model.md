@@ -234,6 +234,9 @@ OWN_MODEL_KEY=$GEMINI_API_KEY node tools/model_eval.mjs \
 AI Studio を待つ時間は、自前のモデルを待ったぶん縮めます（画面は 135 秒で諦めるため）。`/status` に `ownModel: true/false` が出ます（URL・鍵は出しません）。
 鍵はブラウザに置きません（いままでと同じ決まりです）。
 
+画面が JSON を頼むときは、本文に形（`guidedSchema`。JSON Schema）を添えます。中継はそれを Google へは渡さず、自前のモデルへ聞くときだけ
+`response_format: json_schema` に使います。vLLM なら形に合わない出力が出なくなります（[guided-decoding.md](./guided-decoding.md)）。
+
 ## 進めかた
 
 | 段 | やること | 誰が | お金 |

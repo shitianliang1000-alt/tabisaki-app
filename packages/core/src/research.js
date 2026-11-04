@@ -312,6 +312,16 @@ function brief(obs) {
  * llm の形にします。AI に頼むのは「調べる語」と「結果に出てくる場所の名前」だけです。
  * @param {(prompt: string, opts?: object) => Promise<object>} callJson
  */
+// 答えの形（Gemini の形。手元・自前のモデルでは guided.js が JSON Schema に直して出力をしばります）。
+const QUERY_SCHEMA = {
+  type: "OBJECT", properties: { query: { type: "STRING" } },
+  required: ["query"], propertyOrdering: ["query"],
+};
+const PLACES_SCHEMA = {
+  type: "OBJECT", properties: { places: { type: "ARRAY", items: { type: "STRING" } } },
+  required: ["places"], propertyOrdering: ["places"],
+};
+
 export function modelLlm(callJson) {
   return async (task, payload) => {
     if (task === "query") {
@@ -319,14 +329,14 @@ export function modelLlm(callJson) {
         + "その語にゆかりのある日本の観光地が見つかるような、短い検索語（日本語・40字まで）を1つ作ってください。\n"
         + `希望: ${payload.wish}\n収録に無い語: ${payload.unknown.join("、")}\n`
         + (payload.tried.length ? `もう使った検索語（同じものは避ける）: ${payload.tried.join(" / ")}\n` : "")
-        + '答えは {"query": "検索語"} の JSON だけで返してください。', { temperature: 0 });
+        + '答えは {"query": "検索語"} の JSON だけで返してください。', { temperature: 0, schema: QUERY_SCHEMA });
     }
     if (task === "extract") {
       const lines = payload.results.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}`).join("\n");
       return callJson("次の検索結果から、希望に合う日本の観光地・名所・施設の固有名を拾ってください。"
         + "検索結果に書かれていない名前は足さないでください。\n"
         + `希望: ${payload.wish}\n検索結果:\n${lines}\n`
-        + '答えは {"places": ["名前", ...]} の JSON だけで返してください（12件まで）。', { temperature: 0 });
+        + '答えは {"places": ["名前", ...]} の JSON だけで返してください（12件まで）。', { temperature: 0, schema: PLACES_SCHEMA });
     }
     return null;
   };

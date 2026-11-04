@@ -154,6 +154,7 @@ const SHELL_FILES = [
   "./packages/core/src/feasibility.js",
   "./packages/core/src/geo.js",
   "./packages/core/src/grounding.js",
+  "./packages/core/src/guided.js",
   "./packages/core/src/hours.js",
   "./packages/core/src/intent.js",
   "./packages/core/src/journeys.js",
