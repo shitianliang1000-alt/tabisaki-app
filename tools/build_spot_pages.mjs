@@ -248,7 +248,6 @@ ${foot()}
 function card(spot) {
   const src = srcOf(spot, "../");
   const ph = photos[spot.slug];
-  const ph = photos[spot.slug];
   const photoCredit = src && ph ? `<small class="photo-credit">写真: <a href="${h(ph.page ?? "https://commons.wikimedia.org/")}" rel="noopener" target="_blank">${h(ph.author || "作者不明")}</a>${ph.license ? ` / ${ph.licenseUrl ? `<a href="${h(ph.licenseUrl)}" rel="noopener" target="_blank">${h(ph.license)}</a>` : h(ph.license)}` : " / 許諾を要確認"}</small>` : "";
   return `      <article class="spot-card" data-region="${h(spot.region)}" data-cat="${h(catOf(spot.cat))}">
         <a class="spot-link" href="${h(spot.slug)}.html" aria-label="${h(spot.name)}の紹介ページ">
