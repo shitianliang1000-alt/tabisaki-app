@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<title>アプリ版 | 旅さき</title>
+<meta name="description" content="旅さきのCapacitorアプリ版。ビルド方法、圏外で使える範囲、公開前の確認事項を紹介します。">
+<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/mobile.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="旅さきを、ポケットに。">
+<meta property="og:description" content="旅さきのCapacitorアプリ版。ビルド方法、圏外で使える範囲、公開前の確認事項を紹介します。">
+<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/mobile.html">
+<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="assets/tour.css?v=55e9eebc">
+<link rel="stylesheet" href="assets/tour-polish.css?v=d926a3a9">
+<link rel="stylesheet" href="assets/site.css?v=28cb7765">
+<script defer src="assets/site.js?v=48a22569"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+<header class="lnav" id="lnav">
+  <div class="lnav-in">
+    <a class="lnav-name" href="/tour"><img src="mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>アプリ</small></span></a>
+    <nav class="lnav-links" aria-label="サイトの中">
+      <a href="spots/index.html">観光地</a>
+      <a href="ssh.html">SSH・端末</a>
+      <a href="mobile.html" aria-current="page">アプリ</a>
+      <a href="api.html">API</a>
+    </nav>
+    <a class="btn btn-sm" href="app">旅さきを使う</a>
+  </div>
+</header>
+<nav class="pagenav" aria-label="サイトの中"><ul>
+      <li><a href="/tour">旅さき</a></li>
+      <li><a href="spots/index.html">観光地</a></li>
+      <li><a href="ssh.html">SSH・端末</a></li>
+      <li><a href="mobile.html" aria-current="page">アプリ</a></li>
+      <li><a href="api.html">API</a></li>
+</ul></nav>
+<main id="main">
+  <section class="sub-hero">
+    <p class="eyebrow">アプリ版</p>
+    <h1 class="sub-title">旅さきを、ポケットに。</h1>
+    <p class="sub-lead">Web版と同じ画面とエンジンをCapacitorで包むアプリ版。いま作れるもの、圏外で使える範囲、公開前の注意を説明します。</p>
+    <p class="sub-actions"><a class="btn" href="app">旅さきWeb版を開く</a><a class="btn-ghost" href="spots/index.html">観光地を見る</a></p>
+  </section>
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head"><h2>旅さきの画面を、そのままアプリへ。</h2><p>Web版と同じ画面・旅程エンジン・観光地データをCapacitorで包む構成です。画面を二重に作らず、Web版と同じ改善を届けます。</p></div>
+      <div class="prose">
+        <h3>いまの配布状況</h3>
+        <p>AndroidのAPKをローカルで作れます。ただし、この案内ページはアプリ配布やストア公開を意味しません。アプリの署名鍵・ストア登録・審査は別途必要で、公開前にデータの再配布条件も確認します。実機・エミュレーターでの最終検証も、リポジトリの説明上は未完了です。</p>
+        <h3>AndroidのAPKを作る</h3>
+        <p>JDK 21とAndroid SDK platform 36が必要です。できるAPKはデバッグ用署名なので、正式配布用には使わないでください。</p>
+        <figure class="code"><figcaption><span>リポジトリのルートで実行</span><button type="button" class="copy">写す</button></figcaption><pre>cd mobile &amp;&amp; npm ci &amp;&amp; cd ..
+ANDROID_HOME=~/Android/Sdk sh mobile/build.sh android</pre></figure>
+        <p>生成先の例は <code>mobile/out/tabisaki-日付-debug.apk</code> です。APKの導入は自分の端末と開発者設定で行います。</p>
+        <h3>iOSのプロジェクトを作る</h3>
+        <p>macOSとXcodeが必要です。次のコマンドでXcodeプロジェクトを作り、XcodeからArchiveします。</p>
+        <figure class="code"><figcaption><span>macOSで実行</span><button type="button" class="copy">写す</button></figcaption><pre>sh mobile/build.sh ios</pre></figure>
+        <h3>圏外で使える範囲</h3>
+        <p>画面・収録・旅程生成エンジンをアプリ内に入れるため、圏外でも基本の旅程作成ができます。AI、電車・バスの最新情報、地図タイル、写真、天気などは通信できるときに限られます。位置情報は「近くから」を選んだときだけ使用する設計です。</p>
+        <div class="note"><span class="i" aria-hidden="true">i</span><p>Android/iOSの実際の動作やストア審査をこのページから保証するものではありません。ビルド条件と権限は、公開前に対象端末で再確認してください。</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="sec tint"><div class="wrap">
+    <div class="sec-head"><h2>アプリを作る手順</h2><p>作業の流れを、4段に分けています。</p></div>
+    <div class="cards">
+      <article class="card"><span class="badge blue">01</span><h3>依存を入れる</h3><p>mobileディレクトリでnpm ciを実行します。</p></article>
+      <article class="card"><span class="badge blue">02</span><h3>プラットフォームを用意</h3><p>AndroidはJDK・SDK、iOSはmacOS・Xcodeを使います。</p></article>
+      <article class="card"><span class="badge blue">03</span><h3>ビルドして動作確認</h3><p>端末・OSの版・圏外時の動作も試します。</p></article>
+      <article class="card"><span class="badge blue">04</span><h3>公開前に確認</h3><p>公開鍵、アプリID、権限、プライバシー表記、データのライセンスを確認します。</p></article>
+    </div>
+  </div></section>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <a class="foot-brand" href="/tour"><img src="mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+  <nav aria-label="ほかのページ"><a href="app">旅程をつくる</a><a href="spots/index.html">観光地</a><a href="ssh.html">SSH・端末</a><a href="mobile.html">アプリ</a><a href="api.html">API</a><a href="credits.html">著作権表記</a></nav>
+</div></footer>
+</body>
+</html>
