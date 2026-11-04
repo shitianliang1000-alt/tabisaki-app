@@ -84,6 +84,7 @@ body{ line-break: strict; }
 .prose strong{ color: var(--ink); font-weight: 600; }
 .prose a{ color: var(--blue); text-decoration: underline; text-underline-offset:.2em; text-decoration-thickness:1px; }
 .prose a:hover{ text-decoration-thickness: 2px; }
+.prose a.btn{ color:#fff; text-decoration:none; }
 .prose ul, .prose ol{ padding-left: 1.25em; }
 .prose li + li{ margin-top: .35em; }
 .prose li::marker{ color: var(--ink-3); }

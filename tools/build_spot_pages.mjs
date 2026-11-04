@@ -68,12 +68,12 @@ function nav(current) {
   ];
   const links = items.map(([label, href]) =>
     `      <a href="../${href}"${current === label ? ' aria-current="page"' : ""}>${h(label)}</a>`).join("\n");
-  const chips = [["旅さき", "../tour", "旅さき"], ...items.map(([l, href]) => [l, `../${href}`, l])]
+  const chips = [["旅さき", "../", "旅さき"], ...items.map(([l, href]) => [l, `../${href}`, l])]
     .map(([label, href]) =>
       `      <li><a href="${href}"${current === label ? ' aria-current="page"' : ""}>${h(label)}</a></li>`).join("\n");
   return `<header class="lnav" id="lnav">
   <div class="lnav-in">
-    <a class="lnav-name" href="../tour"><img src="../mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>観光地</small></span></a>
+    <a class="lnav-name" href="../"><img src="../mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>観光地</small></span></a>
     <nav class="lnav-links" aria-label="サイトの中">
 ${links}
     </nav>
@@ -90,7 +90,7 @@ ${chips}
 function foot() {
   return `<footer class="foot">
   <div class="wrap foot-in">
-    <a class="foot-brand" href="../tour"><img src="../mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+    <a class="foot-brand" href="../"><img src="../mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
     <nav aria-label="ほかのページ">
       <a href="../app">旅程をつくる</a>
       <a href="index.html">観光地</a>
