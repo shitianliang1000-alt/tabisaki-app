@@ -33,7 +33,7 @@
 （2026-11-03 に公式ページで確認）。データごとの条件、出典の書きかた、事務局に聞くことは **[kokudo-licenses.md](./kokudo-licenses.md)** にまとめました。
 
 非商用のデータは、利用規約（<https://nlftp.mlit.go.jp/ksj/other/agreement_02.html>）で**複製物の再配布ができず**、データベースの形で使う場合は
-運営事務局への相談が求められています。方針として、**これらの JSON は公開しません**（2026-11-03 ryo さん）。ところが `kb/` はいま公開のリポジトリとサイトに入っているので、食い違っています。くわしくは [kokudo-licenses.md](./kokudo-licenses.md#いまの公開状況食い違っているところ)。
+運営事務局への相談が求められています。方針として、**これらの JSON は公開しません**（2026-11-03 ryo さん）。2026-11-04 に `kb/` から外し、手元の `kb-private/` に移しました（Git の履歴には残っています）。くわしくは [kokudo-licenses.md](./kokudo-licenses.md#いまの公開状況)。
 出典と「加工して作成」の表記は [credits.html](../credits.html) に入れてあります。
 外すときは、観光資源が `src="kokudo"`、文化施設が `dataSource` に「文化施設」、バス停が `kb/stops-bus*` です。
 

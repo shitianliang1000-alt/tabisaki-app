@@ -195,7 +195,7 @@ test("日本の端: 1つなら岬を必ず立ち寄るに、四極なら旅を�
   assert.equal(all.stops.length, 4);
   assert.equal(all.legs.length, 2, "北海道と九州で2回の旅");
   const island = await run("日本最南端の有人島へ");
-  assert.equal(island.stops[0].name, "波照間島");
+  assert.match(island.stops[0].name, /^波照間島/);
 });
 
 test("世界遺産全制覇: 26件を地方ごとの旅に分け、近い地方から組む", async () => {

@@ -26,7 +26,7 @@
 // 通信はしません。kb/ が同じなら、何度走らせても同じ中身になります（日時は manifest だけ）。
 
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -111,6 +111,19 @@ export function loadKb(kbDir = KB) {
   for (const sh of index.shards) {
     for (const s of readJson(path.join(kbDir, sh.file)).spots ?? []) {
       spots.push({ ...s, prefecture: s.prefecture ?? regions.get(s.regionId)?.prefecture ?? sh.prefecture });
+    }
+  }
+  // 国土数値情報の非商用データは、公開の kb/ から kb-private/ に移してあります
+  // （tools/split_noncommercial.mjs）。手元にあれば読み、--with-kokudo のときだけ使います。
+  const priv = path.join(path.dirname(kbDir), "kb-private", "spots-noncommercial.json");
+  if (kbDir === KB && existsSync(priv)) {
+    const shardPref = new Map(index.shards.map((sh) => [sh.file, sh.prefecture]));
+    const have = new Set(spots.map((s) => s.id));
+    for (const [file, list] of Object.entries(readJson(priv).shards ?? {})) {
+      for (const s of list) {
+        if (have.has(s.id)) continue;
+        spots.push({ ...s, prefecture: s.prefecture ?? regions.get(s.regionId)?.prefecture ?? shardPref.get(file) });
+      }
     }
   }
   const hash = createHash("sha256");
