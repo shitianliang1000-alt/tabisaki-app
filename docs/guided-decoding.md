@@ -12,6 +12,10 @@ vllm serve google/gemma-3-4b-it --port 8000 --guided-decoding-backend outlines
 node tools/tool_call_eval.mjs --url=http://localhost:8000 --model=google/gemma-3-4b-it
 ```
 
+**GPU が手元に無いときは**、[Google Colab のノートブック](https://colab.research.google.com/github/shitianliang1000-alt/tabisaki-app/blob/main/notebooks/gpu-eval.ipynb)（`notebooks/gpu-eval.ipynb`）を開き、
+T4 GPU を選んで「すべてのセルを実行」を押すだけで、Ollama の Gemma 4 E4B に対する上の比べと採点（`tools/model_eval.mjs`）が回ります。
+いちばん下のセルに出る結果を、下の「しばりの有無で比べる」に貼ります。
+
 この文書は Issue #435 で決めたことをまとめています。道具の登録所（JSON Schema の定義）は [research-agent.md](./research-agent.md)（#437）、
 手元の LLM の用意は [local-llm.md](./local-llm.md)、自前のモデルを中継から使う話は [own-model.md](./own-model.md) にあります。
 

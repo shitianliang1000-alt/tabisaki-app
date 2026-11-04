@@ -176,6 +176,8 @@ Wikidata・Overture・手で確かめたデータで埋めるほど、使える�
 
 ## 採点（学習の前と後を比べる）
 
+元の Gemma 4 E4B の数字は、[Colab のノートブック](https://colab.research.google.com/github/shitianliang1000-alt/tabisaki-app/blob/main/notebooks/gpu-eval.ipynb)（`notebooks/gpu-eval.ipynb`）を「すべてのセルを実行」するだけで取れます（無料の T4。学習データの書き出しから採点までを回します）。
+
 `tools/model_eval.mjs` は、`eval.jsonl` の問いを OpenAI 互換の入口（`POST /v1/chat/completions`）に1問ずつ聞いて採点します。
 
 ```bash
