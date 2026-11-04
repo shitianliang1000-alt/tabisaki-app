@@ -182,7 +182,8 @@ function mix(t) {
 }
 
 const SCENES = { hours, weather, mix };
-window.draw = (t) => (SCENES[location.hash.slice(1)] ?? hours)(t);
+const pick = location.hash.slice(1);
+window.draw = (t) => (Object.hasOwn(SCENES, pick) ? SCENES[pick] : hours)(t);
 document.fonts.ready.then(() => { window.draw(0); window.ready = true; });
 </script>
 </body></html>

@@ -5,7 +5,7 @@
 //   ・読み進めると字が明るくなる文（#scrub）
 //   ・大きな字が縮んで、映像が画面いっぱいに広がる（#zoom）
 //   ・確かめていること: 札で動画を切り替え、終わったら次の札へ
-//   ・下に浮かぶ札、帯の「いまの節」
+//   ・帯の「いまの節」
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -103,10 +103,7 @@ const zoom = $("#zoom");
 const zs = zoom && $(".zoom-sticky", zoom);
 const zv = zoom && $(".tv", zoom);
 
-// --- 浮かぶ札・帯 ---
-const bar = $("#float-bar");
-const laptop = $("#hero-laptop");
-const cta = $(".cta");
+// --- 帯 ---
 const navLinks = $$(".lnav-links a");
 
 function frame() {
@@ -130,14 +127,6 @@ function frame() {
     s.setProperty("--fr", String(1 - grow));
     s.setProperty("--fy", String((1 - seg(p, 0.16, 0.32)) * 60));
     s.setProperty("--co", String(seg(p, 0.74, 0.88)));
-  }
-  if (bar && laptop) {
-    const past = laptop.getBoundingClientRect().bottom < vh * 0.4;
-    const end = cta.getBoundingClientRect().top < vh;
-    // 広がる映像の間は、字に重ならないよう隠します。
-    const zr = zoom?.getBoundingClientRect();
-    const inZoom = zr && zr.top < vh * 0.5 && zr.bottom > vh * 0.5;
-    bar.classList.toggle("on", past && !end && !inZoom);
   }
   let cur = null;
   for (const a of navLinks) {

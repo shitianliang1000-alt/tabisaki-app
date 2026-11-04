@@ -52,6 +52,11 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .lnav-links a:hover, .lnav-links a[aria-current] { color: var(--ink); }
 @media (max-width: 700px) { .lnav-links { display: none; } }
 
+.gh { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); text-decoration: none; padding: 5px 4px; }
+.gh:hover { color: var(--ink); }
+.gh-ico { width: 16px; height: 16px; flex: none; }
+@media (max-width: 420px) { .gh span { display: none; } }
+
 /* 出てくる動き（JS が .in を付けます。JS が無い・動きを減らす設定では最初から見えます） */
 .js .reveal { opacity: 0; transform: translateY(28px); transition: opacity 1s var(--ease), transform 1s var(--ease); }
 .js .reveal.in { opacity: 1; transform: none; }
@@ -67,13 +72,6 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .laptop-screen .tv { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; background: #000; }
 .laptop-base { height: 14px; margin: 0 -6%; border-radius: 0 0 18px 18px; background: linear-gradient(#3a3a3c, #1c1c1e 60%, #0d0d0e); }
 .laptop-base::before { content: ""; display: block; width: 16%; height: 5px; margin: 0 auto; border-radius: 0 0 8px 8px; background: #111; }
-
-/* 下に浮かぶ札 */
-.float-bar { position: fixed; left: 50%; bottom: 22px; z-index: 25; display: flex; align-items: center; gap: 18px; padding: 10px 10px 10px 22px; border-radius: 980px; background: rgba(40, 40, 42, .82); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); box-shadow: 0 10px 40px rgba(0, 0, 0, .5); transform: translate(-50%, 140%); opacity: 0; transition: transform .6s var(--ease), opacity .6s var(--ease); max-width: calc(100% - 32px); }
-.float-bar.on { transform: translate(-50%, 0); opacity: 1; }
-.float-bar p { margin: 0; font-size: 13px; line-height: 1.45; }
-.float-bar p span { display: block; color: var(--ink-2); }
-@media (max-width: 560px) { .float-bar { bottom: 14px; gap: 12px; padding-left: 18px; white-space: nowrap; } .float-bar p span { display: none; } }
 
 /* --- 3. 字が明るくなる文 --- */
 .intro { padding: clamp(80px, 14vw, 180px) var(--pad); }
@@ -164,7 +162,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .credits h2 { font-size: 15px; color: var(--ink-2); margin-bottom: 10px; }
 .credits ul { margin: 0 0 12px; padding-left: 1.2em; }
 .credits a { color: var(--ink-2); }
-.foot { border-top: 1px solid var(--line); padding: 22px 0 calc(90px + env(safe-area-inset-bottom)); font-size: 13px; color: var(--ink-3); }
+.foot { border-top: 1px solid var(--line); padding: 22px 0 calc(32px + env(safe-area-inset-bottom)); font-size: 13px; color: var(--ink-3); }
 .foot-in { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; justify-content: space-between; }
 .foot-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); font-family: var(--serif); font-size: 18px; }
 .foot nav { display: flex; flex-wrap: wrap; gap: 18px; }
@@ -179,5 +177,4 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
   .zoom-word { position: static; font-size: clamp(48px, 12vw, 160px); }
   .zoom-frame { width: min(1100px, 100% - 40px); max-height: none; opacity: 1; border-radius: 28px; }
   .zoom-copy { position: static; opacity: 1; transform: none; padding: 0 20px; text-align: center; }
-  .float-bar { transition: none; }
 }

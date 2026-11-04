@@ -81,6 +81,8 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 .pill:hover { background: var(--panel); transform: translateY(-1px); }
 .nav .pill:not(.pill-dark) { background: transparent; }
 .pill-quiet { background: transparent; }
+.gh-ico { width: 16px; height: 16px; flex: none; }
+@media (max-width: 560px) { .pill-gh span { display: none; } .pill-gh { padding: 0 9px; } }
 .pill-dark { background: var(--btn); color: #fff; border-color: var(--btn); }
 .pill-dark:hover { background: var(--btn); opacity: .88; }
 .pill-light { background: var(--bg); color: var(--ink); border-color: var(--bg); }
@@ -88,7 +90,7 @@ svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width:
 @media (max-width: 900px) {
   .nav { grid-template-columns: auto 1fr; }
   .nav-l { display: none; }
-  .nav-r .pill-quiet { display: none; }
+  .nav-r .pill-quiet:not(.pill-gh) { display: none; }
 }
 
 /* --- 見出し --- */
