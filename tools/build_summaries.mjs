@@ -43,7 +43,10 @@ function categorySummary(spots, n = 4) {
 export function buildSummaries(regions, spots) {
   const byRegion = new Map();
   const byPref = new Map();
-  for (const s of spots) {
+  // スポットの多くは prefecture を持たないので、エリアの都道府県で補います。
+  const prefOfRegion = new Map(regions.map((r) => [r.id, r.prefecture]));
+  for (const s0 of spots) {
+    const s = s0.prefecture ? s0 : { ...s0, prefecture: prefOfRegion.get(s0.regionId) };
     if (!byRegion.has(s.regionId)) byRegion.set(s.regionId, []);
     byRegion.get(s.regionId).push(s);
     if (!byPref.has(s.prefecture)) byPref.set(s.prefecture, []);

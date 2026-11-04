@@ -43,7 +43,7 @@ cd tabisaki-app
 
 * 文で頼むだけで旅程になる（「京都で歴史を感じたい」「温泉に入りつつ海も見たい」）
 * 開館時間・最終入場・移動時間・食事・帰着時刻を守って時刻を割り当てる
-* 全国のエリア **1,371** か所・スポット **54,100** か所を収録(10月27日現在)（[知識ベース](docs/knowledge-base.md)）
+* 全国のエリア **1,371** か所・スポット **40,999** か所を収録(11月4日現在)（[知識ベース](docs/knowledge-base.md)）
 * 定番と穴場の割合、混雑・天気・日没・季節に合わせた順番
 * 日帰り・複数日・片道・周遊に対応
 * AI が出した場所も、収録の候補と照らし合わせてから使う（無い場所は旅程に入らない）
@@ -58,6 +58,7 @@ cd tabisaki-app
 * `./tabisaki plan --local` で、手元の LLM（Ollama など）に行き先を選ばせる（[docs/local-llm.md](docs/local-llm.md)）
 * `./tabisaki plan --hybrid` で、手元の LLM で答え、自信が無いときと Web 検索が要るときだけクラウドに聞き直す（[docs/model-router.md](docs/model-router.md)）
 * 自分でチューニングした Gemma を中継の行き先にする・学習データを書き出す・採点する（[docs/own-model.md](docs/own-model.md)）
+* 手元・自前のモデル（vLLM・Ollama）の出力と道具の呼び出しを JSON Schema でしばる。しばりの有無で崩れを比べる `tools/tool_call_eval.mjs`（[docs/guided-decoding.md](docs/guided-decoding.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）
@@ -94,6 +95,8 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 
 ### [外のデータの取り口](docs/data-providers.md)
 
+### [特殊な旅程（青春18きっぷ・寝台列車・世界遺産全制覇など）](docs/special-journeys.md)
+
 開発に参加するときは [CONTRIBUTING.md](CONTRIBUTING.md) を読んでください。これからの計画は [docs/roadmap.md](docs/roadmap.md)、版の付けかたは [docs/releases.md](docs/releases.md) と [CHANGELOG.md](CHANGELOG.md)、脆弱性の知らせかたは [SECURITY.md](SECURITY.md) です。スポットの情報がまちがっていたら [Issue の「スポット情報の訂正」](../../issues/new?template=spot_report.md) から知らせてください。
 
 ## Related
@@ -101,7 +104,7 @@ Web 版は <https://tabisaki-github-io.shitianliang1000.workers.dev/>（PHP 版 
 * [OpenStreetMap][4]: 地図と、一部の座標の出どころ（ODbL 1.0）
 * [Wikidata][5] / [Wikipedia][6]: 名前・座標・説明・写真の出どころ
 * [Leaflet][7]: Web 版の地図
-* [国土数値情報][8]: 観光資源・文化施設・鉄道のデータ
+* [国土数値情報][8]: 観光資源・文化施設・鉄道・バス停留所のデータ（データごとの条件は [docs/kokudo-licenses.md](docs/kokudo-licenses.md)）
 
 ## License
 

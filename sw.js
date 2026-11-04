@@ -40,7 +40,9 @@
 //      v26 のまま中身だけ変わるのを避けるため版を上げました。
 // v28: 携帯アプリ用の js/native.js を足しました（#385）。
 // v29: 声で書く js/voice.js を足しました（#363）。
-const VERSION = "tabisaki-v30";
+// v31: guided decoding の packages/core/src/guided.js を足しました（#435）。
+// v32: 特殊な旅程の packages/core/src/special.js と、ほかの PR をまとめて入れました（#442 など）。
+const VERSION = "tabisaki-v32";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -143,6 +145,7 @@ const SHELL_FILES = [
   "./packages/core/src/backup.js",
   "./packages/core/src/chatread.js",
   "./packages/core/src/slots.js",
+  "./packages/core/src/choices.js",
   "./packages/core/src/config.js",
   "./packages/core/src/cost.js",
   "./packages/core/src/crowd.js",
@@ -153,6 +156,7 @@ const SHELL_FILES = [
   "./packages/core/src/feasibility.js",
   "./packages/core/src/geo.js",
   "./packages/core/src/grounding.js",
+  "./packages/core/src/guided.js",
   "./packages/core/src/hours.js",
   "./packages/core/src/intent.js",
   "./packages/core/src/journeys.js",
@@ -172,6 +176,7 @@ const SHELL_FILES = [
   "./packages/core/src/planner.js",
   "./packages/core/src/purpose.js",
   "./packages/core/src/providers.js",
+  "./packages/core/src/quest.js",
   "./packages/core/src/quota.js",
   "./packages/core/src/relax.js",
   "./packages/core/src/research.js",
@@ -187,6 +192,7 @@ const SHELL_FILES = [
   "./packages/core/src/score.js",
   "./packages/core/src/settings.js",
   "./packages/core/src/shapes.js",
+  "./packages/core/src/special.js",
   "./packages/core/src/stays.js",
   "./packages/core/src/stops-data.js",
   "./packages/core/src/stops-worker.js",
@@ -197,6 +203,7 @@ const SHELL_FILES = [
   "./packages/core/src/tags.js",
   "./packages/core/src/tickets.js",
   "./packages/core/src/tools.js",
+  "./packages/core/src/cache.js",
   "./packages/core/src/touring.js",
   "./packages/core/src/trains.js",
   "./packages/core/src/transit.js",

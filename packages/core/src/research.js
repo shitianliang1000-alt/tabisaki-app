@@ -23,6 +23,7 @@
 import { extractKeywords, GENERIC_TERMS } from "./keywords.js";
 import { spotBrief } from "./tools.js";
 import { straightKm } from "./providers.js";
+import { readQuest, runQuest } from "./quest.js";
 
 export const MAX_SEARCHES = 3;
 
@@ -105,18 +106,26 @@ const safeLlm = async (llm, task, payload, schema) => {
  *
  * @param {{wish: string, tools: ReturnType<import("./tools.js").createToolRegistry>,
  *          origin?: {name: string, lat: number, lng: number}, llm?: Function,
- *          maxSearches?: number, maxSpots?: number}} opts
+ *          maxSearches?: number, maxSpots?: number, onStep?: (step: object) => void}} opts
  *   llm は async (task, payload, schema) → JSON。task は "query" か "extract"。
- * @returns {Promise<{status: "answered"|"kb"|"out_of_scope", message: string,
+ *   onStep は、記録（trace）に1件足すたびに、その1件を受け取ります（開発者向けの
+ *   見える化で、考えと道具の結果を流して出すため。docs/dev-trace.md）。投げても止まりません。
+ * @returns {Promise<{status: "answered"|"kb"|"quest"|"special"|"out_of_scope", message: string,
  *   spots: object[], order: object[], prefecture: string|null, sources: object[],
  *   searches: number, question: object|null, alternatives: object[], trace: object[]}>}
  */
 export async function runResearch({ wish, tools, origin = null, llm = null,
-  maxSearches = MAX_SEARCHES, maxSpots = 6 } = {}) {
+  maxSearches = MAX_SEARCHES, maxSpots = 6, days = null, onStep = null } = {}) {
   const text = String(wish ?? "").trim();
   const kb = tools.ctx.kb;
   const limit = Math.max(0, Math.min(MAX_SEARCHES, maxSearches));
   const trace = [];
+  const record = (step) => {
+    trace.push(step);
+    if (typeof onStep === "function") {
+      try { onStep(step); } catch { /* 見る側の失敗で、調べるのを止めません */ }
+    }
+  };
   const sources = [];
   const tried = [];
   let state = STATES.ASSESS;
@@ -128,14 +137,14 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
   let query = "";
   let lastResults = [];
   const result = { status: null, message: "", spots: [], order: [], prefecture: null, sources,
-    searches: 0, question: null, alternatives: [], journey: null, trace };
+    searches: 0, question: null, alternatives: [], journey: null, quest: null, special: null, trace };
 
   const act = async (thought, tool, args) => {
     const obs = await tools.call(tool, args);
-    trace.push({ state, thought, action: { tool, args }, observation: brief(obs) });
+    record({ state, thought, action: { tool, args }, observation: brief(obs), ms: obs.ms ?? null });
     return obs;
   };
-  act.trace = trace;
+  act.record = record;
 
   // 状態は前へしか進みません（SEARCH ⇄ QUERY だけ、回数の上限まで戻れます）。
   for (let guard = 0; guard < 20 && state !== STATES.DONE && state !== STATES.OUT_OF_SCOPE; guard++) {
@@ -148,8 +157,35 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
         state = STATES.OUT_OF_SCOPE;
         continue;
       }
+      // 決まった一覧を回る・道を通しで行く要望は、汎用の流れ（quest.js。#443）へ。
+      const quest = readQuest(text);
+      if (quest) {
+        const qr = await runQuest({ wish: text, tools, origin, days, llm, quest });
+        trace.push(...qr.trace);
+        for (const s of qr.sources) if (!sources.some((x) => x.url === s.url)) sources.push(s);
+        searches = qr.searches;
+        result.quest = qr;
+        result.message = qr.message;
+        result.question = qr.question;
+        result.status = qr.status === "answered" ? "quest" : "out_of_scope";
+        if (qr.status === "answered" && qr.plan) {
+          result.spots = qr.plan.order;
+          result.order = qr.plan.order;
+          result.prefecture = mainPrefecture(qr.plan.order);
+        }
+        break;
+      }
       const j = await act("名のある旅のしかたか確かめる", "search_special_journey", { text: text.slice(0, 200) });
       if (j.ok && j.data.found) journey = j.data.journey;
+      // 特殊な旅の形（青春18きっぷ・世界遺産全制覇…）は、ネットで調べず、
+      // その形の処理（special.js）に回します。
+      if (j.ok && j.data.special) {
+        result.status = "special";
+        result.special = j.data.special;
+        result.message = `「${j.data.special.name}」の旅として、専用の組みかたで組みます。`;
+        state = STATES.DONE;
+        continue;
+      }
       const { keywords } = extractKeywords(text);
       for (const k of keywords.slice(0, 8)) {
         const r = await act(`「${k}」が収録にあるか`, "search_spots", { keywords: [k], limit: 5 });
@@ -194,7 +230,7 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
         { type: "object", required: ["places"], properties: { places: { type: "array", maxItems: 12, items: { type: "string", maxLength: 40 } } } }) : null;
       const names = Array.isArray(ai?.places) ? ai.places.filter((p) => typeof p === "string") : [];
       const hit = spotsMentioned(kb, body, names);
-      trace.push({ state, thought: "調べた結果に出てくる場所を、収録のスポットに結び付ける",
+      record({ state, thought: "調べた結果に出てくる場所を、収録のスポットに結び付ける",
         action: null, observation: { matched: hit.slice(0, 10).map((s) => s.name) } });
       for (const s of hit) if (!found.some((f) => f.id === s.id)) found.push(s);
       if (found.length) state = STATES.PLAN;
@@ -266,7 +302,7 @@ async function alternativesFor(text, tools, act, origin) {
 
 // 収録から直に選んだときも、記録に残します（道具は使っていません）。
 function noteDirect(act, spots) {
-  act.trace?.push({ state: STATES.OUT_OF_SCOPE, thought: "出発地の近くの知られた場所を代わりに出す",
+  act.record?.({ state: STATES.OUT_OF_SCOPE, thought: "出発地の近くの知られた場所を代わりに出す",
     action: null, observation: { top: spots.slice(0, 3).map((s) => s.name) } });
 }
 
@@ -285,6 +321,16 @@ function brief(obs) {
  * llm の形にします。AI に頼むのは「調べる語」と「結果に出てくる場所の名前」だけです。
  * @param {(prompt: string, opts?: object) => Promise<object>} callJson
  */
+// 答えの形（Gemini の形。手元・自前のモデルでは guided.js が JSON Schema に直して出力をしばります）。
+const QUERY_SCHEMA = {
+  type: "OBJECT", properties: { query: { type: "STRING" } },
+  required: ["query"], propertyOrdering: ["query"],
+};
+const PLACES_SCHEMA = {
+  type: "OBJECT", properties: { places: { type: "ARRAY", items: { type: "STRING" } } },
+  required: ["places"], propertyOrdering: ["places"],
+};
+
 export function modelLlm(callJson) {
   return async (task, payload) => {
     if (task === "query") {
@@ -292,14 +338,14 @@ export function modelLlm(callJson) {
         + "その語にゆかりのある日本の観光地が見つかるような、短い検索語（日本語・40字まで）を1つ作ってください。\n"
         + `希望: ${payload.wish}\n収録に無い語: ${payload.unknown.join("、")}\n`
         + (payload.tried.length ? `もう使った検索語（同じものは避ける）: ${payload.tried.join(" / ")}\n` : "")
-        + '答えは {"query": "検索語"} の JSON だけで返してください。', { temperature: 0 });
+        + '答えは {"query": "検索語"} の JSON だけで返してください。', { temperature: 0, schema: QUERY_SCHEMA });
     }
     if (task === "extract") {
       const lines = payload.results.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}`).join("\n");
       return callJson("次の検索結果から、希望に合う日本の観光地・名所・施設の固有名を拾ってください。"
         + "検索結果に書かれていない名前は足さないでください。\n"
         + `希望: ${payload.wish}\n検索結果:\n${lines}\n`
-        + '答えは {"places": ["名前", ...]} の JSON だけで返してください（12件まで）。', { temperature: 0 });
+        + '答えは {"places": ["名前", ...]} の JSON だけで返してください（12件まで）。', { temperature: 0, schema: PLACES_SCHEMA });
     }
     return null;
   };

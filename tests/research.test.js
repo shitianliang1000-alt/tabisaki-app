@@ -120,8 +120,9 @@ test("modelLlm は JSON を返すモデルを llm の形にする", async () => 
 });
 
 test("spotsMentioned は長い名前を先に当てる", () => {
-  const names = spotsMentioned(kb, "青井阿蘇神社と人吉城歴史館へ").map((s) => s.name);
+  // 人吉城歴史館（文化施設 P27）は公開の収録から外したので、出水麓歴史館で確かめます。
+  const names = spotsMentioned(kb, "青井阿蘇神社と出水麓歴史館へ").map((s) => s.name);
   assert.ok(names.includes("青井阿蘇神社"));
-  assert.ok(names.includes("人吉城歴史館"));
-  assert.ok(!names.includes("人吉城"), "人吉城歴史館の中の人吉城は数えない");
+  assert.ok(names.includes("出水麓歴史館"));
+  assert.ok(!names.includes("出水麓"), "出水麓歴史館の中の出水麓は数えない");
 });

@@ -1,0 +1,62 @@
+name: Deploy to Cloudflare
+
+# main の試験（Unit tests）が通ったら、Cloudflare Worker（サイトと AI の中継）を上げます。
+#
+# 2026-11-04: 公開中の Worker が 10/23 の版（sw.js v23）のまま止まっていました。
+# Cloudflare 側の Workers Builds がつながっていない（またはリポジトリ名の変更で外れた）と
+# 見られるので、GitHub から上げる道を足しました。
+#
+# 使うには、リポジトリの Settings → Secrets and variables → Actions に次の2つを入れます。
+#   CLOUDFLARE_API_TOKEN   Cloudflare の「Edit Cloudflare Workers」テンプレートで作ったトークン
+#   CLOUDFLARE_ACCOUNT_ID  Cloudflare のダッシュボードの右側に出ているアカウント ID
+# 入れていなければ、何もせずに終わります（失敗にはしません）。
+on:
+  workflow_run:
+    workflows: ["Unit tests"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: keys
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then echo "ok=1" >> "$GITHUB_OUTPUT"
+          else echo "CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID が無いので、上げません" >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/checkout@v4
+        if: steps.keys.outputs.ok == '1'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        if: steps.keys.outputs.ok == '1'
+        with:
+          node-version: 22
+      - name: Deploy
+        if: steps.keys.outputs.ok == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # 試験は Unit tests で通っているので、組み立ての中ではもう一度走らせません。
+        run: npx --yes wrangler@4 deploy
+      - name: Check the live site
+        if: steps.keys.outputs.ok == '1'
+        run: |
+          sleep 10
+          want=$(grep -m1 'const VERSION' sw.js)
+          got=$(curl -fsS https://tabisaki-github-io.shitianliang1000.workers.dev/sw.js | grep -m1 'const VERSION' || true)
+          echo "repo: $want / live: $got" >> "$GITHUB_STEP_SUMMARY"
+          [ "$want" = "$got" ]

@@ -2068,6 +2068,8 @@ await check("足りない条件だけを聞き、書いたことは聞き直さ�
     const origin = new URL(BASE).origin;
     await pg.route((u) => u.origin !== origin, (route) => route.abort("connectionrefused"));
   }
+  // ここでは決め打ちの選択肢を押します（AI の選択肢は次の確認で見ます）。
+  await pg.route(/\/gemini\/generate|:generateContent/, (route) => route.abort("connectionrefused"));
   try {
     await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
     await until(pg, () => !document.getElementById("make-plan").disabled);
@@ -2122,6 +2124,66 @@ await check("足りない条件だけを聞き、書いたことは聞き直さ�
     assert(!(await pg2.$(".slot-card")), "詳しく書いたのに質問が出ました");
   } finally {
     await ctx2.close();
+  }
+});
+
+// 質問の選択肢を、頼んだ文に合わせて AI が作る（#441）。AI の返事は偽物です。
+// 確かめるのは、地名入りの選択肢が捨てられること・「上記以外」が最後に
+// あること・AI の選択肢で答えられること。
+await check("質問の選択肢を AI が文脈から作り、地名は出さない", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, askSlots: true });
+  const pg = await ctx.newPage();
+  if (process.env.E2E_OFFLINE) {
+    const origin = new URL(BASE).origin;
+    await pg.route((u) => u.origin !== origin, (route) => route.abort("connectionrefused"));
+  }
+  const reply = {
+    questions: [
+      { id: "destination", choices: [
+        { label: "紅葉の山", text: "紅葉がきれいな山へ" },
+        { label: "嵐山", text: "嵐山へ" },
+        { label: "古い町並み", text: "古い町並みを歩けるところへ" },
+        { label: "清水寺", text: "清水寺へ" },
+        { label: "渓谷の遊歩道", text: "渓谷沿いを歩けるところへ" },
+      ] },
+      { id: "dates.start", choices: [{ label: "今週末", text: "今週末に" }, { label: "来週末", text: "来週の週末に" }] },
+      { id: "dates.nights", choices: [{ label: "日帰り", text: "日帰りで" }, { label: "1泊2日", text: "1泊2日で" }] },
+    ],
+  };
+  let asked = 0;
+  await pg.route(/\/gemini\/generate|:generateContent/, async (route) => {
+    const body = route.request().postData() ?? "";
+    // 選択肢の頼み以外（質問か旅程かの判断など）は、AI なしの道へ。
+    if (!body.includes("押すだけで答えられる選択肢")) return route.abort("connectionrefused");
+    asked++;
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }),
+    });
+  });
+  try {
+    await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg, () => !document.getElementById("make-plan").disabled);
+    await pg.fill("#note", "紅葉を見に行きたい");
+    await pg.keyboard.press("Enter");
+    await pg.waitForSelector(".slot-card", { timeout: 20_000 });
+    await until(pg, () => Boolean(document.querySelector('#slot-destination [data-choice="ai1"]')),
+      { timeout: 20_000 });
+    assert(asked >= 1, "AI に選択肢を頼んでいません");
+    const labels = await pg.$$eval("#slot-destination .slot-choice", (els) => els.map((e) => e.textContent));
+    assert(labels.includes("紅葉の山") && labels.includes("古い町並み"), `AI の選択肢が出ていません: ${labels.join("・")}`);
+    assert(!labels.includes("嵐山") && !labels.includes("清水寺"), `地名・スポット名が出ています: ${labels.join("・")}`);
+    assert(labels.at(-1).startsWith("上記以外"), `「上記以外」が最後にありません: ${labels.join("・")}`);
+    assert(!(await pg.$(".slot-thinking")), "考え中の表示が残っています");
+    const cardText = await pg.$eval(".slot-card", (e) => e.textContent);
+    assert(!cardText.includes("null"), "カードに「null」という字が出ています");
+    await pg.click('#slot-destination [data-choice="ai1"]');
+    await until(pg, () => !document.querySelector("#slot-destination"));
+    const start = await pg.$$eval("#slot-dates-start .slot-choice", (els) => els.map((e) => e.textContent));
+    assert(start.includes("今週末") && start.at(-1).startsWith("上記以外"),
+      `日程の質問が AI の選択肢のままではありません: ${start.join("・")}`);
+  } finally {
+    await ctx.close();
   }
 });
 

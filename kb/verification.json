@@ -499,30 +499,6 @@
    "municipality": "別府市",
    "source": "https://www.beppu-ropeway.co.jp/facilities/",
    "checkedAt": "2026-10-31"
-  },
-  "n0344-2": {
-   "status": "verified_exists",
-   "name": "城崎温泉の街並みと外湯巡り",
-   "municipality": "豊岡市",
-   "source": "https://www.mlit.go.jp/tagengo-db/common/001554197.pdf",
-   "checkedAt": "2026-11-03",
-   "note": "城崎温泉の7つの外湯（さとの湯・一の湯・御所の湯・まんだら湯・地蔵湯・鴻の湯・柳湯）を巡る温泉街として実在。観光庁 多言語解説文DBで確認"
-  },
-  "n0968-1": {
-   "status": "verified_exists",
-   "name": "板柳のりんご畑の風景",
-   "municipality": "板柳町",
-   "source": "https://www.jreast.co.jp/akita/gonosen/menu/18.html",
-   "checkedAt": "2026-11-03",
-   "note": "板柳町は「りんごの里」を掲げ、板柳町ふるさとセンター周辺が一面のりんご園。景観として実在（座標は町役場付近で、特定の展望地点ではない）"
-  },
-  "n0355-4": {
-   "status": "verified_exists",
-   "name": "佐渡のトキ",
-   "municipality": "佐渡市",
-   "source": "https://www.env.go.jp/nature/kisho/wildlifecenter/sado-toki.html",
-   "checkedAt": "2026-11-03",
-   "note": "トキの観察は佐渡市トキの森公園（新穂長畝383-2）で可能。kb の座標はトキの森公園とずれているため、座標の見直しが要る"
   }
  }
 }

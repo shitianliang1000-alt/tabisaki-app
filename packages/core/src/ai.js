@@ -18,10 +18,12 @@ import { endpointFor, keyHeaders, missingSecretHelp, proxyStatus,
 import { effectiveConfig } from "./settings.js";
 import { buildSearchText, extractKeywords } from "./keywords.js";
 import { meteredFetch } from "./quota.js";
+import { cacheKey, createCache, memoryStore, webStorageStore } from "./cache.js";
 import { haversineKm } from "./feasibility.js";
 import { joinAreaNames } from "./stays.js";
 import { createRouteLog, normalizeThreshold, planRoute, scoreReply, shouldHandOver }
   from "./router.js";
+import { GUIDED_STYLES, applyGuided, rejectedGuided, toJsonSchema } from "./guided.js";
 
 /**
  * どこへ投げるか。毎回読み直します。
@@ -58,9 +60,27 @@ export function useLocalModel(opts) {
   runtimeHybrid = null;
   runtimeLocal = opts ? { model: opts.model || LOCAL_MODEL,
                           baseUrl: opts.baseUrl || LOCAL_BASE_URL } : null;
+  if (opts?.guided) setLocalGuided(opts.guided);
   resolved = null;
 }
 const localModel = () => runtimeLocal?.model ?? LOCAL_MODEL;
+
+/**
+ * 手元のモデル（Ollama・vLLM・llama.cpp…）へ JSON を頼むときの、形のしばりかた（Issue #435）。
+ *
+ * 既定は "json_schema"（response_format: {type:"json_schema"}）。vLLM なら Outlines /
+ * xgrammar が、Ollama・llama.cpp なら文法（GBNF）が、形に合わないトークンを出させません。
+ * 受けないサーバーが断ってきたら、"json_object" に落として覚えます（guided.js）。
+ * 古い vLLM（0.10 より前）で response_format が効かないときは "guided_json" にします。
+ */
+let localGuided = "json_schema";
+export function setLocalGuided(style) {
+  if (!GUIDED_STYLES.includes(style)) throw new TypeError(`しばりかたは ${GUIDED_STYLES.join(" / ")} のどれかです`);
+  localGuided = style;
+}
+export function localGuidedStyle() {
+  return localGuided;
+}
 
 /**
  * 手元のモデルとクラウドのモデルを、頼みごとに使い分けます（Issue #439。router.js）。
@@ -176,11 +196,41 @@ export function canWebSearch() {
  * @returns {Promise<{title: string, url: string, snippet: string}[]>}
  */
 export async function webSearch(q, opts = {}) {
+  const query = String(q ?? "").slice(0, 80);
+  // 同じ語は端末の中で1日覚えておき、中継へ聞き直しません（#438）。
+  // 見つからなかった答えと失敗は覚えません。
+  const { value } = await searchCache().fetch(cacheKey(query), () => askWebSearch(query, opts),
+    { keep: (r) => Array.isArray(r) && r.length > 0 });
+  return value;
+}
+
+let webCache = null;
+
+/** 端末の中の検索の控え。localStorage が使えなければメモリだけ。 */
+export function searchCache() {
+  if (webCache) return webCache;
+  let layers = [memoryStore({ maxEntries: 100 })];
+  try {
+    const ls = globalThis.localStorage;
+    if (ls && typeof ls.getItem === "function") {
+      layers = [layers[0], webStorageStore(ls, { prefix: "tabisaki:web:", maxEntries: 50 })];
+    }
+  } catch { /* 使えない（プライベートモードなど） */ }
+  webCache = createCache({ layers });
+  return webCache;
+}
+
+/** 試験用。控えを空にします。 */
+export function resetSearchCache() {
+  webCache = null;
+}
+
+async function askWebSearch(q, opts) {
   const cfg = net();
   const res = await fetch(endpointFor("web:search", {}, cfg), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ q: String(q ?? "").slice(0, 80) }),
+    body: JSON.stringify({ q }),
     signal: requestSignal(opts.signal),
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));
@@ -576,18 +626,30 @@ async function callLocalDetailed(prompt, opts = {}) {
     stream: false,
   };
   if (Number.isFinite(topP)) body.top_p = topP;
-  if (schema) body.response_format = { type: "json_object" };
   // 確信度を測るため、トークンごとの確率を頼みます（受けない実行環境では無視されます）。
   if (logprobs) body.logprobs = true;
 
-  const res = await meteredFetch("gemini", url, {
+  const post = (b) => meteredFetch("gemini", url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(b),
     signal,
   });
+  // 形のしばり（Guided Decoding）。schema は Gemini の形でも JSON Schema でも構いません。
+  const style = schema ? localGuided : "off";
+  let res = await post(schema ? applyGuided(body, schema, { style }) : body);
+  let failText = null;
+  if (!res.ok && schema && style !== "json_object" && style !== "off") {
+    failText = await res.text().catch(() => "");
+    if (rejectedGuided(res.status, failText)) {
+      // このサーバーは形のしばりを受けません。以後は「JSON であること」だけ頼みます。
+      localGuided = "json_object";
+      res = await post(applyGuided(body, schema, { style: "json_object" }));
+      failText = null;
+    }
+  }
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
+    const text = failText ?? await res.text().catch(() => "");
     const err = new Error(`${res.status} ${text.slice(0, 200)}`);
     err.status = res.status;
     throw err;
@@ -688,6 +750,19 @@ function withModel(body, model, cfg) {
   return usingProxy(cfg) ? { ...body, model } : body;
 }
 
+/**
+ * 中継へ、形のしばり（JSON Schema）を添えます（Issue #435）。
+ *
+ * Gemma には responseSchema がありません（Google へ付けると 400）。中継は
+ * guidedSchema を Google へは渡さずに落とし、自前のモデル（OWN_MODEL_URL。
+ * vLLM など）へ聞くときだけ response_format: json_schema に使います
+ * （server/own-model.js）。中継を通さず Google へ直に投げるときは付けません。
+ */
+function withGuided(body, model, cfg, { schema, search } = {}) {
+  if (!usingProxy(cfg) || !schema || search || !isGemma(model)) return body;
+  return { ...body, guidedSchema: toJsonSchema(schema) };
+}
+
 async function callOnce(model, prompt, opts = {}) {
   const { signal } = opts;
   const cfg = net();
@@ -698,8 +773,8 @@ async function callOnce(model, prompt, opts = {}) {
       "Content-Type": "application/json",
       ...keyHeaders("gemini", cfg),
     },
-    body: JSON.stringify(withModel(buildModelRequest(prompt, { ...opts, model }),
-                                   model, cfg)),
+    body: JSON.stringify(withGuided(withModel(buildModelRequest(prompt, { ...opts, model }),
+                                              model, cfg), model, cfg, opts)),
     signal,
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));

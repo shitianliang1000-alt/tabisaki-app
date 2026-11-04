@@ -12,7 +12,7 @@ import { effectiveConfig } from "../packages/core/src/settings.js";
 import { callModel, describeSpot, hasApiKey }
   from "../packages/core/src/ai.js";
 import { discoverArea } from "../packages/core/src/discover.js";
-import { ensureRegions, loadKnowledgeBase, loadRegionIndex, mergeIntoKb, stagedKb }
+import { ensureNames, ensureRegions, loadKnowledgeBase, loadRegionIndex, mergeIntoKb, stagedKb }
   from "../packages/core/src/kb.js";
 
 import { resetRoutesBreaker, routesUsage }
@@ -61,6 +61,7 @@ import { answerQuestion, rememberQa, resolveRef, routeText } from "./qa.js";
 import { hasSubstance, readChat, stripOriginPhrase } from "../packages/core/src/chatread.js";
 import { detectAreas } from "../packages/core/src/areas.js";
 import { startDialog } from "../packages/core/src/slots.js";
+import { generateChoices, placeChecker } from "../packages/core/src/choices.js";
 import { openSlotCard, slotsOff } from "./slotcard.js";
 import { readIntent } from "../packages/core/src/intent.js";
 import { setupVoiceInput } from "./voice.js";
@@ -2377,6 +2378,7 @@ async function plan(said, textArg, note, { skipSlots = false } = {}) {
         state.slotCard = null;
         plan(said, textArg, composed, { skipSlots: true });
       });
+      aiChoices(state.slotCard, dialog);
       return;
     }
   }
@@ -2420,6 +2422,29 @@ async function plan(said, textArg, note, { skipSlots = false } = {}) {
   state.sentNote = text;
   saveConditions();
   run();
+}
+
+/**
+ * 質問の選択肢を、頼んだ文に合わせて AI（Gemma）に作ってもらいます（#441）。
+ * 鍵が無いとき・失敗したときは、決め打ちの選択肢のままです。スポット名や
+ * 地名の入った選択肢は、収録の名前で引いて捨てます（方向性だけを出す）。
+ */
+async function aiChoices(card, dialog) {
+  if (!card || !hasApiKey()) return;
+  card.thinking(true);
+  try {
+    // 名前の索引は、地名かどうかを見るのに使います。取れなくても進みます。
+    await Promise.race([ensureNames(state.kb).catch(() => null),
+      new Promise((r) => setTimeout(r, 1500))]);
+    const next = await generateChoices(dialog, {
+      call: (prompt, o) => callModel(prompt, o),
+      isPlace: placeChecker(state.kb),
+    });
+    if (next !== dialog) count("chat_send", "slots-ai");
+    card.offer(next);
+  } catch {
+    card.offer(null);
+  }
 }
 
 /** 文に書かれた行き先（収録から）。読み込み前や失敗したときは null（名前だけで読みます）。 */

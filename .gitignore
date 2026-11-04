@@ -40,3 +40,7 @@ Thumbs.db
 /.env.deploy
 # tabisaki kb extract / kb index が作るもの（作り直せます）
 /.tabisaki/
+
+# 国土数値情報の非商用データ（P12・P27・P11）。公開しません（docs/kokudo-licenses.md）。
+# tools/split_noncommercial.mjs が kb/ から移します。
+/kb-private/
