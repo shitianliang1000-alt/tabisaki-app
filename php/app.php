@@ -54,5 +54,5 @@ $html = preg_replace('#(<meta property="og:url" content=")[^"]*(")#', '${1}' . h
 
 header('Content-Type: text/html; charset=utf-8');
 // 挨拶が時刻で変わるので、長くは持たせません。
-header('Cache-Control: public, max-age=300');
+header('Cache-Control: no-cache, no-store, must-revalidate');
 echo $html;

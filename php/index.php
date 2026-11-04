@@ -28,7 +28,7 @@ if ($tpl === false) {
 $view = landing_view(new DateTimeImmutable('now'), load_areas(), canonical_base(), 'PHP');
 
 header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: public, max-age=300');
+header('Cache-Control: no-cache, no-store, must-revalidate');
 header("Content-Security-Policy: " . LANDING_CSP);
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');

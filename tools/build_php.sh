@@ -47,6 +47,14 @@ if command -v php >/dev/null 2>&1; then
   for f in "$out"/*.php "$out"/inc/*.php; do php -l "$f" >/dev/null; done
 fi
 if [ -e "$out"/admin ]; then echo "admin must not be published" >&2; exit 1; fi
+# 上げた先で「古いファイルが残っていないか」を version.php で確かめられるように、
+# 主なファイルの指紋（sha1）を manifest.json に書きます。
+node -e '
+const fs=require("fs"),c=require("crypto"),d=process.argv[1];
+const files=["index.php","app.php","index.html","sw.js",".htaccess","inc/site.php","inc/landing.html","assets/landing.css","assets/landing.js","data/areas.json","js/shell.js"];
+const o={built:new Date().toISOString(),files:{}};
+for(const f of files){const p=d+"/"+f;if(fs.existsSync(p))o.files[f]=c.createHash("sha1").update(fs.readFileSync(p)).digest("hex");}
+fs.writeFileSync(d+"/manifest.json",JSON.stringify(o,null,1));' "$dest"
 if [ "${2:-}" = "--zip" ]; then
   rm -f tabisaki-php.zip
   (cd "$out" && zip -qr ../tabisaki-php.zip . -x 'tests/*')
