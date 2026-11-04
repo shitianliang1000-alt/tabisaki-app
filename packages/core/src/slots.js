@@ -36,7 +36,8 @@ import { MACRO_AREAS, NAMED_SETS, PREFECTURES, mostSpecific } from "./areas.js";
  *              変わる3つ（どこ・いつ／何日・誰と）だけを聞きます。
  *   choices  … 聞くときの選択肢。text は希望文に足す言葉です（"" は何も
  *              足さない＝おまかせ）。「上記以外（自由記述）」は画面が
- *              必ず添えます（OTHER）。選択肢を文脈から作るのは #441 です。
+ *              必ず添えます（OTHER）。これは AI が使えないときの選択肢で、
+ *              使えるときは文脈から作ったもの（choices.js、#441）に差し替えます。
  */
 export const SLOTS = [
   {
@@ -267,8 +268,12 @@ function mostSpecificNames(names) {
  *
  * @returns {{slot: string, part?: string, question: string, choices: object[]}[]}
  */
-export function missingQuestions(slots, { max = MAX_QUESTIONS } = {}) {
+export function missingQuestions(slots, { max = MAX_QUESTIONS, choices = null } = {}) {
   const out = [];
+  const push = (q, fixed) => {
+    const ai = choices?.[questionKey(q)];
+    out.push(ai?.length ? { ...q, choices: withEnds(fixed, ai), ai: true } : { ...q, choices: [...fixed, OTHER] });
+  };
   for (const def of SLOTS) {
     if (!def.ask) continue;
     const s = slots?.[def.id];
@@ -276,13 +281,27 @@ export function missingQuestions(slots, { max = MAX_QUESTIONS } = {}) {
     if (def.parts) {
       for (const [part, p] of Object.entries(def.parts)) {
         if (s?.parts?.[part]?.filled) continue;
-        out.push({ slot: def.id, part, question: p.question, choices: [...p.choices, OTHER] });
+        push({ slot: def.id, part, question: p.question }, p.choices);
       }
     } else {
-      out.push({ slot: def.id, question: def.question, choices: [...def.choices, OTHER] });
+      push({ slot: def.id, question: def.question }, def.choices);
     }
   }
   return out.slice(0, max);
+}
+
+/** 質問を見分ける鍵（"destination"・"dates.start"）。 */
+export function questionKey(q) {
+  return q.part ? `${q.slot}.${q.part}` : q.slot;
+}
+
+/**
+ * AI が作った選択肢（#441、choices.js）の前後に、決め打ちの「おまかせ」
+ * （あれば）と「上記以外（自由に書く）」を付けます。「上記以外」は必ず最後です。
+ */
+function withEnds(fixed, ai) {
+  const any = fixed.find((c) => c.id === "any");
+  return [...(any ? [any] : []), ...ai, OTHER];
 }
 
 /** 確かめの欄に出す、いまの内容。埋まっていない枠は「おまかせ」。 */
@@ -303,6 +322,9 @@ export function confirmLines(slots) {
 export function answerText(q, answer) {
   if (!answer) return "";
   if (answer.text != null && String(answer.text).trim()) return String(answer.text).trim();
+  // AI の選択肢（#441）は、質問そのものが持っています。
+  const own = q.choices?.find((c) => c.id === answer.choice);
+  if (own && !own.free) return own.text ?? "";
   const def = BY_ID.get(q.slot);
   const list = q.part ? def?.parts?.[q.part]?.choices : def?.choices;
   return list?.find((c) => c.id === answer.choice)?.text ?? "";
@@ -334,7 +356,8 @@ export function composeNote(base, phrases = [], extra = "") {
  */
 export function startDialog(text, opts = {}) {
   const base = String(text ?? "").trim();
-  return reread({ base, phrases: [], marks: [], opts, asked: 0 }, []);
+  // choices … AI が作った選択肢（#441）。読み直しても消えないよう、ここに持ちます。
+  return reread({ base, phrases: [], marks: [], choices: {}, opts, asked: 0 }, []);
 }
 
 /**
@@ -345,7 +368,7 @@ export function startDialog(text, opts = {}) {
 function reread(d, phrases) {
   let slots = extractSlots(composeNote(d.base, phrases), d.opts);
   for (const m of d.marks) if (!isFilled(slots[m.slot], m.part)) slots = markFilled(slots, m, m.label, m.source);
-  const questions = missingQuestions(slots);
+  const questions = missingQuestions(slots, { choices: d.choices });
   return { ...d, phrases, slots, questions, phase: questions.length ? "asking" : "ready" };
 }
 

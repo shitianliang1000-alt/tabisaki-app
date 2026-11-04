@@ -8,6 +8,10 @@
 //   │ 追加の要望（任意）
 //   └ [この内容で組む]  □ 次からは聞かずに組む
 //
+// 選択肢は、AI が使えるときは頼んだ文に合わせて作ります（packages/core/src/
+// choices.js、#441）。考えているあいだも決め打ちの札は押せて、押す前に
+// 届いたときだけ差し替えます。
+//
 // 札を押すと、その枠は埋まり、まだ足りない質問だけが残ります。チャット欄に
 // 返信しても同じです（js/app.js の send が replyDialog に回します）。
 // 全部埋まったら、確かめの形（読み取った内容＋追加の要望）になります。
@@ -49,6 +53,11 @@ export function openSlotCard(said, dialog, onDone) {
 
   let d = dialog;
   let open = true;
+  // 利用者がもう札を押したか・返信したか。押したあとで選択肢を入れ替えると、
+  // 押そうとした札が動いてしまいます（AI の選択肢は、触る前だけ差し替えます）。
+  let touched = false;
+  // AI が選択肢を考えているあいだ（#441）。決め打ちの札はそのまま押せます。
+  let thinking = false;
   const extra = el("input", {
     type: "text", class: "slot-extra-input", id: "slot-extra",
     placeholder: "例: 露天風呂のある宿、夜は地元の居酒屋へ",
@@ -79,8 +88,13 @@ export function openSlotCard(said, dialog, onDone) {
         : "いくつか教えてください。分からなければ、そのまま組めます。")
       : "この内容で組みます。ほかに希望があれば書いてください（なくても組めます）。";
     const rows = d.questions.map((q) => questionRow(q));
-    body.replaceChildren(
+    body.setAttribute("aria-busy", thinking ? "true" : "false");
+    // replaceChildren は null を「null」という字にしてしまうので、外してから渡します。
+    body.replaceChildren(...[
       el("p", { class: "slot-lead" }, lead),
+      thinking && asking
+        ? el("p", { class: "slot-thinking", role: "status" }, "あなたの頼みに合う選択肢を考えています…")
+        : null,
       known.length
         ? el("ul", { class: "read-chips slot-known", "aria-label": "読み取った条件" },
             ...known.map((l) => el("li", {}, `${l.label}: ${l.value}`)))
@@ -90,7 +104,7 @@ export function openSlotCard(said, dialog, onDone) {
       extra,
       el("div", { class: "slot-actions" }, go,
         el("label", { class: "slot-off", for: "slot-off" }, off, "次からは聞かずに組む")),
-    );
+    ].filter(Boolean));
   }
 
   function questionRow(q) {
@@ -123,6 +137,7 @@ export function openSlotCard(said, dialog, onDone) {
 
   function answer(q, a) {
     if (!open) return;
+    touched = true;
     d = answerDialog(d, q, a);
     render();
     // 全部答えたら、確かめに目を移します（追加の要望の欄）。
@@ -145,7 +160,24 @@ export function openSlotCard(said, dialog, onDone) {
         finish();
         return;
       }
+      touched = true;
       d = replyDialog(d, text);
+      render();
+    },
+    /** AI が選択肢を考え始めた／終えた（#441）。 */
+    thinking(on) {
+      if (!open || thinking === Boolean(on)) return;
+      thinking = Boolean(on);
+      render();
+    },
+    /**
+     * AI が作った選択肢を付けたやりとり（choices.js の generateChoices の結果）。
+     * まだ何も押していないときだけ差し替えます。
+     */
+    offer(next) {
+      thinking = false;
+      if (!open) return;
+      if (!touched && next && next !== d && next.base === d.base) d = next;
       render();
     },
     close() {
