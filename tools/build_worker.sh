@@ -30,6 +30,6 @@ cp _headers "$out"/_headers
 # ひな形とデータは PHP 版と同じものです。
 mkdir -p "$out"/__site "$out"/assets
 cp php/inc/landing.html "$out"/__site/landing.html
-cp php/assets/* "$out"/assets/
+cp -r php/assets/. "$out"/assets/
 node tools/build_php_data.mjs "$out"
 echo "built $out ($(find "$out" -type f | wc -l) files)"

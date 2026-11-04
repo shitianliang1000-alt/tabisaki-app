@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 旅さきを映像で見るページ。apple.com の製品ページ（MacBook Pro のディスプレイの節）の
+     作りかた（帯・大きな見出し・画面の中の動画・横に流れるハイライト・読み進めると広がる
+     映像・切り替える説明）だけを手本にしています。字・絵・動画はすべて旅さきのものです。
+     動画は tools/record_tour.mjs が作ります（旅さきの画面の録画と、コードで描いた映像）。
+     どちらの公開先（Cloudflare・PHP 版）でも、そのまま置けば動く静的なページです。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<title>映像で見る旅さき | 旅さき</title>
+<meta name="description" content="行きたいことを書くだけで、営業時間と移動時間を照らし合わせた旅程ができるまでを、旅さきの実際の画面の映像で紹介します。">
+<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/tour.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="映像で見る旅さき">
+<meta property="og:description" content="行きたいことを書くだけで、旅が目に見えるかたちになるまで。">
+<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/tour.html">
+<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="assets/tour.css?v=55e9eebc">
+<script type="module" src="assets/tour.js?v=889ec817"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+
+<!-- 1. 製品ページの帯（名前・ページの中の道・青いボタン） -->
+<header class="lnav" id="lnav">
+  <div class="lnav-in">
+    <a class="lnav-name" href="./"><img src="mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>映像で見る</small></span></a>
+    <nav class="lnav-links" aria-label="このページの中">
+      <a href="#highlights">見どころ</a>
+      <a href="#how">しくみ</a>
+      <a href="#phone">携帯</a>
+      <a href="#credits">映像について</a>
+    </nav>
+    <a class="gh" href="https://github.com/shitianliang1000-alt/tabisaki-app" rel="noopener" target="_blank" aria-label="GitHub（新しいタブで開きます）"><svg class="gh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" fill="currentColor" stroke="none"/></svg><span>GitHub</span></a>
+    <a class="btn btn-sm" href="app">旅さきを使う</a>
+  </div>
+</header>
+
+<main id="main">
+  <!-- 2. 見出しと、画面の中で動く旅さき -->
+  <section class="hero">
+    <p class="hero-eyebrow reveal">旅さき・無料のウェブアプリ</p>
+    <h1 class="hero-title reveal">旅が、目に見える。</h1>
+    <p class="hero-note reveal">登録はいりません。ブラウザで開くだけです。</p>
+    <figure class="laptop reveal" id="hero-laptop">
+      <div class="laptop-screen">
+        <video class="tv" data-auto muted loop playsinline preload="metadata" poster="assets/tour/plan.webp" width="1280" height="800" aria-label="旅さきに「古い町並みを歩いて、海も見たい」と書いて、旅程ができるまでの画面の録画">
+          <source src="assets/tour/plan.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="laptop-base" aria-hidden="true"></div>
+      <figcaption class="sr-only">旅さきの実際の画面の録画です。</figcaption>
+    </figure>
+  </section>
+
+  <!-- 3. 読み進めると字が明るくなる文 -->
+  <section class="intro">
+    <p class="scrub" id="scrub">旅さき。行きたいことを書けば、全国の観光地から行き先を選び、営業時間と移動時間を一つずつ照らし合わせて、そのまま行ける1日にします。行き先が決まっていなくても大丈夫です。</p>
+  </section>
+
+  <!-- 4. 見どころ（横に流れる動画のカード） -->
+  <section class="highlights" id="highlights" aria-labelledby="hl-title">
+    <div class="wrap">
+      <h2 class="sec-title reveal" id="hl-title">まずは、見どころから。</h2>
+    </div>
+    <div class="hl-rail" id="hl-rail" tabindex="0" aria-label="見どころ（横に送れます）">
+      <article class="hl-card">
+        <video class="tv" muted playsinline preload="none" poster="assets/tour/map.webp" width="1000" height="420" aria-label="旅程の地図を拡大・縮小しているところの録画"><source src="assets/tour/map.mp4" type="video/mp4"></video>
+        <p class="hl-cap"><b>順路が、地図に。</b>立ち寄る順に番号をふって、地図に置きます。</p>
+      </article>
+      <article class="hl-card">
+        <video class="tv" muted playsinline preload="none" poster="assets/tour/refine.webp" width="1280" height="800" aria-label="「もっとゆっくりまわりたい」と書いて、旅程を組み直しているところの録画"><source src="assets/tour/refine.mp4" type="video/mp4"></video>
+        <p class="hl-cap"><b>話しかけて、直す。</b>「もっとゆっくり」と続けて書けば、その場で組み直します。</p>
+      </article>
+      <article class="hl-card">
+        <video class="tv" muted playsinline preload="none" poster="assets/tour/plus.webp" width="1280" height="800" aria-label="入力欄の＋から、出発地や日時を選ぶところの録画"><source src="assets/tour/plus.mp4" type="video/mp4"></video>
+        <p class="hl-cap"><b>条件は「＋」から。</b>出発地・日時・こだわりは、入力欄の左から足せます。</p>
+      </article>
+      <article class="hl-card">
+        <video class="tv" muted playsinline preload="none" poster="assets/tour/areas.webp" width="1280" height="800" aria-label="神奈川県の観光地のページを読み進めているところの録画"><source src="assets/tour/areas.mp4" type="video/mp4"></video>
+        <p class="hl-cap"><b>エリアから、探す。</b>都道府県ごとの定番と穴場、モデルコースが読めます。</p>
+      </article>
+    </div>
+    <div class="hl-ctl">
+      <span class="hl-dots" id="hl-dots" aria-hidden="true"></span>
+      <button type="button" class="round" id="hl-play" aria-label="見どころの再生を止める" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M7 5l12 7-12 7Z"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- 5. 大きな字が縮んで、映像が画面いっぱいに広がる -->
+  <section class="zoom" id="zoom" aria-label="旅の映像">
+    <div class="zoom-sticky">
+      <p class="zoom-word" aria-hidden="true">TABISAKI</p>
+      <div class="zoom-frame">
+        <video class="tv" muted loop playsinline preload="none" poster="assets/film-poster.webp" width="1280" height="720" aria-label="全国の観光地の点のあいだを、旅の線が北から南へつないでいく映像"><source src="assets/film.mp4" type="video/mp4"></video>
+      </div>
+      <p class="zoom-copy">全国の観光地が、<br>ひとつの旅になる。</p>
+    </div>
+  </section>
+
+  <!-- 6. しくみと数 -->
+  <section class="how" id="how">
+    <div class="wrap narrow">
+      <p class="eyebrow reveal">しくみ</p>
+      <h2 class="big-title reveal">照らし合わせて、<br>ひとつの順番に。</h2>
+      <p class="lead reveal">旅さきは、書いた文から「どこで・いつ・誰と・何をしたいか」を読み取り、足りないことだけを聞きます。そのうえで、観光地の営業時間と定休日、駅や停留所のあいだの移動時間を実際に照らし合わせて、ゆったり・王道・探索の3つの案を組みます。答えは、考えたそばから流れるように出てきます。</p>
+      <p class="lead-link reveal"><a href="about.html">実際に組んだ例を読む <span aria-hidden="true">›</span></a></p>
+    </div>
+    <div class="wrap">
+      <h3 class="mid-title reveal">数で見る。</h3>
+      <div class="nums">
+        <div class="num reveal"><b>47</b><span>都道府県</span></div>
+        <div class="num reveal"><small>4万</small><b>以上</b><span>か所の観光地</span></div>
+        <div class="num reveal"><b>48</b><span>モデルコースのあるエリア</span></div>
+        <div class="num reveal"><b>3</b><span>つの案（ゆったり・王道・探索）</span></div>
+        <div class="num reveal"><b>0</b><span>円・登録もいりません</span></div>
+        <div class="num reveal"><b>1</b><span>文から。ふだんのことばで</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. 切り替えて見る説明（上に映像、下に見出しの札） -->
+  <section class="tabs" id="tabs" aria-labelledby="tabs-title">
+    <div class="wrap">
+      <h2 class="sec-title reveal" id="tabs-title">旅さきが、確かめていること。</h2>
+      <div class="tab-stage reveal">
+        <video class="tv tab-video" id="tab-video" muted playsinline preload="none" poster="assets/tour/hours.webp" width="1280" height="720" aria-label="営業時間と移動時間を照らし合わせる様子を描いた映像"><source src="assets/tour/hours.mp4" type="video/mp4"></video>
+      </div>
+      <div class="tab-list" role="tablist" aria-label="確かめていること">
+        <button type="button" role="tab" class="tab" aria-selected="true" data-src="assets/tour/hours" data-label="営業時間と移動時間を照らし合わせる様子を描いた映像">
+          <b>営業時間。</b><span>閉まっている日の場所は外して、間に合う順番に並べ直します。</span>
+        </button>
+        <button type="button" role="tab" class="tab" aria-selected="false" data-src="assets/tour/weather" data-label="雨の時間に屋内の場所を入れる様子を描いた映像">
+          <b>天気。</b><span>出かける日の天気を見て、雨の時間には屋内の場所を入れます。</span>
+        </button>
+        <button type="button" role="tab" class="tab" aria-selected="false" data-src="assets/tour/mix" data-label="定番と穴場の割合を変える様子を描いた映像">
+          <b>定番と穴場。</b><span>有名な場所と、知る人ぞ知る場所のまぜかたを選べます。</span>
+        </button>
+      </div>
+      <p class="tab-note">この3本は、しくみを説明するためにコードで描いた絵です（数は見本です）。</p>
+    </div>
+  </section>
+
+  <!-- 8. 携帯でも -->
+  <section class="phone-sec" id="phone">
+    <div class="wrap phone-grid">
+      <div class="phone-text">
+        <p class="eyebrow reveal">携帯</p>
+        <h2 class="big-title reveal">ポケットの中でも、<br>同じように。</h2>
+        <p class="lead reveal">携帯のブラウザで開けば、そのまま使えます。ホーム画面に置けば、アプリのように開けます。現在地は、近い駅を探すためだけに、端末の中で使います。</p>
+      </div>
+      <figure class="phone reveal">
+        <div class="phone-screen">
+          <video class="tv" muted loop playsinline preload="none" poster="assets/tour/phone.webp" width="590" height="1276" aria-label="携帯の画面で、旅程ができるまでの録画"><source src="assets/tour/phone.mp4" type="video/mp4"></video>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 9. どんな旅にも（写真のカード） -->
+  <section class="uses" aria-labelledby="uses-title">
+    <div class="wrap">
+      <h2 class="sec-title reveal" id="uses-title">どんな旅にも。</h2>
+      <div class="use-grid">
+        <a class="use reveal" href="app?q=%E7%B4%85%E8%91%89%E3%82%92%E8%A6%8B%E3%81%A6%E3%80%81%E5%A4%9C%E3%81%AF%E6%B8%A9%E6%B3%89%E3%81%A7%E3%82%86%E3%81%A3%E3%81%8F%E3%82%8A%E3%81%97%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/koyo-onsen.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>紅葉を見て、夜は温泉で。</b><span>この旅を組む ›</span></a>
+        <a class="use reveal" href="app?q=%E7%A7%8B%E3%81%AE%E5%91%B3%E3%82%92%E9%A3%9F%E3%81%B9%E6%AD%A9%E3%81%8D%E3%81%97%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/tabearuki.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>季節の味を、食べ歩く。</b><span>この旅を組む ›</span></a>
+        <a class="use reveal" href="app?q=%E4%BA%BA%E3%81%8C%E5%B0%91%E3%81%AA%E3%81%84%E7%A9%B4%E5%A0%B4%E3%81%A7%E7%B4%85%E8%91%89%E3%82%92%E8%A6%8B%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/anaba.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>人の少ない道を、静かに。</b><span>この旅を組む ›</span></a>
+        <a class="use reveal" href="app?q=%E9%9B%A8%E3%81%A7%E3%82%82%E6%A5%BD%E3%81%97%E3%82%81%E3%82%8B%E3%80%81%E5%B1%8B%E5%86%85%E3%81%AE%E7%BE%8E%E8%A1%93%E9%A4%A8%E3%82%81%E3%81%90%E3%82%8A&amp;go=1"><img src="assets/ame.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>雨の日は、屋内で。</b><span>この旅を組む ›</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2 class="cta-title reveal">さて、どこへ行きましょう。</h2>
+    <p class="reveal"><a class="btn btn-lg" href="app">旅さきをひらく</a></p>
+  </section>
+
+  <!-- 10. 映像の出典 -->
+  <section class="credits" id="credits" aria-labelledby="credits-title">
+    <div class="wrap narrow">
+      <h2 id="credits-title">このページの映像について</h2>
+      <ul>
+        <li>動画はすべて旅さきが作ったものです。外から借りた映像は使っていません。</li>
+        <li>画面の動画（見出し・見どころ・携帯）は、旅さきの実際の画面をブラウザで動かして録ったものです。答えは旅さきのエンジンが組んだもので、日付や組まれる場所は録った日のものです。</li>
+        <li>「TABISAKI」の映像と、「確かめていること」の3本は、コードで描いたものです。</li>
+        <li>録画に映る地図: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>（地図の表示に <a href="https://leafletjs.com/">Leaflet</a> を使っています）。</li>
+        <li>写真はトップページと同じもの（旅さきのデザイン案から）です。</li>
+        <li>作りかたは apple.com の製品ページを手本にしましたが、Apple の字・絵・動画は使っていません。</li>
+      </ul>
+      <p>ほかのデータの出典は<a href="credits.html">著作権表記</a>にまとめています。</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <a class="foot-brand" href="./"><img src="mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+    <nav aria-label="ほかのページ"><a href="app">旅程をつくる</a><a href="areas/index.html">エリア</a><a href="about.html">組んだ例</a><a href="credits.html">著作権表記</a></nav>
+  </div>
+</footer>
+</body>
+</html>
