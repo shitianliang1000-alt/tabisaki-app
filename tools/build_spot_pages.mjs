@@ -26,7 +26,7 @@ const h = (s) => String(s ?? "")
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const plain = (s) => String(s ?? "").replace(/<[^>]*>/g, "");
+const plain = (s) => String(s ?? "").replace(/[<>]/g, "");
 const catOf = (k) => CATS.includes(k) ? k : "街";
 const regionOf = (k) => REGIONS.find((r) => r.key === k)?.name ?? "";
 
