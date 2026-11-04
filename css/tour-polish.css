@@ -52,7 +52,7 @@ p{ line-height: 1.85; }
 .lnav-links a:hover::after,
 .lnav-links a[aria-current]::after{ transform: scaleX(1); }
 /* 触れるところは 44px 以上に */
-.lnav .btn-sm{ padding: 8px 16px; font-size: 13px; min-height: 32px; }
+.lnav .btn-sm{ padding: 8px 16px; font-size: var(--hig-t-footnote); min-height: 32px; }
 .gh{ padding: 8px 6px; }
 /* 読み進めたら帯を少しだけ濃くする（対応しているブラウザだけ） */
 @supports (animation-timeline: scroll()){
@@ -166,7 +166,7 @@ p{ line-height: 1.85; }
 .cta-title{ letter-spacing: -.02em; text-wrap: balance; }
 .cta p{ margin: 0; }
 .btn-lg{
-  min-height: 52px; padding-inline: 34px; font-size: 17px; font-weight: 600;
+  min-height: 52px; padding-inline: 34px; font-size: var(--hig-t-body); font-weight: 600;
   box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 22px 50px -26px rgba(0,113,227,.95);
   transition: background .2s, transform .25s var(--v2-ease), box-shadow .25s var(--v2-ease);
 }
@@ -174,8 +174,8 @@ p{ line-height: 1.85; }
 .btn-lg:active{ transform: translateY(0); }
 
 /* ---------- 10. 出典と下 ---------- */
-.credits{ font-size: 14px; line-height: 1.9; }
-.credits h2{ font-size: 16px; letter-spacing: .01em; }
+.credits{ font-size: var(--hig-t-footnote); line-height: 1.9; }
+.credits h2{ font-size: var(--hig-t-callout); letter-spacing: .01em; }
 .credits ul{ padding-left: 1.1em; }
 .credits li{ margin-bottom: 6px; }
 .credits a, .foot nav a:hover{
@@ -184,7 +184,7 @@ p{ line-height: 1.85; }
   text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
 }
 .credits a:hover{ text-decoration-color: currentColor; color: var(--ink); }
-.foot{ font-size: 13.5px; }
+.foot{ font-size: var(--hig-t-footnote); }
 .foot nav{ gap: 20px; }
 .foot nav a{ text-decoration-color: transparent; transition: color .2s, text-decoration-color .2s; }
 
@@ -209,11 +209,11 @@ p{ line-height: 1.85; }
   :root{ --v2-r: 24px; --v2-sec: clamp(56px, 11vw, 88px); }
   .hero{ padding-top: clamp(36px, 10vw, 64px); }
   .hero-title{ font-size: clamp(40px, 12vw, 64px); }
-  .hero-eyebrow{ font-size: 15px; }
+  .hero-eyebrow{ font-size: var(--hig-t-subhead); }
   .hero-eyebrow::before{ width: 5px; height: 5px; margin-right: 8px; }
   .sec-title{ font-size: clamp(30px, 8.4vw, 46px); }
   .big-title{ font-size: clamp(32px, 9vw, 48px); }
-  .lead{ font-size: 16px; }
+  .lead{ font-size: var(--hig-t-callout); }
   .hl-card{ flex-basis: min(560px, 88vw); }
   .hl-cap{ padding-inline: 20px; }
   .nums{ column-gap: 0; }
@@ -222,11 +222,11 @@ p{ line-height: 1.85; }
   }
   .num:not(:nth-child(2n+1)){ padding-left: 16px; box-shadow: inset 1px 0 0 var(--v2-rule); }
   .num b, .num small{ font-size: clamp(44px, 13vw, 64px); }
-  .credits{ font-size: 13.5px; }
+  .credits{ font-size: var(--hig-t-footnote); }
   .foot-in{ gap: 14px 20px; }
 }
 @media (max-width: 380px){
-  .hero-title{ font-size: 36px; }
+  .hero-title{ font-size: var(--hig-t-large-title); }
   .hl-card{ flex-basis: 90vw; }
 }
 
@@ -264,7 +264,7 @@ p{ line-height: 1.85; }
   a{ text-decoration: underline; }
   .zoom{ height: auto; }
   .zoom-sticky{ position: static; height: auto; padding: 0; gap: 16px; }
-  .zoom-word{ position: static; opacity: 1; transform: none; font-size: 40px; }
+  .zoom-word{ position: static; opacity: 1; transform: none; font-size: var(--hig-t-large-title); }
   .zoom-frame{ width: 100%; max-height: none; opacity: 1; transform: none; border-radius: 12px; }
   .zoom-copy{ position: static; opacity: 1; transform: none; padding: 0; text-align: center; }
   .num b{ -webkit-text-fill-color: #111; color: #111; background: none; }
