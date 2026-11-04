@@ -272,13 +272,13 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
      * 理由と代わりの案（research.alternatives）を返します。
      *
      * @param {PlanRequest} request
-     * @param {{search?: Function, llm?: Function, maxSearches?: number,
+     * @param {{search?: Function, llm?: Function, maxSearches?: number, solvers?: object,
      *          onStep?: (step: object) => void, onProgress?: Function}} [opts]
      *   onStep は Agent の記録（考え・道具・結果）が1件増えるたび、onProgress は
      *   旅程の組み立ての段が進むたびに呼ばれます（docs/dev-trace.md）。
-     * @returns {Promise<{research: object, request?: object, itinerary?: object}>}
+     * @returns {Promise<{research: object, request?: object, itinerary?: object, special?: object}>}
      */
-    async research(request, { search = null, llm = null, maxSearches, onStep, onProgress } = {}) {
+    async research(request, { search = null, llm = null, maxSearches, solvers = null, onStep, onProgress } = {}) {
       const r0 = await normalizeRequest(request);
       const { createDefaultTools } = await js("tools.js");
       const { runResearch, modelLlm } = await js("research.js");
@@ -305,6 +305,8 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         if (first.dropped.length) research.message += `日程に入りきらなかった${first.dropped.join("・")}は、次の回に回してください。`;
         return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
       }
+      // 特殊な旅の形（青春18きっぷ・世界遺産全制覇…）は、その形の処理へ回します（#442）。
+      if (research.status === "special") return { research, ...(await this.special(request, { solvers })) };
       if (research.status === "kb") return { research, ...(await this.plan(request, { onProgress })) };
       const ids = research.order.map((s) => s.id);
       // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
@@ -314,6 +316,52 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } },
         { onProgress });
       return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+    },
+    /**
+     * 特殊な旅の形（Issue #442。docs/special-journeys.md）。
+     *
+     * 日本一周・青春18きっぷ・寝台列車・船旅・廃線跡・秘境駅・日本の端・
+     * 世界遺産全制覇・県庁所在地踏破・最長片道切符を読み取り、形ごとの処理で
+     * 条件を整えてから、いつもの流れで旅程にします。形が読み取れなければ
+     * special は null で、旅程は組みません（core.plan を使ってください）。
+     *
+     * 最長片道切符の経路は solvers.longestTicket(kind, {from}) → {route, km}
+     * （Issue #431 の専用ソルバー）に任せます。無ければ全国を回る旅として組みます。
+     *
+     * @param {PlanRequest} request
+     * @param {{solvers?: {longestTicket?: Function}}} [opts]
+     * @returns {Promise<{special: object|null, request?: object, itinerary?: object}>}
+     */
+    async special(request, { solvers = null } = {}) {
+      const r0 = await normalizeRequest(request);
+      const { handleSpecial } = await js("special.js");
+      const date = request.date ?? new Date(r0.departAt.getTime() + 9 * 3600000).toISOString().slice(0, 10);
+      const special = await handleSpecial({ text: r0.wish, kb, origin: r0.origin, days: r0.days, date, solvers });
+      if (!special) return { special: null };
+      const want = special.request;
+      if (!want) return { special };
+      const next = {
+        ...request,
+        wish: want.wish ?? r0.wish,
+        from: want.from ?? request.from,
+        days: want.days ?? r0.days,
+        date: want.date ?? date,
+        start: want.start ?? request.start,
+        transport: want.transport ?? request.transport,
+      };
+      if (want.must?.length) {
+        next.must = { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...want.must])],
+          avoidSpotIds: request.must?.avoidSpotIds ?? [] };
+      }
+      try {
+        const planned = await this.plan(next);
+        return { special, ...planned, request: { ...planned.request, wish: r0.wish } };
+      } catch (e) {
+        // 形は読めたが組めなかった（日数が足りないなど）。読めたことと理由は返します。
+        special.status = "partial";
+        special.notes = [...special.notes, `旅程は組めませんでした（${e?.message ?? e}）。`];
+        return { special };
+      }
     },
   };
 }

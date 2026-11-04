@@ -31,6 +31,7 @@ import { travelMinutes } from "./geo.js";
 import { findPlace } from "./places.js";
 import { KNOWN_JOURNEYS, NATIONAL_ROUTES, readJourney } from "./journeys.js";
 import { onlySpots } from "./notaspot.js";
+import { detectSpecial } from "./special.js";
 import { canWebSearch, webSearch } from "./ai.js";
 import { cacheKey, createCache } from "./cache.js";
 
@@ -335,16 +336,20 @@ export const calculateRouteTool = {
 /** 名のある旅（最長片道切符・日本一周・国道1号線…）。journeys.js に持っています。 */
 export const searchSpecialJourneyTool = {
   name: "search_special_journey",
-  description: "「最長片道切符」「日本一周」「国道1号線」のような、名のある旅のしかたを調べる",
+  description: "「最長片道切符」「日本一周」「青春18きっぷ」「世界遺産全制覇」のような、名のある旅のしかた・特殊な旅の形を調べる",
   input: {
     type: "object", additionalProperties: false, required: ["text"],
     properties: { text: { type: "string", minLength: 1, maxLength: 200 } },
   },
-  output: { type: "object", properties: { found: { type: "boolean" }, journey: { type: "object" } } },
+  output: { type: "object", properties: { found: { type: "boolean" }, journey: { type: "object" }, special: { type: ["object", "null"] } } },
   async run({ text }) {
     const j = readJourney(text);
-    return j ? { found: true, journey: { name: j.name, meaning: j.meaning ?? "", along: j.along ?? [], transport: j.transport ?? null } }
-      : { found: false, known: KNOWN_JOURNEYS.map((k) => k.name) };
+    // 専用の処理がある旅の形（special.js。青春18きっぷ・世界遺産全制覇…）。
+    const special = detectSpecial(text);
+    const sp = special ? { mode: special.mode, name: special.name, modifiers: special.modifiers } : null;
+    if (j) return { found: true, journey: { name: j.name, meaning: j.meaning ?? "", along: j.along ?? [], transport: j.transport ?? null }, special: sp };
+    return sp ? { found: true, journey: null, special: sp }
+      : { found: false, special: null, known: KNOWN_JOURNEYS.map((k) => k.name) };
   },
 };
 
