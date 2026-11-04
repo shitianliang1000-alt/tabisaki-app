@@ -1,0 +1,36 @@
+name: Build Site
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/**'
+      - 'tools/**'
+      - 'php/assets/**'
+      - '*.html'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          
+      - name: Build spot pages
+        run: node tools/build_spot_pages.mjs
+        
+      - name: Stamp assets
+        run: node tools/stamp_assets.mjs
+        
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add spots/ php/assets/
+          git diff --cached --quiet || git commit -m "Auto-build: update spots & assets"
+          git push
