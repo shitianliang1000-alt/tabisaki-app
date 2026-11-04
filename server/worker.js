@@ -171,7 +171,18 @@ export default {
     if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
       return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    // トップ（/）とチャットの画面（/app）は、開いたときに作ります（server/landing.js）。
+    // トップ（/）は tour.html（映像で見る旅さき）です。前のトップ（動く見本の紹介）は /landing に残しています。
+    if (env?.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
+      if (url.pathname === "/" && !url.searchParams.has("p")) {
+        const res = await env.ASSETS.fetch(new Request(new URL("/tour", url.origin), request));
+        if (res.ok) return res;
+      }
+      if (url.pathname === "/landing") {
+        const page = await servePage(new Request(new URL("/", url.origin), request), env);
+        if (page) return page;
+      }
+    }
+    // チャットの画面（/app）と、?p= の旧リンクは、開いたときに作ります（server/landing.js）。
     if (env?.ASSETS) {
       const page = await servePage(request, env);
       if (page) return page;

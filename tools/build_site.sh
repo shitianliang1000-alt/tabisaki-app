@@ -16,12 +16,12 @@ set -eu
 dist="${1:-dist}"
 rm -rf "$dist"
 mkdir -p "$dist"
-cp index.html credits.html tour.html icon.svg mark.svg og.svg og.png manifest.webmanifest \
+cp index.html credits.html tour.html ssh.html mobile.html api.html icon.svg mark.svg og.svg og.png manifest.webmanifest \
    icon-180.png icon-192.png icon-512.png icon-maskable-512.png \
    robots.txt sitemap.xml sw.js "$dist"/
 # admin/ は入れません。認証が無く、置けば誰でも開けます。
 # 管理画面は Worker が合言葉つきで配ります（server/admin.js）。
-cp -r css js kb vendor "$dist"/
+cp -r css js kb vendor spots "$dist"/
 # 旅程を組む部分（packages/core/src/）。画面の js/ がここを読みます。
 # Node.js 用の入口（index.mjs・format.mjs）は、ブラウザでは使わないので入れません。
 mkdir -p "$dist"/packages/core

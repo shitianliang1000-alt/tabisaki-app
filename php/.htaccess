@@ -22,6 +22,10 @@ ErrorDocument 404 /404.html
   # 前の紹介のページ（/about）は、トップ（index.php）にまとめました。
   # （「./」と書くと、Apache がサーバーの中の置き場の道を付けてしまいます。）
   RewriteRule ^about/?$ / [R=301,L]
+  # 拡張子なしの URL（/tour・/ssh・/mobile・/api・/landing）。
+  RewriteRule ^tour/?$ / [R=301,L]
+  RewriteRule ^(ssh|mobile|api)/?$ $1.html [L]
+  RewriteRule ^landing/?$ landing.php [L]
   # PHP の部品と、組み立てたデータの元は、直には見せません。
   RewriteRule ^inc(/|$) - [F,L]
 </IfModule>

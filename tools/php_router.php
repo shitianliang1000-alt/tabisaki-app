@@ -4,6 +4,9 @@
 $p = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 if ($p === '/app/') { $q = $_SERVER['QUERY_STRING'] ?? ''; header('Location: /app' . ($q !== '' ? '?' . $q : ''), true, 301); return true; }
 if ($p === '/app' || $p === '/index.html') { $_SERVER['SCRIPT_NAME'] = '/app.php'; require __DIR__ . '/../.php-site/app.php'; return true; }
+if ($p === '/tour' || $p === '/tour/') { header('Location: /', true, 301); return true; }
+if (preg_match('#^/(ssh|mobile|api)/?$#', $p, $m)) { header('Content-Type: text/html; charset=utf-8'); readfile(__DIR__ . '/../.php-site/' . $m[1] . '.html'); return true; }
+if ($p === '/landing' || $p === '/landing/') { $_SERVER['SCRIPT_NAME'] = '/landing.php'; require __DIR__ . '/../.php-site/landing.php'; return true; }
 if ($p === '/about' || $p === '/about/') { header('Location: /', true, 301); return true; }
 if (str_starts_with($p, '/inc/') || $p === '/inc') { http_response_code(403); return true; }
 // 無いファイルは、.htaccess の ErrorDocument と同じく 404.html を出します。
