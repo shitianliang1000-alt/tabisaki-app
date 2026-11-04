@@ -37,6 +37,10 @@
 外すときは、観光資源が `src="kokudo"`、文化施設が `dataSource` に「文化施設」、
 バス停が `kb/stops-bus*` です。
 
+PHP 版の zip（`tools/build_php.sh`）は、これらを外した `kb/` で組み立てます
+（`tools/strip_noncommercial.mjs`。スポット約1.3万件・バス停がすべて抜けます）。
+リポジトリの `kb/` と Cloudflare 版は、まだそのままです。
+
 ## OpenStreetMap 由来の座標
 
 `tools/import_osm_tourlist.py` が入れた座標（`src="osm-tourlist"`、元の番号は
