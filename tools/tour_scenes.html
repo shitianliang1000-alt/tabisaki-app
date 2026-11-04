@@ -181,10 +181,14 @@ function mix(t) {
   g.fillStyle = "#86868b"; g.fillText("穴場", 234, 202);
 }
 
-const SCENES = { hours, weather, mix };
+const SCENES = new Map([
+  ["hours", hours],
+  ["weather", weather],
+  ["mix", mix]
+]);
 const pick = location.hash.slice(1);
 window.draw = (t) => {
-  const scene = Object.hasOwn(SCENES, pick) ? SCENES[pick] : hours;
+  const scene = SCENES.has(pick) ? SCENES.get(pick) : hours;
   return (typeof scene === "function" ? scene : hours)(t);
 };
 document.fonts.ready.then(() => { window.draw(0); window.ready = true; });
