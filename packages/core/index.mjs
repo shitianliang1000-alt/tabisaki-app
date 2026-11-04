@@ -217,9 +217,12 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
+     * @param {{onProgress?: (step: number, note?: string, extra?: object) => void}} [opts]
+     *   onProgress は組み立ての段（0〜5。js/ui.js の STEPS）が進むたびに呼ばれます
+     *   （開発者向けの見える化。docs/dev-trace.md）。
      * @returns {Promise<{request: object, itinerary: object}>}
      */
-    async plan(request) {
+    async plan(request, { onProgress } = {}) {
       const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
       const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
@@ -230,7 +233,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       let itinerary;
       const routesBefore = hybrid ? (ai.lastRoute()?.seq ?? 0) : 0;
       try {
-        itinerary = await planTrip({ trip, kb });
+        itinerary = await planTrip({ trip, kb, ...(typeof onProgress === "function" ? { onProgress: safeProgress(onProgress) } : {}) });
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
@@ -266,10 +269,13 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
      * 理由と代わりの案（research.alternatives）を返します。
      *
      * @param {PlanRequest} request
-     * @param {{search?: Function, llm?: Function, maxSearches?: number}} [opts]
+     * @param {{search?: Function, llm?: Function, maxSearches?: number,
+     *          onStep?: (step: object) => void, onProgress?: Function}} [opts]
+     *   onStep は Agent の記録（考え・道具・結果）が1件増えるたび、onProgress は
+     *   旅程の組み立ての段が進むたびに呼ばれます（docs/dev-trace.md）。
      * @returns {Promise<{research: object, request?: object, itinerary?: object}>}
      */
-    async research(request, { search = null, llm = null, maxSearches } = {}) {
+    async research(request, { search = null, llm = null, maxSearches, onStep, onProgress } = {}) {
       const r0 = await normalizeRequest(request);
       const { createDefaultTools } = await js("tools.js");
       const { runResearch, modelLlm } = await js("research.js");
@@ -277,7 +283,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       // 手元の LLM があれば、調べる語づくりと場所の拾い出しを手伝わせます。
       const helper = llm ?? (local ? modelLlm((p, o) => ai.callModelJson(p, o)) : null);
       const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches,
-        days: request.days ?? null });
+        days: request.days ?? null, onStep });
       if (research.status === "out_of_scope") return { research };
       if (research.status === "quest") {
         // 一覧を回る旅（#443）は、最初の1回分を旅程にします。道を通しで行く旅は、
@@ -287,7 +293,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         if (!first?.spotIds?.length) return { research };
         const planned = await this.plan({ ...request, days: request.days ?? first.days.length,
           wish: `${first.order.map((s) => s.name).join("・")}をめぐる`,
-          must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...first.spotIds])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } });
+          must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...first.spotIds])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } }, { onProgress });
         // 旅程に入りきらなかった一覧の場所は、隠さずに書きます（次の回に回します）。
         const visited = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? [])
           .filter((i) => i.kind === "spot").map((i) => i.spotId ?? i.id));
@@ -296,15 +302,23 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         if (first.dropped.length) research.message += `日程に入りきらなかった${first.dropped.join("・")}は、次の回に回してください。`;
         return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
       }
-      if (research.status === "kb") return { research, ...(await this.plan(request)) };
+      if (research.status === "kb") return { research, ...(await this.plan(request, { onProgress })) };
       const ids = research.order.map((s) => s.id);
       // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
       // （県の名前は足しません。県全体に広がり、県庁所在地が選ばれてしまうため）
       const wish = `${research.order.map((s) => s.name).join("・")}をめぐる`;
       const planned = await this.plan({ ...request, wish,
-        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } });
+        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } },
+        { onProgress });
       return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
     },
+  };
+}
+
+// 見る側（開発者向けの表示）の失敗で、旅程づくりを止めません。
+function safeProgress(fn) {
+  return (...a) => {
+    try { fn(...a); } catch { /* 表示の失敗は無視します */ }
   };
 }
 

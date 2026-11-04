@@ -106,18 +106,26 @@ const safeLlm = async (llm, task, payload, schema) => {
  *
  * @param {{wish: string, tools: ReturnType<import("./tools.js").createToolRegistry>,
  *          origin?: {name: string, lat: number, lng: number}, llm?: Function,
- *          maxSearches?: number, maxSpots?: number}} opts
+ *          maxSearches?: number, maxSpots?: number, onStep?: (step: object) => void}} opts
  *   llm は async (task, payload, schema) → JSON。task は "query" か "extract"。
+ *   onStep は、記録（trace）に1件足すたびに、その1件を受け取ります（開発者向けの
+ *   見える化で、考えと道具の結果を流して出すため。docs/dev-trace.md）。投げても止まりません。
  * @returns {Promise<{status: "answered"|"kb"|"quest"|"out_of_scope", message: string,
  *   spots: object[], order: object[], prefecture: string|null, sources: object[],
  *   searches: number, question: object|null, alternatives: object[], trace: object[]}>}
  */
 export async function runResearch({ wish, tools, origin = null, llm = null,
-  maxSearches = MAX_SEARCHES, maxSpots = 6, days = null } = {}) {
+  maxSearches = MAX_SEARCHES, maxSpots = 6, days = null, onStep = null } = {}) {
   const text = String(wish ?? "").trim();
   const kb = tools.ctx.kb;
   const limit = Math.max(0, Math.min(MAX_SEARCHES, maxSearches));
   const trace = [];
+  const record = (step) => {
+    trace.push(step);
+    if (typeof onStep === "function") {
+      try { onStep(step); } catch { /* 見る側の失敗で、調べるのを止めません */ }
+    }
+  };
   const sources = [];
   const tried = [];
   let state = STATES.ASSESS;
@@ -133,10 +141,10 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
 
   const act = async (thought, tool, args) => {
     const obs = await tools.call(tool, args);
-    trace.push({ state, thought, action: { tool, args }, observation: brief(obs) });
+    record({ state, thought, action: { tool, args }, observation: brief(obs), ms: obs.ms ?? null });
     return obs;
   };
-  act.trace = trace;
+  act.record = record;
 
   // 状態は前へしか進みません（SEARCH ⇄ QUERY だけ、回数の上限まで戻れます）。
   for (let guard = 0; guard < 20 && state !== STATES.DONE && state !== STATES.OUT_OF_SCOPE; guard++) {
@@ -213,7 +221,7 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
         { type: "object", required: ["places"], properties: { places: { type: "array", maxItems: 12, items: { type: "string", maxLength: 40 } } } }) : null;
       const names = Array.isArray(ai?.places) ? ai.places.filter((p) => typeof p === "string") : [];
       const hit = spotsMentioned(kb, body, names);
-      trace.push({ state, thought: "調べた結果に出てくる場所を、収録のスポットに結び付ける",
+      record({ state, thought: "調べた結果に出てくる場所を、収録のスポットに結び付ける",
         action: null, observation: { matched: hit.slice(0, 10).map((s) => s.name) } });
       for (const s of hit) if (!found.some((f) => f.id === s.id)) found.push(s);
       if (found.length) state = STATES.PLAN;
@@ -285,7 +293,7 @@ async function alternativesFor(text, tools, act, origin) {
 
 // 収録から直に選んだときも、記録に残します（道具は使っていません）。
 function noteDirect(act, spots) {
-  act.trace?.push({ state: STATES.OUT_OF_SCOPE, thought: "出発地の近くの知られた場所を代わりに出す",
+  act.record?.({ state: STATES.OUT_OF_SCOPE, thought: "出発地の近くの知られた場所を代わりに出す",
     action: null, observation: { top: spots.slice(0, 3).map((s) => s.name) } });
 }
 
