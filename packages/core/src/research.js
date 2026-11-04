@@ -23,6 +23,7 @@
 import { extractKeywords, GENERIC_TERMS } from "./keywords.js";
 import { spotBrief } from "./tools.js";
 import { straightKm } from "./providers.js";
+import { readQuest, runQuest } from "./quest.js";
 
 export const MAX_SEARCHES = 3;
 
@@ -107,12 +108,12 @@ const safeLlm = async (llm, task, payload, schema) => {
  *          origin?: {name: string, lat: number, lng: number}, llm?: Function,
  *          maxSearches?: number, maxSpots?: number}} opts
  *   llm は async (task, payload, schema) → JSON。task は "query" か "extract"。
- * @returns {Promise<{status: "answered"|"kb"|"out_of_scope", message: string,
+ * @returns {Promise<{status: "answered"|"kb"|"quest"|"out_of_scope", message: string,
  *   spots: object[], order: object[], prefecture: string|null, sources: object[],
  *   searches: number, question: object|null, alternatives: object[], trace: object[]}>}
  */
 export async function runResearch({ wish, tools, origin = null, llm = null,
-  maxSearches = MAX_SEARCHES, maxSpots = 6 } = {}) {
+  maxSearches = MAX_SEARCHES, maxSpots = 6, days = null } = {}) {
   const text = String(wish ?? "").trim();
   const kb = tools.ctx.kb;
   const limit = Math.max(0, Math.min(MAX_SEARCHES, maxSearches));
@@ -128,7 +129,7 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
   let query = "";
   let lastResults = [];
   const result = { status: null, message: "", spots: [], order: [], prefecture: null, sources,
-    searches: 0, question: null, alternatives: [], journey: null, trace };
+    searches: 0, question: null, alternatives: [], journey: null, quest: null, trace };
 
   const act = async (thought, tool, args) => {
     const obs = await tools.call(tool, args);
@@ -147,6 +148,24 @@ export async function runResearch({ wish, tools, origin = null, llm = null,
         result.alternatives = await alternativesFor(text.replace(OVERSEAS, " "), tools, act, origin);
         state = STATES.OUT_OF_SCOPE;
         continue;
+      }
+      // 決まった一覧を回る・道を通しで行く要望は、汎用の流れ（quest.js。#443）へ。
+      const quest = readQuest(text);
+      if (quest) {
+        const qr = await runQuest({ wish: text, tools, origin, days, llm, quest });
+        trace.push(...qr.trace);
+        for (const s of qr.sources) if (!sources.some((x) => x.url === s.url)) sources.push(s);
+        searches = qr.searches;
+        result.quest = qr;
+        result.message = qr.message;
+        result.question = qr.question;
+        result.status = qr.status === "answered" ? "quest" : "out_of_scope";
+        if (qr.status === "answered" && qr.plan) {
+          result.spots = qr.plan.order;
+          result.order = qr.plan.order;
+          result.prefecture = mainPrefecture(qr.plan.order);
+        }
+        break;
       }
       const j = await act("名のある旅のしかたか確かめる", "search_special_journey", { text: text.slice(0, 200) });
       if (j.ok && j.data.found) journey = j.data.journey;

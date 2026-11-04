@@ -173,6 +173,7 @@ const SHELL_FILES = [
   "./packages/core/src/planner.js",
   "./packages/core/src/purpose.js",
   "./packages/core/src/providers.js",
+  "./packages/core/src/quest.js",
   "./packages/core/src/quota.js",
   "./packages/core/src/relax.js",
   "./packages/core/src/research.js",
