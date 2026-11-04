@@ -3273,7 +3273,7 @@ body[data-view="result"] .dock { padding-top: 4px; }
   margin: 0; padding: 4px 4px 0 0;
   border: 0; outline: none; resize: none; background: transparent;
   color: var(--chat-ink);
-  font: inherit; font-size: 1.0625rem; line-height: 1.55;
+  font: inherit; font-size: var(--hig-t-body); line-height: 1.55;
 }
 .composer textarea:focus-visible { outline: none; }
 .composer textarea::placeholder { color: var(--chat-ink-2); opacity: 1; }
