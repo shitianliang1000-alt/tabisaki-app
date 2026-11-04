@@ -1031,7 +1031,9 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
   const intro = { ...renderIntroPage({ base, featured, date, prefCount: prefs.length,
                                        spotCount: prefs.reduce((n, p) => n + p.count, 0) }),
                   lastmod: latestDay([siteUpdated, ...featured.map((f) => f.lastmod)]) };
-  const entries = [intro, ...pages].map((p) => ({ url: p.url, lastmod: p.lastmod }));
+  // 映像で見るページ（tour.html。リポジトリの根にある静的なページ）も載せます。
+  const tour = { url: `${base}tour.html`, lastmod: siteUpdated };
+  const entries = [intro, tour, ...pages].map((p) => ({ url: p.url, lastmod: p.lastmod }));
   return { pages, intro, notFound: renderNotFoundPage({ prefs, base }),
            sitemap: sitemapXml(base, entries, now, { rootLastmod: siteUpdated }) };
 }
