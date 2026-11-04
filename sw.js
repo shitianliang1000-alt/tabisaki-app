@@ -199,6 +199,7 @@ const SHELL_FILES = [
   "./packages/core/src/tags.js",
   "./packages/core/src/tickets.js",
   "./packages/core/src/tools.js",
+  "./packages/core/src/cache.js",
   "./packages/core/src/touring.js",
   "./packages/core/src/trains.js",
   "./packages/core/src/transit.js",

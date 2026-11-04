@@ -18,6 +18,7 @@ import { endpointFor, keyHeaders, missingSecretHelp, proxyStatus,
 import { effectiveConfig } from "./settings.js";
 import { buildSearchText, extractKeywords } from "./keywords.js";
 import { meteredFetch } from "./quota.js";
+import { cacheKey, createCache, memoryStore, webStorageStore } from "./cache.js";
 import { haversineKm } from "./feasibility.js";
 import { joinAreaNames } from "./stays.js";
 import { createRouteLog, normalizeThreshold, planRoute, scoreReply, shouldHandOver }
@@ -176,11 +177,41 @@ export function canWebSearch() {
  * @returns {Promise<{title: string, url: string, snippet: string}[]>}
  */
 export async function webSearch(q, opts = {}) {
+  const query = String(q ?? "").slice(0, 80);
+  // 同じ語は端末の中で1日覚えておき、中継へ聞き直しません（#438）。
+  // 見つからなかった答えと失敗は覚えません。
+  const { value } = await searchCache().fetch(cacheKey(query), () => askWebSearch(query, opts),
+    { keep: (r) => Array.isArray(r) && r.length > 0 });
+  return value;
+}
+
+let webCache = null;
+
+/** 端末の中の検索の控え。localStorage が使えなければメモリだけ。 */
+export function searchCache() {
+  if (webCache) return webCache;
+  let layers = [memoryStore({ maxEntries: 100 })];
+  try {
+    const ls = globalThis.localStorage;
+    if (ls && typeof ls.getItem === "function") {
+      layers = [layers[0], webStorageStore(ls, { prefix: "tabisaki:web:", maxEntries: 50 })];
+    }
+  } catch { /* 使えない（プライベートモードなど） */ }
+  webCache = createCache({ layers });
+  return webCache;
+}
+
+/** 試験用。控えを空にします。 */
+export function resetSearchCache() {
+  webCache = null;
+}
+
+async function askWebSearch(q, opts) {
   const cfg = net();
   const res = await fetch(endpointFor("web:search", {}, cfg), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ q: String(q ?? "").slice(0, 80) }),
+    body: JSON.stringify({ q }),
     signal: requestSignal(opts.signal),
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));

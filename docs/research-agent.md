@@ -116,5 +116,5 @@ registry.register({
 `search` は `async (query) → [{title, url, snippet}]` の関数なら何でも使えます。
 
 * Web 版は `relaySearch()`（中継の `/web/search`。Wikipedia か Tavily）
-* 控えを挟むときは `cachedSearch(search, { ttlMs, store })`。`store` は `get`・`set` を持つもの（`Map`、Redis の薄い包みなど）。当たり・外れの数は `search.stats` に入ります
-* Brave LLM Context API と Redis（#438）も、この形の関数として差し込みます
+* 控えを挟むときは `cachedSearch(search, { ttlMs, layers, costPerCall })`。置き場は `get`・`set`・`delete` を持つもの（メモリ・`localStorage`・Cloudflare の Cache API。くわしくは [cache.md](./cache.md)）。当たりの割合・時間・費用は `search.stats` に入ります
+* Brave LLM Context API などの別の検索先も、この形の関数として差し込みます

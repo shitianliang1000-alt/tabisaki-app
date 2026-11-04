@@ -158,7 +158,8 @@ test("cachedSearch は同じ語を控えから返す（期限つき）", async (
   await search("京都 紅葉");
   await search(" 京都  紅葉 ");
   assert.equal(calls, 1);
-  assert.deepEqual(search.stats, { hits: 1, misses: 1 });
+  assert.equal(search.stats.hits, 1);
+  assert.equal(search.stats.misses, 1);
   t = 2000;
   await search("京都 紅葉");
   assert.equal(calls, 2);
