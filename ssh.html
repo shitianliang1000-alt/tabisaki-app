@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<title>SSH・端末版 | 旅さき</title>
+<meta name="description" content="SSH先でも動く、Node.jsだけの旅行プランナー。コマンド例と制約を紹介します。">
+<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/ssh.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="サーバーの中で、旅を組む。">
+<meta property="og:description" content="SSH先でも動く、Node.jsだけの旅行プランナー。コマンド例と制約を紹介します。">
+<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/ssh.html">
+<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="assets/tour.css?v=55e9eebc">
+<link rel="stylesheet" href="assets/tour-polish.css?v=d926a3a9">
+<link rel="stylesheet" href="assets/site.css?v=28cb7765">
+<script defer src="assets/site.js?v=48a22569"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+<header class="lnav" id="lnav">
+  <div class="lnav-in">
+    <a class="lnav-name" href="/tour"><img src="mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>SSH・端末</small></span></a>
+    <nav class="lnav-links" aria-label="サイトの中">
+      <a href="spots/index.html">観光地</a>
+      <a href="ssh.html" aria-current="page">SSH・端末</a>
+      <a href="mobile.html">アプリ</a>
+      <a href="api.html">API</a>
+    </nav>
+    <a class="btn btn-sm" href="app">旅さきを使う</a>
+  </div>
+</header>
+<nav class="pagenav" aria-label="サイトの中"><ul>
+      <li><a href="/tour">旅さき</a></li>
+      <li><a href="spots/index.html">観光地</a></li>
+      <li><a href="ssh.html" aria-current="page">SSH・端末</a></li>
+      <li><a href="mobile.html">アプリ</a></li>
+      <li><a href="api.html">API</a></li>
+</ul></nav>
+<main id="main">
+  <section class="sub-hero">
+    <p class="eyebrow">SSH・端末版</p>
+    <h1 class="sub-title">サーバーの中で、旅を組む。</h1>
+    <p class="sub-lead">Node.js 22以上と旅さきのリポジトリがあれば、SSHの先でも旅程を組めます。CLIは旅程だけを標準出力に出し、TUIはキーボードで操作できます。</p>
+    <p class="sub-actions"><a class="btn" href="app">旅さきを使う</a><a class="btn-ghost" href="spots/index.html">観光地を見る</a></p>
+  </section>
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head"><h2>SSHの先から、ひとこと。</h2><p>サーバーに入って、行きたいことを一文で頼みます。旅程は標準出力に出るので、ファイルへ保存したり、後続の処理に渡したりできます。</p></div>
+      <div class="prose">
+        <h3>最初の一回</h3>
+        <p>必要なのは Node.js 22 以上と、旅さきのリポジトリです。追加のパッケージをインストールせず、収録データをローカルで読みます。</p>
+        <figure class="code"><figcaption><span>SSHサーバーで実行</span><button type="button" class="copy">写す</button></figcaption><pre>git clone https://github.com/shitianliang1000-alt/tabisaki-app.git
+cd tabisaki-app
+./tabisaki plan "温泉と海をゆっくり楽しみたい" --days=2</pre></figure>
+        <h3>SSH経由で結果を手元へ</h3>
+        <p>出力を標準出力からリダイレクトすれば、Markdownの旅程をそのままローカルに保存できます。</p>
+        <figure class="code"><figcaption><span>手元の端末で実行</span><button type="button" class="copy">写す</button></figcaption><pre>ssh my-server 'cd tabisaki-app &amp;&amp; ./tabisaki plan "温泉"' &gt; trip.md</pre></figure>
+        <h3>端末の中で旅程を見る</h3>
+        <p><code>tui</code> は、SSHの先でも使えるキーボード操作の画面です。矢印キーや <kbd>j</kbd> / <kbd>k</kbd> で予定を移動し、<kbd>q</kbd> で閉じます。</p>
+        <figure class="code"><figcaption><span>2日間の旅程をTUIで表示</span><button type="button" class="copy">写す</button></figcaption><pre>./tabisaki tui "温泉と海をゆっくり楽しみたい" --days=2</pre></figure>
+        <h3>出力形式と条件</h3>
+        <p><code>--output</code> で markdown、text、json、ics を選べます。出発駅・日付・移動手段も指定できます。</p>
+        <figure class="code"><figcaption><span>JSONで書き出す</span><button type="button" class="copy">写す</button></figcaption><pre>./tabisaki plan "京都で歴史を感じたい" \
+  --from="新大阪駅" --date="2026-11-03" --output=json</pre></figure>
+        <div class="note warn"><span class="i" aria-hidden="true">!</span><p>端末版は既定で外へ通信せず、AIや実際の乗換検索はしません。移動時間は距離からの目安です。<code>--local</code> や <code>--hybrid</code> を使う場合の通信先・設定は、モデルの説明書を確認してください。</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="sec tint"><div class="wrap">
+    <div class="sec-head"><h2>次に進む</h2><p>端末で試すだけでも、旅程を組むAPIを立てることもできます。</p></div>
+    <div class="doors">
+      <a class="door" href="api.html"><span class="kicker">API</span><h3>自分のサーバーで呼ぶ</h3><p>ローカルから始めるAPIの道と、認証・入力制限の考えかた。</p><span class="go">APIの使い方を見る ›</span></a>
+      <a class="door" href="spots/index.html"><span class="kicker">観光地</span><h3>行き先から旅を考える</h3><p>見どころとモデルコースを読み、旅さきへ渡します。</p><span class="go">観光地を見る ›</span></a>
+    </div>
+  </div></section>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <a class="foot-brand" href="/tour"><img src="mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+  <nav aria-label="ほかのページ"><a href="app">旅程をつくる</a><a href="spots/index.html">観光地</a><a href="ssh.html">SSH・端末</a><a href="mobile.html">アプリ</a><a href="api.html">API</a><a href="credits.html">著作権表記</a></nav>
+</div></footer>
+</body>
+</html>
