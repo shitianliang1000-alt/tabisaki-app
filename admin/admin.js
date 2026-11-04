@@ -21,7 +21,7 @@ import { diagnoseMapsKey } from "../packages/core/src/routes.js";
 import { freshnessOf } from "../js/confidence.js";
 import { hiddenQuality, integrity, misclassified, misclassifiedGroups, search,
          unverified, WHY_LABEL } from "./kbcheck.js";
-import { byCountry, CONDITION_LABEL, conditions, perDay, planOutcome,
+import { byCountry, cacheSummary, CONDITION_LABEL, conditions, perDay, planOutcome,
          requestsByEndpoint, rounds, timing, totals, usersByDay } from "./statview.js";
 
 const app = document.getElementById("app");
@@ -310,6 +310,12 @@ const usage = () => withStats(statsDays, ({ counts }) => {
   if (days.length) out.push(...section("日ごとの接続回数", card(bars(days.slice(-14).map(([d, n]) => [d.slice(5), n])))));
   const stat = [...totals(counts, "status")].sort((a, b) => b[1] - a[1]);
   if (stat.length) out.push(...section("エラーを返した回数（入口と番号）", card(bars(stat.slice(0, 12)))));
+  const caches = cacheSummary(counts);
+  if (caches.length) out.push(...section("控え（キャッシュ）の当たり", card(table(
+    ["入口", "当たり", "外れ（外へ聞いた）", "当たりの割合", "平均（当たり）", "平均（外れ）"],
+    caches.map((c) => [c.path, num(c.hits), num(c.misses), pct(c.hitRate),
+      c.hitMs == null ? "—" : `${Math.round(c.hitMs)} ms`, c.missMs == null ? "—" : `${Math.round(c.missMs)} ms`]))),
+    note("同じ検索語は1日覚えておき、外の検索先へ聞き直しません。当たりの割合のぶんだけ、外への呼び出し（枠・費用）が減っています。")));
   const countries = byCountry(counts);
   if (countries.length) out.push(...section("場所（国）", card(bars(countries.slice(0, 10))),
     note("Cloudflare が付ける国コードだけです。県や市のような細かい場所は取りません。")));

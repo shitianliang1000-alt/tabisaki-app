@@ -53,7 +53,7 @@ const partsText = (parts) => (Array.isArray(parts) ? parts : [])
  * Gemini の generateContent の頼み → OpenAI 互換の chat/completions の頼み。
  * 画面が送るのは文だけなので、文だけを移します（画像・道具は送りません）。
  */
-export function geminiToChat(payload, model = OWN_MODEL_DEFAULT_NAME) {
+export function geminiToChat(payload, model = OWN_MODEL_DEFAULT_NAME, { guidedSchema = null } = {}) {
   const messages = [];
   const sys = partsText(payload?.systemInstruction?.parts);
   if (sys.trim()) messages.push({ role: "system", content: sys });
@@ -68,8 +68,17 @@ export function geminiToChat(payload, model = OWN_MODEL_DEFAULT_NAME) {
   if (Number.isFinite(g.topP)) body.top_p = g.topP;
   if (Number.isFinite(g.maxOutputTokens)) body.max_tokens = g.maxOutputTokens;
   if (g.responseMimeType === "application/json") body.response_format = { type: "json_object" };
+  // 画面が形（JSON Schema）を添えてきたら、出力をその形にしばります（Guided Decoding。#435）。
+  // vLLM なら Outlines / xgrammar が、形に合わないトークンを出させません。
+  if (isSchema(guidedSchema)) {
+    body.response_format = { type: "json_schema", json_schema: { name: "answer", schema: guidedSchema, strict: true } };
+  }
   return body;
 }
+
+// 大きすぎる・形の違うものは使いません（中継に来た本文をそのまま上流へ渡すので）。
+const isSchema = (s) => Boolean(s) && typeof s === "object" && !Array.isArray(s)
+  && JSON.stringify(s).length <= 20_000;
 
 /** OpenAI 互換の答え → Gemini の generateContent の答え（画面の replyText が読める形）。 */
 export function chatToGemini(out, model = OWN_MODEL_DEFAULT_NAME) {
@@ -92,7 +101,7 @@ export function chatToGemini(out, model = OWN_MODEL_DEFAULT_NAME) {
  * 自前のモデルに聞きます。答えが取れれば Gemini の形を、取れなければ
  * { error } を返します（投げません。呼ぶ側が AI Studio へ回します）。
  */
-export async function askOwnModel(payload, env, { fetchImpl = fetch } = {}) {
+export async function askOwnModel(payload, env, { fetchImpl = fetch, guidedSchema = null } = {}) {
   const name = String(env?.OWN_MODEL_NAME ?? "").trim() || OWN_MODEL_DEFAULT_NAME;
   const headers = { "Content-Type": "application/json" };
   const key = String(env?.OWN_MODEL_KEY ?? "").trim();
@@ -102,9 +111,18 @@ export async function askOwnModel(payload, env, { fetchImpl = fetch } = {}) {
     res = await fetchImpl(chatUrl(env.OWN_MODEL_URL), {
       method: "POST",
       headers,
-      body: JSON.stringify(geminiToChat(payload, name)),
+      body: JSON.stringify(geminiToChat(payload, name, { guidedSchema })),
       signal: AbortSignal.timeout(ownModelTimeout(env)),
     });
+    // 形のしばりを受けない入口なら、しばらずに1度だけ聞き直します。
+    if (!res.ok && isSchema(guidedSchema) && (res.status === 400 || res.status === 422)) {
+      res = await fetchImpl(chatUrl(env.OWN_MODEL_URL), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(geminiToChat(payload, name)),
+        signal: AbortSignal.timeout(ownModelTimeout(env)),
+      });
+    }
   } catch (e) {
     return { error: e?.name === "TimeoutError" ? "timeout" : "network" };
   }

@@ -47,6 +47,11 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   tabisaki kb index [--region=…] [--method=tfidf] [--out=…]   似たスポット検索の索引を作る
   tabisaki similar "<スポット名か文>" [--region=…] [--limit=10] [--index=<file>] [--output=json]
 
+  tabisaki trace "<希望>" [同じオプション] [--research] [--search-file=<json>] [--output=text|json]
+                      開発者向け: 工程・Research Agent の考えと道具・収録のID・経路の出どころ・
+                      裏取りを流して出し、問題の起きた工程の見立てを出す（docs/dev-trace.md）
+  tabisaki trace --input=<file.json>  保存した記録（--output=json）か旅程を読み直して見立てる
+
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
   tabisaki sync "<希望>" --caldav-url=<URL> [同じオプション] [--dry-run] [--yes]
                       組んだ旅程を CalDAV のカレンダーに書き込む（同じ旅は上書き）
@@ -69,11 +74,11 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
   "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style",
-  "threshold", "cloud-url", "target"]);
+  "threshold", "cloud-url", "target", "search-file", "input"]);
 // 値を取らないもの。
-const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove"]);
+const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research"]);
 // 旅程を組むコマンド。
-const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan"]);
+const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan", "trace"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
 const PLANNED = {};
 
@@ -305,7 +310,12 @@ export async function main(argv, {
     if (cmd === "router") return await routerCommand(rest, opts, { stdout, env });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
     if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
-    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan" && cmd !== "trace") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd !== "trace" && (opts.research || opts["search-file"] !== undefined || opts.input !== undefined)) {
+      throw usage("--research / --search-file / --input は tabisaki trace で使ってください");
+    }
+    if (cmd === "trace" && opts["search-file"] !== undefined && !opts.research) throw usage("--search-file は --research といっしょに使います");
+    if (cmd === "trace" && opts.input !== undefined) return await traceInput(opts, { stdout });
     if (cmd !== "sync" && (opts["caldav-url"] !== undefined || opts["dry-run"] || opts.remove)) {
       throw usage("CalDAV 用の --caldav-url / --dry-run / --yes / --remove は tabisaki sync で使ってください");
     }
@@ -321,7 +331,8 @@ export async function main(argv, {
     if (cmd === "tui" && !(process.stdin.isTTY && process.stdout.isTTY)) {
       throw usage("tui は端末の中で動かしてください（パイプやファイルに出すときは tabisaki plan）");
     }
-    const output = opts.output ?? "markdown";
+    const output = opts.output ?? (cmd === "trace" ? "text" : "markdown");
+    if (cmd === "trace" && !["text", "json"].includes(output)) throw usage("tabisaki trace の --output は text / json のどちらかです");
     if (!["markdown", "md", "text", "json", "ics"].includes(output)) throw usage(`--output は markdown / text / json / ics のどれかです`);
     const core = await import("../../core/index.mjs");
     if (opts.lang !== undefined && !core.pickLang(opts.lang)) throw usage(`--lang は ${core.LANGS.join(" / ")} のどれかです`);
@@ -360,6 +371,7 @@ export async function main(argv, {
     console.log = console.info = process.env.TABISAKI_DEBUG ? toErr : quiet;
     console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
     let result;
+    let recorder = null;
     try {
       // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
       const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
@@ -368,15 +380,33 @@ export async function main(argv, {
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
       }
-      result = await c.plan({
+      const request = {
         wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
         transport: opts.transport,
-      });
+      };
+      if (cmd === "trace") {
+        // 開発者向けの見える化（Issue #444）。工程は起きた順に stderr へ流します。
+        const dt = await import("../../core/devtrace.mjs");
+        recorder = dt.createTraceRecorder({ write: (line) => stderr.write(line + "\n") });
+        const hooks = { onProgress: recorder.onProgress, onStep: recorder.onStep };
+        result = opts.research
+          ? await c.research(request, { ...hooks, search: opts["search-file"] ? searchFromFile(opts["search-file"]) : null })
+          : await c.plan(request, hooks);
+        recorder.finish();
+      } else {
+        result = await c.plan(request);
+      }
     } finally {
       console.log = log; console.warn = warn; console.info = info;
     }
     if (result.ai?.provider === "hybrid") stderr.write(routeSummary(result.ai.routes) + "\n");
     if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
+    if (cmd === "trace") {
+      const dt = await import("../../core/devtrace.mjs");
+      const report = dt.explain(result, recorder?.events ?? []);
+      stdout.write(output === "json" ? JSON.stringify(report, null, 2) + "\n" : dt.formatExplain(report));
+      return 0;
+    }
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);
@@ -393,6 +423,40 @@ export async function main(argv, {
     if (["invalid_input", "unknown_place", "invalid_name", "not_found", "bad_url", "setup", "auth"].includes(e?.code)) return 2;
     return 1;
   }
+}
+
+/**
+ * --search-file の検索結果（手元で決めた答え）。ネットへは出ずに Research Agent を試すためのもの。
+ * [{title, url, snippet}] ならどの語でも同じ答え、{"語": [...], "*": [...]} なら語ごとの答え。
+ */
+function searchFromFile(file) {
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    throw usage(`--search-file を読めません: ${file}（${e.message}）`);
+  }
+  if (!Array.isArray(doc) && (typeof doc !== "object" || doc === null)) throw usage("--search-file は配列か、語ごとの配列を持つ JSON にしてください");
+  return async (q) => (Array.isArray(doc) ? doc : doc[q] ?? doc["*"] ?? []);
+}
+
+/** tabisaki trace --input=<file>: 保存した記録か旅程を読み直して見立てます。 */
+async function traceInput(opts, { stdout }) {
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(opts.input, "utf8"));
+  } catch (e) {
+    throw usage(`--input を読めません: ${opts.input}（${e.message}）`);
+  }
+  const dt = await import("../../core/devtrace.mjs");
+  // tabisaki trace --output=json の記録ならそのまま、旅程（{itinerary}）なら見立てから作ります。
+  const report = doc?.evidence && doc?.diagnosis ? { stages: [], ...doc }
+    : doc?.itinerary ? dt.explain(doc) : null;
+  if (!report) throw usage("--input は tabisaki trace --output=json の記録か、{itinerary} を持つ JSON にしてください");
+  const output = opts.output ?? "text";
+  if (!["text", "json"].includes(output)) throw usage("tabisaki trace の --output は text / json のどちらかです");
+  stdout.write(output === "json" ? JSON.stringify(report, null, 2) + "\n" : dt.formatExplain(report));
+  return 0;
 }
 
 /** tabisaki kb extract / kb index / similar（Issue #353） */

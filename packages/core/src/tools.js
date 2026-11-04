@@ -31,7 +31,9 @@ import { travelMinutes } from "./geo.js";
 import { findPlace } from "./places.js";
 import { KNOWN_JOURNEYS, NATIONAL_ROUTES, readJourney } from "./journeys.js";
 import { onlySpots } from "./notaspot.js";
+import { detectSpecial } from "./special.js";
 import { canWebSearch, webSearch } from "./ai.js";
+import { cacheKey, createCache } from "./cache.js";
 
 /** 道具の種類と、既定の優先順位。 */
 export const TOOL_PRIORITY = Object.freeze({
@@ -334,16 +336,20 @@ export const calculateRouteTool = {
 /** 名のある旅（最長片道切符・日本一周・国道1号線…）。journeys.js に持っています。 */
 export const searchSpecialJourneyTool = {
   name: "search_special_journey",
-  description: "「最長片道切符」「日本一周」「国道1号線」のような、名のある旅のしかたを調べる",
+  description: "「最長片道切符」「日本一周」「青春18きっぷ」「世界遺産全制覇」のような、名のある旅のしかた・特殊な旅の形を調べる",
   input: {
     type: "object", additionalProperties: false, required: ["text"],
     properties: { text: { type: "string", minLength: 1, maxLength: 200 } },
   },
-  output: { type: "object", properties: { found: { type: "boolean" }, journey: { type: "object" } } },
+  output: { type: "object", properties: { found: { type: "boolean" }, journey: { type: "object" }, special: { type: ["object", "null"] } } },
   async run({ text }) {
     const j = readJourney(text);
-    return j ? { found: true, journey: { name: j.name, meaning: j.meaning ?? "", along: j.along ?? [], transport: j.transport ?? null } }
-      : { found: false, known: KNOWN_JOURNEYS.map((k) => k.name) };
+    // 専用の処理がある旅の形（special.js。青春18きっぷ・世界遺産全制覇…）。
+    const special = detectSpecial(text);
+    const sp = special ? { mode: special.mode, name: special.name, modifiers: special.modifiers } : null;
+    if (j) return { found: true, journey: { name: j.name, meaning: j.meaning ?? "", along: j.along ?? [], transport: j.transport ?? null }, special: sp };
+    return sp ? { found: true, journey: null, special: sp }
+      : { found: false, special: null, known: KNOWN_JOURNEYS.map((k) => k.name) };
   },
 };
 
@@ -373,8 +379,8 @@ export const searchHistoricalRouteTool = {
 
 /**
  * ネットの検索。何で検索するかは ctx.search（async (q) → [{title,url,snippet}]）で
- * 差し替えます。Web 版は中継の /web/search（ai.js の webSearch）、#438 の
- * Brave LLM Context API とキャッシュもここへ差し込みます。無ければ使えません。
+ * 差し替えます。Web 版は中継の /web/search（ai.js の webSearch。控えつき）。
+ * 無ければ使えません。
  */
 export const webSearchTool = {
   name: "web_search",
@@ -428,10 +434,9 @@ export function createDefaultTools(ctx = {}) {
 //  web_search の検索先
 //
 //  検索先は async (query) → [{title, url, snippet}] の関数です。
-//  Brave LLM Context API（#438）などに替えるときも、この形の関数を作って
-//  createDefaultTools({search}) に渡すだけです。控え（キャッシュ）は
-//  cachedSearch で包みます。控えの置き場は get/set を持つもの（Map でも、
-//  Redis の薄い包みでも）なら何でも使えます。
+//  ほかの検索先に替えるときも、この形の関数を作って createDefaultTools({search})
+//  に渡すだけです。控え（キャッシュ）は cachedSearch で包みます（cache.js。
+//  置き場はメモリ・localStorage・Cache API など get/set/delete を持つもの）。
 // ---------------------------------------------------------------------------
 
 /** Web 版の中継（/web/search。Wikipedia か Tavily）で調べる検索先。使えなければ null。 */
@@ -440,24 +445,20 @@ export function relaySearch() {
 }
 
 /**
- * 検索先を控えで包みます。同じ語は ttlMs のあいだ聞き直しません。
+ * 検索先を控え（cache.js）で包みます。同じ語は ttlMs のあいだ聞き直しません。
+ * 同じ語を同時に頼まれても、聞くのは1回です。何も見つからなかった答えと
+ * 失敗は覚えません（次はまた聞きます）。
+ *
+ * 数は search.stats（当たり・外れ・当たりの割合・時間・費用）で見られます。
  * @param {(q: string) => Promise<object[]>} search
- * @param {{ttlMs?: number, store?: {get: Function, set: Function}, now?: () => number}} [opts]
+ * @param {{ttlMs?: number, store?: object, layers?: object[], costPerCall?: number,
+ *   now?: () => number, timer?: () => number}} [opts]
  */
-export function cachedSearch(search, { ttlMs = 24 * 3600 * 1000, store = new Map(), now = () => Date.now() } = {}) {
-  const stats = { hits: 0, misses: 0 };
-  const fn = async (q) => {
-    const key = String(q ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-    const hit = await store.get(key);
-    if (hit && now() - hit.at < ttlMs) {
-      stats.hits++;
-      return hit.results;
-    }
-    stats.misses++;
-    const results = await search(q);
-    await store.set(key, { at: now(), results });
-    return results;
-  };
-  fn.stats = stats;
+export function cachedSearch(search, { ttlMs = 24 * 3600 * 1000, store, layers, costPerCall = 0, now, timer } = {}) {
+  const cache = createCache({ ttlMs, store, layers, costPerCall, now, timer });
+  const fn = async (q) => (await cache.fetch(cacheKey(q), () => search(q),
+    { keep: (r) => Array.isArray(r) && r.length > 0 })).value;
+  Object.defineProperty(fn, "stats", { get: () => cache.stats() });
+  fn.cache = cache;
   return fn;
 }

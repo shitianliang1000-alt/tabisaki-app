@@ -190,6 +190,9 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
   const ai = await js("ai.js");
   ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
   if (hybrid) ai.useHybrid(hybrid);
+  // 手元のモデルへ JSON を頼むときの形のしばりかた（docs/guided-decoding.md）。
+  // 既定は json_schema。古い vLLM は guided_json、しばりを切って比べるなら off。
+  ai.setLocalGuided(local?.guided ?? hybrid?.local?.guided ?? (globalThis.process?.env?.TABISAKI_GUIDED || "json_schema"));
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -217,9 +220,12 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
+     * @param {{onProgress?: (step: number, note?: string, extra?: object) => void}} [opts]
+     *   onProgress は組み立ての段（0〜5。js/ui.js の STEPS）が進むたびに呼ばれます
+     *   （開発者向けの見える化。docs/dev-trace.md）。
      * @returns {Promise<{request: object, itinerary: object}>}
      */
-    async plan(request) {
+    async plan(request, { onProgress } = {}) {
       const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
       const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
@@ -230,7 +236,7 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       let itinerary;
       const routesBefore = hybrid ? (ai.lastRoute()?.seq ?? 0) : 0;
       try {
-        itinerary = await planTrip({ trip, kb });
+        itinerary = await planTrip({ trip, kb, ...(typeof onProgress === "function" ? { onProgress: safeProgress(onProgress) } : {}) });
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
@@ -266,27 +272,104 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
      * 理由と代わりの案（research.alternatives）を返します。
      *
      * @param {PlanRequest} request
-     * @param {{search?: Function, llm?: Function, maxSearches?: number}} [opts]
-     * @returns {Promise<{research: object, request?: object, itinerary?: object}>}
+     * @param {{search?: Function, llm?: Function, maxSearches?: number, solvers?: object,
+     *          onStep?: (step: object) => void, onProgress?: Function}} [opts]
+     *   onStep は Agent の記録（考え・道具・結果）が1件増えるたび、onProgress は
+     *   旅程の組み立ての段が進むたびに呼ばれます（docs/dev-trace.md）。
+     * @returns {Promise<{research: object, request?: object, itinerary?: object, special?: object}>}
      */
-    async research(request, { search = null, llm = null, maxSearches } = {}) {
+    async research(request, { search = null, llm = null, maxSearches, solvers = null, onStep, onProgress } = {}) {
       const r0 = await normalizeRequest(request);
       const { createDefaultTools } = await js("tools.js");
       const { runResearch, modelLlm } = await js("research.js");
       const tools = createDefaultTools({ kb, search });
       // 手元の LLM があれば、調べる語づくりと場所の拾い出しを手伝わせます。
       const helper = llm ?? (local ? modelLlm((p, o) => ai.callModelJson(p, o)) : null);
-      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches });
+      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches,
+        days: request.days ?? null, onStep });
       if (research.status === "out_of_scope") return { research };
-      if (research.status === "kb") return { research, ...(await this.plan(request)) };
+      if (research.status === "quest") {
+        // 一覧を回る旅（#443）は、最初の1回分を旅程にします。道を通しで行く旅は、
+        // 日ごとの区切り（research.quest.stages）が答えで、旅程は組みません
+        // （自転車で数百km の旅を、1つの旅程の時刻表には落とせないため）。
+        const first = research.quest.plan;
+        if (!first?.spotIds?.length) return { research };
+        const planned = await this.plan({ ...request, days: request.days ?? first.days.length,
+          wish: `${first.order.map((s) => s.name).join("・")}をめぐる`,
+          must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...first.spotIds])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } }, { onProgress });
+        // 旅程に入りきらなかった一覧の場所は、隠さずに書きます（次の回に回します）。
+        const visited = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? [])
+          .filter((i) => i.kind === "spot").map((i) => i.spotId ?? i.id));
+        const titles = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? []).map((i) => i.title));
+        first.dropped = first.order.filter((s) => !visited.has(s.id) && !titles.has(s.name)).map((s) => s.name);
+        if (first.dropped.length) research.message += `日程に入りきらなかった${first.dropped.join("・")}は、次の回に回してください。`;
+        return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+      }
+      // 特殊な旅の形（青春18きっぷ・世界遺産全制覇…）は、その形の処理へ回します（#442）。
+      if (research.status === "special") return { research, ...(await this.special(request, { solvers })) };
+      if (research.status === "kb") return { research, ...(await this.plan(request, { onProgress })) };
       const ids = research.order.map((s) => s.id);
       // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
       // （県の名前は足しません。県全体に広がり、県庁所在地が選ばれてしまうため）
       const wish = `${research.order.map((s) => s.name).join("・")}をめぐる`;
       const planned = await this.plan({ ...request, wish,
-        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } });
+        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } },
+        { onProgress });
       return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
     },
+    /**
+     * 特殊な旅の形（Issue #442。docs/special-journeys.md）。
+     *
+     * 日本一周・青春18きっぷ・寝台列車・船旅・廃線跡・秘境駅・日本の端・
+     * 世界遺産全制覇・県庁所在地踏破・最長片道切符を読み取り、形ごとの処理で
+     * 条件を整えてから、いつもの流れで旅程にします。形が読み取れなければ
+     * special は null で、旅程は組みません（core.plan を使ってください）。
+     *
+     * 最長片道切符の経路は solvers.longestTicket(kind, {from}) → {route, km}
+     * （Issue #431 の専用ソルバー）に任せます。無ければ全国を回る旅として組みます。
+     *
+     * @param {PlanRequest} request
+     * @param {{solvers?: {longestTicket?: Function}}} [opts]
+     * @returns {Promise<{special: object|null, request?: object, itinerary?: object}>}
+     */
+    async special(request, { solvers = null } = {}) {
+      const r0 = await normalizeRequest(request);
+      const { handleSpecial } = await js("special.js");
+      const date = request.date ?? new Date(r0.departAt.getTime() + 9 * 3600000).toISOString().slice(0, 10);
+      const special = await handleSpecial({ text: r0.wish, kb, origin: r0.origin, days: r0.days, date, solvers });
+      if (!special) return { special: null };
+      const want = special.request;
+      if (!want) return { special };
+      const next = {
+        ...request,
+        wish: want.wish ?? r0.wish,
+        from: want.from ?? request.from,
+        days: want.days ?? r0.days,
+        date: want.date ?? date,
+        start: want.start ?? request.start,
+        transport: want.transport ?? request.transport,
+      };
+      if (want.must?.length) {
+        next.must = { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...want.must])],
+          avoidSpotIds: request.must?.avoidSpotIds ?? [] };
+      }
+      try {
+        const planned = await this.plan(next);
+        return { special, ...planned, request: { ...planned.request, wish: r0.wish } };
+      } catch (e) {
+        // 形は読めたが組めなかった（日数が足りないなど）。読めたことと理由は返します。
+        special.status = "partial";
+        special.notes = [...special.notes, `旅程は組めませんでした（${e?.message ?? e}）。`];
+        return { special };
+      }
+    },
+  };
+}
+
+// 見る側（開発者向けの表示）の失敗で、旅程づくりを止めません。
+function safeProgress(fn) {
+  return (...a) => {
+    try { fn(...a); } catch { /* 表示の失敗は無視します */ }
   };
 }
 
@@ -313,3 +396,7 @@ export {
   SLOTS, extractSlots, missingQuestions, confirmLines, startDialog, answerDialog,
   replyDialog, finishDialog, composeNote,
 } from "./src/slots.js";
+// 質問の選択肢を AI が文脈から作る（#441）。
+export {
+  generateChoices, buildChoicePrompt, sanitizeChoices, readChoiceReply, placeChecker, mentionsPlace,
+} from "./src/choices.js";

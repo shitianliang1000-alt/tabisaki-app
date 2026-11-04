@@ -36,7 +36,8 @@ test("実 kb の全スポットに fetchedAt が付与されている（#421 の
     total += data.spots.length;
     missing += countMissing(data.spots);
   }
-  assert.ok(total > 50000, `スポット総数が想定外: ${total}`);
+  // 国土数値情報の非商用データ（約1.3万件）は kb-private/ に移しました（docs/kokudo-licenses.md）。
+  assert.ok(total > 38000, `スポット総数が想定外: ${total}`);
   assert.equal(missing, 0, `fetchedAt 未付与が ${missing} 件残っています`);
 });
 
@@ -77,7 +78,7 @@ test("kb/tags-*.json がシャード単位で生成されていて大半のス�
     assert.ok(data.license, `${f} にライセンス情報がありません`);
     total += Object.keys(data.tags).length;
   }
-  assert.ok(total > 40000, `タグ付与総数が想定外: ${total}`);
+  assert.ok(total > 30000, `タグ付与総数が想定外: ${total}`);
 });
 
 // ---------- #425 階層要約 ----------
