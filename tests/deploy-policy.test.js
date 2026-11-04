@@ -50,3 +50,11 @@ test("PHP 版: 画面と部品は毎回確かめ、版の付いたトップの�
   assert.match(tpl, /assets\/landing\.css\?v=\{\{build\}\}/);
   assert.match(tpl, /assets\/landing\.js\?v=\{\{build\}\}/);
 });
+
+test("GitHub から Cloudflare へ上げるのは、main の試験が通ったあとだけ", async () => {
+  const y = await read(".github/workflows/deploy.yml");
+  assert.match(y, /workflows: \["Unit tests"\]/);
+  assert.match(y, /branches: \[main\]/);
+  assert.match(y, /workflow_run\.conclusion == 'success'/);
+  assert.doesNotMatch(y, /pull_request/, "PR からは上げない");
+});
