@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- tools/record_tour.mjs が1コマずつ撮る、コードで描いた映像（tour.html で使います）。
+     #hours … 営業時間と移動時間を照らし合わせて、行ける順に並べる
+     #weather … 雨の時間には屋内を、晴れの時間には外を
+     #mix … 定番と穴場のまぜかた
+     window.draw(t) が t 秒の絵を描きます。時計に頼らないので、何度撮っても同じ映像になります。 -->
+<html lang="ja"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script>
+const c = document.getElementById("c"), g = c.getContext("2d");
+const W = innerWidth, H = innerHeight; c.width = W; c.height = H;
+const SERIF = '"Times New Roman", Times, "Liberation Serif", Tinos, serif';
+const SANS = '"Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP", "IPAGothic", sans-serif';
+const ease = (x) => x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3);
+const inout = (x) => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const seg = (t, a, b) => (t - a) / (b - a);
+const lerp = (a, b, k) => a + (b - a) * k;
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function bg() {
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  const gr = g.createRadialGradient(W * .5, H * 1.1, 0, W * .5, H * 1.1, W * .8);
+  gr.addColorStop(0, "rgba(41,151,255,.16)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+}
+function title(t, s, sub) {
+  const a = ease(seg(t, .1, .9));
+  g.globalAlpha = a; g.fillStyle = "#f5f5f7"; g.textAlign = "left";
+  g.font = `600 30px ${SANS}`; g.fillText(s, 80, 86 - (1 - a) * 12);
+  g.fillStyle = "#86868b"; g.font = `400 18px ${SANS}`; g.fillText(sub, 80, 118 - (1 - a) * 12);
+  g.globalAlpha = 1;
+}
+
+// ── 営業時間と移動時間 ──────────────────────────────
+const X0 = 300, X1 = 1200, HR0 = 9, HR1 = 18;
+const hx = (h) => X0 + (Math.min(HR1, Math.max(HR0, h)) - HR0) / (HR1 - HR0) * (X1 - X0);
+const SPOTS = [
+  { name: "古い町並み", open: [9, 17], at: 9.5, len: 1.5 },
+  { name: "海の見える公園", open: [6, 19], at: 11.6, len: 1 },
+  { name: "美術館", open: [10, 17], closed: true, at: 13.2, len: 1.5 },
+  { name: "港の市場", open: [10, 16], at: 13.2, len: 1.2 },
+  { name: "灯台", open: [9, 16.5], at: 14.9, len: 1 },
+];
+function hours(t) {
+  bg(); title(t, "営業時間と移動時間を、照らし合わせる。", "閉まっている日の場所は外し、間に合う順番に並べ直します。");
+  // 時刻の目盛り
+  g.font = `400 20px ${SERIF}`; g.textAlign = "center";
+  for (let h = HR0; h <= HR1; h++) {
+    const a = ease(seg(t, .3 + (h - HR0) * .04, .9 + (h - HR0) * .04));
+    g.globalAlpha = a * .9; g.fillStyle = "#86868b"; g.fillText(`${h}:00`, hx(h), 190);
+    g.globalAlpha = a * .18; g.fillStyle = "#fff"; g.fillRect(hx(h), 205, 1, 440);
+  }
+  g.globalAlpha = 1;
+  const rowY = (i) => 230 + i * 84;
+  let row = 0;
+  SPOTS.forEach((s, i) => {
+    const appear = ease(seg(t, .8 + i * .25, 1.6 + i * .25));
+    // 美術館は「定休日」で外れ、港の市場が入れかわりに入ります。
+    let y = rowY(row), alpha = appear;
+    if (s.closed) { alpha *= 1 - ease(seg(t, 5.2, 5.9)); }
+    if (i > 2) y = lerp(rowY(i), rowY(i - 1), inout(seg(t, 5.5, 6.4)));
+    if (!s.closed || alpha > 0.01) row++;
+    if (alpha <= 0.01) return;
+    g.globalAlpha = alpha;
+    g.textAlign = "right"; g.fillStyle = "#f5f5f7"; g.font = `500 21px ${SANS}`;
+    g.fillText(s.name, X0 - 28, y + 33);
+    // 営業時間（細い帯）
+    const ow = (hx(s.open[1]) - hx(s.open[0])) * ease(seg(t, 1.2 + i * .25, 2.4 + i * .25));
+    rr(hx(s.open[0]), y + 16, ow, 26, 13); g.fillStyle = "rgba(255,255,255,.10)"; g.fill();
+    g.fillStyle = "#6e6e73"; g.font = `400 15px ${SANS}`; g.textAlign = "left";
+    if (ow > 60) g.fillText(s.closed ? "" : "営業時間", hx(s.open[0]) + 14, y + 34);
+    // 立ち寄る時間（白いかたまり）
+    const k = ease(seg(t, 2.6 + i * .35, 3.4 + i * .35));
+    if (k > 0) {
+      rr(hx(s.at), y + 12, (hx(s.at + s.len) - hx(s.at)) * k, 34, 10);
+      g.fillStyle = s.closed && t > 4.4 ? "#ff453a" : "#f5f5f7"; g.fill();
+    }
+    if (s.closed && t > 4.4) {
+      const b = ease(seg(t, 4.4, 4.8));
+      g.globalAlpha = alpha * b; g.fillStyle = "#ff453a"; g.font = `600 17px ${SANS}`;
+      g.fillText("この日は定休日", hx(s.at + s.len) + 16, y + 35);
+    }
+    if (s.name === "港の市場" && t > 6.4) {
+      const b = ease(seg(t, 6.4, 6.9));
+      g.globalAlpha = b; g.fillStyle = "#2997ff"; g.font = `600 17px ${SANS}`;
+      g.fillText("入れかえました", hx(s.at + s.len) + 16, y + 35);
+    }
+    g.globalAlpha = 1;
+  });
+  // 移動の線（立ち寄りのあいだを結ぶ）
+  const k = ease(seg(t, 6.8, 8.2));
+  if (k > 0) {
+    const live = SPOTS.filter((s) => !s.closed);
+    g.strokeStyle = "#2997ff"; g.lineWidth = 2.5; g.setLineDash([6, 6]);
+    g.beginPath();
+    live.forEach((s, i) => {
+      const y = rowY(i) + 29, xa = hx(s.at + s.len), nx = live[i + 1];
+      if (!nx) return;
+      const yb = rowY(i + 1) + 29, xb = hx(nx.at);
+      const p = Math.min(1, Math.max(0, k * live.length - i));
+      g.moveTo(xa, y); g.lineTo(lerp(xa, xb, p), lerp(y, yb, p));
+    });
+    g.stroke(); g.setLineDash([]);
+  }
+}
+
+// ── 天気 ─────────────────────────────────────────
+const RAIN = [0, 0, .1, .2, .7, .9, .8, .4, .1, 0];
+function weather(t) {
+  bg(); title(t, "雨の時間は屋内に。晴れたら外へ。", "出かける日の天気を見て、外の場所と屋内の場所の順番を入れかえます。");
+  const x0 = 140, w = 1000, bw = w / RAIN.length;
+  g.textAlign = "center";
+  RAIN.forEach((r, i) => {
+    const a = ease(seg(t, .4 + i * .06, 1.2 + i * .06));
+    const x = x0 + i * bw;
+    g.globalAlpha = a;
+    g.fillStyle = "#86868b"; g.font = `400 19px ${SERIF}`; g.fillText(`${9 + i}:00`, x + bw / 2, 400);
+    const h = 150 * r * ease(seg(t, 1 + i * .06, 2 + i * .06));
+    rr(x + 18, 360 - h, bw - 36, h, 8); g.fillStyle = r > .5 ? "#2997ff" : "rgba(41,151,255,.45)"; g.fill();
+    g.fillStyle = "#6e6e73"; g.font = `400 15px ${SANS}`;
+    g.fillText(`${Math.round(r * 100)}%`, x + bw / 2, 352 - h);
+  });
+  g.globalAlpha = ease(seg(t, 1, 1.6)); g.fillStyle = "#86868b"; g.font = `400 16px ${SANS}`; g.textAlign = "left";
+  g.fillText("雨の降りやすさ（見本）", x0, 190);
+  g.globalAlpha = 1;
+  // 外の場所（公園）と屋内（美術館）のカードが、雨の山を避けて入れかわる
+  const swap = inout(seg(t, 4.2, 5.6));
+  const cards = [
+    { name: "海の見える公園", tag: "外", from: 13, to: 9.5 },
+    { name: "美術館", tag: "屋内", from: 10, to: 13.2 },
+    { name: "港の市場", tag: "屋内", from: 15.5, to: 15.5 },
+  ];
+  cards.forEach((cd, i) => {
+    const a = ease(seg(t, 2 + i * .3, 2.8 + i * .3));
+    const hr = lerp(cd.from, cd.to, swap);
+    const x = x0 + (hr - 9) * bw, y = 460 + i * 0;
+    g.globalAlpha = a;
+    rr(x, y + (1 - a) * 20, bw * 2.2, 92, 16);
+    const wet = cd.tag === "外" && RAIN[Math.round(hr - 9)] > .5;
+    g.fillStyle = wet ? "rgba(255,69,58,.18)" : "rgba(255,255,255,.08)"; g.fill();
+    g.strokeStyle = wet ? "#ff453a" : "rgba(255,255,255,.18)"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#f5f5f7"; g.font = `600 20px ${SANS}`; g.fillText(cd.name, x + 18, y + 40 + (1 - a) * 20);
+    g.fillStyle = cd.tag === "外" ? "#30d158" : "#86868b"; g.font = `500 15px ${SANS}`;
+    g.fillText(cd.tag + (wet ? "・雨にあたります" : ""), x + 18, y + 68 + (1 - a) * 20);
+  });
+  g.globalAlpha = ease(seg(t, 5.8, 6.5)); g.fillStyle = "#2997ff"; g.font = `600 19px ${SANS}`;
+  g.fillText("公園を朝に、美術館を雨の時間に。", x0, 620);
+  g.globalAlpha = 1;
+}
+
+// ── 定番と穴場 ───────────────────────────────────
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const DOTS = Array.from({ length: 140 }, () => ({ x: 120 + rnd() * 1040, y: 230 + rnd() * 330, famous: rnd() < .22, r: rnd() }));
+function mix(t) {
+  bg(); title(t, "定番と、穴場のまぜかたを選ぶ。", "有名な場所だけでも、知る人ぞ知る場所だけでもなく。割合を決めて組みます。");
+  // つまみ: 定番 → 穴場 → まんなか
+  const v = t < 2 ? .15 : t < 4.5 ? lerp(.15, .9, inout(seg(t, 2, 4.5))) : lerp(.9, .5, inout(seg(t, 5, 6.5)));
+  const sx = 340, sw = 600, sy = 630;
+  g.globalAlpha = ease(seg(t, .3, 1));
+  rr(sx, sy - 3, sw, 6, 3); g.fillStyle = "rgba(255,255,255,.18)"; g.fill();
+  rr(sx, sy - 3, sw * v, 6, 3); g.fillStyle = "#2997ff"; g.fill();
+  g.beginPath(); g.arc(sx + sw * v, sy, 14, 0, 7); g.fillStyle = "#f5f5f7"; g.fill();
+  g.fillStyle = "#86868b"; g.font = `500 18px ${SANS}`; g.textAlign = "right"; g.fillText("定番", sx - 24, sy + 6);
+  g.textAlign = "left"; g.fillText("穴場", sx + sw + 24, sy + 6);
+  g.fillStyle = "#f5f5f7"; g.font = `400 26px ${SERIF}`; g.textAlign = "center";
+  g.fillText(`${Math.round((1 - v) * 100)} : ${Math.round(v * 100)}`, sx + sw / 2, sy - 30);
+  // 点。定番は大きく、穴場は小さく。選ばれたものだけ明るく
+  DOTS.forEach((d, i) => {
+    const a = ease(seg(t, .2 + i * .006, .9 + i * .006));
+    const pick = d.famous ? d.r > v * .9 : d.r < v * .45;
+    const k = pick ? 1 : .22;
+    g.globalAlpha = a * k;
+    g.beginPath(); g.arc(d.x, d.y, d.famous ? 9 : 4.5, 0, 7);
+    g.fillStyle = d.famous ? "#f5f5f7" : "#2997ff"; g.fill();
+  });
+  g.globalAlpha = 1; g.textAlign = "left";
+  g.fillStyle = "#86868b"; g.font = `400 15px ${SANS}`;
+  g.beginPath(); g.arc(130, 196, 7, 0, 7); g.fillStyle = "#f5f5f7"; g.fill();
+  g.fillStyle = "#86868b"; g.fillText("定番", 146, 202);
+  g.beginPath(); g.arc(220, 196, 4.5, 0, 7); g.fillStyle = "#2997ff"; g.fill();
+  g.fillStyle = "#86868b"; g.fillText("穴場", 234, 202);
+}
+
+const SCENES = new Map([
+  ["hours", hours],
+  ["weather", weather],
+  ["mix", mix]
+]);
+const pick = location.hash.slice(1);
+window.draw = (t) => {
+  const scene = SCENES.has(pick) ? SCENES.get(pick) : hours;
+  return (typeof scene === "function" ? scene : hours)(t);
+};
+document.fonts.ready.then(() => { window.draw(0); window.ready = true; });
+</script>
+</body></html>

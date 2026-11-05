@@ -27,6 +27,23 @@ const desc = (m) => [...m].sort((a, b) => b[1] - a[1]);
 /** 入口ごとの呼び出し回数（接続回数）。 */
 export function requestsByEndpoint(counts) { return desc(totals(counts, "req")); }
 
+/**
+ * 控え（キャッシュ）の当たり・外れ（#438）。入口ごとに
+ * { path, hits, misses, hitRate, hitMs, missMs }。時間は平均（ミリ秒）。
+ */
+export function cacheSummary(counts) {
+  const n = totals(counts, "cache");
+  const ms = totals(counts, "cache_ms");
+  const paths = new Set([...n.keys()].map((k) => k.replace(/ (hit|miss)$/, "")));
+  return [...paths].sort().map((path) => {
+    const hits = n.get(`${path} hit`) ?? 0;
+    const misses = n.get(`${path} miss`) ?? 0;
+    const avg = (kind, c) => (c ? (ms.get(`${path} ${kind}`) ?? 0) / c : null);
+    return { path, hits, misses, hitRate: hits + misses ? hits / (hits + misses) : null,
+             hitMs: avg("hit", hits), missMs: avg("miss", misses) };
+  });
+}
+
 /** 国ごとの回数。国コードだけです（それより細かい場所は持ちません）。 */
 export function byCountry(counts) { return desc(totals(counts, "country")); }
 

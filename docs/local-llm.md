@@ -142,3 +142,6 @@ Node.js 22 以上が要ります（CLI そのもの）。
 * API サーバー（`packages/server`）と TUI からの `--local`
 * Web 版から手元の LLM を呼ぶこと（ブラウザから `localhost` へは、Ollama 側で `OLLAMA_ORIGINS` を開ける必要があります）
 * 埋め込み（ベクトル）を手元で作ること。似たスポットの検索は言葉の重みで行っています（[kb-extract.md](./kb-extract.md)）
+
+自信が無いときだけクラウドのモデルに聞き直す使いかた（`--hybrid`）は、[model-router.md](./model-router.md) にあります。
+JSON を頼むときは、出力を JSON Schema でしばります（`response_format: json_schema`。受けないサーバーなら `json_object` に落とします）。切り替えは `TABISAKI_GUIDED`、詳しくは [guided-decoding.md](./guided-decoding.md) にあります。

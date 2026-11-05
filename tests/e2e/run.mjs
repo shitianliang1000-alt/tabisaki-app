@@ -158,6 +158,28 @@ const browser = await chromium.launch({
   executablePath: EXE,
   args: ["--no-sandbox"],
 });
+// 足りない条件を聞くカード（#440、js/slotcard.js）は、専用の確認でだけ
+// 見ます。ほかの確認は「次からは聞かずに組む」を選んだ人として動かします
+// （組むまでの操作が1つ増えるだけで、確かめたいことは変わらないため）。
+// 聞く人として開くときは newContext({ askSlots: true }) にします。
+{
+  const ASK_OFF = () => {
+    try { localStorage.setItem("tabisaki.askSlots", "off"); } catch { /* 無くても動きます */ }
+  };
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts = {}) => {
+    const { askSlots = false, ...rest } = opts ?? {};
+    const ctx = await newContext(rest);
+    if (!askSlots) await ctx.addInitScript(ASK_OFF);
+    return ctx;
+  };
+  browser.newPage = async (opts = {}) => {
+    const ctx = await browser.newContext(opts);
+    const pg = await ctx.newPage();
+    pg.once("close", () => { ctx.close().catch(() => {}); });
+    return pg;
+  };
+}
 const page = await (await browser.newContext({
   viewport: { width: 1280, height: 1000 },
 })).newPage();
@@ -2037,6 +2059,134 @@ async function sendChat(pg, text) {
   { timeout: 120_000, arg: before });
 }
 
+// 足りない条件だけを聞く（#440）。詳しく書いた人には何も聞かず、
+// 書いていない分だけを聞きます。札でも、チャットへの返信でも答えられます。
+await check("足りない条件だけを聞き、書いたことは聞き直さない", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, askSlots: true });
+  const pg = await ctx.newPage();
+  if (process.env.E2E_OFFLINE) {
+    const origin = new URL(BASE).origin;
+    await pg.route((u) => u.origin !== origin, (route) => route.abort("connectionrefused"));
+  }
+  // ここでは決め打ちの選択肢を押します（AI の選択肢は次の確認で見ます）。
+  await pg.route(/\/gemini\/generate|:generateContent/, (route) => route.abort("connectionrefused"));
+  try {
+    await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg, () => !document.getElementById("make-plan").disabled);
+    await pg.fill("#note", "温泉でゆっくり");
+    await pg.keyboard.press("Enter");
+    await pg.waitForSelector(".slot-card", { timeout: 20_000 });
+    const rows = () => pg.$$eval(".slot-card .slot-q", (els) => els.map((e) => e.id));
+    let ids = await rows();
+    assert(ids.join(",") === "slot-destination,slot-dates-start,slot-dates-nights",
+      `聞いている枠: ${ids.join(",")}`);
+    assert(await pg.$(".slot-card .slot-q [data-choice=other]"), "「上記以外」がありません");
+    // 札で答えると、その質問は消えます（足りない「誰と」が次に出ます）。
+    await pg.click('.slot-card [data-part=nights][data-choice="1"]');
+    ids = await rows();
+    assert(!ids.includes("slot-dates-nights") && ids.includes("slot-travelers"),
+      `札で答えたあとの枠: ${ids.join(",")}`);
+    // チャットに返信しても、読み取れた分の質問は消えます。
+    await pg.fill("#note", "明日から2人で");
+    await pg.keyboard.press("Enter");
+    await until(pg, () => !document.querySelector("#slot-dates-start")
+      && !document.querySelector("#slot-travelers"), { timeout: 10_000 });
+    await pg.click('.slot-card [data-slot=destination][data-choice=any]');
+    // 全部そろうと、確かめの形になります。
+    const lead = await pg.$eval(".slot-card .slot-lead", (e) => e.textContent);
+    assert(/この内容で組みます/.test(lead), `確かめの文になっていません: ${lead}`);
+    await pg.fill("#slot-extra", "露天風呂のある所");
+    await pg.click("#slot-go");
+    await until(pg, () => Boolean(document.querySelector(".thread > .turn-ai:last-child #details-toggle")),
+      { timeout: 120_000 });
+    const chips = await pg.$$eval(".thread .turn-user .read-chips li", (els) => els.map((e) => e.textContent));
+    assert(chips.some((t) => t.includes("1泊2日")) && chips.some((t) => t.includes("2人")),
+      `答えが旅程の条件になっていません: ${chips.join("・")}`);
+    assert(!(await pg.$(".slot-card")), "組んだあとも質問が残っています");
+  } finally {
+    await ctx.close();
+  }
+  // 詳しく書いた人には、何も聞かずにそのまま組みます。
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 1000 }, askSlots: true });
+  const pg2 = await ctx2.newPage();
+  if (process.env.E2E_OFFLINE) {
+    const origin = new URL(BASE).origin;
+    await pg2.route((u) => u.origin !== origin, (route) => route.abort("connectionrefused"));
+  }
+  try {
+    await pg2.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg2, () => !document.getElementById("make-plan").disabled);
+    await pg2.fill("#note", "明後日から1泊2日、2人で金沢へ");
+    await pg2.keyboard.press("Enter");
+    await until(pg2, () => Boolean(document.querySelector(".slot-card"))
+      || Boolean(document.querySelector(".thread > .turn-ai:last-child #details-toggle")),
+    { timeout: 120_000 });
+    assert(!(await pg2.$(".slot-card")), "詳しく書いたのに質問が出ました");
+  } finally {
+    await ctx2.close();
+  }
+});
+
+// 質問の選択肢を、頼んだ文に合わせて AI が作る（#441）。AI の返事は偽物です。
+// 確かめるのは、地名入りの選択肢が捨てられること・「上記以外」が最後に
+// あること・AI の選択肢で答えられること。
+await check("質問の選択肢を AI が文脈から作り、地名は出さない", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, askSlots: true });
+  const pg = await ctx.newPage();
+  if (process.env.E2E_OFFLINE) {
+    const origin = new URL(BASE).origin;
+    await pg.route((u) => u.origin !== origin, (route) => route.abort("connectionrefused"));
+  }
+  const reply = {
+    questions: [
+      { id: "destination", choices: [
+        { label: "紅葉の山", text: "紅葉がきれいな山へ" },
+        { label: "嵐山", text: "嵐山へ" },
+        { label: "古い町並み", text: "古い町並みを歩けるところへ" },
+        { label: "清水寺", text: "清水寺へ" },
+        { label: "渓谷の遊歩道", text: "渓谷沿いを歩けるところへ" },
+      ] },
+      { id: "dates.start", choices: [{ label: "今週末", text: "今週末に" }, { label: "来週末", text: "来週の週末に" }] },
+      { id: "dates.nights", choices: [{ label: "日帰り", text: "日帰りで" }, { label: "1泊2日", text: "1泊2日で" }] },
+    ],
+  };
+  let asked = 0;
+  await pg.route(/\/gemini\/generate|:generateContent/, async (route) => {
+    const body = route.request().postData() ?? "";
+    // 選択肢の頼み以外（質問か旅程かの判断など）は、AI なしの道へ。
+    if (!body.includes("押すだけで答えられる選択肢")) return route.abort("connectionrefused");
+    asked++;
+    await route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }),
+    });
+  });
+  try {
+    await pg.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await until(pg, () => !document.getElementById("make-plan").disabled);
+    await pg.fill("#note", "紅葉を見に行きたい");
+    await pg.keyboard.press("Enter");
+    await pg.waitForSelector(".slot-card", { timeout: 20_000 });
+    await until(pg, () => Boolean(document.querySelector('#slot-destination [data-choice="ai1"]')),
+      { timeout: 20_000 });
+    assert(asked >= 1, "AI に選択肢を頼んでいません");
+    const labels = await pg.$$eval("#slot-destination .slot-choice", (els) => els.map((e) => e.textContent));
+    assert(labels.includes("紅葉の山") && labels.includes("古い町並み"), `AI の選択肢が出ていません: ${labels.join("・")}`);
+    assert(!labels.includes("嵐山") && !labels.includes("清水寺"), `地名・スポット名が出ています: ${labels.join("・")}`);
+    assert(labels.at(-1).startsWith("上記以外"), `「上記以外」が最後にありません: ${labels.join("・")}`);
+    assert(!(await pg.$(".slot-thinking")), "考え中の表示が残っています");
+    const cardText = await pg.$eval(".slot-card", (e) => e.textContent);
+    assert(!cardText.includes("null"), "カードに「null」という字が出ています");
+    await pg.click('#slot-destination [data-choice="ai1"]');
+    await until(pg, () => !document.querySelector("#slot-destination"));
+    const start = await pg.$$eval("#slot-dates-start .slot-choice", (els) => els.map((e) => e.textContent));
+    assert(start.includes("今週末") && start.at(-1).startsWith("上記以外"),
+      `日程の質問が AI の選択肢のままではありません: ${start.join("・")}`);
+  } finally {
+    await ctx.close();
+  }
+});
+
 await check("チャットに書いた日付と出発地が、設定より勝つ", async () => {
   await page.$eval("#depart-place", (e) => {
     e.value = "東京駅";
@@ -2202,7 +2352,11 @@ await check("エリアのページから来ると、旅の希望が欄に入っ�
   // 「旅程をつくる」は読み込みの前から押せる形で置いてあるので、
   // 押せるかどうかでは、条件を戻し終えたかは分かりません。収録を読み、
   // 条件を戻したあとに出る件数（#key-kb）を待ちます。
-  await until(page, () => document.getElementById("key-kb")?.textContent !== "");
+  //
+  // #key-kb は画面から無くなっていて、待たずに通り抜けていました（読む前に
+  // 欄を見るので、遅い機械でだけ落ちます）。欄に入るのを待ちます。
+  await until(page, (t) => document.getElementById("note")?.value === t,
+    { timeout: 20_000, arg: text }).catch(() => {});
   const got = await page.$eval("#note", (e) => e.value);
   assert(got === text, `欄に入っていません: ${got}`);
   const started = await page.$eval("#progress", (e) => !e.hidden);

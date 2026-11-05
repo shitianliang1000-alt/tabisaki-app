@@ -14,8 +14,8 @@
    ===================================================================== */
 
 /* 同梱の見出し字（Noto Sans JP の Medium）。
-   ロゴの「旅さき」と、はじめの画面の「どんな旅にしますか？」に使います。
-   挨拶（.hero-greet）だけは Zen Maru Gothic を使います（index.html で読み込み）。
+   はじめの画面の「どんな旅にしますか？」に使います。
+   ロゴと挨拶（.hero-greet）は --display-serif（Times New Roman と明朝）です。
    名前を "Tabisaki Title" にしているのは、本文の字の並び（body の
    font-family にも Noto Sans JP があります）がこの一部だけの字に当たって、
    本文の字が混ざらないようにするためです。全部の字を持つと数MBになるので、
@@ -45,6 +45,15 @@
 }
 
 * { box-sizing: border-box; }
+
+/* 見出しの字（2026-11）。英数字は Times New Roman、和字は明朝で出します。
+   Times New Roman は配らず、端末にあるものを使います（無い Linux などでは
+   同じ字幅の Liberation Serif / Tinos）。トップ（php/assets/landing.css の
+   --serif）と同じ並びです。 */
+:root {
+  --display-serif: "Times New Roman", Times, "Liberation Serif", Tinos,
+    "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
+}
 
 /* .placeholder などはクラス側で display を指定しているため、
    ブラウザ既定の [hidden]{display:none} が負けます。 */
@@ -3103,8 +3112,8 @@ body { background: var(--chat-bg); }
 /* h1 ですが、見た目は名前の1行のままです（字の大きさは .brand-name）。 */
 .side .brand-line { margin: 0; padding: 0; flex-wrap: nowrap; font-size: inherit; font-weight: inherit; }
 .side .brand-name {
-  font-family: "Tabisaki Title", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: var(--hig-t-title3, 1.25rem); font-weight: 500; letter-spacing: .04em;
+  font-family: var(--display-serif);
+  font-size: var(--hig-t-title3, 1.25rem); font-weight: 700; letter-spacing: .06em;
   color: var(--chat-ink);
 }
 .side-close { display: none; color: var(--chat-ink-2); }
@@ -3146,7 +3155,9 @@ body { background: var(--chat-bg); }
   flex: none; z-index: 6;
   display: flex; align-items: center; gap: 4px;
   min-height: 52px; padding: env(safe-area-inset-top) 10px 0;
-  background: var(--chat-bg);
+  /* Apple のすりガラス（下を流れる答えが透けて見えます）。 */
+  background: color-mix(in srgb, var(--chat-bg) 78%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
 }
 .topbar .md-icon-btn { color: var(--chat-ink-2); }
 .topbar-title {
@@ -3181,10 +3192,12 @@ body[data-view="result"] .note-examples { display: none; }
 .hero-greet {
   flex-basis: 100%; margin: 0;
   display: flex; align-items: center; justify-content: center; gap: 12px;
-  font-family: "Zen Maru Gothic", sans-serif;
-  --hero-greet-size: 2rem;
+  /* 挨拶は Times New Roman と明朝（2026-11、トップの見出しとそろえます）。 */
+  font-family: var(--display-serif);
+  --hero-greet-size: 2.4rem;
   font-size: var(--hero-greet-size);
-  line-height: 1.15; font-weight: 400; letter-spacing: .02em;
+  line-height: 1.15; font-weight: 400; letter-spacing: -.01em;
+  font-feature-settings: "palt" 1;
   color: var(--chat-ink);
 }
 
@@ -3260,7 +3273,7 @@ body[data-view="result"] .dock { padding-top: 4px; }
   margin: 0; padding: 4px 4px 0 0;
   border: 0; outline: none; resize: none; background: transparent;
   color: var(--chat-ink);
-  font: inherit; font-size: 1.0625rem; line-height: 1.55;
+  font: inherit; font-size: var(--hig-t-body); line-height: 1.55;
 }
 .composer textarea:focus-visible { outline: none; }
 .composer textarea::placeholder { color: var(--chat-ink-2); opacity: 1; }
@@ -3888,3 +3901,23 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
   margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
   background: #faf9f5; color: #141413; font: inherit; font-weight: 600; cursor: pointer;
 }
+
+/* 足りない条件を聞くカード（js/slotcard.js）。 */
+.slot-card { display: grid; gap: 12px; }
+.slot-card .slot-lead { margin: 0; }
+/* AI が選択肢を考えているあいだ（#441）。決め打ちの札は押せます。 */
+.slot-thinking { margin: 0; font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }
+.slot-card[aria-busy="true"] .slot-choices { opacity: .75; }
+.slot-card .slot-known { justify-content: flex-start; max-width: none; }
+.slot-card .slot-known::before { content: none; }
+.slot-q { display: grid; gap: 6px; }
+.slot-question { margin: 0; font-weight: 600; font-size: var(--hig-t-subhead, 15px); }
+.slot-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.slot-free, .slot-extra-input {
+  font: inherit; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid var(--chat-line); background: transparent; color: inherit;
+  width: 100%; max-width: 32em; box-sizing: border-box;
+}
+.slot-extra { font-size: var(--hig-t-caption1); color: var(--chat-ink-2); margin-bottom: -6px; }
+.slot-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.slot-off { display: inline-flex; align-items: center; gap: 6px; font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }

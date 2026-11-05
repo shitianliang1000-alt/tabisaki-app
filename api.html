@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<title>API | 旅さき</title>
+<meta name="description" content="旅さきのセルフホストAPI。エンドポイント、認証、安全な初期設定を紹介します。">
+<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/api.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="自分の環境から、旅程を組む。">
+<meta property="og:description" content="旅さきのセルフホストAPI。エンドポイント、認証、安全な初期設定を紹介します。">
+<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/api.html">
+<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="assets/tour.css?v=55e9eebc">
+<link rel="stylesheet" href="assets/tour-polish.css?v=06d88f9b">
+<link rel="stylesheet" href="assets/site.css?v=6197ce31">
+<script defer src="assets/site.js?v=48a22569"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+<header class="lnav" id="lnav">
+  <div class="lnav-in">
+    <a class="lnav-name" href="./"><img src="mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>API</small></span></a>
+    <nav class="lnav-links" aria-label="サイトの中">
+      <a href="spots/index.html">観光地</a>
+      <a href="ssh.html">SSH・端末</a>
+      <a href="mobile.html">アプリ</a>
+      <a href="api.html" aria-current="page">API</a>
+    </nav>
+    <a class="btn btn-sm" href="app">旅さきを使う</a>
+  </div>
+</header>
+<nav class="pagenav" aria-label="サイトの中"><ul>
+      <li><a href="./">旅さき</a></li>
+      <li><a href="spots/index.html">観光地</a></li>
+      <li><a href="ssh.html">SSH・端末</a></li>
+      <li><a href="mobile.html">アプリ</a></li>
+      <li><a href="api.html" aria-current="page">API</a></li>
+</ul></nav>
+<main id="main">
+  <section class="sub-hero">
+    <p class="eyebrow">セルフホストAPI</p>
+    <h1 class="sub-title">自分の環境から、旅程を組む。</h1>
+    <p class="sub-lead">旅さきのNode.js APIをローカルで起動し、/v1/planから旅程を作れます。既定はローカル限定。公開APIとして提供するものではありません。</p>
+    <p class="sub-actions"><a class="btn" href="https://github.com/shitianliang1000-alt/tabisaki-app/blob/main/docs/api.md">APIの仕様を見る</a><a class="btn-ghost" href="ssh.html">端末版を見る</a></p>
+  </section>
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head"><h2>まずは自分の端末で。</h2><p>旅さきのセルフホストAPIは、Node.jsのローカルサーバーです。初期状態では127.0.0.1だけで待ち受け、APIキーなしで自分の端末から呼べます。</p></div>
+      <div class="prose">
+        <h3>起動</h3>
+        <figure class="code"><figcaption><span>ローカルサーバー</span><button type="button" class="copy">写す</button></figcaption><pre>./tabisaki api</pre></figure>
+        <p>詳しい設定は <a href="https://github.com/shitianliang1000-alt/tabisaki-app/blob/main/docs/self-hosting.md">セルフホスト説明書</a> を参照してください。</p>
+        <h3>旅程を組む</h3>
+        <p>新規連携では版付きの <code>/v1/plan</code> を使います。外部インターフェースとして公開する場合は、32文字以上のBearerトークンを設定してください。認証なしで127.0.0.1以外に公開する設定は推奨しません。</p>
+        <figure class="code"><figcaption><span>JSONを送信（ローカルの例）</span><button type="button" class="copy">写す</button></figcaption><pre>curl http://127.0.0.1:8787/v1/plan \
+  -H 'Content-Type: application/json' \
+  -d '{"wish":"温泉と海を楽しみたい","days":2}'</pre></figure>
+        <h3>APIの入り口</h3>
+        <div class="table-wrap"><table><thead><tr><th>方法・パス</th><th>役割</th></tr></thead><tbody>
+          <tr><td><code>POST /v1/plan</code></td><td>希望から旅程を作る</td></tr>
+          <tr><td><code>GET /v1/health</code></td><td>稼働状態とAPI版を確認</td></tr>
+          <tr><td><code>OPTIONS /v1/*</code></td><td>許可したブラウザからのCORS確認</td></tr>
+        </tbody></table></div>
+        <h3>初期設定の安全策</h3>
+        <ul>
+          <li>既定では127.0.0.1だけで待ち受ける</li>
+          <li>外部向けに待ち受けるときは認証トークンを要求する</li>
+          <li>入力サイズ・許可する項目・回数・同時実行数に上限を設ける</li>
+          <li>ブラウザからの利用は、明示したOriginだけを許可する</li>
+          <li>ログには希望文やAPI鍵を残さない設計</li>
+        </ul>
+        <div class="note warn"><span class="i" aria-hidden="true">!</span><p>このAPIはセルフホスト用です。パブリックな共有APIではありません。インターネットに公開する前にTLS、トークン管理、プロキシ側のレート制限、監視、利用規約を整えてください。公開中のWorkerのAI中継と、このNode.js APIは別のものです。</p></div>
+        <p><a href="https://github.com/shitianliang1000-alt/tabisaki-app/blob/main/docs/api.md">API仕様（認証・CORS・制限・エラー形式）</a> ・ <a href="https://github.com/shitianliang1000-alt/tabisaki-app/blob/main/docs/self-hosting.md">セルフホスト</a></p>
+      </div>
+    </div>
+  </section>
+  <section class="sec tint"><div class="wrap">
+    <div class="sec-head"><h2>APIで旅を組んだあと</h2><p>行き先を探すところから、サイト内で続けられます。</p></div>
+    <div class="doors">
+      <a class="door" href="spots/index.html"><span class="kicker">観光地</span><h3>行き先を探す</h3><p>有名どころの見どころと、地域ごとの順路。</p><span class="go">観光地を見る ›</span></a>
+      <a class="door" href="ssh.html"><span class="kicker">SSH・端末</span><h3>端末で使う</h3><p>CLIとTUIの使い方を読む。</p><span class="go">端末版を見る ›</span></a>
+    </div>
+  </div></section>
+</main>
+<footer class="foot"><div class="wrap foot-in">
+  <a class="foot-brand" href="./"><img src="mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+  <nav aria-label="ほかのページ"><a href="app">旅程をつくる</a><a href="spots/index.html">観光地</a><a href="ssh.html">SSH・端末</a><a href="mobile.html">アプリ</a><a href="api.html">API</a><a href="credits.html">著作権表記</a></nav>
+</div></footer>
+</body>
+</html>

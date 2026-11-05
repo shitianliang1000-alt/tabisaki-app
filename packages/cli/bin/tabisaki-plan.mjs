@@ -7,6 +7,8 @@
 // 外へは通信しません（AI・実際の乗換・天気は使わず、収録データと距離からの目安で組みます）。
 // --local を付けたときだけ、手元の LLM（Ollama など）に希望文の読み取りと行き先の選定を
 // させます（docs/local-llm.md）。話す相手は手元の LLM だけです。
+// --hybrid を付けたときは、手元の LLM で答え、確信度が低いときだけクラウドのモデルに
+// 聞き直します（docs/model-router.md）。そのときだけ、希望の文がクラウドへ出ます。
 // sync だけは、指定したカレンダー（CalDAV）にも書き込みます。
 // 終了コード: 0 = 組めた、1 = 組めなかった、2 = 使いかたのまちがい
 
@@ -29,6 +31,14 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --local             手元の LLM（Ollama など）で行き先を選ぶ（docs/local-llm.md）
   --model=<名前>      --local で使うモデル（既定: gemma4:e2b）
   --llm-url=<URL>     手元の LLM の行き先（既定: http://127.0.0.1:11434）
+  --hybrid            手元の LLM で答え、確信度が低いときと Web 検索が要るときだけクラウドへ
+                      回す（docs/model-router.md。クラウドの入口は GEMINI_API_KEY か --cloud-url）
+  --threshold=<0〜1>  --hybrid でクラウドへ回す確信度の閾値（既定: 0.75）
+  --cloud-url=<URL>   --hybrid で使う中継（Cloudflare Worker）の入口
+
+  tabisaki router stats [--target=0.2]  使い分けの記録をまとめ、閾値の目安を出す
+  tabisaki router log [--limit=20]      使い分けの記録を新しい順に出す
+  tabisaki router threshold [<0〜1>]    いまの閾値を出す（値を書くと変える）
 
   tabisaki local setup [--model=…] [--pull]  手元の LLM を確かめる（--pull でモデルを取る）
   tabisaki local models                     勧めるモデルと、要るメモリ・ディスク
@@ -36,6 +46,11 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   tabisaki kb extract --region=<地方|都道府県> [--out=<file>]  地域の知識ベースを切り出す
   tabisaki kb index [--region=…] [--method=tfidf] [--out=…]   似たスポット検索の索引を作る
   tabisaki similar "<スポット名か文>" [--region=…] [--limit=10] [--index=<file>] [--output=json]
+
+  tabisaki trace "<希望>" [同じオプション] [--research] [--search-file=<json>] [--output=text|json]
+                      開発者向け: 工程・Research Agent の考えと道具・収録のID・経路の出どころ・
+                      裏取りを流して出し、問題の起きた工程の見立てを出す（docs/dev-trace.md）
+  tabisaki trace --input=<file.json>  保存した記録（--output=json）か旅程を読み直して見立てる
 
   tabisaki tui "<希望>" [同じオプション]   組んだ旅程を端末の中で見る（j/k・h/l・Enter・q）
   tabisaki sync "<希望>" --caldav-url=<URL> [同じオプション] [--dry-run] [--yes]
@@ -58,11 +73,12 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 `;
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
-  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style"]);
+  "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style",
+  "threshold", "cloud-url", "target", "search-file", "input"]);
 // 値を取らないもの。
-const FLAGS = new Set(["help", "version", "local", "pull", "dry-run", "yes", "remove"]);
+const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research"]);
 // 旅程を組むコマンド。
-const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan"]);
+const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan", "trace"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
 const PLANNED = {};
 
@@ -291,9 +307,15 @@ export async function main(argv, {
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
     if (cmd === "plugins") return await plugins(rest, { stdout });
     if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
+    if (cmd === "router") return await routerCommand(rest, opts, { stdout, env });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
     if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
-    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd !== "plan" && cmd !== "tui" && cmd !== "voice-plan" && cmd !== "trace") throw usage(`知らないコマンドです: ${cmd}（tabisaki help で一覧）`);
+    if (cmd !== "trace" && (opts.research || opts["search-file"] !== undefined || opts.input !== undefined)) {
+      throw usage("--research / --search-file / --input は tabisaki trace で使ってください");
+    }
+    if (cmd === "trace" && opts["search-file"] !== undefined && !opts.research) throw usage("--search-file は --research といっしょに使います");
+    if (cmd === "trace" && opts.input !== undefined) return await traceInput(opts, { stdout });
     if (cmd !== "sync" && (opts["caldav-url"] !== undefined || opts["dry-run"] || opts.remove)) {
       throw usage("CalDAV 用の --caldav-url / --dry-run / --yes / --remove は tabisaki sync で使ってください");
     }
@@ -309,14 +331,28 @@ export async function main(argv, {
     if (cmd === "tui" && !(process.stdin.isTTY && process.stdout.isTTY)) {
       throw usage("tui は端末の中で動かしてください（パイプやファイルに出すときは tabisaki plan）");
     }
-    const output = opts.output ?? "markdown";
+    const output = opts.output ?? (cmd === "trace" ? "text" : "markdown");
+    if (cmd === "trace" && !["text", "json"].includes(output)) throw usage("tabisaki trace の --output は text / json のどちらかです");
     if (!["markdown", "md", "text", "json", "ics"].includes(output)) throw usage(`--output は markdown / text / json / ics のどれかです`);
     const core = await import("../../core/index.mjs");
     if (opts.lang !== undefined && !core.pickLang(opts.lang)) throw usage(`--lang は ${core.LANGS.join(" / ")} のどれかです`);
     const lang = core.resolveLang(opts.lang);
     const days = opts.days === undefined ? undefined : Number(opts.days);
-    if ((opts.model || opts["llm-url"]) && !opts.local) throw usage("--model と --llm-url は --local といっしょに使います");
+    if ((opts.model || opts["llm-url"]) && !opts.local && !opts.hybrid) throw usage("--model と --llm-url は --local か --hybrid といっしょに使います");
+    if ((opts.threshold !== undefined || opts["cloud-url"]) && !opts.hybrid) throw usage("--threshold と --cloud-url は --hybrid といっしょに使います");
+    if (opts.local && opts.hybrid) throw usage("--local と --hybrid は、どちらか一方だけにしてください");
     let local = null;
+    let hybrid = null;
+    if (opts.hybrid) {
+      const rl = await import("../../core/router-log.mjs");
+      const baseUrl = core.resolveBaseUrl(opts["llm-url"]);
+      const model = opts.model ?? core.DEFAULT_LOCAL_MODEL;
+      const { threshold } = rl.resolveThreshold(opts.threshold, env);
+      const cloud = cloudFor(opts, env);
+      await core.ensureLocalModel({ baseUrl, model });
+      hybrid = { local: { baseUrl, model }, threshold, cloud, onRecord: rl.fileRecorder(env) };
+      stderr.write(`手元の LLM（${model}）で組み、確信度が ${threshold} 未満のときだけクラウドに聞き直します…\n`);
+    }
     if (opts.local) {
       const baseUrl = core.resolveBaseUrl(opts["llm-url"]);
       const model = opts.model ?? core.DEFAULT_LOCAL_MODEL;
@@ -335,22 +371,42 @@ export async function main(argv, {
     console.log = console.info = process.env.TABISAKI_DEBUG ? toErr : quiet;
     console.warn = process.env.TABISAKI_DEBUG ? toErr : quiet;
     let result;
+    let recorder = null;
     try {
       // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
       const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
-      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}), local });
+      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}), local, hybrid });
       const rep = c.overlayReport;
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
       }
-      result = await c.plan({
+      const request = {
         wish, from: opts.from, days, date: opts.date, start: opts.start, back: opts.back,
         transport: opts.transport,
-      });
+      };
+      if (cmd === "trace") {
+        // 開発者向けの見える化（Issue #444）。工程は起きた順に stderr へ流します。
+        const dt = await import("../../core/devtrace.mjs");
+        recorder = dt.createTraceRecorder({ write: (line) => stderr.write(line + "\n") });
+        const hooks = { onProgress: recorder.onProgress, onStep: recorder.onStep };
+        result = opts.research
+          ? await c.research(request, { ...hooks, search: opts["search-file"] ? searchFromFile(opts["search-file"]) : null })
+          : await c.plan(request, hooks);
+        recorder.finish();
+      } else {
+        result = await c.plan(request);
+      }
     } finally {
       console.log = log; console.warn = warn; console.info = info;
     }
+    if (result.ai?.provider === "hybrid") stderr.write(routeSummary(result.ai.routes) + "\n");
     if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
+    if (cmd === "trace") {
+      const dt = await import("../../core/devtrace.mjs");
+      const report = dt.explain(result, recorder?.events ?? []);
+      stdout.write(output === "json" ? JSON.stringify(report, null, 2) + "\n" : dt.formatExplain(report));
+      return 0;
+    }
     if (cmd === "tui") {
       const { run } = await import("../../tui/tui.mjs");
       await run(result);
@@ -367,6 +423,40 @@ export async function main(argv, {
     if (["invalid_input", "unknown_place", "invalid_name", "not_found", "bad_url", "setup", "auth"].includes(e?.code)) return 2;
     return 1;
   }
+}
+
+/**
+ * --search-file の検索結果（手元で決めた答え）。ネットへは出ずに Research Agent を試すためのもの。
+ * [{title, url, snippet}] ならどの語でも同じ答え、{"語": [...], "*": [...]} なら語ごとの答え。
+ */
+function searchFromFile(file) {
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    throw usage(`--search-file を読めません: ${file}（${e.message}）`);
+  }
+  if (!Array.isArray(doc) && (typeof doc !== "object" || doc === null)) throw usage("--search-file は配列か、語ごとの配列を持つ JSON にしてください");
+  return async (q) => (Array.isArray(doc) ? doc : doc[q] ?? doc["*"] ?? []);
+}
+
+/** tabisaki trace --input=<file>: 保存した記録か旅程を読み直して見立てます。 */
+async function traceInput(opts, { stdout }) {
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(opts.input, "utf8"));
+  } catch (e) {
+    throw usage(`--input を読めません: ${opts.input}（${e.message}）`);
+  }
+  const dt = await import("../../core/devtrace.mjs");
+  // tabisaki trace --output=json の記録ならそのまま、旅程（{itinerary}）なら見立てから作ります。
+  const report = doc?.evidence && doc?.diagnosis ? { stages: [], ...doc }
+    : doc?.itinerary ? dt.explain(doc) : null;
+  if (!report) throw usage("--input は tabisaki trace --output=json の記録か、{itinerary} を持つ JSON にしてください");
+  const output = opts.output ?? "text";
+  if (!["text", "json"].includes(output)) throw usage("tabisaki trace の --output は text / json のどちらかです");
+  stdout.write(output === "json" ? JSON.stringify(report, null, 2) + "\n" : dt.formatExplain(report));
+  return 0;
 }
 
 /** tabisaki kb extract / kb index / similar（Issue #353） */
@@ -418,6 +508,91 @@ async function kbCommand(cmd, rest, opts, { stdout, stderr }) {
     const dist = r.km === null ? "" : `  ${r.km}km`;
     stdout.write(`${String(i + 1).padStart(2)}. ${r.name}（${r.category}）  ${where}${dist}  ${r.score}\n`);
   });
+  return 0;
+}
+
+/**
+ * --hybrid のクラウドの入口。キー（GEMINI_API_KEY）があれば Google の API へ直接、
+ * 無ければ --cloud-url（TABISAKI_PROXY_URL）の中継へ。どちらも無ければ使いかたのまちがいです。
+ */
+function cloudFor(opts, env) {
+  const key = String(env.TABISAKI_GEMINI_KEY || env.GEMINI_API_KEY || "").trim();
+  let proxy = String(opts["cloud-url"] || env.TABISAKI_PROXY_URL || "").trim();
+  while (proxy.endsWith("/")) proxy = proxy.slice(0, -1);
+  if (proxy && !/^https:\/\/[^\s/]+/i.test(proxy)) throw usage("--cloud-url は https:// で始まる URL です");
+  if (opts["cloud-url"] || (!key && proxy)) return { proxyUrl: proxy, geminiKey: "" };
+  if (key) return { proxyUrl: "", geminiKey: key };
+  throw usage("--hybrid には、クラウドの入口が要ります。環境変数 GEMINI_API_KEY（Google AI Studio のキー）か、"
+    + "--cloud-url=<中継の URL> を指定してください（docs/model-router.md）");
+}
+
+/** 1回の旅程づくりで、どちらに何件回したかを1行にします。 */
+function routeSummary(routes = []) {
+  const n = (f) => routes.filter(f).length;
+  const local = n((r) => r.route === "local");
+  const cloud = n((r) => r.route === "cloud");
+  const low = n((r) => r.reason === "low_confidence");
+  const web = n((r) => r.reason === "web_search");
+  const parts = [`手元 ${local}件・クラウド ${cloud}件`];
+  if (low) parts.push(`確信度が低くて聞き直した ${low}件`);
+  if (web) parts.push(`Web 検索のため ${web}件`);
+  return `使い分け: ${parts.join("・")}（記録: tabisaki router log）`;
+}
+
+/** tabisaki router stats / log / threshold（Issue #439） */
+async function routerCommand([sub = "stats", ...extra], opts, { stdout, env }) {
+  const rl = await import("../../core/router-log.mjs");
+  const router = await import("../../core/src/router.js");
+  if (sub === "threshold") {
+    if (extra.length > 1) throw usage(`余計な語があります: ${extra.slice(1).join(" ")}`);
+    if (extra.length) {
+      const file = await rl.saveThreshold(extra[0], env);
+      stdout.write(`閾値を ${Number(extra[0])} にしました（${file}）\n`);
+      return 0;
+    }
+    const { threshold, from } = rl.resolveThreshold(undefined, env);
+    const where = { env: "環境変数 TABISAKI_ROUTER_THRESHOLD", file: rl.settingsPath(env), default: "既定" }[from];
+    stdout.write(`閾値: ${threshold}（${where}）\n`);
+    return 0;
+  }
+  if (extra.length) throw usage(`余計な語があります: ${extra.join(" ")}`);
+  const entries = await rl.readRouteLog(env);
+  if (sub === "log") {
+    const limit = opts.limit === undefined ? 20 : Number(opts.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw usage("--limit は 1〜1000 の整数です");
+    if (opts.output === "json") { stdout.write(JSON.stringify(entries.slice(-limit).reverse(), null, 2) + "\n"); return 0; }
+    if (!entries.length) { stdout.write(`記録はまだありません（${rl.logPath(env)}）\n`); return 0; }
+    for (const e of entries.slice(-limit).reverse()) {
+      const conf = Number.isFinite(e.confidence) ? ` 確信度 ${e.confidence}${e.method === "heuristic" ? "（目安）" : ""}` : "";
+      const model = e.route === "cloud" ? e.cloudModel : e.localModel;
+      stdout.write(`${e.at}  ${String(e.task).padEnd(10)} ${e.route === "cloud" ? "クラウド" : "手元    "} ${model ?? ""}  ${e.reason}${conf}  ${e.ms}ms\n`);
+    }
+    return 0;
+  }
+  if (sub !== "stats") throw usage("tabisaki router stats / log / threshold のどれかを使ってください");
+  const target = opts.target === undefined ? 0.2 : Number(opts.target);
+  if (!Number.isFinite(target) || target < 0 || target > 1) throw usage("--target は 0〜1 の数です（クラウドへ回したい割合。例: 0.2）");
+  const sum = router.summarizeRoutes(entries);
+  const { threshold } = rl.resolveThreshold(undefined, env);
+  const suggest = router.suggestThreshold(entries, { target });
+  if (opts.output === "json") {
+    stdout.write(JSON.stringify({ ...sum, threshold, target, suggestedThreshold: suggest }, null, 2) + "\n");
+    return 0;
+  }
+  const say = (line) => stdout.write(line + "\n");
+  say(`記録: ${sum.total}件（${rl.logPath(env)}）`);
+  if (!sum.total) return 0;
+  say(`  手元 ${sum.byRoute.local ?? 0}件・クラウド ${sum.byRoute.cloud ?? 0}件`);
+  say(`  手元で答えた ${sum.localTried}件のうち、クラウドに聞き直した ${sum.handedOver}件（${Math.round(sum.handOverRate * 100)}%）`);
+  say(`  理由: ${Object.entries(sum.byReason).map(([k, v]) => `${k} ${v}`).join("・")}`);
+  if (sum.confidence) {
+    const c = sum.confidence;
+    say(`  確信度: 最小 ${c.min}・25% ${c.p25}・中央 ${c.median}・75% ${c.p75}・最大 ${c.max}`);
+  }
+  say(`いまの閾値: ${threshold}`);
+  say(suggest === null
+    ? "閾値の目安: 確信度（logprobs）の記録が20件たまると出します"
+    : `閾値の目安: ${suggest}（手元の答えの ${Math.round(target * 100)}% をクラウドへ回す値。tabisaki router threshold ${suggest} で変えられます）`);
   return 0;
 }
 

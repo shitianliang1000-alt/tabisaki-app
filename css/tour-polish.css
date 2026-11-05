@@ -1,0 +1,272 @@
+/* 旅さき — 映像で見るページ（tour.html）の仕上げ。
+   この層は tour.css の**後**に読みます（順番そのものが意味を持ちます）。
+   方針:
+     - 節ごとにばらついていた余白を、1本の物差しにそろえる
+     - 和文の字組みを詰める（行間・約物・見出しのトラッキング）
+     - ノート・携帯・カードを「物」として見せる（縁と厚み）
+     - 触れるところを大きく（点・リンクの下線・ボタン）
+     - 動きを減らす／色を強制する設定でも崩れない
+   色と字は tour.css のまま（Times New Roman とゴシック、黒地に青）を使います。 */
+
+:root{
+  --v2-wrap: 1120px;
+  --v2-rule: color-mix(in oklab, #f5f5f7 16%, transparent);
+  --v2-rule-soft: color-mix(in oklab, #f5f5f7 9%, transparent);
+  --v2-card: #1a1a1d;
+  --v2-ring: 0 0 0 1px var(--v2-rule-soft);
+  --v2-lift: 0 32px 80px -52px rgba(0,0,0,.95);
+  --v2-r: 30px;
+  --v2-ease: cubic-bezier(.22,.61,.24,1);
+  --v2-sec: clamp(72px, 9.5vw, 140px);
+  --v2-jp: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+}
+
+/* ---------- 0. 土台 ---------- */
+html{ scroll-padding-top: 76px; }
+body{ line-break: strict; overflow-wrap: break-word; text-rendering: optimizeLegibility; }
+::selection{ background: color-mix(in oklab, var(--blue) 45%, transparent); color: #fff; }
+h1,h2,h3{ font-feature-settings: "palt" 1; letter-spacing: -.015em; }
+p{ line-height: 1.85; }
+
+/* 節のあいだの余白を、ひとつの物差しに */
+.highlights{ padding-top: var(--v2-sec); }
+.how{ padding-block: var(--v2-sec); }
+.tabs{ padding-block: var(--v2-sec); }
+.phone-sec{ padding-block: var(--v2-sec); }
+.uses{ padding-block: var(--v2-sec); }
+.cta{ padding-block: calc(var(--v2-sec) * 1.1); }
+
+/* 本文の行間と字の大きさ（和文は 1.6 では詰まりすぎます） */
+.lead{ line-height: 1.9; letter-spacing: .01em; color: var(--ink-2); }
+.tab-note{ line-height: 1.8; }
+
+/* ---------- 1. 帯 ---------- */
+.lnav{ border-bottom: 1px solid rgba(255,255,255,.10); }
+.lnav-links a{ position: relative; padding-bottom: 5px; transition: color .25s var(--v2-ease); }
+.lnav-links a::after{
+  content: ""; position: absolute; inset: auto 0 0 0; height: 1px;
+  background: currentColor; opacity: .75;
+  transform: scaleX(0); transform-origin: 0 50%;
+  transition: transform .38s var(--v2-ease);
+}
+.lnav-links a:hover::after,
+.lnav-links a[aria-current]::after{ transform: scaleX(1); }
+/* 触れるところは 44px 以上に */
+.lnav .btn-sm{ padding: 8px 16px; font-size: var(--hig-t-footnote, 0.8125rem); min-height: 32px; }
+.gh{ padding: 8px 6px; }
+/* 読み進めたら帯を少しだけ濃くする（対応しているブラウザだけ） */
+@supports (animation-timeline: scroll()){
+  @media (prefers-reduced-motion: no-preference){
+    .lnav{ animation: v2-nav linear both; animation-timeline: scroll(root block); animation-range: 0 180px; }
+    @keyframes v2-nav{ to{ background: rgba(18,18,20,.94); box-shadow: 0 1px 0 rgba(255,255,255,.06); } }
+  }
+}
+
+/* ---------- 2. 見出し ---------- */
+.hero{ position: relative; isolation: isolate; }
+.hero::before{
+  content: ""; position: absolute; z-index: -1; left: 50%; top: -6%;
+  width: min(1200px, 130%); aspect-ratio: 2 / 1; translate: -50% 0;
+  background: radial-gradient(50% 50% at 50% 40%, rgba(41,151,255,.16), rgba(41,151,255,0) 72%);
+  pointer-events: none;
+}
+.hero-eyebrow{ letter-spacing: .04em; color: var(--ink-2); }
+.hero-eyebrow::before{
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 10px;
+  border-radius: 50%; background: var(--btn); vertical-align: 0.35em;
+}
+.hero-title{ letter-spacing: -.02em; text-wrap: balance; }
+.hero-note{ margin-top: 20px; }
+
+/* ノートの縁と厚み */
+.laptop-screen{ box-shadow: 0 0 0 1px #3a3a3c inset, 0 1px 0 rgba(255,255,255,.06) inset, 0 50px 130px -40px rgba(41,151,255,.32); }
+.laptop-screen::after{
+  content: ""; position: absolute; inset: 1.6% 1.6% 2.4%; border-radius: 6px; pointer-events: none;
+  background: linear-gradient(158deg, rgba(255,255,255,.10), rgba(255,255,255,0) 38%);
+}
+.laptop-base{ box-shadow: 0 18px 40px -24px rgba(0,0,0,.9); }
+
+/* ---------- 3. 明るくなる文 ---------- */
+.scrub{ line-height: 1.5; letter-spacing: -.01em; }
+
+/* ---------- 4. 見どころ ---------- */
+.sec-title{ letter-spacing: -.02em; }
+.hl-rail{
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  overscroll-behavior-x: contain;
+}
+.hl-card{
+  border-radius: var(--v2-r); background: var(--v2-card);
+  box-shadow: var(--v2-ring), var(--v2-lift);
+  flex: 0 0 min(760px, 82vw);
+}
+.hl-cap{ line-height: 1.7; letter-spacing: .01em; padding-bottom: clamp(24px, 3vw, 36px); }
+.hl-cap b{ font-weight: 600; }
+
+/* 点は見た目 8px のまま、当たり判定を広げる */
+.hl-dots{ gap: 2px; padding: 8px 10px; }
+.hl-dots button{
+  position: relative; width: 34px; height: 34px; background: none; border-radius: 999px;
+  transition: background .25s var(--v2-ease);
+}
+.hl-dots button::before{
+  content: ""; position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  width: 8px; height: 8px; border-radius: 999px; background: #8e8e93;
+  transition: width .42s var(--v2-ease), background .42s var(--v2-ease);
+}
+.hl-dots button:hover::before{ background: var(--ink-2); }
+.hl-dots button[aria-current="true"]::before{ width: 26px; background: var(--ink); }
+.round{ transition: background .25s var(--v2-ease), transform .25s var(--v2-ease); }
+.round:hover{ background: rgba(86,86,89,.9); }
+.round:active{ transform: scale(.96); }
+
+/* ---------- 5. 数で見る ---------- */
+.mid-title{ letter-spacing: -.02em; }
+.nums{ column-gap: clamp(14px, 2.6vw, 34px); }
+.num{ padding: clamp(26px, 3.2vw, 40px) 0; }
+.num:not(:nth-child(3n+1)){ box-shadow: inset 1px 0 0 var(--v2-rule); padding-inline: clamp(14px, 2.6vw, 34px); }
+.num b, .num small{ font-variant-numeric: tabular-nums lining-nums; }
+.num b{ -webkit-text-fill-color: transparent; }
+.num small + b{ letter-spacing: 0; margin-left: 6px; vertical-align: baseline; }
+.num span{ line-height: 1.55; }
+
+/* ---------- 6. 切り替える説明 ---------- */
+.tab-stage{ border-radius: var(--v2-r); box-shadow: var(--v2-ring), var(--v2-lift); }
+.tab{ padding-top: 20px; transition: color .3s var(--v2-ease), border-color .3s var(--v2-ease); }
+.tab:hover{ border-top-color: #4a4a4e; }
+.tab[aria-selected="true"]{ border-top-color: transparent; }
+.tab b{ letter-spacing: -.01em; line-height: 1.3; }
+.tab span{ line-height: 1.75; }
+.tab-list{ gap: clamp(12px, 2vw, 22px); margin-top: 28px; }
+
+/* ---------- 7. 携帯 ---------- */
+.phone{ position: relative; box-shadow: 0 0 0 1px #48484a inset, 0 1px 0 rgba(255,255,255,.08) inset, 0 50px 130px -50px rgba(41,151,255,.42); }
+.phone::before, .phone::after{
+  content: ""; position: absolute; left: -3px; width: 3px; border-radius: 3px 0 0 3px;
+  background: linear-gradient(#4a4a4d, #2c2c2e);
+}
+.phone::before{ top: 22%; height: 46px; }
+.phone::after{ bottom: 24%; height: 66px; }
+.phone-screen::after{
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(142deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 34%, rgba(255,255,255,0) 66%, rgba(255,255,255,.05) 100%);
+}
+.phone-text .big-title{ margin-bottom: 4px; }
+
+/* ---------- 8. どんな旅にも ---------- */
+.use{ border-radius: var(--v2-r); box-shadow: var(--v2-ring); transition: box-shadow .5s var(--v2-ease); }
+.use:hover{ box-shadow: 0 0 0 1px var(--v2-rule), var(--v2-lift); }
+.use::after{ background: linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,.62) 72%, rgba(0,0,0,.88)); }
+.use b{ text-shadow: 0 2px 18px rgba(0,0,0,.55); letter-spacing: -.01em; }
+.use span{ display: inline-block; transition: transform .35s var(--v2-ease); }
+.use:hover span{ transform: translateX(4px); }
+
+/* ---------- 9. 最後の誘い ---------- */
+.cta-title{ letter-spacing: -.02em; text-wrap: balance; }
+.cta p{ margin: 0; }
+.btn-lg{
+  min-height: 52px; padding-inline: 34px; font-size: var(--hig-t-body, 1.0625rem); font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 22px 50px -26px rgba(0,113,227,.95);
+  transition: background .2s, transform .25s var(--v2-ease), box-shadow .25s var(--v2-ease);
+}
+.btn-lg:hover{ transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.28) inset, 0 28px 60px -26px rgba(0,113,227,1); }
+.btn-lg:active{ transform: translateY(0); }
+
+/* ---------- 10. 出典と下 ---------- */
+.credits{ font-size: var(--hig-t-footnote, 0.8125rem); line-height: 1.9; }
+.credits h2{ font-size: var(--hig-t-callout, 1rem); letter-spacing: .01em; }
+.credits ul{ padding-left: 1.1em; }
+.credits li{ margin-bottom: 6px; }
+.credits a, .foot nav a:hover{
+  text-decoration: underline; text-underline-offset: .22em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
+}
+.credits a:hover{ text-decoration-color: currentColor; color: var(--ink); }
+.foot{ font-size: var(--hig-t-footnote, 0.8125rem); }
+.foot nav{ gap: 20px; }
+.foot nav a{ text-decoration-color: transparent; transition: color .2s, text-decoration-color .2s; }
+
+/* ---------- 11. 出てくる順番を少しだけずらす ---------- */
+@media (prefers-reduced-motion: no-preference){
+  .js .reveal{ transition-duration: .9s; transition-timing-function: var(--v2-ease); }
+  .js .nums .num:nth-child(2){ transition-delay: .05s; }
+  .js .nums .num:nth-child(3){ transition-delay: .10s; }
+  .js .nums .num:nth-child(4){ transition-delay: .15s; }
+  .js .nums .num:nth-child(5){ transition-delay: .20s; }
+  .js .nums .num:nth-child(6){ transition-delay: .25s; }
+  .js .use-grid .use:nth-child(2){ transition-delay: .07s; }
+  .js .use-grid .use:nth-child(3){ transition-delay: .14s; }
+  .js .use-grid .use:nth-child(4){ transition-delay: .21s; }
+}
+
+/* ---------- 12. 狭い画面 ---------- */
+@media (max-width: 900px){
+  .hl-card{ flex-basis: min(680px, 86vw); }
+}
+@media (max-width: 760px){
+  :root{ --v2-r: 24px; --v2-sec: clamp(56px, 11vw, 88px); }
+  .hero{ padding-top: clamp(36px, 10vw, 64px); }
+  .hero-title{ font-size: clamp(40px, 12vw, 64px); }
+  .hero-eyebrow{ font-size: var(--hig-t-subhead, 0.9375rem); }
+  .hero-eyebrow::before{ width: 5px; height: 5px; margin-right: 8px; }
+  .sec-title{ font-size: clamp(30px, 8.4vw, 46px); }
+  .big-title{ font-size: clamp(32px, 9vw, 48px); }
+  .lead{ font-size: var(--hig-t-callout, 1rem); }
+  .hl-card{ flex-basis: min(560px, 88vw); }
+  .hl-cap{ padding-inline: 20px; }
+  .nums{ column-gap: 0; }
+  .num, .num:nth-child(3n+1), .num:not(:nth-child(3n+1)){
+    padding: 22px 0; box-shadow: none;
+  }
+  .num:not(:nth-child(2n+1)){ padding-left: 16px; box-shadow: inset 1px 0 0 var(--v2-rule); }
+  .num b, .num small{ font-size: clamp(44px, 13vw, 64px); }
+  .credits{ font-size: var(--hig-t-footnote, 0.8125rem); }
+  .foot-in{ gap: 14px 20px; }
+}
+@media (max-width: 380px){
+  .hero-title{ font-size: var(--hig-t-large-title, 2.125rem); }
+  .hl-card{ flex-basis: 90vw; }
+}
+
+/* ---------- 13. 環境に合わせる ---------- */
+@media (prefers-reduced-transparency: reduce){
+  .lnav{ background: #161617; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more){
+  :root{ --ink-2: #d6d6db; --ink-3: #bcbcc2; --v2-rule-soft: rgba(255,255,255,.32); }
+  .credits, .foot, .tab-note{ color: var(--ink-2); }
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0s !important;
+  }
+  .use:hover img{ transform: none; }
+  .btn-lg:hover{ transform: none; }
+}
+@media (forced-colors: active){
+  .num b{ -webkit-text-fill-color: CanvasText; color: CanvasText; background: none; }
+  .hl-card, .tab-stage, .phone, .use, .laptop-screen{ border: 1px solid CanvasText; box-shadow: none; }
+  .hl-dots button::before{ background: CanvasText; }
+}
+
+/* ---------- 14. 紙に出す ---------- */
+@page{ size: A4; margin: 16mm; }
+@media print{
+  :root{ color-scheme: light; }
+  body{ background: #fff; color: #111; }
+  .lnav, .skip, .hl-ctl, .cta, .hl-rail{ display: none; }
+  .hero::before, .laptop-screen::after, .phone-screen::after, .hl-rail{ display: none; }
+  a{ text-decoration: underline; }
+  .zoom{ height: auto; }
+  .zoom-sticky{ position: static; height: auto; padding: 0; gap: 16px; }
+  .zoom-word{ position: static; opacity: 1; transform: none; font-size: var(--hig-t-large-title, 2.125rem); }
+  .zoom-frame{ width: 100%; max-height: none; opacity: 1; transform: none; border-radius: 12px; }
+  .zoom-copy{ position: static; opacity: 1; transform: none; padding: 0; text-align: center; }
+  .num b{ -webkit-text-fill-color: #111; color: #111; background: none; }
+  .lead, .tab-note, .credits{ color: #333; }
+}

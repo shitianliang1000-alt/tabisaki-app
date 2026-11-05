@@ -18,8 +18,12 @@ import { endpointFor, keyHeaders, missingSecretHelp, proxyStatus,
 import { effectiveConfig } from "./settings.js";
 import { buildSearchText, extractKeywords } from "./keywords.js";
 import { meteredFetch } from "./quota.js";
+import { cacheKey, createCache, memoryStore, webStorageStore } from "./cache.js";
 import { haversineKm } from "./feasibility.js";
 import { joinAreaNames } from "./stays.js";
+import { createRouteLog, normalizeThreshold, planRoute, scoreReply, shouldHandOver }
+  from "./router.js";
+import { GUIDED_STYLES, applyGuided, rejectedGuided, toJsonSchema } from "./guided.js";
 
 /**
  * どこへ投げるか。毎回読み直します。
@@ -30,6 +34,12 @@ function net() {
   // from（その値がどこから来たか）も持って回ります。落としていたので、
   // 中継を通していても診断に「中継なし（直接）」と出ていました。
   // 端末から手元のモデルを使うときは、中継を通しません（手元で完結させます）。
+  // 使い分け（ハイブリッド）のときは、手元の行き先とクラウドの入口の両方を持ちます。
+  if (runtimeLocal && runtimeHybrid) {
+    const cloud = runtimeHybrid.cloud ?? {};
+    return { proxyUrl: cloud.proxyUrl ?? c.proxyUrl, geminiKey: cloud.geminiKey ?? c.geminiKey,
+             localBaseUrl: runtimeLocal.baseUrl, from: c.from };
+  }
   if (runtimeLocal) return { proxyUrl: "", geminiKey: "", localBaseUrl: runtimeLocal.baseUrl, from: c.from };
   return { proxyUrl: c.proxyUrl, geminiKey: c.geminiKey,
            localBaseUrl: LOCAL_BASE_URL, from: c.from };
@@ -46,11 +56,78 @@ function net() {
  */
 let runtimeLocal = null;
 export function useLocalModel(opts) {
+  // 手元だけを使う指定です。使い分け（useHybrid）はやめます。
+  runtimeHybrid = null;
   runtimeLocal = opts ? { model: opts.model || LOCAL_MODEL,
                           baseUrl: opts.baseUrl || LOCAL_BASE_URL } : null;
+  if (opts?.guided) setLocalGuided(opts.guided);
   resolved = null;
 }
 const localModel = () => runtimeLocal?.model ?? LOCAL_MODEL;
+
+/**
+ * 手元のモデル（Ollama・vLLM・llama.cpp…）へ JSON を頼むときの、形のしばりかた（Issue #435）。
+ *
+ * 既定は "json_schema"（response_format: {type:"json_schema"}）。vLLM なら Outlines /
+ * xgrammar が、Ollama・llama.cpp なら文法（GBNF）が、形に合わないトークンを出させません。
+ * 受けないサーバーが断ってきたら、"json_object" に落として覚えます（guided.js）。
+ * 古い vLLM（0.10 より前）で response_format が効かないときは "guided_json" にします。
+ */
+let localGuided = "json_schema";
+export function setLocalGuided(style) {
+  if (!GUIDED_STYLES.includes(style)) throw new TypeError(`しばりかたは ${GUIDED_STYLES.join(" / ")} のどれかです`);
+  localGuided = style;
+}
+export function localGuidedStyle() {
+  return localGuided;
+}
+
+/**
+ * 手元のモデルとクラウドのモデルを、頼みごとに使い分けます（Issue #439。router.js）。
+ *
+ * 手元で答え、確信度が閾値より低いときだけクラウドに聞き直します。Web 検索が
+ * 要る頼みは、はじめからクラウドに回します。null を渡すと使い分けをやめます。
+ *
+ * @param {{local?: {model?: string, baseUrl?: string}, threshold?: number,
+ *          cloud?: {proxyUrl?: string, geminiKey?: string},
+ *          onRecord?: (entry: object) => void} | null} opts
+ */
+let runtimeHybrid = null;
+let routeLog = createRouteLog();
+export function useHybrid(opts) {
+  if (!opts) {
+    runtimeHybrid = null;
+    if (runtimeLocal?.hybrid) runtimeLocal = null;
+    resolved = null;
+    return;
+  }
+  runtimeLocal = { model: opts.local?.model || LOCAL_MODEL,
+                   baseUrl: opts.local?.baseUrl || LOCAL_BASE_URL, hybrid: true };
+  runtimeHybrid = { threshold: normalizeThreshold(opts.threshold ?? undefined),
+                    cloud: opts.cloud ?? null };
+  routeLog = createRouteLog({ onRecord: opts.onRecord ?? null });
+  resolved = null;
+}
+
+/** 使い分け（ハイブリッド）をしているか。 */
+export function usingHybrid() {
+  return Boolean(runtimeHybrid) || MODEL_PROVIDER === "hybrid";
+}
+
+/** いまの閾値（使い分けをしていなければ null）。 */
+export function routerThreshold() {
+  return usingHybrid() ? (runtimeHybrid?.threshold ?? normalizeThreshold(undefined)) : null;
+}
+
+/** 使い分けの記録（新しいものが後ろ）。 */
+export function routeEntries() {
+  return routeLog.entries();
+}
+
+/** 直近の1件。画面や CLI に「どちらで答えたか」を出すのに使います。 */
+export function lastRoute() {
+  return routeLog.entries().at(-1) ?? null;
+}
 
 /**
  * 自分で立てたモデルを使うか（Gemma など）。
@@ -72,6 +149,8 @@ const localModel = () => runtimeLocal?.model ?? LOCAL_MODEL;
  * 作られても、そこで落ちます。旅程が壊れる方向には効きません。
  */
 export function usingLocalModel() {
+  // 使い分けのときは「手元だけ」ではありません（検索などはクラウドでできます）。
+  if (usingHybrid()) return false;
   return Boolean(runtimeLocal) || MODEL_PROVIDER === "local";
 }
 
@@ -117,11 +196,41 @@ export function canWebSearch() {
  * @returns {Promise<{title: string, url: string, snippet: string}[]>}
  */
 export async function webSearch(q, opts = {}) {
+  const query = String(q ?? "").slice(0, 80);
+  // 同じ語は端末の中で1日覚えておき、中継へ聞き直しません（#438）。
+  // 見つからなかった答えと失敗は覚えません。
+  const { value } = await searchCache().fetch(cacheKey(query), () => askWebSearch(query, opts),
+    { keep: (r) => Array.isArray(r) && r.length > 0 });
+  return value;
+}
+
+let webCache = null;
+
+/** 端末の中の検索の控え。localStorage が使えなければメモリだけ。 */
+export function searchCache() {
+  if (webCache) return webCache;
+  let layers = [memoryStore({ maxEntries: 100 })];
+  try {
+    const ls = globalThis.localStorage;
+    if (ls && typeof ls.getItem === "function") {
+      layers = [layers[0], webStorageStore(ls, { prefix: "tabisaki:web:", maxEntries: 50 })];
+    }
+  } catch { /* 使えない（プライベートモードなど） */ }
+  webCache = createCache({ layers });
+  return webCache;
+}
+
+/** 試験用。控えを空にします。 */
+export function resetSearchCache() {
+  webCache = null;
+}
+
+async function askWebSearch(q, opts) {
   const cfg = net();
   const res = await fetch(endpointFor("web:search", {}, cfg), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ q: String(q ?? "").slice(0, 80) }),
+    body: JSON.stringify({ q }),
     signal: requestSignal(opts.signal),
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));
@@ -294,7 +403,8 @@ export function coherentRegions(pool, limit, pinned = 0, groupById = null,
 
 export function hasApiKey() {
   // 自分で立てたモデルは、キーという概念がありません。
-  if (usingLocalModel() || usingCloudflare()) return true;
+  // 使い分けのときも、手元のモデルがあるので聞けます。
+  if (usingLocalModel() || usingCloudflare() || usingHybrid()) return true;
   // プロキシ経由なら、キーはサーバーが持っています。
   // ブラウザ側が空なのは正常なので、それで「使えない」とは判断しません。
   const c = net();
@@ -498,8 +608,14 @@ export function extractSources(data) {
  * 形の保証にはならないので、読めなければ callModelJson が聞き直します。
  */
 async function callLocal(prompt, opts = {}) {
-  const { signal, temperature = 0.4, topP, schema, system = true } = opts;
-  const url = endpointFor("local:generate", {}, net());
+  return (await callLocalDetailed(prompt, opts)).text;
+}
+
+/** callLocal と同じですが、logprobs（あれば）も返します。 */
+async function callLocalDetailed(prompt, opts = {}) {
+  const { signal, temperature = 0.4, topP, schema, system = true, logprobs = false } = opts;
+  // 端末から使い分けるときも、手元のモデルへは中継を通さず直接聞きます。
+  const url = endpointFor("local:generate", {}, runtimeHybrid ? { ...net(), proxyUrl: "" } : net());
   const body = {
     model: localModel(),
     messages: [
@@ -510,16 +626,30 @@ async function callLocal(prompt, opts = {}) {
     stream: false,
   };
   if (Number.isFinite(topP)) body.top_p = topP;
-  if (schema) body.response_format = { type: "json_object" };
+  // 確信度を測るため、トークンごとの確率を頼みます（受けない実行環境では無視されます）。
+  if (logprobs) body.logprobs = true;
 
-  const res = await meteredFetch("gemini", url, {
+  const post = (b) => meteredFetch("gemini", url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(b),
     signal,
   });
+  // 形のしばり（Guided Decoding）。schema は Gemini の形でも JSON Schema でも構いません。
+  const style = schema ? localGuided : "off";
+  let res = await post(schema ? applyGuided(body, schema, { style }) : body);
+  let failText = null;
+  if (!res.ok && schema && style !== "json_object" && style !== "off") {
+    failText = await res.text().catch(() => "");
+    if (rejectedGuided(res.status, failText)) {
+      // このサーバーは形のしばりを受けません。以後は「JSON であること」だけ頼みます。
+      localGuided = "json_object";
+      res = await post(applyGuided(body, schema, { style: "json_object" }));
+      failText = null;
+    }
+  }
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
+    const text = failText ?? await res.text().catch(() => "");
     const err = new Error(`${res.status} ${text.slice(0, 200)}`);
     err.status = res.status;
     throw err;
@@ -528,7 +658,8 @@ async function callLocal(prompt, opts = {}) {
   // 自分で立てたモデルは検索をしないので、出典はありません。
   // 前回の呼び出しの出典が残ったままにならないよう、必ず空に戻します。
   lastSources = { sources: [], queries: [] };
-  return String(data?.choices?.[0]?.message?.content ?? "").trim();
+  const choice = data?.choices?.[0];
+  return { text: String(choice?.message?.content ?? "").trim(), logprobs: choice?.logprobs ?? null };
 }
 
 /**
@@ -619,6 +750,19 @@ function withModel(body, model, cfg) {
   return usingProxy(cfg) ? { ...body, model } : body;
 }
 
+/**
+ * 中継へ、形のしばり（JSON Schema）を添えます（Issue #435）。
+ *
+ * Gemma には responseSchema がありません（Google へ付けると 400）。中継は
+ * guidedSchema を Google へは渡さずに落とし、自前のモデル（OWN_MODEL_URL。
+ * vLLM など）へ聞くときだけ response_format: json_schema に使います
+ * （server/own-model.js）。中継を通さず Google へ直に投げるときは付けません。
+ */
+function withGuided(body, model, cfg, { schema, search } = {}) {
+  if (!usingProxy(cfg) || !schema || search || !isGemma(model)) return body;
+  return { ...body, guidedSchema: toJsonSchema(schema) };
+}
+
 async function callOnce(model, prompt, opts = {}) {
   const { signal } = opts;
   const cfg = net();
@@ -629,8 +773,8 @@ async function callOnce(model, prompt, opts = {}) {
       "Content-Type": "application/json",
       ...keyHeaders("gemini", cfg),
     },
-    body: JSON.stringify(withModel(buildModelRequest(prompt, { ...opts, model }),
-                                   model, cfg)),
+    body: JSON.stringify(withGuided(withModel(buildModelRequest(prompt, { ...opts, model }),
+                                              model, cfg), model, cfg, opts)),
     signal,
   });
   if (!res.ok) throw proxyError(res, await res.text().catch(() => ""));
@@ -669,7 +813,7 @@ export function replyText(data) {
 }
 
 export async function callModelJson(prompt, opts = {}) {
-  const raw = await callModel(prompt, opts);
+  const raw = await callModel(prompt, { expectJson: true, ...opts });
   try {
     return extractJson(raw);
   } catch (e) {
@@ -686,6 +830,10 @@ export async function callModelJson(prompt, opts = {}) {
  * 次の候補へ進みます。それ以外のエラーはそのまま投げます。
  */
 export async function callModel(prompt, opts = {}) {
+  if (usingHybrid()) return callRouted(prompt, opts);
+  // 使い分けのための印は、ここから先へは渡しません。
+  const { expectJson: _j, web: _w, task: _t, route: _r, ...plain } = opts;
+  opts = plain;
   if (usingCloudflare()) {
     // 検索は使えません。呼び出し側が search を渡してきても外します。
     const { search: _drop, ...rest } = opts;
@@ -714,7 +862,107 @@ export async function callModel(prompt, opts = {}) {
   if (!hasApiKey()) {
     throw new Error("AIのキーが未設定です（設定 →「開発者向け」から入力できます）");
   }
+  return callCloud(prompt, opts);
+}
 
+/** クラウドに聞けるか（中継かキーがあり、端末がつながっているか）。 */
+function cloudAvailable() {
+  if (globalThis.navigator && globalThis.navigator.onLine === false) return false;
+  const c = net();
+  return usingProxy(c) || Boolean(c.geminiKey);
+}
+
+/**
+ * 使い分けて聞きます（router.js の決まりに従います）。
+ *
+ * opts.web / opts.search … Web 検索が要る（検索の抜き書きを渡す・検索させる）。クラウドに回します
+ * opts.task           … 記録に残す頼みの種類（"understand" "plan" "qa" など）
+ * opts.route          … "local" / "cloud" で決め打ち（試験・診断用）
+ * opts.expectJson     … JSON を頼んだか（logprobs が無いとき、読めるかで確信度を決めます）
+ */
+async function callRouted(prompt, opts = {}) {
+  const { expectJson = false, web = false, task = "", route = null, ...rest } = opts;
+  const needsWeb = Boolean(web || rest.search);
+  const threshold = routerThreshold();
+  const plan = planRoute({ needsWeb, cloudAvailable: cloudAvailable(), localAvailable: true, force: route });
+  const started = Date.now();
+  const base = { task: String(task || "other"), threshold, promptChars: String(prompt ?? "").length,
+                 localModel: localModel() };
+  const { search: _drop, ...localOpts } = rest;
+
+  const askCloud = async () => {
+    const text = await callCloud(prompt, rest);
+    return { text, model: resolved };
+  };
+
+  if (plan.first === "cloud") {
+    try {
+      const { text, model } = await askCloud();
+      routeLog.record({ ...base, route: "cloud", reason: plan.reason, cloudModel: model,
+                        confidence: null, method: null, handedOver: false, ms: Date.now() - started });
+      return text;
+    } catch (e) {
+      // クラウドが答えないときは、手元で答えます（検索の抜き書きがあれば、それも渡ります）。
+      if (rest.signal?.aborted) throw e;
+      const local = await callLocalDetailed(prompt, localOpts);
+      const { confidence, method } = scoreReply(local, { expectJson, parse: extractJson });
+      resolved = localModel();
+      routeLog.record({ ...base, route: "local", reason: `${plan.reason}_cloud_failed`, confidence, method,
+                        handedOver: false, cloudError: String(e?.status ?? e?.code ?? e?.message ?? e).slice(0, 80),
+                        ms: Date.now() - started });
+      return local.text;
+    }
+  }
+
+  let local = null;
+  let localErr = null;
+  try {
+    local = await callLocalDetailed(prompt, { ...localOpts, logprobs: true });
+  } catch (e) {
+    if (rest.signal?.aborted) throw e;
+    localErr = e;
+  }
+  if (localErr) {
+    if (!plan.mayHandOver) throw localErr;
+    let cloud;
+    try {
+      cloud = await askCloud();
+    } catch (e) {
+      routeLog.record({ ...base, route: "none", reason: "both_failed", confidence: null, method: null,
+                        handedOver: true, cloudError: String(e?.status ?? e?.code ?? e?.message ?? e).slice(0, 80),
+                        ms: Date.now() - started });
+      throw e;
+    }
+    const { text, model } = cloud;
+    routeLog.record({ ...base, route: "cloud", reason: "local_failed", cloudModel: model, confidence: null,
+                      method: null, handedOver: true, ms: Date.now() - started });
+    return text;
+  }
+  const { confidence, method } = scoreReply(local, { expectJson, parse: extractJson });
+  if (!plan.mayHandOver || !shouldHandOver(confidence, threshold)) {
+    resolved = localModel();
+    routeLog.record({ ...base, route: "local", reason: plan.reason, confidence, method, handedOver: false,
+                      ms: Date.now() - started });
+    return local.text;
+  }
+  try {
+    const { text, model } = await askCloud();
+    routeLog.record({ ...base, route: "cloud", reason: "low_confidence", cloudModel: model, confidence, method,
+                      handedOver: true, ms: Date.now() - started });
+    return text;
+  } catch (e) {
+    if (rest.signal?.aborted) throw e;
+    // 聞き直せなかったときは、手元の答えを使います（無いよりは良いので）。
+    resolved = localModel();
+    routeLog.record({ ...base, route: "local", reason: "low_confidence_cloud_failed", confidence, method,
+                      handedOver: false, cloudError: String(e?.status ?? e?.code ?? e?.message ?? e).slice(0, 80),
+                      ms: Date.now() - started });
+    return local.text;
+  }
+}
+
+/** クラウドのモデル（Gemini API の Gemma など）に聞きます。候補を順に試します。 */
+async function callCloud(prompt, opts = {}) {
   let lastErr = null;
   for (let round = 0; round < 2; round++) {
     for (const model of modelCandidates()) {
@@ -923,7 +1171,7 @@ export async function understandRequest(note, interests, hours, opts = {}) {
   try {
     // 抽出は当てものではないので、温度は低く固定します。
     const p = await callModelJson(prompt,
-      { temperature: 0.1, topP: 0.8, schema: UNDERSTAND_SCHEMA, ...opts });
+      { temperature: 0.1, topP: 0.8, schema: UNDERSTAND_SCHEMA, task: "understand", ...opts });
     const out = {
       searchText: p.searchText || FALLBACK_PLAN.searchText,
       interests: Array.isArray(p.interests) ? p.interests : interests,
@@ -1200,7 +1448,7 @@ export async function proposePlan(candidates, plan, note, maxSpots, tierTargets,
     // 選定は好みの問題なので温度を残しますが、以前の 0.6 は
     // 「候補にある id」を書き崩すことがありました。
     raw = await callModelJson(prompt,
-      { temperature: 0.35, topP: 0.9, schema: PLAN_SCHEMA, thinking: 2048, ...opts });
+      { temperature: 0.35, topP: 0.9, schema: PLAN_SCHEMA, thinking: 2048, task: "plan", ...opts });
   } catch (e) {
     noteAiError(e);
     return fallback();
@@ -1296,7 +1544,7 @@ export async function describeSpot(spot, opts = {}) {
     `説明: ${spot.description || "（詳細な説明なし）"}`,
   ].join("\n");
   try {
-    return (await callModel(prompt, { temperature: 0.7, ...opts }))
+    return (await callModel(prompt, { temperature: 0.7, task: "describe", ...opts }))
       || spot.description || "";
   } catch (e) {
     noteAiError(e);

@@ -29,6 +29,14 @@
 
 import { createServer } from "node:http";
 
+// 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
+// （CodeQL: polynomial regular expression）ので、正規表現を使わない。
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 const PORT = Number(process.env.PORT ?? 8787);
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN ?? "";
 const ALLOW_ORIGINS = ALLOW_ORIGIN.split(/[,\s]+/).filter(Boolean);
@@ -52,7 +60,7 @@ const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS ?? 30_000);
  * ここは**自分の機械の中**を指すので https でなくて構いません。
  * ただし、外から届く場所に置かないでください。
  */
-const LOCAL_BASE_URL = (process.env.LOCAL_BASE_URL ?? "").replace(/\/+$/, "");
+const LOCAL_BASE_URL = trimSlashes(process.env.LOCAL_BASE_URL ?? "");
 /** 呼ばれてよいローカルモデル。空なら何でも通します（自分の機械なので）。 */
 const LOCAL_MODELS = new Set(
   (process.env.LOCAL_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean));
@@ -174,7 +182,7 @@ export const handler = async (req, res) => {
     return send(res, 400, head, "本文の形が違います");
   }
 
-  const path = (req.url ?? "").split("?")[0].replace(/\/+$/, "");
+  const path = trimSlashes((req.url ?? "").split("?")[0]);
   try {
     if (path.endsWith("/gemini/generate") || path.endsWith("/gemini/embed")) {
       const method = path.endsWith("/embed") ? "embedContent" : "generateContent";

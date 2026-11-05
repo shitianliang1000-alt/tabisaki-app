@@ -51,8 +51,9 @@ export class CoreError extends Error {
 export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetch } = {}) {
   return async (url, init) => {
     const u = String(url?.url ?? url);
-    // 手元の LLM（--local）だけは、利用者が指した行き先へ通します。
-    if (allow && (u === allow || u.startsWith(`${allow}/`))) return realFetch(url, init);
+    // 手元の LLM（--local）と、使い分け（--hybrid）のクラウドの入口だけは、利用者が指した行き先へ通します。
+    const allowed = (Array.isArray(allow) ? allow : [allow]).filter(Boolean);
+    if (allowed.some((a) => u === a || u.startsWith(`${a}/`))) return realFetch(url, init);
     let file;
     if (u.startsWith("file:")) file = fileURLToPath(u);
     else if (/^https?:\/\//.test(u)) {
@@ -75,6 +76,21 @@ export function offlineFetch(root = ROOT, { allow = null, realFetch = nativeFetc
     }
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
   };
+}
+
+/** 末尾の / を落とします（正規表現の /\/+$/ は、/ が長く続く入力で遅くなるので使いません）。 */
+function trimSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === "/") end--;
+  return s.slice(0, end);
+}
+
+/** 使い分けのとき、外へ通してよい行き先（手元の LLM とクラウドの入口）。 */
+function cloudAllow(hybrid) {
+  const list = [hybrid.local?.baseUrl ?? "http://localhost:11434"];
+  if (hybrid.cloud?.proxyUrl) list.push(trimSlashes(String(hybrid.cloud.proxyUrl)));
+  if (hybrid.cloud?.geminiKey) list.push("https://generativelanguage.googleapis.com");
+  return list;
 }
 
 /** "2026-11-01" と "08:00" から、日本時間の Date を作ります。 */
@@ -148,16 +164,24 @@ export async function normalizeRequest(req = {}) {
  * 利用者がスポットに足した情報（~/.tabisaki/spots.json。docs/spot-data.md）があれば重ねます。
  * 重ねたくないときは userData: false（または環境変数 TABISAKI_NO_USER_DATA=1）。
  *
+ * hybrid を渡すと、手元の LLM とクラウドのモデルを頼みごとに使い分けます（Issue #439。
+ * docs/model-router.md）。手元で答え、確信度が threshold 未満ならクラウドに聞き直します。
+ * クラウドの入口は hybrid.cloud（{geminiKey} か {proxyUrl}）です。使い分けの記録は
+ * hybrid.onRecord に1件ずつ渡し、結果の ai.routes にも入れます。
+ *
  * @param {{root?: string, providers?: {routing?: string, weather?: string,
  *          geocoding?: string, spots?: string}, userKb?: string|object, home?: string,
  *          plugins?: object[], local?: {model?: string, baseUrl?: string}|null,
+ *          hybrid?: {local?: {model?: string, baseUrl?: string}, threshold?: number,
+ *                    cloud?: {proxyUrl?: string, geminiKey?: string},
+ *                    onRecord?: (entry: object) => void}|null,
  *          userData?: boolean|string}} [opts]
  */
 export async function createCore({ root = ROOT, providers = {}, plugins = [], userKb = null, home = null,
-  local = null, userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
+  local = null, hybrid = null, userData = !process.env.TABISAKI_NO_USER_DATA } = {}) {
   // 本体（src/）は fetch で kb/ を取りに行きます。この process では外へ出しません
-  // （手元の LLM を使うときだけ、その行き先へは通します）。
-  globalThis.fetch = offlineFetch(root, { allow: local?.baseUrl ?? null });
+  // （手元の LLM と、使い分けのクラウドの入口だけは通します）。
+  globalThis.fetch = offlineFetch(root, { allow: hybrid ? cloudAllow(hybrid) : (local?.baseUrl ?? null) });
   const { useProviders } = await js("providers.js");
   useProviders({ routing: "off", weather: "off", ...providers });
   const { loadKnowledgeBase } = await js("kb.js");
@@ -165,6 +189,10 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
   const { makeTrip } = await js("trip.js");
   const ai = await js("ai.js");
   ai.useLocalModel(local ? { model: local.model, baseUrl: local.baseUrl } : null);
+  if (hybrid) ai.useHybrid(hybrid);
+  // 手元のモデルへ JSON を頼むときの形のしばりかた（docs/guided-decoding.md）。
+  // 既定は json_schema。古い vLLM は guided_json、しばりを切って比べるなら off。
+  ai.setLocalGuided(local?.guided ?? hybrid?.local?.guided ?? (globalThis.process?.env?.TABISAKI_GUIDED || "json_schema"));
   let kb = await loadKnowledgeBase();
   let overlayReport = null;
   if (userKb) {
@@ -192,9 +220,12 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
     /**
      * 旅程を組みます。
      * @param {PlanRequest} request
+     * @param {{onProgress?: (step: number, note?: string, extra?: object) => void}} [opts]
+     *   onProgress は組み立ての段（0〜5。js/ui.js の STEPS）が進むたびに呼ばれます
+     *   （開発者向けの見える化。docs/dev-trace.md）。
      * @returns {Promise<{request: object, itinerary: object}>}
      */
-    async plan(request) {
+    async plan(request, { onProgress } = {}) {
       const found = plugins.length ? findTemplate(request?.wish, plugins) : null;
       const r = await normalizeRequest(applyTemplate(request, found));
       const trip = makeTrip({
@@ -203,13 +234,21 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
         must: request.must ? { spotIds: [...(request.must.spotIds ?? [])], avoidSpotIds: [...(request.must.avoidSpotIds ?? [])] } : undefined,
       });
       let itinerary;
+      const routesBefore = hybrid ? (ai.lastRoute()?.seq ?? 0) : 0;
       try {
-        itinerary = await planTrip({ trip, kb });
+        itinerary = await planTrip({ trip, kb, ...(typeof onProgress === "function" ? { onProgress: safeProgress(onProgress) } : {}) });
       } catch (e) {
         throw new CoreError("plan_failed", e?.message ?? String(e));
       }
       const out = { request: r, itinerary };
       if (found) out.template = { plugin: found.plugin, name: found.template.name };
+      if (hybrid) {
+        const { error } = ai.aiStatus();
+        const routes = ai.routeEntries().filter((e) => e.seq > routesBefore);
+        out.ai = { provider: "hybrid", model: ai.resolvedModel() ?? hybrid.local?.model ?? null,
+                   used: !error, error: error ?? null, threshold: ai.routerThreshold(), routes };
+        return out;
+      }
       if (!local) return out;
       // 手元の LLM が実際に使われたか。途中で答えられなかったときは、
       // 本体が収録データだけで組み直しています。そのことを隠しません。
@@ -217,6 +256,120 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       out.ai = { provider: "local", model: ai.resolvedModel() ?? local.model, used: !error, error: error ?? null };
       return out;
     },
+    /**
+     * 道具の登録所（Issue #437。docs/research-agent.md）。
+     * search を渡すと web_search が使えるようになります（async (q) → [{title,url,snippet}]）。
+     */
+    async tools({ search = null } = {}) {
+      const { createDefaultTools } = await js("tools.js");
+      return createDefaultTools({ kb, search });
+    },
+    /**
+     * 収録に無い要望を調べてから組みます（Research Agent。Issue #436）。
+     *
+     * 調べて見つけたスポットを「必ず立ち寄る」にして、いつもの流れで旅程にします。
+     * 収録で足りるときは調べずに組み、対応できないときは旅程を作らず、
+     * 理由と代わりの案（research.alternatives）を返します。
+     *
+     * @param {PlanRequest} request
+     * @param {{search?: Function, llm?: Function, maxSearches?: number, solvers?: object,
+     *          onStep?: (step: object) => void, onProgress?: Function}} [opts]
+     *   onStep は Agent の記録（考え・道具・結果）が1件増えるたび、onProgress は
+     *   旅程の組み立ての段が進むたびに呼ばれます（docs/dev-trace.md）。
+     * @returns {Promise<{research: object, request?: object, itinerary?: object, special?: object}>}
+     */
+    async research(request, { search = null, llm = null, maxSearches, solvers = null, onStep, onProgress } = {}) {
+      const r0 = await normalizeRequest(request);
+      const { createDefaultTools } = await js("tools.js");
+      const { runResearch, modelLlm } = await js("research.js");
+      const tools = createDefaultTools({ kb, search });
+      // 手元の LLM があれば、調べる語づくりと場所の拾い出しを手伝わせます。
+      const helper = llm ?? (local ? modelLlm((p, o) => ai.callModelJson(p, o)) : null);
+      const research = await runResearch({ wish: r0.wish, tools, origin: r0.origin, llm: helper, maxSearches,
+        days: request.days ?? null, onStep });
+      if (research.status === "out_of_scope") return { research };
+      if (research.status === "quest") {
+        // 一覧を回る旅（#443）は、最初の1回分を旅程にします。道を通しで行く旅は、
+        // 日ごとの区切り（research.quest.stages）が答えで、旅程は組みません
+        // （自転車で数百km の旅を、1つの旅程の時刻表には落とせないため）。
+        const first = research.quest.plan;
+        if (!first?.spotIds?.length) return { research };
+        const planned = await this.plan({ ...request, days: request.days ?? first.days.length,
+          wish: `${first.order.map((s) => s.name).join("・")}をめぐる`,
+          must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...first.spotIds])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } }, { onProgress });
+        // 旅程に入りきらなかった一覧の場所は、隠さずに書きます（次の回に回します）。
+        const visited = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? [])
+          .filter((i) => i.kind === "spot").map((i) => i.spotId ?? i.id));
+        const titles = new Set((planned.itinerary?.days ?? []).flatMap((d) => d.items ?? []).map((i) => i.title));
+        first.dropped = first.order.filter((s) => !visited.has(s.id) && !titles.has(s.name)).map((s) => s.name);
+        if (first.dropped.length) research.message += `日程に入りきらなかった${first.dropped.join("・")}は、次の回に回してください。`;
+        return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+      }
+      // 特殊な旅の形（青春18きっぷ・世界遺産全制覇…）は、その形の処理へ回します（#442）。
+      if (research.status === "special") return { research, ...(await this.special(request, { solvers })) };
+      if (research.status === "kb") return { research, ...(await this.plan(request, { onProgress })) };
+      const ids = research.order.map((s) => s.id);
+      // 見つけた場所の名前を希望文にすると、本体が行き先をその土地に絞ります。
+      // （県の名前は足しません。県全体に広がり、県庁所在地が選ばれてしまうため）
+      const wish = `${research.order.map((s) => s.name).join("・")}をめぐる`;
+      const planned = await this.plan({ ...request, wish,
+        must: { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...ids])], avoidSpotIds: request.must?.avoidSpotIds ?? [] } },
+        { onProgress });
+      return { research, ...planned, request: { ...planned.request, wish: r0.wish } };
+    },
+    /**
+     * 特殊な旅の形（Issue #442。docs/special-journeys.md）。
+     *
+     * 日本一周・青春18きっぷ・寝台列車・船旅・廃線跡・秘境駅・日本の端・
+     * 世界遺産全制覇・県庁所在地踏破・最長片道切符を読み取り、形ごとの処理で
+     * 条件を整えてから、いつもの流れで旅程にします。形が読み取れなければ
+     * special は null で、旅程は組みません（core.plan を使ってください）。
+     *
+     * 最長片道切符の経路は solvers.longestTicket(kind, {from}) → {route, km}
+     * （Issue #431 の専用ソルバー）に任せます。無ければ全国を回る旅として組みます。
+     *
+     * @param {PlanRequest} request
+     * @param {{solvers?: {longestTicket?: Function}}} [opts]
+     * @returns {Promise<{special: object|null, request?: object, itinerary?: object}>}
+     */
+    async special(request, { solvers = null } = {}) {
+      const r0 = await normalizeRequest(request);
+      const { handleSpecial } = await js("special.js");
+      const date = request.date ?? new Date(r0.departAt.getTime() + 9 * 3600000).toISOString().slice(0, 10);
+      const special = await handleSpecial({ text: r0.wish, kb, origin: r0.origin, days: r0.days, date, solvers });
+      if (!special) return { special: null };
+      const want = special.request;
+      if (!want) return { special };
+      const next = {
+        ...request,
+        wish: want.wish ?? r0.wish,
+        from: want.from ?? request.from,
+        days: want.days ?? r0.days,
+        date: want.date ?? date,
+        start: want.start ?? request.start,
+        transport: want.transport ?? request.transport,
+      };
+      if (want.must?.length) {
+        next.must = { spotIds: [...new Set([...(request.must?.spotIds ?? []), ...want.must])],
+          avoidSpotIds: request.must?.avoidSpotIds ?? [] };
+      }
+      try {
+        const planned = await this.plan(next);
+        return { special, ...planned, request: { ...planned.request, wish: r0.wish } };
+      } catch (e) {
+        // 形は読めたが組めなかった（日数が足りないなど）。読めたことと理由は返します。
+        special.status = "partial";
+        special.notes = [...special.notes, `旅程は組めませんでした（${e?.message ?? e}）。`];
+        return { special };
+      }
+    },
+  };
+}
+
+// 見る側（開発者向けの表示）の失敗で、旅程づくりを止めません。
+function safeProgress(fn) {
+  return (...a) => {
+    try { fn(...a); } catch { /* 表示の失敗は無視します */ }
   };
 }
 
@@ -238,3 +391,12 @@ export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } fr
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
 export * from "./local.mjs";
+// 足りない条件だけを聞く（#440）。CLI・API からも同じ判断を使えます。
+export {
+  SLOTS, extractSlots, missingQuestions, confirmLines, startDialog, answerDialog,
+  replyDialog, finishDialog, composeNote,
+} from "./src/slots.js";
+// 質問の選択肢を AI が文脈から作る（#441）。
+export {
+  generateChoices, buildChoicePrompt, sanitizeChoices, readChoiceReply, placeChecker, mentionsPlace,
+} from "./src/choices.js";

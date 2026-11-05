@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<title>観光地の紹介（51か所）とモデルコース | 旅さき</title>
+<meta name="description" content="全国の有名どころを、見どころ・行きかた・開いている時間・すすめの順路で紹介します。地方と分類から絞り込めます。">
+<link rel="canonical" href="https://tabisaki-github-io.shitianliang1000.workers.dev/spots/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="旅さき">
+<meta property="og:title" content="観光地の紹介とモデルコース">
+<meta property="og:description" content="全国の有名どころ 51 か所を、順路つきで。">
+<meta property="og:url" content="https://tabisaki-github-io.shitianliang1000.workers.dev/spots/">
+<meta property="og:image" content="https://tabisaki-github-io.shitianliang1000.workers.dev/og.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="stylesheet" href="../assets/tour.css?v=55e9eebc">
+<link rel="stylesheet" href="../assets/tour-polish.css?v=06d88f9b">
+<link rel="stylesheet" href="../assets/site.css?v=6197ce31">
+<script type="module" src="../assets/site.js?v=48a22569"></script>
+</head>
+<body>
+<a class="skip" href="#main">本文へ</a>
+<header class="lnav" id="lnav">
+  <div class="lnav-in">
+    <a class="lnav-name" href="../"><img src="../mark.svg" alt="" width="20" height="20"><span><b>旅さき</b><small>観光地</small></span></a>
+    <nav class="lnav-links" aria-label="サイトの中">
+      <a href="../spots/index.html" aria-current="page">観光地</a>
+      <a href="../ssh.html">SSH・端末</a>
+      <a href="../mobile.html">アプリ</a>
+      <a href="../api.html">API</a>
+    </nav>
+    <a class="btn btn-sm" href="../app">旅さきを使う</a>
+  </div>
+</header>
+<nav class="pagenav" aria-label="サイトの中">
+    <ul>
+      <li><a href="../">旅さき</a></li>
+      <li><a href="../spots/index.html" aria-current="page">観光地</a></li>
+      <li><a href="../ssh.html">SSH・端末</a></li>
+      <li><a href="../mobile.html">アプリ</a></li>
+      <li><a href="../api.html">API</a></li>
+    </ul>
+</nav>
+<main id="main">
+  <section class="sub-hero">
+    <p class="eyebrow">観光地</p>
+    <h1 class="sub-title">行き先を、読んでから決める。</h1>
+    <p class="sub-lead">全国の有名どころ 51 か所を、見どころ・行きかた・開いている時間・おすすめの順路でまとめました。気になった場所から、そのまま旅程を組めます。</p>
+    <p class="sub-actions"><a class="btn" href="../app">旅さきをひらく</a><a class="btn-ghost" href="#courses">モデルコースを見る</a></p>
+  </section>
+
+  <section class="sec" id="list">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>観光地から探す</h2>
+        <p>地方と分類で絞り込めます。<span id="spots-count">51</span> か所を表示中。</p>
+      </div>
+      <div class="filters" role="group" aria-label="地方で絞る">
+      <button type="button" class="chip" data-group="region" data-value="all" aria-pressed="true">すべて</button>
+      <button type="button" class="chip" data-group="region" data-value="hokkaido-tohoku" aria-pressed="false">北海道・東北</button>
+      <button type="button" class="chip" data-group="region" data-value="kanto" aria-pressed="false">関東</button>
+      <button type="button" class="chip" data-group="region" data-value="chubu" aria-pressed="false">中部</button>
+      <button type="button" class="chip" data-group="region" data-value="kinki" aria-pressed="false">近畿</button>
+      <button type="button" class="chip" data-group="region" data-value="chugoku-shikoku" aria-pressed="false">中国・四国</button>
+      <button type="button" class="chip" data-group="region" data-value="kyushu-okinawa" aria-pressed="false">九州・沖縄</button>
+      </div>
+      <div class="filters" role="group" aria-label="分類で絞る">
+      <button type="button" class="chip" data-group="cat" data-value="all" aria-pressed="true">すべて</button>
+      <button type="button" class="chip" data-group="cat" data-value="寺社" aria-pressed="false">寺社</button>
+      <button type="button" class="chip" data-group="cat" data-value="城" aria-pressed="false">城</button>
+      <button type="button" class="chip" data-group="cat" data-value="自然" aria-pressed="false">自然</button>
+      <button type="button" class="chip" data-group="cat" data-value="温泉" aria-pressed="false">温泉</button>
+      <button type="button" class="chip" data-group="cat" data-value="街" aria-pressed="false">街</button>
+      <button type="button" class="chip" data-group="cat" data-value="絶景" aria-pressed="false">絶景</button>
+      <button type="button" class="chip" data-group="cat" data-value="遺産" aria-pressed="false">遺産</button>
+      </div>
+      <div class="spot-grid">
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="自然">
+        <a class="spot-link" href="shiretoko.html" aria-label="知床半島の紹介ページ">
+          <div class="ph g1"><span class="mono" aria-hidden="true">知</span></div>
+          <div class="body">
+            <b>知床半島</b>
+            <span>北海道 ・ 自然</span>
+            <p>オホーツク海に細長く突き出した、手つかずの原野。世界自然遺産。岬の先まで道は続かず、海と岬の風景を船か、五湖の遊…</p>
+          </div>
+        </a>
+        
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="自然">
+        <a class="spot-link" href="mashu.html" aria-label="摩周湖の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Hokkaido%2C_Japan%2C_Lake_Mash%C5%AB%2C_2008.jpg/1920px-Hokkaido%2C_Japan%2C_Lake_Mash%C5%AB%2C_2008.jpg" alt="摩周湖" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>摩周湖</b>
+            <span>北海道 ・ 自然</span>
+            <p>透明度の高いカルデラ湖。外から水が入らないため、世界でも珍しい水の青さになります。霧の日が多く、晴れると中島まで…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Hokkaido,_Japan,_Lake_Mash%C5%AB,_2008.jpg" rel="noopener" target="_blank">Miya.m</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="絶景">
+        <a class="spot-link" href="hakodate-yama.html" aria-label="函館山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Wide_view_of_Mount_Hakodate_from_Mashu-Maru.jpg/1920px-Wide_view_of_Mount_Hakodate_from_Mashu-Maru.jpg" alt="函館山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>函館山</b>
+            <span>北海道 ・ 絶景</span>
+            <p>市街が左右の海に挟まれてくびれる、あの形。夜景の名所として知られ、山頂まではロープウェイか車で上がります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Wide_view_of_Mount_Hakodate_from_Mashu-Maru.jpg" rel="noopener" target="_blank">掬茶</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="街">
+        <a class="spot-link" href="otaru.html" aria-label="小樽運河の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Otaru_Hokkaido_Japan.jpg/1920px-Otaru_Hokkaido_Japan.jpg" alt="小樽運河" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>小樽運河</b>
+            <span>北海道 ・ 街</span>
+            <p>石造りの倉庫が並ぶ運河。夜はガス灯が灯り、雪の季節はいちばん絵になります。堺町の硝子と菓子の店も歩いてすぐです。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Otaru_Hokkaido_Japan.jpg" rel="noopener" target="_blank">Flickr user: Chi ing</a> / CC BY 2.0</small>
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="城">
+        <a class="spot-link" href="hirosaki-jo.html" aria-label="弘前城の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Hirosaki_Castle_Keep_Tower_20220508.jpg/1920px-Hirosaki_Castle_Keep_Tower_20220508.jpg" alt="弘前城" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>弘前城</b>
+            <span>青森県 ・ 城</span>
+            <p>天守が本丸の隅に移されて、石垣の修理が続く城。桜はソメイヨシノが堀を埋めるように咲き、花見の名所として知られます…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Hirosaki_Castle_Keep_Tower_20220508.jpg" rel="noopener" target="_blank">掬茶</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="寺社">
+        <a class="spot-link" href="chuzonji.html" aria-label="中尊寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg/1920px-230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg" alt="中尊寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>中尊寺</b>
+            <span>岩手県 ・ 寺社</span>
+            <p>金色堂で知られる、平泉の寺。奥州藤原氏が築いた浄土の都の中心で、参道の杉並木から月見坂を上がります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg" rel="noopener" target="_blank">663highland</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="hokkaido-tohoku" data-cat="温泉">
+        <a class="spot-link" href="ginzan.html" aria-label="銀山温泉の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Evening_twilight_in_Ginzan_Onsen_town_January_2022_A.jpg/1920px-Evening_twilight_in_Ginzan_Onsen_town_January_2022_A.jpg" alt="銀山温泉" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>銀山温泉</b>
+            <span>山形県 ・ 温泉</span>
+            <p>川沿いに、大正から昭和の木造の宿が並ぶ小さな温泉。ガス灯が点くと、街ごと一幅の絵のようになります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Evening_twilight_in_Ginzan_Onsen_town_January_2022_A.jpg" rel="noopener" target="_blank">さかおり</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="寺社">
+        <a class="spot-link" href="sensoji.html" aria-label="浅草寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Asakusa_Senso-ji_2021-12_ac_%282%29.jpg/1920px-Asakusa_Senso-ji_2021-12_ac_%282%29.jpg" alt="浅草寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>浅草寺</b>
+            <span>東京都 ・ 寺社</span>
+            <p>雷門の大提灯から、仲見世を抜けて本堂へ。東京でいちばん古い寺で、朝は人の少ない参道を歩けます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Asakusa_Senso-ji_2021-12_ac_(2).jpg" rel="noopener" target="_blank">Asturio Cantabrio</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="絶景">
+        <a class="spot-link" href="skytree.html" aria-label="東京スカイツリーの紹介ページ">
+          <div class="ph "><img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Tokyo_Skytree_2014_%E2%85%A2.jpg" alt="東京スカイツリー" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>東京スカイツリー</b>
+            <span>東京都 ・ 絶景</span>
+            <p>高さ634mの電波塔。350mの展望デッキと、450mの展望回廊の2段構えで、関東平野が一望できます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Tokyo_Skytree_2014_%E2%85%A2.jpg" rel="noopener" target="_blank">Kakidai</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="寺社">
+        <a class="spot-link" href="meiji.html" aria-label="明治神宮の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Courtyard_of_Meiji_Shrine_20190717.jpg/1920px-Courtyard_of_Meiji_Shrine_20190717.jpg" alt="明治神宮" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>明治神宮</b>
+            <span>東京都 ・ 寺社</span>
+            <p>原宿の駅を出てすぐ、森に入ります。都心とは思えない静けさで、参道の玉砂利の音だけが聞こえます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Courtyard_of_Meiji_Shrine_20190717.jpg" rel="noopener" target="_blank">Tokuzo in Edomura</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="寺社">
+        <a class="spot-link" href="kamakura-daibutsu.html" aria-label="鎌倉大仏（高徳院）の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/230128_Kamakura_Daibutsu_Japan01s3.jpg/1920px-230128_Kamakura_Daibutsu_Japan01s3.jpg" alt="鎌倉大仏（高徳院）" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>鎌倉大仏（高徳院）</b>
+            <span>神奈川県 ・ 寺社</span>
+            <p>露座の阿弥陀如来。高さ約11m、鎌倉の海を背にした大仏は、胎内にも入れて、中の鋳造の跡まで見られます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:230128_Kamakura_Daibutsu_Japan01s3.jpg" rel="noopener" target="_blank">663highland</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="絶景">
+        <a class="spot-link" href="enoshima.html" aria-label="江の島の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Enoshima_view_from_Kugenuma_beach.jpg/1920px-Enoshima_view_from_Kugenuma_beach.jpg" alt="江の島" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>江の島</b>
+            <span>神奈川県 ・ 絶景</span>
+            <p>湘南の海に浮かぶ小さな島。参道の坂を上がって、最後に海辺の展望灯台。晴れた日は富士山まで見えます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Enoshima_view_from_Kugenuma_beach.jpg" rel="noopener" target="_blank">Quercus acuta</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="遺産">
+        <a class="spot-link" href="nikko.html" aria-label="日光東照宮の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Nikko_Toshogu_Yomeimon_Gate_2024.jpg/1920px-Nikko_Toshogu_Yomeimon_Gate_2024.jpg" alt="日光東照宮" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>日光東照宮</b>
+            <span>栃木県 ・ 遺産</span>
+            <p>徳川家康をまつる社。陽明門の極彩色と、三猿・眠り猫の彫刻。杉木立の中に、江戸の技術が詰まっています。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Nikko_Toshogu_Yomeimon_Gate_2024.jpg" rel="noopener" target="_blank">Jpatokal</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="街">
+        <a class="spot-link" href="yokohama.html" aria-label="横浜中華街の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/%E6%A8%AA%E6%B5%9C%E4%B8%AD%E8%8F%AF%E8%A1%97-1.jpg/1920px-%E6%A8%AA%E6%B5%9C%E4%B8%AD%E8%8F%AF%E8%A1%97-1.jpg" alt="横浜中華街" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>横浜中華街</b>
+            <span>神奈川県 ・ 街</span>
+            <p>日本最大の中華街。門をくぐると、店の湯気と看板の色。食べ歩きと、点心の昼が定番です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:%E6%A8%AA%E6%B5%9C%E4%B8%AD%E8%8F%AF%E8%A1%97-1.jpg" rel="noopener" target="_blank">かなえゆうじん</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="自然">
+        <a class="spot-link" href="fuji.html" aria-label="富士山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Mt.Fuji_from_Mierula.jpg/1920px-Mt.Fuji_from_Mierula.jpg" alt="富士山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>富士山</b>
+            <span>山梨県・静岡県 ・ 自然</span>
+            <p>日本一高い山。登る山であり、見る山でもあります。五合目まで車で上がれ、麓からは湖越しの姿が楽しめます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Mt.Fuji_from_Mierula.jpg" rel="noopener" target="_blank">Gifu-sizu</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="絶景">
+        <a class="spot-link" href="kawaguchiko.html" aria-label="河口湖の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/KawaguchiKo.jpg/1920px-KawaguchiKo.jpg" alt="河口湖" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>河口湖</b>
+            <span>山梨県 ・ 絶景</span>
+            <p>富士五湖のひとつ。湖面に映る富士山がもっとも近く、春は桜、秋は紅葉が湖岸に並びます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:KawaguchiKo.jpg" rel="noopener" target="_blank">BehBeh</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="自然">
+        <a class="spot-link" href="kamikochi.html" aria-label="上高地の紹介ページ">
+          <div class="ph "><img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/%E7%A7%8B%E3%81%AE%E4%B8%8A%E9%AB%98%E5%9C%B0_%28Kamikochi_in_autumn%29_24_Oct%2C_2011_-_panoramio.jpg" alt="上高地" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>上高地</b>
+            <span>長野県 ・ 自然</span>
+            <p>梓川の清流と、穂高の山。マイカーは入れず、バスかタクシーで入ります。河童橋から大正池まで、平坦な道が続きます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:%E7%A7%8B%E3%81%AE%E4%B8%8A%E9%AB%98%E5%9C%B0_(Kamikochi_in_autumn)_24_Oct,_2011_-_panoramio.jpg" rel="noopener" target="_blank">Hiroaki Kaneko</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="城">
+        <a class="spot-link" href="matsumoto-jo.html" aria-label="松本城の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Matsumoto_Castle_1-1.jpg/1920px-Matsumoto_Castle_1-1.jpg" alt="松本城" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>松本城</b>
+            <span>長野県 ・ 城</span>
+            <p>黒い下見板張りの天守が残る、現存12天守のひとつ。北アルプスを背景に、堀の水へ姿を映します。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Matsumoto_Castle_1-1.jpg" rel="noopener" target="_blank">柑橘類 ( talk )</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="自然">
+        <a class="spot-link" href="tateyama.html" aria-label="立山黒部アルペンルートの紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/DaikanboView.jpg/1920px-DaikanboView.jpg" alt="立山黒部アルペンルート" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>立山黒部アルペンルート</b>
+            <span>富山県・長野県 ・ 自然</span>
+            <p>ケーブルカー、バス、トロリーバスを乗り継いで、標高2,450mまで。雪の大谷は春、紅葉は秋の名物です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:DaikanboView.jpg" rel="noopener" target="_blank">Ippukucho</a> / CC BY 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="遺産">
+        <a class="spot-link" href="shirakawa-go.html" aria-label="白川郷の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Shirakawa-go_%282017-07-22%29.jpg/1920px-Shirakawa-go_%282017-07-22%29.jpg" alt="白川郷" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>白川郷</b>
+            <span>岐阜県 ・ 遺産</span>
+            <p>合掌造りの家が並ぶ山村。急な茅葺きの屋根は、雪を落とすための形です。冬のライトアップは幻想的です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Shirakawa-go_(2017-07-22).jpg" rel="noopener" target="_blank">Alpsdake</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="寺社">
+        <a class="spot-link" href="kiyomizu.html" aria-label="清水寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Kiyomizu-dera%2C_Kyoto%2C_November_2016_-02.jpg/1920px-Kiyomizu-dera%2C_Kyoto%2C_November_2016_-02.jpg" alt="清水寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>清水寺</b>
+            <span>京都府 ・ 寺社</span>
+            <p>清水の舞台から京の町を見下ろす、京都でもっとも知られた寺。桜と紅葉の季節は、夜間拝観もあります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kiyomizu-dera,_Kyoto,_November_2016_-02.jpg" rel="noopener" target="_blank">Martin Falbisoner</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="寺社">
+        <a class="spot-link" href="fushimi-inari.html" aria-label="伏見稲荷大社の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Fushimiinari-taisha%2C_gehaiden-1.jpg/1920px-Fushimiinari-taisha%2C_gehaiden-1.jpg" alt="伏見稲荷大社" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>伏見稲荷大社</b>
+            <span>京都府 ・ 寺社</span>
+            <p>千本鳥居で知られる稲荷の総本社。山の上まで鳥居が続き、一周すると2時間ほど。参拝は24時間できます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Fushimiinari-taisha,_gehaiden-1.jpg" rel="noopener" target="_blank">Saigen Jiro</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="寺社">
+        <a class="spot-link" href="kinkakuji.html" aria-label="金閣寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Kinkaku-ji_2015.JPG/1920px-Kinkaku-ji_2015.JPG" alt="金閣寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>金閣寺</b>
+            <span>京都府 ・ 寺社</span>
+            <p>金箔を貼った舎利殿が、鏡湖池に映る。正式には鹿苑寺。晴れた日の午前は、金色が池に落ちます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kinkaku-ji_2015.JPG" rel="noopener" target="_blank">Kakidai</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="自然">
+        <a class="spot-link" href="arashiyama.html" aria-label="嵐山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Arashiyama_%288741759830%29.jpg/1920px-Arashiyama_%288741759830%29.jpg" alt="嵐山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>嵐山</b>
+            <span>京都府 ・ 自然</span>
+            <p>渡月橋と竹林、保津川。嵯峨野トロッコ列車に乗れば、渓谷をゆっくり上れます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Arashiyama_(8741759830).jpg" rel="noopener" target="_blank">Takeshi Kuboki from Amagasaki, Japan</a> / CC BY 2.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="寺社">
+        <a class="spot-link" href="todaiji.html" aria-label="東大寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/%E6%9D%B1%E5%A4%A7%E5%AF%BA_%E5%A4%A7%E4%BB%8F%E6%AE%BF%EF%BC%882024%E5%B9%B4%EF%BC%89.jpg/1920px-%E6%9D%B1%E5%A4%A7%E5%AF%BA_%E5%A4%A7%E4%BB%8F%E6%AE%BF%EF%BC%882024%E5%B9%B4%EF%BC%89.jpg" alt="東大寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>東大寺</b>
+            <span>奈良県 ・ 寺社</span>
+            <p>大仏殿の中に、高さ約15mの盧舎那仏。奈良の都に建てられた、木造建築として世界最大級の建物です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:%E6%9D%B1%E5%A4%A7%E5%AF%BA_%E5%A4%A7%E4%BB%8F%E6%AE%BF%EF%BC%882024%E5%B9%B4%EF%BC%89.jpg" rel="noopener" target="_blank">Mont Blank rich</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="自然">
+        <a class="spot-link" href="nara-park.html" aria-label="奈良公園の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Five-storied_Pagoda%2C_Kofuku-ji_-_Nara%2C_Japan_-_DSC07497.jpg/1920px-Five-storied_Pagoda%2C_Kofuku-ji_-_Nara%2C_Japan_-_DSC07497.jpg" alt="奈良公園" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>奈良公園</b>
+            <span>奈良県 ・ 自然</span>
+            <p>広い芝生に、鹿が当たり前に歩いている公園。東大寺・春日大社・興福寺が、すべて歩いて回れます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Five-storied_Pagoda,_Kofuku-ji_-_Nara,_Japan_-_DSC07497.jpg" rel="noopener" target="_blank">Daderot</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="遺産">
+        <a class="spot-link" href="horyuji.html" aria-label="法隆寺の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/Horyu-ji45s2s4500.jpg/1920px-Horyu-ji45s2s4500.jpg" alt="法隆寺" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>法隆寺</b>
+            <span>奈良県 ・ 遺産</span>
+            <p>現存する世界最古の木造建築、金堂と五重塔。飛鳥の技術がそのまま残る、日本最初の世界文化遺産です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Horyu-ji45s2s4500.jpg" rel="noopener" target="_blank">663highland</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="城">
+        <a class="spot-link" href="himeji.html" aria-label="姫路城の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Himeji_castle_in_may_2015.jpg/1920px-Himeji_castle_in_may_2015.jpg" alt="姫路城" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>姫路城</b>
+            <span>兵庫県 ・ 城</span>
+            <p>白い漆喰の大天守。世界文化遺産で、現存天守のうち最大のもの。屋根を重ねた姿から、白鷺城とも呼ばれます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Himeji_castle_in_may_2015.jpg" rel="noopener" target="_blank">Nikos Kitsakis</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="寺社">
+        <a class="spot-link" href="koyasan.html" aria-label="高野山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Danjogaran_Koyasan12n3200.jpg/1920px-Danjogaran_Koyasan12n3200.jpg" alt="高野山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>高野山</b>
+            <span>和歌山県 ・ 寺社</span>
+            <p>空海が開いた真言密教の聖地。標高約800mの盆地に、117の寺院が並びます。奥の院の参道には、苔むした墓石が続き…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Danjogaran_Koyasan12n3200.jpg" rel="noopener" target="_blank">663highland</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="遺産">
+        <a class="spot-link" href="itsukushima.html" aria-label="厳島神社の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg/1920px-Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg" alt="厳島神社" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>厳島神社</b>
+            <span>広島県 ・ 遺産</span>
+            <p>海の上に建つ、朱の大鳥居と社殿。潮が満ちると社殿が水に浮かび、干くと鳥居の根元まで歩けます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Itsukushima_Shrine_Torii_Gate_(13890465459).jpg" rel="noopener" target="_blank">redlegsfan21</a> / CC BY-SA 2.0</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="遺産">
+        <a class="spot-link" href="genbaku.html" aria-label="原爆ドームの紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Genbaku_Dome04-r.JPG/1920px-Genbaku_Dome04-r.JPG" alt="原爆ドーム" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>原爆ドーム</b>
+            <span>広島県 ・ 遺産</span>
+            <p>1945年8月6日、爆心地のすぐ近くに残った建物の骨組み。世界遺産として、そのままの形で保存されています。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Genbaku_Dome04-r.JPG" rel="noopener" target="_blank">Oilstreet</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="寺社">
+        <a class="spot-link" href="izumo.html" aria-label="出雲大社の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Haiden_of_Izumo-taisha-1.JPG/1920px-Haiden_of_Izumo-taisha-1.JPG" alt="出雲大社" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>出雲大社</b>
+            <span>島根県 ・ 寺社</span>
+            <p>縁結びの神として知られる、古事記の時代からの社。巨大な注連縄と、独特の形式の拝殿が迎えます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Haiden_of_Izumo-taisha-1.JPG" rel="noopener" target="_blank">Saigen Jiro</a> / CC0</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="温泉">
+        <a class="spot-link" href="dogo.html" aria-label="道後温泉の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/D%C5%8Dgo_Onsen.jpg/1920px-D%C5%8Dgo_Onsen.jpg" alt="道後温泉" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>道後温泉</b>
+            <span>愛媛県 ・ 温泉</span>
+            <p>日本最古の温泉とされる湯。道後温泉本館は明治の木造建築で、振鷺閣の太鼓の音が街に響きます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:D%C5%8Dgo_Onsen.jpg" rel="noopener" target="_blank">Arnaud Malon</a> / CC BY 2.0</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="寺社">
+        <a class="spot-link" href="kotohira.html" aria-label="金刀比羅宮の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Kotohira-gu01s.jpg/1920px-Kotohira-gu01s.jpg" alt="金刀比羅宮" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>金刀比羅宮</b>
+            <span>香川県 ・ 寺社</span>
+            <p>海の神様として、古くから信仰を集めた社。本宮まで785段、奥社まで1,368段の石段が続きます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kotohira-gu01s.jpg" rel="noopener" target="_blank">Toto-tarou</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="自然">
+        <a class="spot-link" href="naruto.html" aria-label="鳴門海峡の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/For_Shikoku_Island_-_panoramio.jpg/1920px-For_Shikoku_Island_-_panoramio.jpg" alt="鳴門海峡" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>鳴門海峡</b>
+            <span>徳島県 ・ 自然</span>
+            <p>潮の満ち引きでできる渦潮。大潮の前後、潮が速く動く時間に、直径20mほどの渦が現れます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:For_Shikoku_Island_-_panoramio.jpg" rel="noopener" target="_blank">Nagono</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chugoku-shikoku" data-cat="街">
+        <a class="spot-link" href="adachi-museum.html" aria-label="足立美術館の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Adachi_Museum_of_Art10st3200.jpg/1920px-Adachi_Museum_of_Art10st3200.jpg" alt="足立美術館" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>足立美術館</b>
+            <span>島根県 ・ 街</span>
+            <p>日本庭園と横山大観。庭を「絵」として切り取る窓の作りが、20年近く世界一の評価を受けています。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Adachi_Museum_of_Art10st3200.jpg" rel="noopener" target="_blank">663highland</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="寺社">
+        <a class="spot-link" href="dazaifu.html" aria-label="太宰府天満宮の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/20100719_Dazaifu_Tenmangu_Shrine_3328.jpg/1920px-20100719_Dazaifu_Tenmangu_Shrine_3328.jpg" alt="太宰府天満宮" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>太宰府天満宮</b>
+            <span>福岡県 ・ 寺社</span>
+            <p>学問の神、菅原道真をまつる社。梅が咲く季節は参道まで香り、受験の時期は絵馬が鈴なりになります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:20100719_Dazaifu_Tenmangu_Shrine_3328.jpg" rel="noopener" target="_blank">Jakub Hałun</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="温泉">
+        <a class="spot-link" href="beppu.html" aria-label="別府温泉の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Beppu_Tower02s4s3200.jpg/1920px-Beppu_Tower02s4s3200.jpg" alt="別府温泉" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>別府温泉</b>
+            <span>大分県 ・ 温泉</span>
+            <p>湧出量で日本一の温泉地。街のあちこちから湯気が上がり、「地獄」と呼ばれる源泉を見て回れます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Beppu_Tower02s4s3200.jpg" rel="noopener" target="_blank">663highland</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="自然">
+        <a class="spot-link" href="aso.html" aria-label="阿蘇山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/20140516%E9%98%BF%E8%98%87%E5%B1%B1%E5%BA%83%E5%9F%9F.jpg/1920px-20140516%E9%98%BF%E8%98%87%E5%B1%B1%E5%BA%83%E5%9F%9F.jpg" alt="阿蘇山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>阿蘇山</b>
+            <span>熊本県 ・ 自然</span>
+            <p>世界最大級のカルデラの中に、いまも煙を上げる火山。草千里の草原と、火口の荒れ地が隣り合っています。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:20140516%E9%98%BF%E8%98%87%E5%B1%B1%E5%BA%83%E5%9F%9F.jpg" rel="noopener" target="_blank">Sonata / Sonata at ja.wikipedia</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="絶景">
+        <a class="spot-link" href="takachiho.html" aria-label="高千穂峡の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Takachiho-kyo%28Gorge%29_-_River_-_%E5%B7%9D.jpg/1920px-Takachiho-kyo%28Gorge%29_-_River_-_%E5%B7%9D.jpg" alt="高千穂峡" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>高千穂峡</b>
+            <span>宮崎県 ・ 絶景</span>
+            <p>五ヶ瀬川が溶岩を削ってできた峡谷。柱状節理の崖と、真名井の滝。ボートで滝の真下まで近づけます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Takachiho-kyo(Gorge)_-_River_-_%E5%B7%9D.jpg" rel="noopener" target="_blank">TANAKA Juuyoh (田中十洋)</a> / CC BY 2.0</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="自然">
+        <a class="spot-link" href="sakurajima.html" aria-label="桜島の紹介ページ">
+          <div class="ph g4"><span class="mono" aria-hidden="true">桜</span></div>
+          <div class="body">
+            <b>桜島</b>
+            <span>鹿児島県 ・ 自然</span>
+            <p>鹿児島湾に浮かぶ、いまも噴火を続ける火山。フェリーで15分、島には溶岩の道と温泉があります。…</p>
+          </div>
+        </a>
+        
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="遺産">
+        <a class="spot-link" href="shuri.html" aria-label="首里城の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Naha_Okinawa_Japan_Shuri-Castle-01.jpg/1920px-Naha_Okinawa_Japan_Shuri-Castle-01.jpg" alt="首里城" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>首里城</b>
+            <span>沖縄県 ・ 遺産</span>
+            <p>琉球王国の中心だった城。2019年の火災で正殿を焼失し、再建が進められています。復元の過程そのものを見学できます…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Naha_Okinawa_Japan_Shuri-Castle-01.jpg" rel="noopener" target="_blank">CEphoto, Uwe Aranas</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="自然">
+        <a class="spot-link" href="yakushima.html" aria-label="屋久島の紹介ページ">
+          <div class="ph "><img src="https://upload.wikimedia.org/wikipedia/commons/6/68/Yakushima.jpg" alt="屋久島" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>屋久島</b>
+            <span>鹿児島県 ・ 自然</span>
+            <p>樹齢千年を超える屋久杉の森。世界自然遺産。縄文杉まで往復10時間の道は、いまも人が絶えません。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Yakushima.jpg" rel="noopener" target="_blank">NASA</a> / Public domain</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="自然">
+        <a class="spot-link" href="kegon.html" aria-label="華厳の滝の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Kegon_Taki.jpg/1920px-Kegon_Taki.jpg" alt="華厳の滝" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>華厳の滝</b>
+            <span>栃木県 ・ 自然</span>
+            <p>中禅寺湖の水が、97mの岩壁を一気に落ちる滝。日本三名瀑のひとつで、エレベーターで滝壺の正面まで下りられます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kegon_Taki.jpg" rel="noopener" target="_blank">Jordy Meow</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="kanto" data-cat="温泉">
+        <a class="spot-link" href="hakone.html" aria-label="箱根の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Lake_Ashi_from_Mt.Komagatake_03-2.jpg/1920px-Lake_Ashi_from_Mt.Komagatake_03-2.jpg" alt="箱根" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>箱根</b>
+            <span>神奈川県 ・ 温泉</span>
+            <p>芦ノ湖、大涌谷、そして湯。ロープウェイと海賊船を乗り継いで、山と湖を一日で回れます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Lake_Ashi_from_Mt.Komagatake_03-2.jpg" rel="noopener" target="_blank">Σ64</a> / CC BY-SA 3.0</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="自然">
+        <a class="spot-link" href="kenrokuen.html" aria-label="兼六園の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Kenrokuen10-r.jpg/1920px-Kenrokuen10-r.jpg" alt="兼六園" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>兼六園</b>
+            <span>石川県 ・ 自然</span>
+            <p>水を引き回した池と、曲水の庭。日本三名園のひとつで、冬の雪吊りは金沢の冬の姿です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kenrokuen10-r.jpg" rel="noopener" target="_blank">Oilstreet</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="chubu" data-cat="街">
+        <a class="spot-link" href="takayama.html" aria-label="高山の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/260923_Sanmachi_Takayama_Japan03s3.jpg/1920px-260923_Sanmachi_Takayama_Japan03s3.jpg" alt="高山" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>高山</b>
+            <span>岐阜県 ・ 街</span>
+            <p>江戸の町並みが残る、飛騨の小京都。朝市と、杉の酒蔵、宮川の柳。歩いて回れる大きさです。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:260923_Sanmachi_Takayama_Japan03s3.jpg" rel="noopener" target="_blank">663highland</a> / CC BY-SA 4.0</small>
+      </article>
+      <article class="spot-card" data-region="kinki" data-cat="遺産">
+        <a class="spot-link" href="kumano.html" aria-label="熊野古道の紹介ページ">
+          <div class="ph "><img src="https://upload.wikimedia.org/wikipedia/commons/6/6a/Daimonzaka28-640.jpg" alt="熊野古道" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>熊野古道</b>
+            <span>和歌山県 ・ 遺産</span>
+            <p>熊野三山へ通じる参詣道。石畳の道と、杉の森が続きます。世界遺産で、歩く距離は選べます。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Daimonzaka28-640.jpg" rel="noopener" target="_blank">663highland</a> / CC BY 2.5</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="温泉">
+        <a class="spot-link" href="yufuin.html" aria-label="湯布院の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Yufuin_Onsen_-Mus%C5%8Den_02.jpg/1920px-Yufuin_Onsen_-Mus%C5%8Den_02.jpg" alt="湯布院" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>湯布院</b>
+            <span>大分県 ・ 温泉</span>
+            <p>由布岳の裾に広がる湯の町。湯の坪街道の店と、金鱗湖の朝霧。歩いて回れる温泉地です。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Yufuin_Onsen_-Mus%C5%8Den_02.jpg" rel="noopener" target="_blank">Yasuhiro from Tokyo, Japan</a> / CC BY 2.0</small>
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="絶景">
+        <a class="spot-link" href="kagoshima.html" aria-label="鹿児島市街と城山の紹介ページ">
+          <div class="ph g5"><span class="mono" aria-hidden="true">鹿</span></div>
+          <div class="body">
+            <b>鹿児島市街と城山</b>
+            <span>鹿児島県 ・ 絶景</span>
+            <p>市街を見下ろす城山から、桜島が正面に見えます。西南戦争の最後の地でもあり、史跡が残ります。…</p>
+          </div>
+        </a>
+        
+      </article>
+      <article class="spot-card" data-region="kyushu-okinawa" data-cat="寺社">
+        <a class="spot-link" href="kirishima.html" aria-label="霧島神宮の紹介ページ">
+          <div class="ph "><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Kirishima-Jingu_Front.jpg/1920px-Kirishima-Jingu_Front.jpg" alt="霧島神宮" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>
+          <div class="body">
+            <b>霧島神宮</b>
+            <span>鹿児島県 ・ 寺社</span>
+            <p>朱塗りの社殿が杉木立に映える、南九州の古社。天孫降臨の地とされ、霧島連山の麓にあります。…</p>
+          </div>
+        </a>
+        <small class="photo-credit">写真: <a href="https://commons.wikimedia.org/wiki/File:Kirishima-Jingu_Front.jpg" rel="noopener" target="_blank">MaedaAkihiko</a> / CC BY-SA 4.0</small>
+      </article>
+      </div>
+      <p id="spots-empty" class="lead" hidden>この組み合わせに合う観光地は、まだ入っていません。地方か分類を「すべて」に戻してください。</p>
+    </div>
+  </section>
+
+  <section class="sec tint" id="courses">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>おすすめのモデルコース</h2>
+        <p>地方ごとに、つなげて回れる順路を用意しました。時刻は目安です。旅さきに地名をいくつか書けば、同じ順路をその日の条件で組み直します。</p>
+      </div>
+      <div class="route">
+        <header><h3>東京を、朝から夜まで</h3><span class="badge blue">1日</span><span class="badge">関東</span></header>
+        <ol>
+        <li><span class="t">07:00</span><span><span class="n">浅草寺</span><span class="d">人のいない仲見世と、朝の本堂。</span></span></li>
+        <li><span class="t">10:00</span><span><span class="n">東京スカイツリー</span><span class="d">町の形を、上から。</span></span></li>
+        <li><span class="t">13:00</span><span><span class="n">明治神宮</span><span class="d">森を抜けて、参拝。</span></span></li>
+        <li><span class="t">16:30</span><span><span class="n">横浜中華街</span><span class="d">夕方から、食べ歩きと夕食。</span></span></li>
+        </ol>
+        <p class="route-note">電車だけで移動できます。山手線と浅草線で、ほぼ一直線。</p>
+      </div>
+      <div class="route">
+        <header><h3>京都の朝と、奈良の昼</h3><span class="badge blue">1日</span><span class="badge">近畿</span></header>
+        <ol>
+        <li><span class="t">06:00</span><span><span class="n">清水寺</span><span class="d">朝の舞台。ここが勝負。</span></span></li>
+        <li><span class="t">08:00</span><span><span class="n">伏見稲荷大社</span><span class="d">千本鳥居を、四ツ辻まで。</span></span></li>
+        <li><span class="t">11:00</span><span><span class="n">東大寺</span><span class="d">奈良へ移動。大仏。</span></span></li>
+        <li><span class="t">14:00</span><span><span class="n">奈良公園</span><span class="d">鹿と、春日大社。</span></span></li>
+        </ol>
+        <p class="route-note">京阪と近鉄でつながります。清水寺から伏見までは電車で20分ほど。</p>
+      </div>
+      <div class="route">
+        <header><h3>山と湖を、2日で</h3><span class="badge blue">2日</span><span class="badge">中部</span></header>
+        <ol>
+        <li><span class="t">1日目 06:30</span><span><span class="n">河口湖</span><span class="d">朝の逆さ富士。</span></span></li>
+        <li><span class="t">1日目 11:00</span><span><span class="n">富士山 五合目</span><span class="d">車で上がって、空気を。</span></span></li>
+        <li><span class="t">2日目 08:00</span><span><span class="n">上高地</span><span class="d">大正池から河童橋へ。</span></span></li>
+        <li><span class="t">2日目 14:00</span><span><span class="n">松本城</span><span class="d">黒い天守。</span></span></li>
+        </ol>
+        <p class="route-note">1日目は河口湖泊。2日目は松本経由で、帰りは特急。</p>
+      </div>
+      <div class="route">
+        <header><h3>海と潮をめぐる</h3><span class="badge blue">2日</span><span class="badge">中国・四国</span></header>
+        <ol>
+        <li><span class="t">1日目 09:00</span><span><span class="n">厳島神社</span><span class="d">潮の時刻を見て、干潮に。</span></span></li>
+        <li><span class="t">1日目 14:00</span><span><span class="n">原爆ドーム</span><span class="d">広島市内へ。資料館も。</span></span></li>
+        <li><span class="t">2日目 10:00</span><span><span class="n">鳴門海峡</span><span class="d">渦の時刻に合わせて。</span></span></li>
+        <li><span class="t">2日目 15:00</span><span><span class="n">金刀比羅宮</span><span class="d">785段。ご褒美の眺め。</span></span></li>
+        </ol>
+        <p class="route-note">1日目は広島泊。2日目は瀬戸大橋を渡って四国へ。</p>
+      </div>
+      <div class="route">
+        <header><h3>火山と海を、3日で</h3><span class="badge blue">3日</span><span class="badge">九州・沖縄</span></header>
+        <ol>
+        <li><span class="t">1日目 09:00</span><span><span class="n">太宰府天満宮</span><span class="d">博多から30分。</span></span></li>
+        <li><span class="t">1日目 14:00</span><span><span class="n">別府温泉</span><span class="d">地獄めぐりと、共同浴場。</span></span></li>
+        <li><span class="t">2日目 09:00</span><span><span class="n">阿蘇山</span><span class="d">草千里と火口。</span></span></li>
+        <li><span class="t">2日目 15:00</span><span><span class="n">高千穂峡</span><span class="d">ボートで滝の下へ。</span></span></li>
+        <li><span class="t">3日目 09:00</span><span><span class="n">桜島</span><span class="d">フェリーで渡って、溶岩の道。</span></span></li>
+        </ol>
+        <p class="route-note">移動が長いので、レンタカーがあると楽です。電車とバスでも回れますが、本数が少ない区間があります。</p>
+      </div>
+      <div class="route">
+        <header><h3>北の自然を、2日で</h3><span class="badge blue">2日</span><span class="badge">北海道・東北</span></header>
+        <ol>
+        <li><span class="t">1日目 08:30</span><span><span class="n">知床五湖</span><span class="d">高架木道から、湖と山。</span></span></li>
+        <li><span class="t">1日目 15:00</span><span><span class="n">知床岬クルーズ</span><span class="d">船でしか見えない岬。</span></span></li>
+        <li><span class="t">2日目 09:00</span><span><span class="n">摩周湖</span><span class="d">霧の湖。晴れたら幸運。</span></span></li>
+        <li><span class="t">2日目 14:00</span><span><span class="n">屈斜路湖</span><span class="d">摩周湖から近いカルデラ湖。砂湯で足を温めます。</span></span></li>
+        </ol>
+        <p class="route-note">道東は移動が長いので、2日では足りません。3日あれば、釧路・網走まで回れます。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="end-cta">
+    <h2>読んでから、組む。</h2>
+    <p><a class="btn btn-lg" href="../app">旅さきをひらく</a></p>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <a class="foot-brand" href="../"><img src="../mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
+    <nav aria-label="ほかのページ">
+      <a href="../app">旅程をつくる</a>
+      <a href="index.html">観光地</a>
+      <a href="../ssh.html">SSH・端末</a>
+      <a href="../mobile.html">アプリ</a>
+      <a href="../api.html">API</a>
+      <a href="../credits.html">著作権表記</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

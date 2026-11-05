@@ -24,6 +24,8 @@ usage() {
   plan "<希望>" [...] 旅程を組んで端末に出す（tabisaki plan --help で詳しく）
   tui "<希望>" [...]  組んだ旅程を端末の中で見る（キーボードだけで）
   plan … --local     手元の LLM（Ollama など）で組む（docs/local-llm.md）
+  trace "<希望>" [...] 開発者向け: 工程・AI の考えと道具・収録のID・経路の出どころを追う（docs/dev-trace.md）
+  router stats|log   手元とクラウドの使い分けの記録（docs/model-router.md）
   local setup        手元の LLM を確かめる（--pull でモデルを取る）
   kb extract --region=関東   地域の知識ベースを .tabisaki/kb/ に切り出す（docs/kb-extract.md）
   similar "<名前>"   似たスポットを探す（例: ./tabisaki similar 清水寺）
@@ -67,7 +69,7 @@ ftp_upload() {
 cmd="${1:-help}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
-  plan|tui|local|kb|similar|spot|area|plugins|sync|voice-plan|--version) need node "Node.js 22 以上を入れてください。"
+  plan|tui|trace|router|local|kb|similar|spot|area|plugins|sync|voice-plan|--version) need node "Node.js 22 以上を入れてください。"
         exec node packages/cli/bin/tabisaki-plan.mjs "$cmd" "$@" ;;
   # build・test は、旅程ファイルを付けたときだけ旅程のコマンドです。
   # 付けなければ、これまでどおりサイトの組み立て・リポジトリの試験です。

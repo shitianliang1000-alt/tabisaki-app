@@ -52,12 +52,14 @@
     <a class="pill" href="#how">使いかた</a>
     <a class="pill" href="#today">今日のおすすめ</a>
     <a class="pill" href="#about">旅さきについて</a>
+    <a class="pill" href="tour.html">映像で見る</a>
   </nav>
   <a class="logo" href="./" aria-label="旅さき トップ">
     <img src="mark.svg" alt="" width="24" height="24"><span>旅さき</span>
   </a>
   <div class="nav-r">
     <a class="pill pill-quiet" href="areas/index.html">エリア</a>
+    <a class="pill pill-quiet pill-gh" href="https://github.com/shitianliang1000-alt/tabisaki-app" rel="noopener" aria-label="GitHub（新しいタブで開きます）" target="_blank"><svg class="gh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" fill="currentColor" stroke="none"/></svg><span>GitHub</span></a>
     <a class="pill pill-dark" href="app">旅さきを使う <span aria-hidden="true">↗</span></a>
   </div>
 </header>
@@ -149,6 +151,24 @@
     <p class="scrub" id="scrub">「着いたら閉まっていた」「乗り換えに間に合わなかった」。旅の失敗の多くは、行き先ではなく段取りから生まれます。旅さきは、行きたいことを聞いて、営業時間・定休日・移動時間を一つずつ照らし合わせ、そのまま行ける順番にします。</p>
   </section>
 
+  <!-- 4b. 映画の場面（apple.com の Final Cut Pro のページのように、読み進めると
+       動画が画面いっぱいに広がり、字が重なって出ます）。動画は全国の観光地の点と、
+       北から南へ進む旅の道すじ。動きを減らす設定では再生せず、止めた絵を出します。 -->
+  <section class="film" id="film" aria-label="旅の映像">
+    <div class="film-sticky">
+      <div class="film-frame">
+        <video class="film-video" muted loop playsinline preload="none" poster="assets/film-poster.webp" width="1280" height="720" aria-hidden="true">
+          <source src="assets/film.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="film-copy">
+        <p class="film-line" data-at="0.15">{{spotCountFmt}}の点が、</p>
+        <p class="film-line" data-at="0.4">ひとつの旅になる。</p>
+        <p class="film-sub" data-at="0.62">北の湖から、南の港町まで。行きたいことを書けば、間に合う順番で線がつながります。<a href="tour.html">映像で見る ›</a></p>
+      </div>
+    </div>
+  </section>
+
   <!-- 5. 使いかた（左は止まったまま、右を送ると段が切り替わる） -->
   <section class="how" id="how">
     <div class="how-sticky">
@@ -211,6 +231,46 @@
     <div class="stat reveal"><b data-count="{{spotCount}}">{{spotCountFmt}}</b><span>か所の観光地</span></div>
     <div class="stat reveal"><b data-count="{{areaCount}}">{{areaCount}}</b><span>モデルコースのあるエリア</span></div>
     <div class="stat reveal"><b data-count="0">0</b><span>円（登録も要りません）</span></div>
+  </section>
+
+
+  <!-- 7b. エリアから探す（写真のカード） -->
+  <section class="photo-row" id="regions" aria-labelledby="regions-title">
+    <p class="eyebrow">エリアから探す</p>
+    <h2 class="title" id="regions-title">{{areaCount}}エリアのモデルコースから、<br>旅の入口を見つけます。</h2>
+    <p class="sub">北海道の自然から、九州の街歩きまで。エリアを選ぶだけで、旅の見本がすぐに見つかります。</p>
+    <div class="pcards">
+      <a class="pcard reveal" href="areas/index.html"><img src="assets/hokkaido.webp" alt="" width="640" height="372" loading="lazy" decoding="async"><b>北海道</b><span>自然と季節の旅</span><i>見る</i></a>
+      <a class="pcard reveal" href="areas/index.html"><img src="assets/kanto.webp" alt="" width="640" height="372" loading="lazy" decoding="async"><b>関東</b><span>海と寺院の日帰り</span><i>見る</i></a>
+      <a class="pcard reveal" href="areas/index.html"><img src="assets/kansai.webp" alt="" width="640" height="372" loading="lazy" decoding="async"><b>関西</b><span>紅葉と町歩きの旅</span><i>見る</i></a>
+      <a class="pcard reveal" href="areas/index.html"><img src="assets/kyushu.webp" alt="" width="640" height="372" loading="lazy" decoding="async"><b>九州</b><span>街歩きと港の旅</span><i>見る</i></a>
+    </div>
+  </section>
+
+  <!-- 7c. 旅の見本ギャラリー -->
+  <section class="photo-row" id="gallery" aria-labelledby="gallery-title">
+    <p class="eyebrow">旅の見本ギャラリー</p>
+    <h2 class="title" id="gallery-title">見本から選ぶと、<br>旅のイメージがすぐに決まります。</h2>
+    <p class="sub">紅葉、温泉、食べ歩き、穴場の散策まで。見たい場面を選ぶだけで、旅の入口が見つかります。</p>
+    <div class="pcards">
+      <a class="pcard reveal" href="app?q=%E7%B4%85%E8%91%89%E3%82%92%E8%A6%8B%E3%81%A6%E3%80%81%E5%A4%9C%E3%81%AF%E6%B8%A9%E6%B3%89%E3%81%A7%E3%82%86%E3%81%A3%E3%81%8F%E3%82%8A%E3%81%97%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/koyo-onsen.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>紅葉と温泉</b><span>朝の紅葉を楽しんで、夕方は温泉でゆっくり</span><i>組む</i></a>
+      <a class="pcard reveal" href="app?q=%E7%A7%8B%E3%81%AE%E5%91%B3%E3%82%92%E9%A3%9F%E3%81%B9%E6%AD%A9%E3%81%8D%E3%81%97%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/tabearuki.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>秋の食べ歩き</b><span>季節の味と、街のにぎわいを感じる旅</span><i>組む</i></a>
+      <a class="pcard reveal" href="app?q=%E4%BA%BA%E3%81%8C%E5%B0%91%E3%81%AA%E3%81%84%E7%A9%B4%E5%A0%B4%E3%81%A7%E7%B4%85%E8%91%89%E3%82%92%E8%A6%8B%E3%81%9F%E3%81%84&amp;go=1"><img src="assets/anaba.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>穴場の紅葉</b><span>人の少ない道で、静かに紅葉を楽しむ旅</span><i>組む</i></a>
+      <a class="pcard reveal" href="app?q={{rainQ}}&amp;go=1"><img src="assets/ame.webp" alt="" width="640" height="466" loading="lazy" decoding="async"><b>雨の日</b><span>雨でも楽しめる、屋内の場所を中心に</span><i>組む</i></a>
+    </div>
+  </section>
+
+  <!-- 7d. 旅程のしくみ -->
+  <section class="photo-row" id="system" aria-labelledby="system-title">
+    <p class="eyebrow">旅程のしくみ</p>
+    <h2 class="title" id="system-title">営業時間と移動時間を考えて、<br>無理のない1日を組みます。</h2>
+    <p class="sub">「行きたいこと」を書くだけで、時間の余裕を考えた旅程ができます。</p>
+    <div class="scards">
+      <div class="scard reveal"><b>営業時間を確かめる</b><span>閉まっている場所を避けて、無理のない順番で並べます。</span></div>
+      <div class="scard reveal"><b>移動時間を考える</b><span>近い場所をまとめて、移動を短くします。</span></div>
+      <div class="scard reveal"><b>時間割を整える</b><span>食事や休む時間も入れて、余裕のある1日にします。</span></div>
+      <div class="scard reveal"><b>話しかけて直す</b><span>「もっとゆっくり」と話しかけると、別の案を出します。</span></div>
+    </div>
   </section>
 
   <!-- 8. お知らせ（Anthropic の発表カードの形） -->
@@ -290,7 +350,7 @@
 <footer class="foot">
   <div class="foot-brand"><img src="mark.svg" alt="" width="28" height="28"><span>旅さき</span></div>
   <div class="foot-acc">
-    <details><summary>旅さき</summary><ul><li><a href="app">旅程をつくる</a></li><li><a href="about.html">組んだ例</a></li><li><a href="credits.html">著作権表記</a></li></ul></details>
+    <details><summary>旅さき</summary><ul><li><a href="app">旅程をつくる</a></li><li><a href="about.html">組んだ例</a></li><li><a href="tour.html">映像で見る</a></li><li><a href="credits.html">著作権表記</a></li></ul></details>
     <details><summary>エリア</summary><ul><li><a href="areas/index.html">都道府県別の観光地</a></li>{{#footAreas}}<li><a href="{{page}}">{{name}}</a></li>{{/footAreas}}</ul></details>
     <details><summary>このページについて</summary><ul><li>このページは開いたときに作っています（{{stamp}} 日本時間・{{madeBy}}）。</li><li>天気は Open-Meteo から、いま取っています。</li></ul></details>
   </div>
