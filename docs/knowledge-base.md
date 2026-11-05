@@ -9,14 +9,13 @@
 | 項目 | 件数 |
 |---|---:|
 | エリア | **1,371** |
-| スポット | **53,852** |
+| スポット | **40,999** |
 
 主なデータソースは以下です。
 
 | データソース | 内容 |
 |---|---|
-| 国土数値情報「観光資源」 | 国土交通省 |
-| 国土数値情報「文化施設」 | 国土交通省 |
+| 国土数値情報「観光資源」「文化施設」 | 国土交通省。**非商用のため 2026-11-04 から公開の `kb/` には入れていません**（`kb-private/`。[kokudo-licenses.md](./kokudo-licenses.md)） |
 | 収録済みサンプルデータ | 手作業で確認したデータ |
 | Wikidata | CC0。名前・座標・分類 |
 | Wikipedia | CC BY-SA。日本語版の一覧記事71本（各地の温泉地・古墳・山・川・寺院・島・史跡…と、47都道府県の観光地）から、記事名・座標・冒頭の説明。画面の出典は「Wikipedia」にまとめています |
@@ -47,6 +46,34 @@ python3 tools/build_kb.py <P12を展開したディレクトリ> <doc.kml> [出�
 python3 tools/clean_kb.py ...
 python3 tools/import_p27.py ...
 ```
+
+## スポットが実在するかの確認
+
+`kb/verification-*.json`（都道府県ごと）に、スポット1件ずつの確認結果を持っています。手で調べた記録は `kb/verification.json` にもまとめています。
+
+| 段 | ツール | 照らし合わせる先 | 付く status |
+|---|---|---|---|
+| 1 | `tools/verify_spots.mjs --stage a` | Wikipedia の記事（`wikipedia` 欄） | `verified` |
+| 2 | `tools/verify_spots.mjs --stage b` | Wikipedia の名前検索 | `name_match_high` / `medium` / `low` |
+| 3 | `tools/verify_spots_osm.mjs` | OpenStreetMap（Nominatim）・Wikidata・Web | `verified_osm` / `verified_wikidata` / `verified_web` / `not_found_web` |
+| 4 | `tools/verify_spots_recheck.mjs` | 国土地理院 地名検索・Wikidata の周辺検索・Nominatim | `verified_gsi` / `verified_wikidata` / `verified_osm` |
+| 手 | 人が調べる | 自治体・観光協会などのページ | `verified_manual`（`source` 必須） |
+
+第4段は、第3段までで `not_found_web`（出典が見つからない）と `name_match_low`（Wikipedia の名前検索であいまいな記事に当たっただけ）に残ったスポットが対象です。どれも座標を持っているので、**名前が一致し、かつ 2km 以内にある**ものだけを確認済みにします。地名だけが重なる名前（「鹿追町」と「鹿追町コミュニティセンター郷土資料室」）や、収録元と同じ OSM ノード・Wikidata 項目との一致は採りません。
+
+```bash
+W=~/workspace/tabisaki-recheck
+for k in 0 1 2; do
+  node tools/verify_spots_recheck.mjs --source gsi --part $k/3 --out $W &
+  node tools/verify_spots_recheck.mjs --source wd  --part $k/3 --out $W &
+done
+node tools/verify_spots_recheck.mjs --source osm --out $W   # Nominatim は1本・1秒以上の間隔で
+node tools/verify_spots_recheck.mjs --apply --out $W        # kb/verification-*.json へ反映
+```
+
+3つとも当たらなかったスポットには `recheckedAt` が付きます。次に人が調べる対象はこの印で絞れます。
+
+2026-11-03 の実行では、対象 9,530件のうち 2,472件を確認済みにしました（国土地理院 754・OpenStreetMap 1,365・Wikidata 353。確度 high 2,051・medium 421）。残りは 7,055件（`not_found_web` 1,579・`name_match_low` 5,476）で、多くは座標つき観光地一覧と国土数値情報から来た小さな施設や、ゴルフ場・行事など地図に載りにくいものです。
 
 ## 自分の差分を重ねる（ユーザーKB）
 
