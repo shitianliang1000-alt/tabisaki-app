@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generatedBy": "tools/verify_spots.mjs + manual research (2026-10-31)",
- "note": "第1段で Wikipedia 記事が存在しなかった71件を個別調査した記録。全件が実在を確認済み。wikipedia 欄は実在する記事タイトルへ修正し、記事が無いものは誤った参照を取り除いた。",
+ "note": "第1段で Wikipedia 記事が存在しなかった71件を個別調査した記録。全件が実在を確認済み。wikipedia 欄は実在する記事タイトルへ修正し、記事が無いものは誤った参照を取り除いた。 2026-11-03: 第4段（tools/verify_spots_recheck.mjs）で残った有名スポットを個別調査した記録を追記。",
  "records": {
   "hakodate-4": {
    "status": "verified_exists",
