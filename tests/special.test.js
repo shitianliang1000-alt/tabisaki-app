@@ -171,9 +171,13 @@ test("船旅: 出発地に近い乗り場の長距離フェリーで、着いた
 test("廃線跡: 届く範囲の収録の廃線跡を、必ず立ち寄るにする", async () => {
   const r = await run("廃線跡を歩きたい", { days: 1 });
   const names = r.stops.map((s) => s.name);
-  assert.ok(names.includes("アプトの道"), names.join(","));
+  // 東京からいちばん近い収録の廃線跡は、横浜の汽車道（鉄道廃線跡を使った遊歩道）。
+  assert.ok(names.includes("汽車道"), names.join(","));
   assert.ok(!names.includes("品川インターシティ"), "操車場の跡地の再開発は廃線跡ではない");
   assert.deepEqual(r.request.must, r.stops.map((s) => s.id));
+  // 群馬側からなら、アプトの道が届く範囲に入る。
+  const gm = await handleSpecial({ text: "廃線跡", kb, origin: findPlace("高崎駅"), days: 1, date: "2026-11-07" });
+  assert.ok(gm.stops.some((s) => s.name === "アプトの道"), gm.stops.map((s) => s.name).join(","));
   const hk = await handleSpecial({ text: "廃線跡", kb, origin: findPlace("札幌駅"), days: 2, date: "2026-11-07" });
   assert.ok(hk.stops.some((s) => s.name === "タウシュベツ川橋梁"));
 });
