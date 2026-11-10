@@ -42,7 +42,7 @@
 // v29: 声で書く js/voice.js を足しました（#363）。
 // v31: guided decoding の packages/core/src/guided.js を足しました（#435）。
 // v32: 特殊な旅程の packages/core/src/special.js と、ほかの PR をまとめて入れました（#442 など）。
-const VERSION = "tabisaki-v32";
+const VERSION = "tabisaki-v33";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える

@@ -780,6 +780,8 @@ async function assembleTrip({ trip, kb, onProgress = () => {},
     trip, kb, region, stays: checked.stays, visits: checked.result.visits,
     meals: checked.result.meals, moves: checked.result.moves,
     reasons, legs: checked.legs, legDetail: checked.legDetail,
+    // 帰りの区間は、検証で使った数字のまま組みます（verify.js の back）。
+    back: checked.result.back, skippedMeals: checked.result.skippedMeals,
   });
   // AIが付けた見出しだけを使います。キー未設定のときの自動見出しは
   // エリア名の羅列でしかなく、上の見出しと同じことを繰り返すだけなので。
@@ -790,6 +792,14 @@ async function assembleTrip({ trip, kb, onProgress = () => {},
   itin.fromModel = proposal.fromModel === true;
   itin.rationale = proposal.rationale;
   itin.verifyNote = buildVerifyNote(checked, repaired, proposal);
+  // 希望に合う場所が入らず、駅の近くだけで組んだとき。黙って別の場所を
+  // 出すと、頼んだものと違う旅程を「これがご希望の旅です」と渡すことになります。
+  if (checked.rescued) {
+    itin.rescued = true;
+    itin.warnings.unshift("現地にいられる時間が短いため、ご希望に合う場所は"
+      + "入りませんでした。拠点の近くで立ち寄れる場所だけを入れています。"
+      + "滞在時間を延ばすと、希望に合う場所を回れます。");
+  }
   itin.rounds = usedRounds;
   // 連泊なら、その1か所。宿を動かさない旅だと分かる1行を出すために
   // 使います（stays.js が選んでいます）。
@@ -1233,6 +1243,32 @@ function topUpStays(byStay, stays, kb, { perDay, avoid }) {
 // 埋めるときに見る範囲。拠点から歩きか短い乗り物で行ける距離です。
 const TOP_UP_KM = 12;
 
+// 1か所も入らなかったときに探し直す範囲と数。まず歩いて行ける範囲、
+// 無ければ短い乗り物で行ける範囲まで。
+const RESCUE_KM = [3, TOP_UP_KM];
+const RESCUE_MAX = 8;
+
+/**
+ * 拠点に近い順の立ち寄り先。同じ距離なら、知られている場所から。
+ * @returns {object[]}
+ */
+function nearestSpots(kb, base, { skip = new Set() } = {}) {
+  const tier = { major: 0, known: 1, hidden: 2 };
+  for (const reach of RESCUE_KM) {
+    const near = [];
+    for (const spot of kb.spots) {
+      if (skip.has(spot.id)) continue;
+      const km = haversineKm(spot, base);
+      if (km <= reach) near.push({ spot, km });
+    }
+    if (!near.length) continue;
+    near.sort((a, b) => (a.km - b.km)
+      || ((tier[a.spot.fame_tier] ?? 3) - (tier[b.spot.fame_tier] ?? 3)));
+    return near.slice(0, RESCUE_MAX).map((x) => x.spot);
+  }
+  return [];
+}
+
 /**
  * 予定の尽きた日に、その日の拠点の近くから立ち寄りを足します。
  *
@@ -1545,6 +1581,32 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
     trimmed = trimToFit(spots, ctx);
   }
 
+  // 1か所も入らなかったら、拠点のすぐ近くから探し直します。
+  //
+  // 遠くへの日帰りでは、現地にいられるのが2時間ほどのことがあります
+  // （博多から名古屋へ、12:14 着・14:06 発）。希望に合わせて選んだ場所は
+  // 遠かったり長かったりして1つも入らず、旅程は「行って、112分の自由時間、
+  // 帰る」になっていました。駅のそばの短い立ち寄りなら入ります。
+  // 希望どおりの場所ではないので、そのことは旅程に書きます（rescued）。
+  let rescued = false;
+  if (!trimmed.result.visits.length
+      && !Number.isFinite(trip.must?.spotCap)) {
+    const near = nearestSpots(kb, baseByDay[0] ?? first, {
+      skip: new Set([...(trip.must?.avoidSpotIds ?? [])]),
+    });
+    if (near.length) {
+      const again = trimToFit(dropSamePlace(near), ctx);
+      if (again.result.visits.length) {
+        // 外した数は、選んだ場所のぶんだけを数えます。近くから足して
+        // 入らなかった場所は、「時間が合わず外した」ものではありません。
+        trimmed = { ...again, dropped: trimmed.dropped ?? [],
+                    conflicts: trimmed.conflicts ?? [] };
+        spots = again.spots;
+        rescued = true;
+      }
+    }
+  }
+
   // ここからが**本番の経路調べ**です。
   //
   // これまでは「AIが選んだ順」で経路を引いていました。ところが、そのあと
@@ -1606,6 +1668,8 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
   return {
     result: trimmed.result, dropped: trimmed.dropped,
     conflicts: trimmed.conflicts ?? [], stays,
+    // 希望に合う場所が1つも入らず、拠点の近くの場所だけで組んだか。
+    rescued,
     // 連泊するなら、どこに連泊するか。画面で言えるように持ち出します。
     basedAt,
     legs: { outbound, inbound, local: localRoute, routeError,
@@ -1895,13 +1959,25 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
     const again = trimKeepingPicks(visits.map((v) => v.spot),
                                    { ...ctx, startAt, travelFn: nextTravel },
                                    ctxIn.fillerIds);
-    const settled = again.result?.visits?.length ? again : current;
+    // 実際の時刻では1か所も入らなくなったら、**調べた結果ごと採りません**。
+    //
+    // ここは「立ち寄りは前のまま、往路と区間の時間だけ新しいもの」に
+    // していました。前の立ち寄りは、前の時刻で組んだものです。新しい
+    // 往路は着くのが遅いので、着く前に次の予定が始まります。
+    //
+    //   06:30–11:28  札幌駅 → 箱根湯本駅
+    //   11:07–11:12  箱根湯本温泉へ移動      ← まだ着いていません
+    //
+    // 帰りも同じで、古い時刻の立ち寄りのあとに新しい所要時間の帰りを
+    // つなぐので、期限を過ぎます。時刻と立ち寄りは、同じ回のものを
+    // 組にして使います。組にならないなら、前の回の組のままにします
+    // （1回目なら、目安で組んだ旅程をそのまま返します）。
+    if (!again.result?.visits?.length) break;
+    const settled = again;
     conflictsSoFar.push(...(settled.conflicts ?? []));
-    if (settled === again) {
-      // 穴埋めは数えません。あとから足した場所です。
-      lostSoFar.push(...(again.dropped ?? [])
-        .filter((s) => !ctxIn.fillerIds?.has(s.id)));
-    }
+    // 穴埋めは数えません。あとから足した場所です。
+    lostSoFar.push(...(again.dropped ?? [])
+      .filter((s) => !ctxIn.fillerIds?.has(s.id)));
 
     best = {
       trimmed: settled,
@@ -1912,9 +1988,7 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
     };
 
     // 組み直した結果、各区間を通る時刻はどこまで動いたか。
-    const after = settled.result?.visits?.length
-      ? chainOf(settled.result.visits, ctx, trip, stays).times
-      : times;
+    const after = chainOf(settled.result.visits, ctx, trip, stays).times;
     const shift = worstShift(times, after);
     if (shift < SHIFT_TOLERANCE_MIN) break;
     // 縮まらないなら、これ以上聞いても同じです（便に合わせて動いた時刻が、
@@ -1966,6 +2040,7 @@ function draftItinerary(checked, trip, kb) {
       stays: checked.stays, visits: checked.result.visits,
       meals: checked.result.meals, moves: checked.result.moves,
       reasons: new Map(), legs: checked.legs,
+      back: checked.result.back, skippedMeals: checked.result.skippedMeals,
     });
   } catch {
     // 組めない案は、比べる土俵に乗りません

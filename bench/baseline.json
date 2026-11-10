@@ -4,14 +4,18 @@
     "seed": 374,
     "count": 60
   },
+  "tight": {
+    "seed": 374,
+    "count": 60
+  },
   "tolerance": {
     "successRate": 0.03,
     "itineraries": 1
   },
   "suites": {
     "fixed": {
-      "total": 24,
-      "ok": 24,
+      "total": 33,
+      "ok": 33,
       "successRate": 1,
       "rates": {
         "crash": 0,
@@ -47,51 +51,75 @@
     },
     "random": {
       "total": 60,
-      "ok": 49,
-      "successRate": 0.817,
+      "ok": 60,
+      "successRate": 1,
       "rates": {
         "crash": 0,
         "unreachable": 0.017,
-        "empty": 0.033,
+        "empty": 0,
         "hours": 0,
         "hoursEstimated": 0,
-        "travel": 0.15,
+        "travel": 0,
         "duplicate": 0,
         "constraint": 0
       },
       "itineraries": {
         "crash": 0,
         "unreachable": 1,
-        "empty": 2,
+        "empty": 0,
         "hours": 0,
         "hoursEstimated": 0,
-        "travel": 9,
+        "travel": 0,
         "duplicate": 0,
         "constraint": 0
       },
       "violations": {
         "crash": 0,
         "unreachable": 1,
-        "empty": 2,
+        "empty": 0,
         "hours": 0,
         "hoursEstimated": 0,
-        "travel": 9,
+        "travel": 0,
         "duplicate": 0,
         "constraint": 0
       },
-      "failed": [
-        "random-374-06",
-        "random-374-10",
-        "random-374-11",
-        "random-374-15",
-        "random-374-20",
-        "random-374-24",
-        "random-374-32",
-        "random-374-44",
-        "random-374-51",
-        "random-374-56",
-        "random-374-59"
-      ]
+      "failed": []
+    },
+    "tight": {
+      "total": 60,
+      "ok": 60,
+      "successRate": 1,
+      "rates": {
+        "crash": 0,
+        "unreachable": 0.183,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "itineraries": {
+        "crash": 0,
+        "unreachable": 11,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "violations": {
+        "crash": 0,
+        "unreachable": 11,
+        "empty": 0,
+        "hours": 0,
+        "hoursEstimated": 0,
+        "travel": 0,
+        "duplicate": 0,
+        "constraint": 0
+      },
+      "failed": []
     }
   }
 }

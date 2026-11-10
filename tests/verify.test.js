@@ -249,19 +249,102 @@ test("昼どきをまたぐ日程には、食事の時間が確保される", ()
 });
 
 test("食事の時間は、終点への到着判定にも含まれる", () => {
-  // 食事を足すと期限を超えるぎりぎりの条件
+  // 昼食と見学の両方が入る条件。食事ぶんだけ、帰りは後ろへ動きます。
   const withMeal = verifyOrder([A], {
     start: NEAR, startAt: d("2026-09-12T11:30"),
-    end: NEAR, endBy: d("2026-09-12T14:00"),
+    end: NEAR, endBy: d("2026-09-12T15:30"),
   });
+  assert.equal(withMeal.ok, true, JSON.stringify(withMeal.issues));
   const totalUsed = withMeal.meals.reduce(
     (s, m) => s + (m.end - m.start) / 60000, 0);
   assert.ok(totalUsed > 0, "食事が計上されていない");
-  if (withMeal.arriveEnd) {
-    // 食事ぶんが進んでいるので、到着は見学終了より後
-    const lastVisit = withMeal.visits.at(-1);
-    if (lastVisit) assert.ok(withMeal.arriveEnd >= lastVisit.end);
+  const lastVisit = withMeal.visits.at(-1);
+  assert.ok(lastVisit, "見学が入っていない");
+  const lastMealEnd = Math.max(...withMeal.meals.map((m) => +m.end));
+  assert.ok(+withMeal.back.leaveAt >= Math.max(+lastVisit.end, lastMealEnd),
+    "帰りの出発が、食事か見学の終わりより前");
+  assert.ok(withMeal.arriveEnd >= lastVisit.end);
+});
+
+// ------------------------------------------------ 最終日は、帰りの時刻を守る --
+
+test("昼食か見学かのどちらかしか入らないなら、見学を残す", () => {
+  // 11:30 から 14:00 まで。昼食（60分）のあとでは美術館（70分）が入らず、
+  // 以前は見学が外れて「立ち寄りの無い旅程」になっていました。
+  const r = verifyOrder([A], {
+    start: NEAR, startAt: d("2026-09-12T11:30"),
+    end: NEAR, endBy: d("2026-09-12T14:00"),
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  assert.equal(r.visits.length, 1);
+  assert.equal(r.meals.length, 0, JSON.stringify(r.meals));
+  assert.deepEqual(r.skippedMeals, [{ kind: "lunch", day: 0 }]);
+  assert.ok(r.arriveEnd <= d("2026-09-12T14:00"));
+});
+
+test("最終日の昼食は、食べてから帰って間に合うときだけ置く", () => {
+  // 函館を2日で、東京へ18:00まで。10:20に見学が終わり、帰りは6時間半。
+  // 「12:00 昼食」を置くと出発が13:00になり、19:30に着いていました。
+  const far = { name: "遠い駅", lat: 41.7737, lng: 140.7264 };   // 函館駅
+  const brick = spot({ id: "K", name: "倉庫", category: "神社",
+                       lat: 41.7662, lng: 140.7167 });
+  const ctx = {
+    start: far, startAt: d("2026-12-01T09:00"),
+    end: TOKYO, endBy: d("2026-12-01T18:00"),
+    travelFn: (a, b) => (a === TOKYO || b === TOKYO ? 390 : 13),
+  };
+  const r = verifyOrder([brick], ctx);
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  assert.equal(r.visits.length, 1);
+  // 11:10 までに出ないと間に合わないので、昼食は置けません。
+  assert.equal(r.meals.length, 0, JSON.stringify(r.meals));
+  assert.deepEqual(r.skippedMeals, [{ kind: "lunch", day: 0 }]);
+  assert.equal(r.back.minutes, 390);
+  assert.equal(r.back.from, brick);
+  assert.ok(r.arriveEnd <= d("2026-12-01T17:50"), String(r.arriveEnd));
+
+  // 帰りに余裕があれば、これまでどおり昼食を置き、そのぶん出発が遅れます。
+  const loose = verifyOrder([brick], { ...ctx, endBy: d("2026-12-01T21:00") });
+  assert.equal(loose.meals.length, 1);
+  assert.ok(+loose.back.leaveAt >= +loose.meals[0].end);
+  assert.ok(loose.arriveEnd <= d("2026-12-01T20:50"));
+});
+
+test("着く前の時刻に、昼食を置かない", () => {
+  // 13:03 に着く日帰りで「12:00 昼食」と出ていました（まだ行きの車内）。
+  const r = verifyOrder([SHRINE], {
+    start: NEAR, startAt: d("2026-09-12T13:03"),
+    end: NEAR, endBy: d("2026-09-12T20:00"),
+  });
+  assert.equal(r.visits.length, 1);
+  for (const m of r.meals) {
+    assert.ok(m.start >= d("2026-09-12T13:03"), `昼食が ${m.start}`);
   }
+});
+
+test("最終日は、帰りに間に合わない場所だけを飛ばして、次を試す", () => {
+  // 先頭の場所が長くて入らなくても、後ろの短い場所は入ります。以前は
+  // 後ろから順に全部を外して、立ち寄りの無い旅程になっていました。
+  const island = spot({ id: "I", name: "島", category: "島",          // 180分
+                        lat: 35.3200, lng: 139.5520 });
+  const r = trimToFit([island, SHRINE], {
+    start: NEAR, startAt: d("2026-09-12T12:30"),
+    end: NEAR, endBy: d("2026-09-12T15:00"),
+  });
+  assert.deepEqual(r.result.visits.map((v) => v.spot.id), ["S"]);
+  assert.deepEqual(r.dropped.map((s) => s.id), ["I"]);
+  assert.ok(r.result.arriveEnd <= d("2026-09-12T14:50"));
+});
+
+test("「必ず行く」場所は、帰りが遅れても飛ばさず、遅れることを返す", () => {
+  const ctx = {
+    start: NEAR, startAt: d("2026-09-12T14:00"),
+    end: TOKYO, endBy: d("2026-09-12T15:00"), pinnedIds: ["A"],
+  };
+  const r = trimToFit([A], ctx);
+  assert.deepEqual(r.result.visits.map((v) => v.spot.id), ["A"]);
+  assert.ok(r.result.issues.some((i) => i.reason === REJECT.CANNOT_FINISH));
+  assert.ok(r.result.arriveEnd > d("2026-09-12T15:00"));
 });
 
 test("昼どきに掛からない日程では食事を入れない", () => {
@@ -418,4 +501,78 @@ test("置いてきた拠点へ、戻らない", () => {
     "62km南下したあとに、61km北へ戻っています");
   assert.ok(r.issues.some((i) => i.name === "北の館"),
     "落とした理由が残っていません");
+});
+
+// ------------------------------------------- 入らなかった場所を、翌日に試す --
+
+test("夕方に着いて閉まっていた場所は、外さずに翌日へ回す", () => {
+  // 16:30 着。美術館（17:00まで・70分）は入りません。以前は「まだ何も
+  // 回っていない」ので外し、後ろの場所も同じ時刻のまま全部外していました。
+  const r = verifyOrder([A, B], {
+    start: NEAR, startAt: d("2026-09-12T16:30"),
+    end: NEAR, endBy: d("2026-09-13T18:00"), nights: 1,
+    baseByDay: [NEAR, NEAR],
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  assert.deepEqual(r.visits.map((v) => [v.spot.id, v.day]), [["A", 1], ["B", 1]]);
+});
+
+test("翌日に回しても、先に入る場所はその日のうちに回る", () => {
+  // 美術館は閉まっていても、神社（いつでも入れる）は着いた日に回れます。
+  const r = verifyOrder([A, SHRINE], {
+    start: NEAR, startAt: d("2026-09-12T16:30"),
+    end: NEAR, endBy: d("2026-09-13T18:00"), nights: 1,
+    baseByDay: [NEAR, NEAR],
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  const day = Object.fromEntries(r.visits.map((v) => [v.spot.id, v.day]));
+  assert.deepEqual(day, { S: 0, A: 1 });
+});
+
+test("持ち越しは1回だけ。翌日も入らなければ、理由を付けて外す", () => {
+  // 月曜と火曜が休みの館。日曜の夕方に着いて、月曜に試し、そこで外します
+  // （火曜まで持ち越すと、1か所のために日程がずれていきます）。
+  const closedMonTue = spot({ id: "C", name: "館C", closedDays: [1, 2] });
+  const r = verifyOrder([closedMonTue, SHRINE], {
+    start: NEAR, startAt: d("2026-09-13T16:30"),      // 日曜
+    end: NEAR, endBy: d("2026-09-15T18:00"), nights: 2,
+    baseByDay: [NEAR, NEAR, NEAR],
+  });
+  assert.ok(!r.visits.some((v) => v.spot.id === "C"));
+  assert.equal(r.issues.filter((i) => i.spotId === "C").length, 1);
+  assert.ok(r.visits.some((v) => v.spot.id === "S"));
+});
+
+test("日帰りでは持ち越さない（翌日が無い）", () => {
+  const r = verifyOrder([A], {
+    start: NEAR, startAt: d("2026-09-12T16:30"),
+    end: NEAR, endBy: d("2026-09-12T20:00"),
+  });
+  assert.equal(r.visits.length, 0);
+  assert.equal(r.issues.length, 1);
+  assert.ok([REJECT.TOO_LATE, REJECT.AFTER_LAST_ENTRY].includes(r.issues[0].reason),
+    r.issues[0].reason);
+});
+
+test("開くのを待つより、先に次の場所を回る", () => {
+  // 9:05 に着く。館（10:00から）は待ちが長いので、神社を先に回してから館へ。
+  const r = verifyOrder([A, SHRINE], {
+    start: NEAR, startAt: d("2026-09-12T09:00"),
+    end: NEAR, endBy: d("2026-09-12T18:00"),
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  assert.deepEqual(r.visits.map((v) => v.spot.id), ["S", "A"]);
+  assert.ok(r.visits[1].wait <= 20, `待ち ${r.visits[1].wait}分`);
+});
+
+test("ほかに回る場所が無ければ、1時間までは開くのを待つ", () => {
+  // 館が2つ、どちらも 10:00 から。以前は両方とも外していました。
+  const r = verifyOrder([A, B], {
+    start: NEAR, startAt: d("2026-09-12T09:00"),
+    end: NEAR, endBy: d("2026-09-12T18:00"),
+  });
+  assert.equal(r.ok, true, JSON.stringify(r.issues));
+  assert.equal(r.visits.length, 2);
+  assert.ok(r.visits[0].wait > 20 && r.visits[0].wait <= 60, `待ち ${r.visits[0].wait}分`);
+  assert.equal(r.visits[1].wait, 0);
 });

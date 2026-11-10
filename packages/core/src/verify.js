@@ -29,6 +29,9 @@ import {
 const BACKTRACK_RATIO = 3;
 const BACKTRACK_MIN_KM = 25;
 
+/** ほかに回る場所が無いときに、開くのを待つ上限（分）。ふだんは TUNING.maxWaitMin。 */
+const LAST_RESORT_WAIT_MIN = 60;
+
 const LUNCH = [11.5, 14.0];
 const DINNER = [17.5, 20.0];
 const hourOf = (d) => d.getHours() + d.getMinutes() / 60;
@@ -85,8 +88,33 @@ export function verifyOrder(spots, ctx) {
   // 1日が始まる前に着いてしまい、何もできなかった時間の合計。
   let morningIdleMin = 0;
 
+  // その日、現地で動けるようになった時刻。これより前に食事は置きません。
+  //
+  // 13:03 に着く日帰りで「12:00 昼食」と出ていました。その時刻は、まだ
+  // 行きの列車の中です。空いている時刻を探すとき、立ち寄りとその移動は
+  // 避けていましたが、**着く前**は避けていませんでした。
+  let dayOpenAt = new Date(clock);
+
   const isLastDay = () => dayIndex >= nights;
   const dayLimit = () => atHour(clock, dayEndHour);
+
+  // 帰りの期限。最終日は、**ここから逆算した時刻までに出る**のが
+  // いちばん強い制約です。食事も立ち寄りも、これを越えては置きません。
+  const finishLimit = ctx.end && ctx.endBy
+    ? addMinutes(ctx.endBy, -TUNING.safetyBufferMin) : null;
+  /** 終点までの所要時間（分）。期限の判定と旅程の帰りの行で、同じ数字を使います。 */
+  const backFrom = (from) => Math.round(travelFn(from, ctx.end));
+  /** 最終日に、その時刻にそこを出て、終点に間に合うか。 */
+  const canFinishFrom = (at, from) => !finishLimit || !isLastDay()
+    || addMinutes(at, backFrom(from)) <= finishLimit;
+  const pinnedIds = new Set(ctx.pinnedIds ?? []);
+  /** 帰りに間に合わせるために、取らなかった食事。 */
+  const skippedMeals = [];
+  const noteSkipped = (kind) => {
+    if (!skippedMeals.some((m) => m.kind === kind && m.day === dayIndex)) {
+      skippedMeals.push({ kind, day: dayIndex });
+    }
+  };
 
   /** 深夜・早朝の到着。その時刻から見学は始められません。 */
   const atNight = (d) => hourOf(d) >= 22 || hourOf(d) < 6;
@@ -113,6 +141,7 @@ export function verifyOrder(spots, ctx) {
     hadDinner = false;
     visitsToday = 0;
     dayFirstAt = null;
+    dayOpenAt = new Date(clock);
   }
 
   // 見学を始めてよい、いちばん早い時刻。行動開始が早くても、これより
@@ -121,7 +150,7 @@ export function verifyOrder(spots, ctx) {
                             TUNING.earliestVisitHour ?? dayStartHour);
 
   /** いまの時刻・いまの日で、このスポットに行けるか。 */
-  function attempt(spot) {
+  function attempt(spot, maxWaitMin = TUNING.maxWaitMin) {
     const prof = profileOf(spot, pace);
     const travel = Math.round(travelFn(cur, spot));
     let arrive = addMinutes(clock, travel);
@@ -154,7 +183,7 @@ export function verifyOrder(spots, ctx) {
     if (!day.alwaysOpen) {
       if (arrive < day.open) {
         wait += Math.round((day.open - arrive) / 60000);
-        if (wait > TUNING.maxWaitMin) {
+        if (wait > maxWaitMin) {
           return { kind: "issue",
             issue: { spotId: spot.id, name: spot.name,
                      reason: REJECT.WAIT_TOO_LONG,
@@ -214,6 +243,8 @@ export function verifyOrder(spots, ctx) {
     arrivedAtNight = true;
   }
 
+  dayOpenAt = new Date(clock);
+
   // 日付のずれを合わせます。
   //
   // 長距離の移動では、着いたときにはもう翌日になっています。それでも
@@ -243,7 +274,39 @@ export function verifyOrder(spots, ctx) {
   const nameKey = (sp) => String(sp?.name ?? "").normalize("NFKC")
     .replace(/[\s　]+/g, "").toLowerCase();
 
-  for (const spot of spots) {
+  // 今日は入らなかったが、**明日なら入るかもしれない**場所。
+  //
+  // 閉まったあとに着く場所・その日が休みの場所は、これまでその場で外して
+  // いました（その日にもう何か回っていて、午後遅いときだけ翌日へ回す）。
+  // すると、夕方に着く旅の1日目はこうなります（博多から名古屋へ4日、
+  // 16:02 着）。
+  //
+  //   大須観音（17:00まで）→ 入らない。まだ何も回っていないので、外す
+  //   東照宮・末森城・東山動植物園…… → 同じ時刻のまま、同じ理由で全部外す
+  //
+  // 1日目に着いただけで、**2日目に回るはずだった場所まで**消え、
+  // 4日の旅程が3日ぶんしか出ていませんでした。外すのは、翌日にもう一度
+  // 試してからにします。1か所につき持ち越しは1回だけです。
+  const queue = spots.map((spot) => ({ spot }));
+  let carried = [];
+  const requeue = (entry) => {
+    queue.unshift(...carried, ...(entry ? [entry] : []));
+    carried = [];
+  };
+
+  while (queue.length || carried.length) {
+    if (!queue.length) {
+      // 並びは尽きたが、持ち越しが残っている。翌日があるなら翌日に試します。
+      if (isLastDay()) {
+        for (const c of carried) issues.push(c.issue);
+        break;
+      }
+      advanceDay();
+      requeue();
+      continue;
+    }
+    const entry = queue.shift();
+    const spot = entry.spot;
     // 同じ名前は1度だけ。
     const nk = nameKey(spot);
     if (nk && takenNames.has(nk)) {
@@ -256,7 +319,12 @@ export function verifyOrder(spots, ctx) {
     // なら、そこまで日を進めます。これが無いと、拠点は徳島のままで
     // 高松のスポットを回る、という旅程ができてしまいます。
     const floor = ctx.dayFloorById?.get(spot.id) ?? 0;
-    while (dayIndex < floor && dayIndex < nights) advanceDay();
+    if (dayIndex < floor && dayIndex < nights) {
+      // 日が変わるなら、持ち越したぶんを先に試します（1日ずつ進めます）。
+      advanceDay();
+      requeue(entry);
+      continue;
+    }
 
     // その日、拠点はもう別のエリアです。
     //
@@ -270,9 +338,27 @@ export function verifyOrder(spots, ctx) {
     // 食事の時間を、検証の時点で確保します。あとから空きに差し込む方式だと
     // 予定が詰まっている日には食事が消え、逆に押し込むと帰りの便に
     // 間に合わなくなります。最初から時間を取っておけば、どちらも起きません。
-    takeMeals();
+    takeMeals(spot);
 
-    let out = attempt(spot);
+    let out = attempt(spot, entry.waited ? LAST_RESORT_WAIT_MIN : undefined);
+
+    // 開くのを待つくらいなら、**先に次の場所を回ります**。
+    //
+    // 待ちが長い場所は、これまでその場で外していました（待ちは20分まで）。
+    // 10:00 に開く館へ 9:07 に着くと外れ、次の館も同じ理由で外れます。
+    // 美術館を回りたい人の朝から、美術館が全部消えます。順番を1つ後ろへ
+    // 送って、もう一度試します。それでも待つなら（ほかに回る場所が無い
+    // なら）、1時間までは待ちます。待つ時間は旅程に「開くまで約◯分」と
+    // 出ます。外して何も無い朝にするより、ましです。
+    if (out.kind === "issue" && out.issue.reason === REJECT.WAIT_TOO_LONG
+        && !entry.waited) {
+      entry.waited = true;
+      if (queue.length) {
+        queue.splice(1, 0, entry);
+        continue;
+      }
+      out = attempt(spot, LAST_RESORT_WAIT_MIN);
+    }
 
     // 今日はもう無理でも、明日がある旅なら明日に回します。
     //
@@ -285,27 +371,60 @@ export function verifyOrder(spots, ctx) {
     const worthTomorrow = out.kind === "dayFull"
       || ((out.kind === "late" || out.kind === "closed")
           && visitsToday > 0 && lateInDay);
-    if (worthTomorrow && !isLastDay()) {
-      advanceDay();
-      // **日を進めたら、拠点の検査もやり直します。**
+    if (worthTomorrow && !isLastDay() && !entry.advanced) {
+      // **日を進めたら、拠点の検査も、食事も、もう一度やり直します。**
       //
-      // ここが抜けていました。1日目の判定を通った立ち寄りが、入りきらず
-      // 翌日へ回されます。ところが翌日は別の街に移っているかもしれず、
-      // そのまま入れると戻る旅程になります。実際に出ていたのがこれです。
+      // 並びへ戻して頭から通すので、判定は1か所にしかありません
+      // （2か所に書くと、片方だけ直して食い違います）。以前は拠点の検査が
+      // 抜けていて、翌日は別の街に移っているのに、そのまま入れていました。
       //
       //   3日目 09:00  本部町中心部 → 豊見城市中心部（62.9km）
       //         10:35  本部町立博物館へ移動（61.2km）   ← 62km戻る
-      //
-      // 判定そのものは上と同じものを使います（2か所に書くと、片方だけ
-      // 直して食い違います）。
-      const after = baseMoved(spot);
-      if (after) { issues.push(after); continue; }
-      takeMeals();
-      out = attempt(spot);
+      advanceDay();
+      entry.advanced = true;
+      requeue(entry);
+      continue;
+    }
+
+    // 閉まっている・休みの場所は、翌日があるなら持ち越します（1回だけ）。
+    if ((out.kind === "late" || out.kind === "closed")
+        && !isLastDay() && !entry.advanced && !entry.carried) {
+      entry.carried = true;
+      entry.issue = out.issue;
+      carried.push(entry);
+      continue;
     }
 
     if (out.kind !== "ok") {
       issues.push(out.issue);
+      continue;
+    }
+
+    // 最終日は、**見終えてから帰って間に合う場所だけ**を入れます。
+    //
+    // これまでは全部を並べ終えてから帰りを確かめ、間に合わなければ
+    // 後ろから1つずつ外していました（trimToFit）。それだと、先頭に
+    // 時間のかかる場所が1つあるだけで、全部が外れます。実際に出ていた
+    // 旅程（名古屋から熊本・天草へ日帰り、現地に3時間）:
+    //
+    //   下島（見学180分）・路木ダム（30分）・牛深ハイヤ大橋（40分）…
+    //   → 後ろから7つ全部を外して「立ち寄れる場所を組めませんでした」
+    //
+    // 下島が入らないだけで、ダムと橋は入ります。入らない場所はその場で
+    // 飛ばして、次を試します。
+    //
+    // 「必ず行く」場所は飛ばしません。削ってよいかを決めるのは trimToFit で、
+    // 前にある場所を外しても入らなければ、帰りが遅れることを伝えます
+    // （planner.js の lateReturn）。
+    if (isLastDay() && !pinnedIds.has(spot.id) && !canFinishFrom(out.end, spot)) {
+      const over = Math.round(
+        (addMinutes(out.end, backFrom(spot)) - finishLimit) / 60000);
+      issues.push({
+        spotId: spot.id, name: spot.name, reason: REJECT.CANNOT_FINISH,
+        detail: `${spot.name}を${fmtTime(out.end)}に見終えると、`
+          + `${ctx.end.name ?? "終点"}に着くのが期限（${fmtTime(ctx.endBy)}）を`
+          + `${over}分超過します。`,
+      });
       continue;
     }
 
@@ -417,50 +536,118 @@ export function verifyOrder(spots, ctx) {
     // 日に「12:00 昼食」を足すと、過ぎた時刻の予定になります）。
     const sawNoon = dayFirstAt && hourOf(dayFirstAt) <= LUNCH[1];
     if (!hadLunch && sawNoon) {
-      const at = freeSlotAt(atHour(clock, LUNCH[0] + 0.5),   // 12:00
-                            TUNING.mealMin, LUNCH[1] + 1);
-      if (at) {
-        meals.push({ kind: "lunch", start: at,
-                     end: addMinutes(at, TUNING.mealMin), day: dayIndex });
-        hadLunch = true;
+      // 12:00 に置けなければ、昼どきの頭（11:30）からでも探します。
+      // 最終日は、30分早い昼食のほうが、帰りに遅れる昼食よりましです。
+      const notBefore = (d) => (dayOpenAt && d < dayOpenAt ? new Date(dayOpenAt) : d);
+      const wants = [atHour(clock, LUNCH[0] + 0.5), atHour(clock, LUNCH[0])]
+        .map(notBefore);
+      let placed = false;
+      for (const want of wants) {
+        const at = freeSlotAt(want, TUNING.mealMin, LUNCH[1] + 1);
+        if (at && placeClosingMeal("lunch", at)) { placed = true; break; }
       }
+      if (placed) hadLunch = true;
+      else if (isLastDay() && finishLimit) noteSkipped("lunch");
     }
     const dinnerOk = ctx.allowDinner ?? !isLastDay();
     if (dinnerOk && !hadDinner) {
       const want = hourOf(clock) < DINNER[0] ? atHour(clock, DINNER[0]) : clock;
       const at = freeSlotAt(want, TUNING.mealMin, DINNER[1]);
-      if (at) {
-        meals.push({ kind: "dinner", start: at,
-                     end: addMinutes(at, TUNING.mealMin), day: dayIndex });
-        hadDinner = true;
-      }
+      if (at && at >= dayOpenAt && placeClosingMeal("dinner", at)) hadDinner = true;
     }
   }
 
-  function takeMeals() {
-    if (!hadLunch && hourOf(clock) >= LUNCH[0] && hourOf(clock) <= LUNCH[1]) {
-      const end = addMinutes(clock, TUNING.mealMin);
-      meals.push({ kind: "lunch", start: new Date(clock), end, day: dayIndex });
-      clock = end;
-      hadLunch = true;
-    }
+  /**
+   * その日を締めるときの食事を置きます。置けなければ false。
+   *
+   * **最終日は、食べ終わってから帰りに間に合うときだけ**置きます。
+   * ここを見ていなかったので、こうなっていました（函館を2日で、東京へ18:00まで）。
+   *
+   *   10:20  見学が終わる
+   *   12:00  昼食                 ← 空いている時刻に置いただけ
+   *   13:00  金森赤レンガ倉庫 → 東京駅（6時間30分）
+   *   19:30  東京駅                ← 1時間半の遅れ
+   *
+   * 検証は「10:20 に出れば間に合う」と見ていて、旅程は「昼食のあとに出る」
+   * と組んでいました。見ている時計が2つあったわけです。置いた食事の
+   * 終わりまで時計を進めて、**帰りの判定と同じ時計**にします。
+   */
+  function placeClosingMeal(kind, at) {
+    const end = addMinutes(at, TUNING.mealMin);
+    // 最後の予定より後ろに置くぶんだけが、帰りを遅らせます
+    // （予定と予定のあいだに入るぶんは、もう数えてあります）。
+    const trailing = end > clock;
+    if (trailing && !canFinishFrom(end, cur)) return false;
+    meals.push({ kind, start: at, end, day: dayIndex });
+    if (trailing && isLastDay()) clock = end;
+    return true;
+  }
+
+  /**
+   * いまが食事どきなら、食事を取ります。
+   *
+   * 最終日は2つのことを見ます。どちらも、帰りの時刻を守るためです。
+   *
+   *   1. 食べ終わってから出て、終点に間に合うか。間に合わないなら取りません。
+   *   2. その日まだ何も回っておらず（または次が「必ず行く」場所で）、
+   *      食事を取ると次の立ち寄りが入らず、取らなければ入るなら、
+   *      立ち寄りを先にします（日帰りで現地にいられるのが2時間のとき、
+   *      昼食だけで帰る旅程にはしません）。食事は、あとで時間が残れば
+   *      closeOutDay が置き、残らなければ「移動の途中で」と伝えます。
+   *
+   * @param {object} [next] 次に回ろうとしている場所
+   */
+  function takeMeals(next) {
     const dinnerOk = ctx.allowDinner ?? !isLastDay();
-    if (dinnerOk && !hadDinner
-        && hourOf(clock) >= DINNER[0] && hourOf(clock) <= DINNER[1]) {
-      const end = addMinutes(clock, TUNING.mealMin);
-      meals.push({ kind: "dinner", start: new Date(clock), end, day: dayIndex });
-      clock = end;
-      hadDinner = true;
+    const wanted = !hadLunch && hourOf(clock) >= LUNCH[0] && hourOf(clock) <= LUNCH[1]
+      ? "lunch"
+      : dinnerOk && !hadDinner
+        && hourOf(clock) >= DINNER[0] && hourOf(clock) <= DINNER[1]
+        ? "dinner" : null;
+    if (!wanted) return;
+    const end = addMinutes(clock, TUNING.mealMin);
+    if (isLastDay() && finishLimit) {
+      if (!canFinishFrom(end, cur)) {
+        // 食べてからでは帰れません。次の立ち寄りがあるなら、判断は
+        // そのあとの closeOutDay に任せます（時計が進むので同じ結論です）。
+        if (!next) noteSkipped(wanted);
+        return;
+      }
+      // 立ち寄りを先にするのは、その日まだ何も回っていないときと、次が
+      // 「必ず行く」場所のときだけです。もう回った日なら、穴埋めの1か所より
+      // 座って食べる昼食のほうを残します。
+      const visitFirst = visitsToday === 0 || pinnedIds.has(next?.id);
+      if (next && visitFirst
+          && !fitsBeforeReturn(next, end) && fitsBeforeReturn(next, clock)) {
+        return;
+      }
     }
+    meals.push({ kind: wanted, start: new Date(clock), end, day: dayIndex });
+    clock = end;
+    if (wanted === "lunch") hadLunch = true; else hadDinner = true;
+  }
+
+  /** その時刻から向かって見学し、そのまま帰って間に合うか（最終日）。 */
+  function fitsBeforeReturn(spot, at) {
+    const saved = clock;
+    clock = at;
+    const out = attempt(spot);
+    clock = saved;
+    return out.kind === "ok" && canFinishFrom(out.end, spot);
   }
 
   // --- 終点に間に合うか -------------------------------------------------
   let arriveEnd = null;
   let slackMin = 0;
   let underfilled = null;
+  // 帰りの区間。**旅程の帰りの行は、ここで判定に使った数字で組みます**
+  // （planner.js）。別の出どころから所要時間を取ると、検証は通ったのに
+  // 旅程では期限を過ぎる、ということが起きます。
+  let backLeg = null;
 
   if (ctx.end && ctx.endBy) {
-    const back = Math.round(travelFn(cur, ctx.end));
+    const back = backFrom(cur);
+    backLeg = { minutes: back, from: cur, leaveAt: new Date(clock) };
     arriveEnd = addMinutes(clock, back);
 
     if (dayIndex < nights) {
@@ -490,6 +677,7 @@ export function verifyOrder(spots, ctx) {
     ok: issues.length === 0, issues, visits, meals, moves, arrivedAtNight,
     daysUsed: dayIndex + 1, nightsUsed: dayIndex,
     underfilled, arriveEnd, slackMin, morningIdleMin,
+    back: backLeg, skippedMeals,
   };
 }
 

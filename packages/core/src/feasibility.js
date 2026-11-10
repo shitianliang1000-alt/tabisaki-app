@@ -244,6 +244,15 @@ export function estimateMinutes(a, b, opts = {}) {
   return Math.min(ground, air);
 }
 
+/**
+ * 距離からの見積もりが、飛行機を前提にしているか。
+ * estimateMinutes と同じ式で比べます（700km を超え、空路のほうが早いとき）。
+ */
+export function assumesFlight(km) {
+  if (!Number.isFinite(km) || km <= 700) return false;
+  return Math.round((km / 800) * 60) + 210 < Math.round((km / 120) * 60) + 35;
+}
+
 export function atHour(date, hour) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
