@@ -159,7 +159,9 @@ export function profileOf(spot, pace = "balanced") {
      * 裏取りができていないので「要確認」側に倒します。
      */
     estimated: open === undefined || close === undefined
-      || spot.verified === false,
+      // 出どころの分かる時間（hours.source。OpenStreetMap など）は、収録の
+      // 残りが未確認でも「目安」ではありません。出どころは注記で伝えます。
+      || (spot.verified === false && !h.source),
   };
 }
 

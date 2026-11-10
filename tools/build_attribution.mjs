@@ -31,16 +31,19 @@ export const SOURCES = [
   },
   {
     id: "osm",
-    name: "OpenStreetMap（将来の OSM PBF 補完フィールド用に予約）",
+    name: "OpenStreetMap（補完フィールド osmInfo と、src=osm-tourlist の名前・座標）",
     license: "ODbL 1.0",
     licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
     attribution: "© OpenStreetMap contributors",
-    appliesTo: ["（現行 kb には未収録。混入した場合はこの出典表示が必須）"],
+    appliesTo: [
+      "スポットの osmInfo（営業時間・電話・公式サイト・車いすの可否・料金の有無。tools/osm_enrich.py）",
+      "src=osm-tourlist のスポットの名前と座標（tools/import_osm_tourlist.py）",
+    ],
   },
 ];
 
 export const ARTIFACTS = [
-  { file: "kb/spots-*.json", derivedFrom: ["kb-spots", "wikipedia"], note: "構造フィールドはプロジェクトデータ、description は Wikipedia 由来の素材を含む" },
+  { file: "kb/spots-*.json", derivedFrom: ["kb-spots", "wikipedia", "osm"], note: "構造フィールドはプロジェクトデータ、description は Wikipedia 由来の素材を含む。osmInfo と src=osm-tourlist の座標は OpenStreetMap（ODbL。share-alike）" },
   { file: "kb/tags-*.json", derivedFrom: ["kb-spots", "wikipedia"], note: "カテゴリ等の構造情報が主根拠だが、説明文由来の判定を含むため両出典を併記する" },
   { file: "kb/summaries.json", derivedFrom: ["kb-spots", "wikipedia"], note: "summary 文は CC BY-SA 4.0、件数等の構造部分はプロジェクトデータ" },
   { file: "kb/regions.json", derivedFrom: ["kb-spots"], note: "プロジェクトデータのみ" },
@@ -53,7 +56,7 @@ export function buildAttribution() {
     generatedBy: "tools/build_attribution.mjs",
     sources: SOURCES,
     artifacts: ARTIFACTS,
-    displayText: SOURCES.filter((s) => s.id !== "osm")
+    displayText: SOURCES
       .map((s) => `${s.name}: ${s.attribution}（${s.license}）`).join(" / "),
   };
 }

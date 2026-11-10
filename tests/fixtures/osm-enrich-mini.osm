@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="tabisaki-test">
+  <!-- ① 美術館。営業時間・電話・サイト・車いす -->
+  <node id="1" lat="35.0000" lon="135.0000" version="1">
+    <tag k="name" v="試験美術館"/>
+    <tag k="tourism" v="museum"/>
+    <tag k="opening_hours" v="Tu-Su 10:00-18:00"/>
+    <tag k="phone" v="+81 75-123-4567"/>
+    <tag k="website" v="https://example.jp/museum"/>
+    <tag k="wheelchair" v="yes"/>
+    <tag k="fee" v="yes"/>
+  </node>
+  <!-- ② 同じ名前のバス停（別物。採らない） -->
+  <node id="2" lat="35.0003" lon="135.0003" version="1">
+    <tag k="name" v="試験美術館"/>
+    <tag k="highway" v="bus_stop"/>
+    <tag k="wheelchair" v="no"/>
+  </node>
+  <!-- ③ 寺。境内（面）に営業時間、本堂（点）に電話 → 1つにまとめる -->
+  <node id="10" lat="35.1000" lon="135.1000" version="1"/>
+  <node id="11" lat="35.1000" lon="135.1010" version="1"/>
+  <node id="12" lat="35.1010" lon="135.1010" version="1"/>
+  <node id="13" lat="35.1010" lon="135.1000" version="1"/>
+  <way id="100" version="1">
+    <nd ref="10"/><nd ref="11"/><nd ref="12"/><nd ref="13"/><nd ref="10"/>
+    <tag k="name" v="試験寺"/>
+    <tag k="amenity" v="place_of_worship"/>
+    <tag k="opening_hours" v="09:00-16:30"/>
+  </way>
+  <node id="14" lat="35.1006" lon="135.1006" version="1">
+    <tag k="name" v="試験寺"/>
+    <tag k="amenity" v="place_of_worship"/>
+    <tag k="phone" v="075-000-0000"/>
+    <tag k="opening_hours" v="08:00-17:00"/>
+  </node>
+  <!-- ④ 名前の表記が違うが、Wikidata の番号が同じ -->
+  <node id="20" lat="35.2010" lon="135.2000" version="1">
+    <tag k="name" v="第1番札所 別名寺 (Betsumei-ji)"/>
+    <tag k="wikidata" v="Q999001"/>
+    <tag k="phone" v="+81-88-000-0000"/>
+  </node>
+  <!-- ⑤ 城と同じ名前の土産物店（採らない） -->
+  <node id="30" lat="35.3001" lon="135.3001" version="1">
+    <tag k="name" v="試験城"/>
+    <tag k="shop" v="gift"/>
+    <tag k="opening_hours" v="09:00-17:00"/>
+  </node>
+  <!-- ⑥ 同じ名前だが 2km 離れた博物館（採らない） -->
+  <node id="40" lat="35.4180" lon="135.4000" version="1">
+    <tag k="name" v="遠い試験館"/>
+    <tag k="tourism" v="museum"/>
+    <tag k="opening_hours" v="09:00-17:00"/>
+  </node>
+  <!-- ⑦ おかしな値は捨てる（電話「あり」、wheelchair「unknown」）。残るのはサイトだけ -->
+  <node id="50" lat="35.5000" lon="135.5000" version="1">
+    <tag k="name" v="値試験公園"/>
+    <tag k="leisure" v="park"/>
+    <tag k="phone" v="あり"/>
+    <tag k="wheelchair" v="unknown"/>
+    <tag k="website" v="http://example.jp/park"/>
+  </node>
+  <!-- ⑧ 別の Wikidata の番号が付いた同名（採らない） -->
+  <node id="60" lat="35.6001" lon="135.6001" version="1">
+    <tag k="name" v="番号試験神社"/>
+    <tag k="wikidata" v="Q999777"/>
+    <tag k="opening_hours" v="09:00-17:00"/>
+  </node>
+  <!-- ⑨ 市場は、店も同じ場所と見てよい -->
+  <node id="70" lat="35.7000" lon="135.7000" version="1">
+    <tag k="name" v="試験市場"/>
+    <tag k="shop" v="seafood"/>
+    <tag k="opening_hours" v="Mo-Sa 06:00-14:00"/>
+  </node>
+  <!-- ⑩ 足す値の無いもの（読まない） -->
+  <node id="80" lat="35.8000" lon="135.8000" version="1">
+    <tag k="name" v="値なし公園"/>
+    <tag k="leisure" v="park"/>
+  </node>
+</osm>

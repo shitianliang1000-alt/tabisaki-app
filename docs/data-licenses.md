@@ -41,6 +41,19 @@ PHP 版の zip（`tools/build_php.sh`）は、これらを外した `kb/` で組
 （`tools/strip_noncommercial.mjs`。スポット約1.3万件・バス停がすべて抜けます）。
 リポジトリの `kb/` と Cloudflare 版は、まだそのままです。
 
+## OpenStreetMap から足した営業時間・電話・サイト・車いすの可否
+
+`tools/osm_enrich.py` が、収録にある場所へ `osmInfo` という入れ物を足します
+（営業時間・電話・公式サイト・車いすの可否・料金の有無。元の番号は `osmInfo.ref`）。
+**OpenStreetMap のデータで、ODbL 1.0 です。** 条件は下の「座標」と同じです
+（「© OpenStreetMap contributors」の表示、同じ条件での共有）。
+
+- 出どころごとに項目を分けてあります。収録のほかの項目（名前・座標・分類・説明）には触りません
+- まとめて外すときは、`osmInfo` を消すだけです（道具は走らせるたびに前回のぶんを付け替えます）
+- Overpass API は使いません。配布ファイルを手元で読みます
+
+くわしくは [osm-enrich.md](./osm-enrich.md)。
+
 ## OpenStreetMap 由来の座標
 
 `tools/import_osm_tourlist.py` が入れた座標（`src="osm-tourlist"`、元の番号は

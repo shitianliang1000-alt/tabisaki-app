@@ -34,6 +34,8 @@ export const CATEGORIES = new Set([
 ]);
 export const STATUSES = new Set(["open", "closed", "temporarily_closed", "seasonal"]);
 export const BEST_TIMES = new Set(["morning", "evening", "sunset", "night"]);
+export const OSM_INFO_KEYS = new Set(["ref", "refs", "via", "m", "opening_hours", "phone", "website",
+  "wheelchair", "toiletsWheelchair", "fee", "charge"]);
 const MMDD = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 // 定番コースで、となりのスポットまでこれより離れていたら誤り（バスで移る区間も含めた上限）
 export const COURSE_HOP_KM = 5;
@@ -66,6 +68,7 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
     return { errors: ["kb/index.json がありません"], warnings, stats: {} };
   }
   const index = read("index.json");
+  let osmInfoCount = 0;
   const regions = read(index.regionsFile ?? "regions.json").regions ?? [];
   const regionIds = new Set();
   for (const r of regions) {
@@ -135,6 +138,19 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
         else for (const tg of s.tags) if (!(tg in TAGS)) errors.push(`${where}: タグ「${tg}」は知らない値です（packages/core/src/tags.js）`);
       }
       if (s.status !== undefined && !STATUSES.has(s.status)) errors.push(`${where}: status「${s.status}」は知らない値です`);
+      // OpenStreetMap から足した値（tools/osm_enrich.py）。元の番号（ref）が
+      // 無いと、ODbL の出典をたどれません。知らない項目が混ざっていたら止めます。
+      if (s.osmInfo !== undefined) {
+        const o = s.osmInfo;
+        if (!o || typeof o !== "object" || !/^(node|way|relation)\/\d+$/.test(o.ref ?? "")) {
+          errors.push(`${where}: osmInfo に OSM の番号（ref）がありません`);
+        } else {
+          for (const k of Object.keys(o)) if (!OSM_INFO_KEYS.has(k)) errors.push(`${where}: osmInfo.${k} は知らない項目です`);
+          if (o.wheelchair !== undefined && !["yes", "limited", "no", "designated"].includes(o.wheelchair)) errors.push(`${where}: osmInfo.wheelchair「${o.wheelchair}」は知らない値です`);
+          if (o.website !== undefined && !/^https?:\/\//.test(o.website)) errors.push(`${where}: osmInfo.website が URL ではありません`);
+          osmInfoCount += 1;
+        }
+      }
       if (s.best_time !== undefined && !(Array.isArray(s.best_time) && s.best_time.every((b) => BEST_TIMES.has(b)))) {
         errors.push(`${where}: best_time の形がおかしいです`);
       }
@@ -227,6 +243,7 @@ export function checkKb(dir = path.join(ROOT, "kb")) {
     withDescription: withDesc,
     withHours,
     hoursUnknown: estHours,
+    withOsmInfo: osmInfoCount,
     perPrefecture: perPref,
     sources: (index.sources ?? []).map((s) => s.name),
   };
@@ -244,6 +261,7 @@ export function toMarkdown({ errors, warnings, stats }, limit = 50) {
   out.push(`| エリア | ${stats.regions ?? 0} |`);
   out.push(`| 説明文のあるスポット | ${stats.withDescription ?? 0}（${pct(stats.withDescription, stats.spots)}） |`);
   out.push(`| 営業時間のあるスポット | ${stats.withHours ?? 0}（${pct(stats.withHours, stats.spots)}） |`);
+  out.push(`| OpenStreetMap から足した情報のあるスポット | ${stats.withOsmInfo ?? 0}（${pct(stats.withOsmInfo, stats.spots)}） |`);
   out.push(`| 気になる点 | ${warnings.length} |`, "");
   if (errors.length) {
     out.push(`### 誤り`, "", ...errors.slice(0, limit).map((e) => `- ${e}`));

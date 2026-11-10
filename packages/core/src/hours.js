@@ -223,6 +223,11 @@ const SEASONAL = new Set(["寺院", "神社", "庭園", "城", "史跡", "名勝
                           "公園", "展望台"]);
 
 function noteFor(spot, estimated, lastEntryEstimated) {
+  if (spot?.hours?.source === "osm") {
+    // 地図に書かれた時間です。公式の発表ではなく、祝日や臨時の休みは
+    // 入っていないことがあります。
+    return "営業時間は OpenStreetMap の情報です。祝日や臨時の休みは、公式でご確認ください。";
+  }
   if (spot?.verified === false) {
     return "AIが調べた未確認の情報です。訪問前に公式でご確認ください。";
   }
