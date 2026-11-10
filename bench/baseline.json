@@ -14,8 +14,8 @@
   },
   "suites": {
     "fixed": {
-      "total": 33,
-      "ok": 33,
+      "total": 34,
+      "ok": 34,
       "successRate": 1,
       "rates": {
         "crash": 0,

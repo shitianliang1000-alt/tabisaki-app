@@ -330,6 +330,16 @@
       "start": "10:00",
       "back": "20:00",
       "transport": "any"
+    },
+    {
+      "id": "fixed-34",
+      "wish": "広島で温泉でのんびり",
+      "from": "名古屋駅",
+      "days": 1,
+      "date": "2026-12-23",
+      "start": "10:00",
+      "back": "19:00",
+      "transport": "transit"
     }
   ]
 }

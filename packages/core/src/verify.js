@@ -617,10 +617,13 @@ export function verifyOrder(spots, ctx) {
       // 「必ず行く」場所のときだけです。もう回った日なら、穴埋めの1か所より
       // 座って食べる昼食のほうを残します。
       const visitFirst = visitsToday === 0 || pinnedIds.has(next?.id);
-      if (next && visitFirst
-          && !fitsBeforeReturn(next, end) && fitsBeforeReturn(next, clock)) {
-        return;
-      }
+      // 食べたあとでは次の場所が入らないなら、ここでは食べません。次の場所が
+      // 食べなくても入らないときも同じです。その場所は飛ばされて、もっと短い
+      // 次の候補が試されます。ここで食べてしまうと、その候補まで入らなく
+      // なります（名古屋から三原へ日帰り・現地102分: 最初の三原城が入らず、
+      // 昼食に60分使って、歩いて行ける神社も道の駅も全部落ちていました）。
+      // 昼食は、回り終えたあと closeOutDay がもう一度置けるか見ます。
+      if (next && visitFirst && !fitsBeforeReturn(next, end)) return;
     }
     meals.push({ kind: wanted, start: new Date(clock), end, day: dayIndex });
     clock = end;
