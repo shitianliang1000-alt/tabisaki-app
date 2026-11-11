@@ -88,6 +88,8 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 ```sh
 ./tabisaki build examples/trips/hakone.yaml
 ./tabisaki test examples/trips/hakone.yaml
+./tabisaki simulate examples/trips/hakone.yaml --delay=20% --late=15   # 遅れたら成り立つか（通信しない）
+./tabisaki replan examples/trips/hakone.yaml --weather-check           # 予報を見て、雨なら屋内に入れ替えた案を出す
 ```
 
 書きかたとコマンドは [journey-as-code.md](./journey-as-code.md) にあります。

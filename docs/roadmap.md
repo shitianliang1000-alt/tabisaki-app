@@ -48,7 +48,7 @@
 | 自分で足し・直せる知識ベース（公式の `kb/` には触らない重ね合わせ） | 🚧 一部（形・重ね合わせ・控え・`--kb`・`spot add/edit/rm`・CSV/GeoJSON/KML の取り込み・書き出し・`kb fork/switch/diff/merge/validate/stats`・履歴と取り消し `spot history/undo/redo/blame`・`kb snapshot`・`spot batch`・git への写し。[docs/user-kb.md](./user-kb.md)） | #354〜#358 #360 |
 | 旅程を YAML で書いて組む・試す・比べる（Journey as Code）、lint・fmt | 📝 計画 | #359 #364 |
 | スポットの補完・写真・季節・営業時間・別名、自分で決めるエリア（`./tabisaki spot`・`area`、[spot-data.md](./spot-data.md)） | ✅ ある（端末から。出典・確認の状態・鮮度つき。Web 版の画面にはまだ出ない） | #361 |
-| 旅程の模擬実行・天気での組み直し | 🚧 一部（Web 版の天気・混雑での組み直し） | #362 |
+| 旅程の模擬実行・天気での組み直し | ✅ `tabisaki simulate`・`tabisaki replan --weather-check`（[journey-as-code.md](./journey-as-code.md)）。Web 版は天気・混雑での組み直し | #362 |
 | カレンダーとの同期・声での入力 | ✅ 段階 2 まで（`tabisaki sync`・`voice-plan`・Web 版のマイク。[calendar-and-voice.md](./calendar-and-voice.md)） | #363 |
 
 ## Phase 6: 品質・データ・参加のしやすさ

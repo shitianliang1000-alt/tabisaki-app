@@ -76,9 +76,11 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
   "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style",
-  "threshold", "cloud-url", "target", "search-file", "input"]);
+  "threshold", "cloud-url", "target", "search-file", "input",
+  "delay", "late", "dwell", "closed", "on", "runs", "seed", "jitter", "provider", "rain", "state", "max-failures"]);
 // 値を取らないもの。
-const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research"]);
+const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research",
+  "weather-check", "apply", "quiet", "strict"]);
 // 旅程を組むコマンド。
 const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan", "trace"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。

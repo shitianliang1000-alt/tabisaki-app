@@ -120,11 +120,18 @@ function resolveSpots(kb, def, file, text) {
 
 /**
  * 旅程を組みます。core は packages/core の createCore() で作ったもの。
+ * @param {{must?: {name: string, spot: object}[], avoid?: {name: string, spot: object}[]}|null} [extra]
  * @returns {Promise<{def, result, spots, notes}>} result は core.plan の返す形
  */
-export async function buildJourney(core, journey) {
+export async function buildJourney(core, journey, extra = null) {
   const { def } = journey;
   const spots = resolveSpots(core.kb, def, journey.file ?? "trip.yaml", journey.text);
+  // 天気での組み直し（replan.mjs）が、ファイルに無い「入れる・外す」を足すときに使います。
+  if (extra) {
+    const drop = new Set((extra.avoid ?? []).map((m) => m.spot.id));
+    spots.must = [...spots.must.filter((m) => !drop.has(m.spot.id)), ...(extra.must ?? [])];
+    spots.avoid = [...spots.avoid, ...(extra.avoid ?? [])];
+  }
   const result = await core.plan({
     wish: def.wish, from: def.from, days: def.days, date: def.date ?? undefined,
     start: def.start, back: def.back, transport: def.transport,
