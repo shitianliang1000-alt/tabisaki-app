@@ -287,10 +287,13 @@ export async function answerQuestion(question, ctx = {}, opts = {}) {
   } catch (e) {
     if (opts.signal?.aborted) throw e;
     // 中継が落ちている・時間切れのときは、言い方を変えても直らない。
-    const relay = ["UPSTREAM_TIMEOUT", "UPSTREAM_ERROR", "NOT_CONFIGURED", "RATE_LIMITED", "UPSTREAM_LIMIT"];
+    const relay = ["UPSTREAM_TIMEOUT", "UPSTREAM_ERROR", "NOT_CONFIGURED", "RATE_LIMITED", "UPSTREAM_LIMIT", "DAILY_LIMIT"];
     return {
       ok: false, sources: [],
-      answer: relay.includes(e?.code)
+      // 1日の合計に当たったときは「少し待って」では戻りません。
+      answer: e?.code === "DAILY_LIMIT"
+        ? "今日の AI の利用が上限に達しました。日本時間の0時に戻ります。旅程づくりと地図は、このままお使いいただけます。"
+        : relay.includes(e?.code)
         ? "AIからの返事が届きませんでした（混み合っているか、一時的に止まっています）。少し待ってから、同じ文をもう一度送ってください。"
         : "うまく答えを作れませんでした。少し言い方を変えて、もう一度送ってください。",
     };

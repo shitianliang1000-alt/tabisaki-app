@@ -5,6 +5,7 @@ import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
 import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
+import { dailyLimit, jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
 // （CodeQL: polynomial regular expression）ので、正規表現を使わない。
@@ -269,6 +270,7 @@ async function overviewFor(env, selfOrigin) {
     allowOrigin: [...allowList(env), selfOrigin],
     rateLimit: String(env?.RATE_LIMIT ?? "").toLowerCase() === "off" ? "off" : "on",
     limits: limitsFrom(env),
+    dailyLimit: dailyLimit(env),
   };
 }
 
@@ -298,6 +300,19 @@ async function relay(request, env, ctx) {
         "いま利用が集中しています。1分ほどおいてから、もう一度お試しください。",
         { retryable: true, retryAfter: gate.retryAfter,
           headers: { "Retry-After": String(gate.retryAfter) } }), origin, allow);
+    }
+    // 全員の合計（1日）。IP をたくさん持つ相手が、1つずつは上限の内側の
+    // まま無料枠や課金を使い切るのを止めます（server/relay-guard.js）。
+    // IP ごとの枠を先に見るので、断られた呼び出しは合計に入りません。
+    if (poolOf(path) === "paid" && costOf(path) > 0) {
+      const day = await dailyCheck(env, costOf(path));
+      if (!day.ok) {
+        return cors(fail(429, "DAILY_LIMIT",
+          "今日の AI・経路の利用が上限に達しました。日本時間の0時に戻ります。",
+          // 数時間待つことになるので、自動のやり直しはさせません。
+          { retryable: false, retryAfter: day.retryAfter,
+            headers: { "Retry-After": String(day.retryAfter) } }), origin, allow);
+      }
     }
     const declared = Number(request.headers.get("Content-Length") ?? 0);
     if (declared > MAX_BODY) return cors(text("本文が大きすぎます", 413), origin, allow);
@@ -336,6 +351,8 @@ async function relay(request, env, ctx) {
           // あと何点使えるか。無料枠は使い切ると**その日は誰も使えません**。
           // 止まってから気づくのでは遅いので、先に見えるようにします。
           usage: await rateUsage(env, ip),
+          // 全員の合計（今日の分）。止まる前に、管理画面から見えるように。
+          daily: await dailyUsage(env),
         }), origin, allow);
       }
     } catch (e) {
@@ -1282,7 +1299,8 @@ async function rateCheck(env, ip, cost, pool = "paid") {
   if (!env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off") {
     return { ok: true };
   }
-  const id = env.RATE.idFromName(ip); const stub = env.RATE.get(id);
+  // IPv6 は /64 ごとにまとめます（末尾を変えて枠を増やせないように）。
+  const id = env.RATE.idFromName(rateKey(ip)); const stub = env.RATE.get(id);
   const q = new URLSearchParams({ cost: String(cost), pool,
                                   limits: JSON.stringify(limitsFrom(env)) });
   return (await stub.fetch(`https://rate/check?${q}`)).json();
@@ -1299,10 +1317,35 @@ async function rateUsage(env, ip) {
   if (!env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off") {
     return null;
   }
-  const id = env.RATE.idFromName(ip); const stub = env.RATE.get(id);
+  const id = env.RATE.idFromName(rateKey(ip)); const stub = env.RATE.get(id);
   const q = new URLSearchParams({ limits: JSON.stringify(limitsFrom(env)) });
   const body = await (await stub.fetch(`https://rate/usage?${q}`)).json();
   return body?.usage ?? body ?? null;
+}
+
+// 全員の合計を数える置き場の名前。IP の名前（rateKey）とは重なりません。
+const DAILY_ID = "__daily__";
+
+function dailyOff(env) {
+  return !env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off"
+    || dailyLimit(env) === null;
+}
+
+/** 全員の合計（1日）に cost を足せるか。足せるなら足します。 */
+async function dailyCheck(env, cost) {
+  if (dailyOff(env)) return { ok: true };
+  const stub = env.RATE.get(env.RATE.idFromName(DAILY_ID));
+  const q = new URLSearchParams({ cost: String(cost), limit: String(dailyLimit(env)) });
+  return (await stub.fetch(`https://rate/daily?${q}`)).json();
+}
+
+/** 今日の合計（減らしません）。 */
+async function dailyUsage(env) {
+  if (dailyOff(env)) return null;
+  const stub = env.RATE.get(env.RATE.idFromName(DAILY_ID));
+  const q = new URLSearchParams({ limit: String(dailyLimit(env)) });
+  const body = await (await stub.fetch(`https://rate/daily-usage?${q}`)).json();
+  return body?.daily ?? null;
 }
 
 // 回数の記録を書く間隔。Durable Object の無料枠は「書き込む行が1日10万行」
@@ -1322,6 +1365,38 @@ export class RateLimiter {
     this.hits = null;       // [時刻, 点数, 枠] の並び。null はまだ読んでいない
     this.savedAt = 0;       // 最後に書いた時刻
     this.alarmAt = 0;       // 予約してある片付けの時刻
+    this.day = null;        // 全員の合計 { d: 日付, pts: 点 }（__daily__ だけ）
+    this.daySavedAt = 0;
+  }
+
+  /**
+   * 全員の合計（1日）。日本時間の日付が変わったら0から数え直します。
+   * 書くのは RATE_SAVE_MS に1回だけです（断ったときは書きません）。
+   * 片付けの予約（alarm）は使いません。日付が変われば自然に数え直すので。
+   */
+  async daily(url) {
+    const cost = Math.max(0, Number(url.searchParams.get("cost") ?? 0) || 0);
+    const limit = Number(url.searchParams.get("limit")) || Infinity;
+    const peek = url.pathname === "/daily-usage";
+    return this.state.blockConcurrencyWhile(async () => {
+      const now = Date.now();
+      const today = jstDay(now);
+      if (!this.day) this.day = (await this.state.storage.get("day")) ?? null;
+      if (!this.day || this.day.d !== today) this.day = { d: today, pts: 0 };
+      const shape = (pts) => ({ day: today, points: pts,
+                                limit: Number.isFinite(limit) ? limit : null });
+      if (peek) return json({ ok: true, daily: shape(this.day.pts) });
+      if (this.day.pts + cost > limit) {
+        return json({ ok: false, retryAfter: secondsToJstMidnight(now),
+                      daily: shape(this.day.pts) });
+      }
+      this.day.pts += cost;
+      if (cost > 0 && now - this.daySavedAt >= RATE_SAVE_MS) {
+        this.daySavedAt = now;
+        await this.state.storage.put("day", this.day);
+      }
+      return json({ ok: true, daily: shape(this.day.pts) });
+    });
   }
 
   /** 記録を（まだなら）読みます。古い形の記録も読めるようにしておきます。 */
@@ -1352,6 +1427,7 @@ export class RateLimiter {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === "/daily" || url.pathname === "/daily-usage") return this.daily(url);
     const cost = Math.max(0, Number(url.searchParams.get("cost") ?? 1) || 0);
     const pool = url.searchParams.get("pool") === "free" ? "free" : "paid";
     const peek = url.pathname === "/usage";
@@ -1408,6 +1484,11 @@ export class RateLimiter {
     const now = Date.now();
     this.alarmAt = 0;
     const recent = (await this.load()).filter(([t]) => now - t < HOUR_MS);
+    // 全員の合計の置き場は、ここで消しません（今日の分を失います）。
+    if (!recent.length && (this.day ?? (await this.state.storage.get("day")))) {
+      this.hits = [];
+      return;
+    }
     if (!recent.length) {
       this.hits = []; this.savedAt = 0;
       await this.state.storage.deleteAll();

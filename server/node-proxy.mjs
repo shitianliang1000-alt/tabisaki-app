@@ -29,6 +29,7 @@
 
 import { createServer } from "node:http";
 import { transitHandler, TransitError } from "./transit.js";
+import { jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
 // （CodeQL: polynomial regular expression）ので、正規表現を使わない。
@@ -47,6 +48,9 @@ const MAPS_KEY = process.env.MAPS_API_KEY ?? "";
 /** 1つのIPからの上限。既定は「ふつうに旅程を作る人」には当たらない値です。 */
 const PER_MINUTE = Number(process.env.RATE_PER_MINUTE ?? 20);
 const PER_HOUR = Number(process.env.RATE_PER_HOUR ?? 200);
+// 全員の合計（1日・回数）。IP をたくさん持つ相手が、1つずつは上限の
+// 内側のまま鍵の枠を使い切るのを止めます（server/relay-guard.js）。0 で外します。
+const PER_DAY = Number(process.env.RATE_PER_DAY ?? 20000);
 /** 本文の上限（バイト）。旅程1回ぶんの候補一覧でも 200KB には届きません。 */
 const MAX_BODY = Number(process.env.MAX_BODY_BYTES ?? 512 * 1024);
 /** 上流を待つ時間。ここを空けたままにすると、掴んだ接続が溜まります。 */
@@ -103,6 +107,18 @@ export function rateCheck(store, ip, now = Date.now(),
   rec.minute.push(now);
   rec.hour.push(now);
   store.set(ip, rec);
+  return { ok: true };
+}
+
+const daily = { d: "", n: 0 };
+
+/** 全員の合計（1日）。日本時間の0時で数え直します。await を入れないでください。 */
+export function dailyCheck(store, now = Date.now(), perDay = PER_DAY) {
+  if (!(perDay > 0)) return { ok: true };
+  const today = jstDay(now);
+  if (store.d !== today) { store.d = today; store.n = 0; }
+  if (store.n >= perDay) return { ok: false, retryAfter: secondsToJstMidnight(now) };
+  store.n += 1;
   return { ok: true };
 }
 
@@ -163,10 +179,16 @@ export const handler = async (req, res) => {
 
   // 2. レート制限
   const ip = clientIp(req.headers, req.socket?.remoteAddress ?? "");
-  const gate = rateCheck(hits, ip);
+  // IPv6 は /64 ごとにまとめます（末尾を変えて枠を増やせないように）。
+  const gate = rateCheck(hits, rateKey(ip));
   if (!gate.ok) {
     return send(res, 429, { ...head, "Retry-After": String(gate.retryAfter) },
       "呼び出しが多すぎます。しばらく待ってからお試しください。");
+  }
+  const day = dailyCheck(daily);
+  if (!day.ok) {
+    return send(res, 429, { ...head, "Retry-After": String(day.retryAfter) },
+      "今日の利用が上限に達しました。日本時間の0時に戻ります。");
   }
 
   // 3. 本文の大きさ
@@ -254,7 +276,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   startSweeper();
   createServer(handler).listen(PORT, () => {
     console.log(`旅さきのプロキシを http://localhost:${PORT} で待ち受けます`);
-    console.log(`レート制限: ${PER_MINUTE}回/分・${PER_HOUR}回/時（IPごと）`);
+    console.log(`レート制限: ${PER_MINUTE}回/分・${PER_HOUR}回/時（IPごと）・${PER_DAY > 0 ? `${PER_DAY}回/日（全員の合計）` : "1日の上限なし"}`);
     if (LOCAL_BASE_URL) {
       console.log(`ローカルモデル: ${LOCAL_BASE_URL}`
         + (LOCAL_MODELS.size ? `（${[...LOCAL_MODELS].join(", ")} のみ）` : ""));
