@@ -333,7 +333,7 @@ test("OTP: 範囲の外・歩くだけの答えは「経路なし」にして、
   const calls = [];
   const fetchStub = async (u, init) => {
     calls.push(String(u));
-    if (String(u).startsWith("http://otp.test")) return new Response(JSON.stringify(outside), { status: 200 });
+    if (new URL(String(u)).host === "otp.test") return new Response(JSON.stringify(outside), { status: 200 });
     return new Response(JSON.stringify(transitousOdawara), { status: 200 });
   };
   const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", YAHOO_TRANSIT: "off" }, { fetch: fetchStub });
