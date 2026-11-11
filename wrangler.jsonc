@@ -113,9 +113,9 @@
   // 使うとき（docs/private-kb.md）: ダッシュボードの Storage & Databases → Workers KV →
   // Create で tabisaki-private を作り、出てきた ID を下の id に入れます。そのあと、
   // 上の migrations の行の末尾 ] のあとに「,」を足し、次の3行の // を外します。
-  "kv_namespaces": [
+  "kv_namespaces": [,
     { "binding": "PRIVATE_KB", "id": "d3f7f2d6eb474d5598d4bbc44e87582e" }
-  ],
+  ]
 
   // --- 使われかたの件数（Workers Analytics Engine） ---------------------
   // 「旅程ができた」「組めなかった（圏外で）」のような出来事を、件数だけ
