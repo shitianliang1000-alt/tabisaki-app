@@ -1632,7 +1632,13 @@ await check("指で押せる大きさになっている（44pt）", async () => 
     }
     // 入力欄の画面の部品を測ってから、旅の条件のシートを開いて
     // その中の部品も測ります。
-    const measure = (sels) => pg.evaluate((sels) => {
+    // 開いた直後のシートは、出てくる動き（scale .96 → 1。css/app.css の
+    // pop-in-up）の途中です。そこで測ると 44px が 42px に見えて落ちるので、
+    // 終わりのある動きが済むのを待ってから測ります（くり返す動きは待ちません）。
+    const measure = (sels) => pg.evaluate(async (sels) => {
+      await Promise.all(document.getAnimations()
+        .filter((a) => a.effect?.getTiming?.().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => {})));
       const coarse = matchMedia("(pointer: coarse)").matches;
       const bad = [];
       for (const sel of sels) {
