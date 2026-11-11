@@ -1,0 +1,20 @@
+# 旅さきの自前モデル（Gemma 4 ＋ LoRA）を Ollama に入れる設定（training/to_gguf.sh が FROM を埋めます）。
+#   ollama create tabisaki-gemma -f Modelfile
+# 会話の形は Gemma 4 と同じ（<|turn>user … <turn|>）。<bos> は llama.cpp が先頭に足します。
+FROM @GGUF@
+
+TEMPLATE """{{- if .System }}<|turn>system
+{{ .System }}<turn|>
+{{ end }}{{- range .Messages }}{{- if eq .Role "user" }}<|turn>user
+{{ .Content }}<turn|>
+{{ else if eq .Role "assistant" }}<|turn>model
+{{ .Content }}<turn|>
+{{ end }}{{- end }}<|turn>model
+"""
+
+PARAMETER stop "<turn|>"
+PARAMETER stop "<|turn>"
+PARAMETER temperature 1
+PARAMETER top_k 64
+PARAMETER top_p 0.95
+PARAMETER num_ctx 8192

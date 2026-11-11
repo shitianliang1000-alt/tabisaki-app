@@ -53,3 +53,6 @@ Thumbs.db
 # 最長片道切符のソルバー（Rust）を組み立てたもの。入れるのは WebAssembly にした
 # packages/core/rail/longest_ticket.wasm だけです。
 /solver/longest-ticket/target/
+
+# 学習の結果（training/。重み・GGUF は大きいので Hugging Face Hub に置く）
+/runs/

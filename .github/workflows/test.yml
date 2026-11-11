@@ -24,6 +24,13 @@ jobs:
         run: for f in js/*.js sw.js server/*.js tools/*.mjs packages/*/*.mjs packages/cli/bin/*.mjs; do node --check "$f"; done
       - name: Unit tests
         run: node --test tests/*.test.js
+      # 自前モデルの学習の道具（training/。GPU も torch も要らない部分だけ）
+      - name: Training tools
+        run: |
+          python3 -m py_compile training/*.py
+          bash -n training/pipeline.sh && bash -n training/to_gguf.sh
+          node --check training/eval_gate.mjs
+          python3 -m unittest discover -s training -p 'test_*.py'
       # 知識ベースの点検（誤りは単体試験でも止まります。ここでは件数と
       # 気になる点を、実行結果のまとめ欄に出します）
       - name: Knowledge base check

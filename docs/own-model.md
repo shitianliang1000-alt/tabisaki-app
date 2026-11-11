@@ -251,8 +251,10 @@ AI Studio を待つ時間は、自前のモデルを待ったぶん縮めます�
 | 5 | 採点して、良ければ ryo の PC の Ollama ＋ Cloudflare Tunnel に載せ、`OWN_MODEL_URL` を入れる | ryo ＋ Claude（手順と確認） | なし |
 | 6 | Hugging Face Hub に重みとモデルカードを公開する | ryo | なし |
 
-学習の手順（Unsloth か TRL の SFT、LoRA の r=16 前後、2〜3周、`eval.jsonl` で過学習を見る）は、段3でアカウントと
-機械が決まってから、そのノートブックに合わせて書きます。道具の版で書きかたが変わるためです。
+学習の手順は [training.md](training.md) にまとめました（#434）。Unsloth で LoRA r=64 をかけ、GGUF Q4_K_M にして
+Ollama に入れ、採点して合否を出すところまでが `bash training/pipeline.sh` 1本で回ります。段3は
+[notebooks/train-lora.ipynb](../notebooks/train-lora.ipynb) を Colab で「すべて実行」するだけです。
+学習の機械は Colab Pro（L4）、26B-A4B のときだけ RunPod、重みの置き場所は Hugging Face Hub に決めました。
 
 ## あなたにしかできないこと
 
