@@ -8,7 +8,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 
-export const VERBS = ["add", "edit", "rm", "restore", "list", "show", "import", "export", "dedup", "undo", "redo", "history", "blame", "batch"];
+export const VERBS = ["add", "edit", "rm", "restore", "list", "show", "import", "export", "dedup", "undo", "redo", "history", "blame", "batch",
+  "relate", "cluster", "route", "gap"];
 
 export const HELP = `使いかた: tabisaki spot <コマンド> … [--kb=<名前>]
 
@@ -31,6 +32,17 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … [--kb=<名�
   spot blame <スポット>            項目ごとに、いまの値を最後に書いた変更
   spot batch <スクリプト.js> [--apply] [--all] [--q=語] [--max=500] [--timeout=5000]
                                    JavaScript でまとめて直す（--apply が無ければ試すだけ）
+
+  spot relate <スポット> <スポット> --type=pair|alternative|related|before|part_of [--note=…]
+                                   2つのスポットに関係を付ける（before・part_of は向きあり: 左が先・左が中）
+  spot relate ls [<スポット>]      付けた関係の一覧
+  spot relate rm <スポット> <スポット> [--type=…]   関係を外す
+  spot cluster [--eps=1] [--min=2] [--all] [--q=語] [--prefecture=…] [--region=…] [--limit=20]
+                                   近くにかたまっているスポットをまとめる（既定は自分が足した・直したもの。半径は km）
+  spot route <スポット> <スポット> … [--start=…] [--end=…] [--loop] [--speed=<km/h>]
+                                   直線の距離がいちばん短くなる回る順番（時間ではありません）
+  spot gap [--prefecture=…] [--min-expected=3] [--limit=20]
+                                   ほかに比べてスポットの少ない 地域 × 分類
 
   <スポット> は id（takao-1・u:…）か名前。同じ名前がいくつもあるときは id で選びます。
   項目: name lat lng category genres regionId description address url wikipedia tel
@@ -57,8 +69,12 @@ const FLAGS = {
   history: ["kb", "limit", "output"],
   blame: ["kb", "output"],
   batch: ["kb", "apply", "all", "q", "max", "timeout", "output"],
+  relate: ["kb", "type", "note", "output"],
+  cluster: ["kb", "all", "q", "prefecture", "region", "eps", "min", "limit", "output"],
+  route: ["kb", "start", "end", "loop", "speed", "output"],
+  gap: ["kb", "prefecture", "min-expected", "limit", "output"],
 };
-const BOOL = new Set(["all", "yes", "dry-run", "strict", "allow-dup", "with-edited", "force", "apply", "help"]);
+const BOOL = new Set(["all", "yes", "dry-run", "strict", "allow-dup", "with-edited", "force", "apply", "help", "loop"]);
 
 function usage(message) {
   const e = new Error(message);
@@ -434,6 +450,139 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
         });
         note(`書き出しました: ${opts.out}（${spots.length}件・${format}）`);
       } else stdout.write(text);
+      return 0;
+    }
+
+    // ---- 関係・かたまり・回る順番・足りないところ（#357） ----
+    if (["relate", "cluster", "route", "gap"].includes(verb)) {
+      const graph = await import("../../core/kbgraph.mjs");
+      const merged = ctx.merged();
+      const nameOf = (id) => merged.spotsById?.get(id)?.name ?? ctx.kb.spotsById.get(id)?.name ?? ctx.doc.spots[id]?.spot?.name ?? null;
+      const show = (id) => `${nameOf(id) ?? "（もう無いスポット）"}（${id}）`;
+      const wrap = (fn) => { try { return fn(); } catch (e) { if (e instanceof graph.GraphError) throw usage(e.message); throw e; } };
+      const numOpt = (key, fallback, min, max, int = false) => {
+        if (opts[key] === undefined) return fallback;
+        const v = Number(opts[key]);
+        if (!Number.isFinite(v) || v < min || v > max || (int && !Number.isInteger(v))) throw usage(`--${key} は ${min}〜${max} の${int ? "整数" : "数"}です`);
+        return v;
+      };
+
+      if (verb === "relate") {
+        const [sub, ...rest] = words;
+        if (sub === "ls") {
+          if (rest.length > 1) throw usage("spot relate ls には、スポットを1つまで書けます");
+          const { list, problems } = graph.readRelations(ctx.doc);
+          for (const p of problems) note(`（使っていない関係: ${p}）`);
+          const id = rest.length ? resolveSpot(ctx, rest[0]) : null;
+          const rows = id ? graph.relationsOf(ctx.doc, id) : list;
+          if (json) { say(JSON.stringify({ kb: ctx.name, spot: id, relations: rows.map((r) => ({ ...r, ...(id ? { otherName: nameOf(r.other) } : { fromName: nameOf(r.from), toName: nameOf(r.to) }) })) }, null, 2)); return 0; }
+          if (!rows.length) { say(id ? `${show(id)} に付けた関係はありません` : "付けた関係はありません"); return 0; }
+          if (id) {
+            say(`${show(id)} の関係:`);
+            for (const r of rows) say(`  ${r.direction === "both" ? `${show(r.other)} と ${r.label}` : `${show(r.other)} ${r.label}`}［${r.type}］${r.note ? `　${r.note}` : ""}`);
+          } else {
+            for (const r of list) {
+              const t = graph.RELATION_TYPES[r.type];
+              say(`${show(r.from)} ${t.directed ? "→" : "⇔"} ${show(r.to)}　${t.directed ? `左が右${t.label}` : t.label}［${r.type}］${r.note ? `　${r.note}` : ""}`);
+            }
+          }
+          return 0;
+        }
+        if (sub === "rm") {
+          if (rest.length !== 2) throw usage("外す関係の、2つのスポットを書いてください。例: tabisaki spot relate rm 大涌谷 箱根神社");
+          const [a, b] = rest.map((k) => resolveSpot(ctx, k));
+          const gone = graph.removeRelation(ctx.doc, a, b, opts.type ?? null);
+          if (!gone.length) { say("その2つのあいだに、関係はありません"); return 1; }
+          await save("spot relate rm", `${a} ${b}`);
+          if (json) say(JSON.stringify({ ok: true, removed: gone }));
+          else say(`外しました: ${show(a)} と ${show(b)}（${gone.map((g) => g.type).join("・")}）`);
+          return 0;
+        }
+        if (words.length !== 2) throw usage("2つのスポットと --type を書いてください。例: tabisaki spot relate 大涌谷 箱根神社 --type=pair");
+        if (!opts.type) throw usage(`--type=${Object.keys(graph.RELATION_TYPES).join("|")} を書いてください`);
+        const [a, b] = words.map((k) => resolveSpot(ctx, k));
+        const { relation, created } = wrap(() => graph.addRelation(ctx.doc, a, b, opts.type, { note: opts.note ?? "" }));
+        await save("spot relate", `${a} ${b}（${opts.type}）`);
+        const t = graph.RELATION_TYPES[relation.type];
+        if (json) say(JSON.stringify({ ok: true, created, relation }));
+        else say(`${created ? "付けました" : "書き換えました"}: ${show(relation.from)} ${t.directed ? "→" : "⇔"} ${show(relation.to)}　${t.directed ? `左が右${t.label}` : t.label}`);
+        return 0;
+      }
+
+      if (verb === "cluster") {
+        if (words.length) throw usage(`余計な語があります: ${words.join(" ")}（絞るなら --q=・--prefecture=・--region=）`);
+        const eps = numOpt("eps", 1, 0.01, 500);
+        const min = numOpt("min", 2, 2, 1000, true);
+        const limit = numOpt("limit", 20, 1, 1000, true);
+        const wide = opts.all || opts.prefecture || opts.region;
+        let list = wide ? merged.spots : merged.spots.filter((x) => ctx.doc.spots[x.id]);
+        if (opts.prefecture) list = list.filter((x) => x.prefecture === opts.prefecture);
+        if (opts.region) list = list.filter((x) => x.region === opts.region || x.regionId === opts.region);
+        if (opts.q) list = list.filter((x) => String(x.name).includes(opts.q));
+        const r = wrap(() => graph.clusterSpots(list, { epsKm: eps, minPts: min }));
+        const slim = (x) => ({ id: x.id, name: x.name, category: x.category ?? null, lat: x.lat, lng: x.lng, ...(x.fromCenterKm !== undefined ? { fromCenterKm: x.fromCenterKm } : {}) });
+        if (json) {
+          say(JSON.stringify({ kb: ctx.name, epsKm: eps, minPts: min, basis: "straight_line", seen: list.length, skipped: r.skipped,
+            clusters: r.clusters.map((c) => ({ ...c, spots: c.spots.map(slim) })), noise: r.noise.map(slim) }, null, 2));
+          return 0;
+        }
+        if (!list.length) { say(wide ? "当てはまるスポットがありません" : "自分が足した・直したスポットがありません（収録も見るなら --all か --prefecture=）"); return 0; }
+        say(`${list.length} 件を、直線で ${eps}km 以内・${min} 件以上のかたまりに分けました（かたまり ${r.clusters.length}・はぐれ ${r.noise.length}）`);
+        for (const c of r.clusters.slice(0, limit)) {
+          say(`\n${c.n}. ${c.size} 件　中心 ${c.center.lat},${c.center.lng}　広がり ${c.radiusKm}km`);
+          for (const x of c.spots.slice(0, 12)) say(`   ${x.name}（${x.id}）${x.category ? `　${x.category}` : ""}　中心から ${x.fromCenterKm}km`);
+          if (c.spots.length > 12) say(`   …ほか ${c.spots.length - 12} 件`);
+        }
+        if (r.clusters.length > limit) say(`\n…ほか ${r.clusters.length - limit} のかたまり（--limit= で増やせます）`);
+        if (r.noise.length) say(`\nはぐれ（近くに仲間がいない）: ${r.noise.slice(0, 15).map((x) => x.name).join("・")}${r.noise.length > 15 ? ` ほか ${r.noise.length - 15} 件` : ""}`);
+        if (r.skipped) note(`（座標の無い ${r.skipped} 件は見ていません）`);
+        note("距離は直線です。歩く・乗る時間ではありません");
+        return 0;
+      }
+
+      if (verb === "route") {
+        if (words.length < 2) throw usage("回るスポットを2つ以上書いてください。例: tabisaki spot route 大涌谷 箱根神社 ポーラ美術館 --start=大涌谷");
+        const idsIn = words.map((k) => resolveSpot(ctx, k));
+        const spots = idsIn.map((id) => merged.spotsById?.get(id) ?? merged.spots.find((x) => x.id === id));
+        if (spots.some((x) => !x)) throw usage("消した印の付いたスポットは回れません（spot restore で戻せます）");
+        const speed = opts.speed === undefined ? null : numOpt("speed", null, 0.5, 300);
+        const start = opts.start ? resolveSpot(ctx, opts.start) : null;
+        const end = opts.end ? resolveSpot(ctx, opts.end) : null;
+        const inRoute = new Set(idsIn);
+        const before = graph.readRelations(ctx.doc).list.filter((r) => r.type === "before" && inRoute.has(r.from) && inRoute.has(r.to)).map((r) => [r.from, r.to]);
+        const r = wrap(() => graph.planRoute(spots, { start, end, loop: !!opts.loop, before, speedKmh: speed }));
+        if (json) {
+          say(JSON.stringify({ kb: ctx.name, basis: r.basis, exact: r.exact, method: r.method, loop: r.loop, totalStraightKm: r.totalStraightKm,
+            order: r.order.map((x) => ({ id: x.id, name: x.name, lat: x.lat, lng: x.lng })), legs: r.legs, before, ...(r.rough ? { rough: r.rough } : {}) }, null, 2));
+          return 0;
+        }
+        say(`回る順番（${r.method}）`);
+        r.order.forEach((x, i) => {
+          const leg = r.legs[i];
+          say(`${String(i + 1).padStart(2)}. ${x.name}（${x.id}）`);
+          if (leg) say(`      ↓ 直線で ${leg.straightKm}km${leg.roughMinutes ? `（目安 ${leg.roughMinutes}分）` : ""}${i === r.order.length - 1 ? `　${r.order[0].name} に戻る` : ""}`);
+        });
+        say(`\n直線の距離の合計: ${r.totalStraightKm}km${r.rough ? `　目安 ${r.rough.totalMinutes}分（時速 ${r.rough.speedKmh}km・遠回り ×${r.rough.detour}）` : ""}`);
+        if (before.length) say(`守った順番: ${before.map(([a, b]) => `${nameOf(a)} → ${nameOf(b)}`).join("、")}`);
+        note(r.rough ? `目安の分は、${r.rough.note}` : "距離は直線です。移動の時間ではありません（時間を見るなら、旅程を組んでください: tabisaki plan / build）");
+        return 0;
+      }
+
+      // gap
+      if (words.length) throw usage(`余計な語があります: ${words.join(" ")}`);
+      const minExpected = numOpt("min-expected", 3, 1, 1000);
+      const limit = numOpt("limit", 20, 1, 1000, true);
+      const kbtools = await import("../../core/kbtools.mjs");
+      if (opts.prefecture && !kbtools.PREFECTURES.includes(opts.prefecture)) throw usage(`都道府県の名前で書いてください（例: --prefecture=神奈川県）: ${opts.prefecture}`);
+      const list = opts.prefecture ? merged.spots.filter((x) => x.prefecture === opts.prefecture) : merged.spots;
+      const r = graph.findGaps(list, opts.prefecture ? { by: (x) => x.region, minExpected } : { by: (x) => x.prefecture, minExpected, areas: kbtools.PREFECTURES });
+      if (json) { say(JSON.stringify({ kb: ctx.name, scope: opts.prefecture ?? "全国", by: opts.prefecture ? "region" : "prefecture", ...r, gaps: r.gaps.slice(0, limit) }, null, 2)); return 0; }
+      say(`${opts.prefecture ?? "全国"}の ${r.total} 件を、${opts.prefecture ? "エリア" : "都道府県"} × 分類で数えました`);
+      if (r.empty.length) say(`1件も無い: ${r.empty.join("・")}`);
+      if (!r.gaps.length) say("ほかに比べて目立って少ないところは、ありません");
+      for (const g of r.gaps.slice(0, limit)) say(`  ${g.area}　${g.category}: ${g.count} 件（見込み ${g.expected} 件）`);
+      if (r.gaps.length > limit) say(`  …ほか ${r.gaps.length - limit} 件（--limit= で増やせます）`);
+      note("見込みは「その地域の件数 × その分類の全体での割合」です。その土地に本当に無いのか、収録が足りないのかは、ここでは分かりません");
       return 0;
     }
 

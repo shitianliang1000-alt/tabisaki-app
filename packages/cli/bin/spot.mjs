@@ -32,6 +32,8 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … / tabisaki a
   spot list  spot import <ファイル>  spot export  spot dedup   （くわしくは tabisaki spot add --help）
   spot history [<スポット>]  spot undo [<スポット>]  spot redo  spot blame <スポット>   履歴・取り消し・項目ごとの出どころ
   spot batch <スクリプト.js> [--apply]        スクリプトでまとめて直す（--apply を付けるまでは試すだけ）
+  spot relate <A> <B> --type=…  spot relate ls  spot cluster  spot route <A> <B> …  spot gap
+                                              関係・かたまり・回る順番（直線の距離）・収録の少ないところ
 
   <スポット> は名前・別名・id のどれでも。同じ名前がいくつもあるときは id で選びます。
   共通: --output=json（show・ls・candidates・check）
