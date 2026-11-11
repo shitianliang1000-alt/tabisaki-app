@@ -31,6 +31,7 @@ jobs:
           bash -n training/pipeline.sh && bash -n training/to_gguf.sh
           node --check training/eval_gate.mjs
           python3 -m unittest discover -s training -p 'test_*.py'
+          node tools/build_datasets.mjs --check >> "$GITHUB_STEP_SUMMARY"
       # 知識ベースの点検（誤りは単体試験でも止まります。ここでは件数と
       # 気になる点を、実行結果のまとめ欄に出します）
       - name: Knowledge base check

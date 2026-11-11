@@ -146,6 +146,9 @@ Gemma 4 の MoE に対応しているかを、使う版で確かめてくださ�
 
 ## 学習データの書き出し
 
+事実（スポット・エリア・旅程）に加えて、旅の知恵・道具を使う考えの流れ（ReAct）・未知の要望への応じ方のデータセット
+（`training/datasets/`、[datasets.md](datasets.md)）も、行の `meta.split` どおりに入ります（`--no-datasets` で外せます）。
+
 ```bash
 node tools/export_training_data.mjs                    # 既定（安全なものだけ）
 node tools/export_training_data.mjs --verify=high      # 名前がよく合うものも入れる

@@ -12,7 +12,7 @@ bash training/pipeline.sh          # GPU の機械で。全部の段を順に
 
 | 段 | すること | 道具 | できるもの（`runs/<TAG>/`） |
 | --- | --- | --- | --- |
-| 1 | 学習データを書き出す | `tools/export_training_data.mjs` | `.tabisaki/training/{train,eval}.jsonl`・`manifest.json` |
+| 1 | 学習データを書き出す（[datasets.md](datasets.md) の知恵・ReAct・未知の要望も入る） | `tools/export_training_data.mjs` | `.tabisaki/training/{train,eval}.jsonl`・`manifest.json` |
 | 2 | LoRA をかける | `training/train_lora.py`（Unsloth。無ければ PEFT） | `adapter/`・`merged/`・`run.json` |
 | 3 | GGUF Q4_K_M にして Ollama に入れる | Unsloth の `save_pretrained_gguf`（PEFT のときは `training/to_gguf.sh`） | `gguf/*.Q4_K_M.gguf`・`Modelfile`・`SHA256SUMS` |
 | 4 | 採点 | `tools/model_eval.mjs`（Ollama の OpenAI 互換の入口） | `eval.json` |
@@ -51,12 +51,12 @@ GPU を選んで「すべてのセルを実行」を押すと、学習の前の�
 | 学ぶところ | 答え（assistant）の部分だけ | 質問の言い回しまで覚えると、答えが崩れる（`training/sft_format.py`） |
 | 学習率 | 2e-4、はじめの5歩で上げ、あとは直線で下げる | Unsloth の Gemma 4 の勧め |
 | 1歩の大きさ | 1件 × 8回ためる（実質 8件） | E2B を 10GB 以内に収める |
-| 周回 | 1周（`EPOCHS=2` で増やせる） | 1,780件なので 220歩ほど。確かめの損失を見て決める |
-| 長さ | 2,048 トークンまで | いまのデータはいちばん長くて 135 トークン |
+| 周回 | 1周（`EPOCHS=2` で増やせる） | 約2,500件なので 310歩ほど。確かめの損失を見て決める |
+| 長さ | 2,048 トークンまで | いまのデータはいちばん長くて 1,474 トークン（ReAct の行。道具の一覧を含む） |
 
 答えの部分の切り出しは、チャットの型で「答えの手前まで」と「答えまで」を2回描き、その差で決めます。
 Gemma 4 の `<|turn>model` のような目印を決め打ちしないので、型が変わっても使えます。型と合わない行は
-数えて外します（いまの 1,780件は全部合いました）。
+数えて外します（データセットを足す前の 1,780件は全部合いました）。
 
 `run.json` に、条件・データの sha256・損失の推移・git のコミットを残します。同じ条件で回せば同じ結果になります
 （シード 3407）。
