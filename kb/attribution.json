@@ -21,7 +21,8 @@
    "attribution": "Wikipedia contributors",
    "appliesTo": [
     "スポットの description の素材",
-    "kb/summaries.json の summary 文"
+    "kb/summaries.json の summary 文",
+    "packages/core/rail/jr-graph.json（駅の記事の情報欄から作った JR の路線網。tools/build_rail_graph.py）"
    ]
   },
   {
@@ -68,6 +69,13 @@
     "kb-spots"
    ],
    "note": "プロジェクトデータのみ"
+  },
+  {
+   "file": "packages/core/rail/jr-graph.json",
+   "derivedFrom": [
+    "wikipedia"
+   ],
+   "note": "最長片道切符のソルバー（Issue #431）が読む路線網。全体が CC BY-SA 4.0（share-alike）。サイト・アプリには入れない"
   }
  ],
  "displayText": "旅さきプロジェクト収集データ（位置・カテゴリ・営業時間等の構造的事実）: 旅さき (tabisaki)（Project data） / Wikipedia（説明文・wikipedia フィールドの参照先テキスト）: Wikipedia contributors（CC BY-SA 4.0） / OpenStreetMap（補完フィールド osmInfo と、src=osm-tourlist の名前・座標）: © OpenStreetMap contributors（ODbL 1.0）"

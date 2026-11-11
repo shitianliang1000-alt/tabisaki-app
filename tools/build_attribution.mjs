@@ -27,7 +27,8 @@ export const SOURCES = [
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/deed.ja",
     attribution: "Wikipedia contributors",
-    appliesTo: ["スポットの description の素材", "kb/summaries.json の summary 文"],
+    appliesTo: ["スポットの description の素材", "kb/summaries.json の summary 文",
+      "packages/core/rail/jr-graph.json（駅の記事の情報欄から作った JR の路線網。tools/build_rail_graph.py）"],
   },
   {
     id: "osm",
@@ -47,6 +48,7 @@ export const ARTIFACTS = [
   { file: "kb/tags-*.json", derivedFrom: ["kb-spots", "wikipedia"], note: "カテゴリ等の構造情報が主根拠だが、説明文由来の判定を含むため両出典を併記する" },
   { file: "kb/summaries.json", derivedFrom: ["kb-spots", "wikipedia"], note: "summary 文は CC BY-SA 4.0、件数等の構造部分はプロジェクトデータ" },
   { file: "kb/regions.json", derivedFrom: ["kb-spots"], note: "プロジェクトデータのみ" },
+  { file: "packages/core/rail/jr-graph.json", derivedFrom: ["wikipedia"], note: "最長片道切符のソルバー（Issue #431）が読む路線網。全体が CC BY-SA 4.0（share-alike）。サイト・アプリには入れない" },
 ];
 
 /** attribution.json の内容を構築する（純関数）。 */

@@ -325,8 +325,9 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
      * 条件を整えてから、いつもの流れで旅程にします。形が読み取れなければ
      * special は null で、旅程は組みません（core.plan を使ってください）。
      *
-     * 最長片道切符の経路は solvers.longestTicket(kind, {from}) → {route, km}
-     * （Issue #431 の専用ソルバー）に任せます。無ければ全国を回る旅として組みます。
+     * 最長片道切符の経路は、専用ソルバー（Issue #431。longest-ticket.mjs）が出します。
+     * solvers.longestTicket(kind, {from, origin}) → {route, km} を渡せば、そちらを使います。
+     * ソルバーを読み込めないとき・失敗したときは、全国を回る旅として組みます。
      *
      * @param {PlanRequest} request
      * @param {{solvers?: {longestTicket?: Function}}} [opts]
@@ -336,7 +337,8 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
       const r0 = await normalizeRequest(request);
       const { handleSpecial } = await js("special.js");
       const date = request.date ?? new Date(r0.departAt.getTime() + 9 * 3600000).toISOString().slice(0, 10);
-      const special = await handleSpecial({ text: r0.wish, kb, origin: r0.origin, days: r0.days, date, solvers });
+      const special = await handleSpecial({ text: r0.wish, kb, origin: r0.origin, days: r0.days, date,
+        solvers: { longestTicket: defaultLongestTicket, ...(solvers ?? {}) } });
       if (!special) return { special: null };
       const want = special.request;
       if (!want) return { special };
@@ -367,6 +369,19 @@ export async function createCore({ root = ROOT, providers = {}, plugins = [], us
 }
 
 // 見る側（開発者向けの表示）の失敗で、旅程づくりを止めません。
+// 最長片道切符のソルバー（Issue #431）。使うときに、はじめて読み込みます
+// （路線網 300KB と WebAssembly 110KB。ふつうの旅程では要りません）。
+let ticketSolver = null;
+async function defaultLongestTicket(kind, opts) {
+  ticketSolver ??= import("./longest-ticket.mjs").then((m) => m.createLongestTicketSolver());
+  try {
+    return (await ticketSolver)(kind, opts);
+  } catch (e) {
+    ticketSolver = null; // 次に呼ばれたら、読み込みからやり直します。
+    throw e;
+  }
+}
+
 function safeProgress(fn) {
   return (...a) => {
     try { fn(...a); } catch { /* 表示の失敗は無視します */ }

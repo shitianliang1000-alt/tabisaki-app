@@ -86,6 +86,31 @@ jobs:
           code=$?
           cat perf.md >> "$GITHUB_STEP_SUMMARY"
           exit $code
+      # 最長片道切符のソルバー（Issue #431）が、全国と代表的な出発駅で、
+      # 制限時間内に経路の候補を返すか（全国の網は最長と確かめきれないので、候補の長さも見ます）。
+      - name: Longest ticket solver (time limit)
+        run: |
+          set +e
+          { echo "### 最長片道切符のソルバー"; echo; node tools/longest_ticket_bench.mjs --check --md --limit 2000; } > ticket.md
+          code=$?
+          cat ticket.md >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+  # 最長片道切符のソルバー本体（Rust）。総当たりと答えが合うかを確かめ、
+  # WebAssembly にも組み立てられるかを見ます。
+  solver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Solver tests (against brute force)
+        working-directory: solver/longest-ticket
+        run: cargo test --release
+      - name: WebAssembly build
+        working-directory: solver/longest-ticket
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo build --release --target wasm32-unknown-unknown
+          ls -l target/wasm32-unknown-unknown/release/longest_ticket.wasm
 
   # 手元用 API サーバー（Dockerfile・compose.yaml）が、組み上がって旅程を返すか。
   docker:

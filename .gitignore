@@ -44,3 +44,10 @@ Thumbs.db
 # 国土数値情報の非商用データ（P12・P27・P11）。公開しません（docs/kokudo-licenses.md）。
 # tools/split_noncommercial.mjs が kb/ から移します。
 /kb-private/
+
+# JR の駅の記事から落とした情報欄（tools/fetch_rail_stations.py）。走らせ直せば
+# また作れます。路線網に直したもの（packages/core/rail/jr-graph.json）のほうを入れます。
+/data/rail-raw/
+# 最長片道切符のソルバー（Rust）を組み立てたもの。入れるのは WebAssembly にした
+# packages/core/rail/longest_ticket.wasm だけです。
+/solver/longest-ticket/target/
