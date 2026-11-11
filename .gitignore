@@ -44,7 +44,7 @@ Thumbs.db
 # 国土数値情報の非商用データ（P12・P27・P11）。公開しません（docs/kokudo-licenses.md）。
 # tools/split_noncommercial.mjs が kb/ から移します。
 /kb-private/
-# 上の kb-private/ を R2 に入れる形に詰め直したもの（tools/upload_private_kb.mjs）。
+# 上の kb-private/ を Workers KV に入れる形に詰め直したもの（tools/upload_private_kb.mjs）。
 # これも非商用の元データです。公開しません（docs/private-kb.md）。
 /.private-kb/
 

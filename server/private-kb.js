@@ -4,8 +4,9 @@
 // なぜここにあるか
 // ----------------
 // 非商用のデータは、複製物の再配布ができません（docs/kokudo-licenses.md）。
-// そこで元データはリポジトリにもサイトにも置かず、Cloudflare の R2
-// （バインディング PRIVATE_KB）に入れます。リポジトリに残るのは、
+// そこで元データはリポジトリにもサイトにも置かず、Cloudflare の Workers KV
+// （バインディング PRIVATE_KB）に入れます。Workers の無料プランに含まれ、
+// カードの登録は要りません（R2 は無料枠でも支払い方法の登録が要ります）。リポジトリに残るのは、
 // 学習済みの重みや集計値のような「パラメータ」だけです。
 //
 // **元データは外に返しません。** この窓口が返すのは、
@@ -17,7 +18,7 @@
 // 半径も決まった値（STOP_RADII）に丸めるので、細かく聞いて位置を割り出す
 // のは手間がかかります（それでも残る危うさは docs/private-kb.md に書きました）。
 //
-// 入れ物の形（tools/upload_private_kb.mjs が作ります）
+// 入れ物の形（tools/upload_private_kb.mjs が作ります。KV の鍵＝下の名前）
 // ----------------------------------------------------
 //   manifest.json           { version, bus: ["34_135", …], spots: ["34_135", …] }
 //   bus/<lat>_<lng>.json    [[lat, lng, 名前], …]   1度四方ごと（P11）
@@ -26,9 +27,10 @@
 // 1度四方に切るのは、Workers の無料枠の CPU 時間（1回 10ms）に収めるためです。
 // 7MB の JSON を1回で読むと、それだけで超えます。
 //
-// 入れ物（store）は R2 のバインディングと同じ形 `get(key) → {json()}|null` で
-// あれば何でも構いません。手元の node-proxy では、.private-kb/ を読む
-// 同じ形のもの（server/private-kb-dir.mjs）を渡します。
+// 入れ物（store）は `get(key) → {json()}|null` の形であれば何でも構いません。
+// KV のバインディングは storeFrom() がこの形に包みます（R2 のバインディングは
+// そのまま使えます）。手元の node-proxy では、.private-kb/ を読む同じ形のもの
+// （server/private-kb-dir.mjs）を渡します。
 
 /** 1枚の大きさ（度）。tools/upload_private_kb.mjs と合わせます。 */
 export const TILE_DEG = 1;
@@ -75,6 +77,28 @@ export function radiusOf(km) {
 }
 
 // --- 読み込み（同じ isolate の中では使い回します） -------------------------
+
+/** KV は読んだ値を各地の拠点に1時間置きます（読み出しの回数を減らすため）。 */
+const KV_CACHE_TTL = 3600;
+const wrapped = new WeakMap();
+
+/** KV・R2・手元の入れ物を、同じ `get(key) → {json()}|null` の形にそろえます。 */
+export function storeFrom(binding) {
+  if (!binding || typeof binding.get !== "function") return null;
+  // KV のバインディングだけが getWithMetadata を持っています。
+  if (typeof binding.getWithMetadata !== "function") return binding;
+  let s = wrapped.get(binding);
+  if (!s) {
+    s = {
+      async get(key) {
+        const text = await binding.get(key, { type: "text", cacheTtl: KV_CACHE_TTL });
+        return text == null ? null : { json: async () => JSON.parse(text), text: async () => text };
+      },
+    };
+    wrapped.set(binding, s);
+  }
+  return s;
+}
 
 const cache = new WeakMap();   // store → { manifest, tiles: Map }
 
@@ -174,7 +198,7 @@ export async function spotListed(store, body) {
 
 /** 中継の入口。返すのは決まった鍵だけです（tests/private-kb.test.js が見ます）。 */
 export async function privateKbHandler(path, body, env) {
-  const store = env?.PRIVATE_KB ?? null;
+  const store = storeFrom(env?.PRIVATE_KB);
   if (path.endsWith("/stops/near")) {
     const r = await stopNear(store, body);
     return { available: r.available, within: r.within };
@@ -186,10 +210,68 @@ export async function privateKbHandler(path, body, env) {
   return null;
 }
 
+// --- 管理画面から入れる（server/admin.js の /private/api/private-kb） --------
+
+/** 入れてよい鍵。これ以外は受け付けません。 */
+export const KEY_PATTERN = /^(manifest\.json|(bus|spots)\/-?\d{1,3}_-?\d{1,3}\.json)$/;
+/** 1件の上限。いちばん大きいタイルが 0.2MB なので、余裕を見ても 2MB で足ります。 */
+export const MAX_VALUE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * 入れる前に、鍵と中身の形を確かめます。決まった形の JSON だけを通します
+ * （合言葉が漏れても、別のものを置き場に使われないように）。
+ * @returns {string|null} だめなわけ。よければ null
+ */
+export function checkUpload(key, text) {
+  if (!KEY_PATTERN.test(String(key ?? ""))) return "鍵の形が違います";
+  if (typeof text !== "string" || !text.length) return "中身がありません";
+  if (new TextEncoder().encode(text).length > MAX_VALUE_BYTES) return "大きすぎます";
+  let doc;
+  try { doc = JSON.parse(text); } catch { return "JSON として読めません"; }
+  if (key === "manifest.json") {
+    const ok = doc && Array.isArray(doc.bus) && Array.isArray(doc.spots)
+      && [...doc.bus, ...doc.spots].every((t) => /^-?\d{1,3}_-?\d{1,3}$/.test(String(t)));
+    return ok ? null : "目次（manifest.json）の形が違います";
+  }
+  const rows = Array.isArray(doc) && doc.every((r) => Array.isArray(r) && r.length === 3
+    && Number.isFinite(r[0]) && Number.isFinite(r[1]) && typeof r[2] === "string" && r[2].length <= 200);
+  if (!rows) return "タイルの形が違います（[[緯度, 経度, 名前], …]）";
+  return null;
+}
+
+/**
+ * 1件入れます（KV の put）。返すのは件数だけで、中身は返しません。
+ * @returns {Promise<{ok:boolean, error?:string, status?:number}>}
+ */
+export async function putPrivate(env, key, text) {
+  const kv = env?.PRIVATE_KB;
+  if (!kv || typeof kv.put !== "function") {
+    return { ok: false, status: 503, error: "PRIVATE_KB（Workers KV）がつながっていません。wrangler.jsonc の kv_namespaces を見てください" };
+  }
+  const bad = checkUpload(key, text);
+  if (bad) return { ok: false, status: 400, error: bad };
+  await kv.put(key, text);
+  // この isolate の読み込みの覚えを捨てます（新しい中身で答えるため）。
+  const s = storeFrom(kv);
+  if (s) cache.delete(s);
+  return { ok: true };
+}
+
+/** 入れ物の様子（つながっているか・目次の件数だけ）。 */
+export async function privateStatus(env) {
+  const store = storeFrom(env?.PRIVATE_KB);
+  if (!store) return { bound: false, ready: false };
+  const m = await readJson(store, "manifest.json").catch(() => null);
+  return {
+    bound: true, ready: Boolean(m),
+    tiles: m ? { bus: (m.bus ?? []).length, spots: (m.spots ?? []).length } : null,
+  };
+}
+
 // --- 入れ物の中身を作る（tools/upload_private_kb.mjs が使います） ---------
 
 /**
- * kb-private/ の中身から、R2 に入れる鍵と中身の一覧を作ります。
+ * kb-private/ の中身から、KV に入れる鍵と中身の一覧を作ります。
  *
  * @param {{busIndex?:object, readBusTile?:(file:string)=>object|null, spotsDoc?:object}} src
  * @returns {Map<string, any>} 鍵 → JSON にする値

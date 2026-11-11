@@ -1,27 +1,32 @@
-// 国土数値情報の非商用データ（kb-private/）を、Cloudflare の R2 に入れる道具。
+// 国土数値情報の非商用データ（kb-private/）を、Cloudflare の Workers KV に入れる道具。
 //
-// 中継（server/worker.js）は、R2 に入れた元データを**中で判定するだけ**に使い、
+// 中継（server/worker.js）は、KV に入れた元データを**中で判定するだけ**に使い、
 // 外には「はい／いいえ」しか返しません（server/private-kb.js）。
 // リポジトリ・サイト・PHP 版・アプリには、元データは入りません。
+// KV は Workers の無料プランに入っていて、カードの登録は要りません。
 //
-// 使いかた（手順は docs/private-kb.md）
+// コマンドを使わずに入れるなら、管理画面の「非商用データを入れる」から
+// フォルダを選ぶだけです（docs/private-kb.md「入れかた A」）。
 //
-//   npx wrangler login                                   # 1回だけ。ブラウザで Cloudflare に入る
-//   node tools/upload_private_kb.mjs                     # 詰め直して、R2 に上げる
-//   node tools/upload_private_kb.mjs --dry-run           # 何を上げるかだけ見る
-//   node tools/upload_private_kb.mjs --pack-only         # .private-kb/ を作るだけ（手元の node-proxy 用）
-//   node tools/upload_private_kb.mjs --local             # wrangler dev の手元の R2 に入れる
+// 使いかた（入れかた B）
 //
-//   --src <dir>      元データの場所（既定 kb-private）
-//   --out <dir>      詰め直した先（既定 .private-kb。.gitignore 済み）
-//   --bucket <name>  R2 のバケット名（既定 tabisaki-private。wrangler.jsonc と合わせる）
+//   npx wrangler login                                        # 1回だけ。ブラウザで Cloudflare に入る
+//   node tools/upload_private_kb.mjs --namespace-id <ID>      # 詰め直して、KV に一度に入れる
+//   node tools/upload_private_kb.mjs --dry-run                # 何を入れるかだけ見る
+//   node tools/upload_private_kb.mjs --pack-only              # .private-kb/ を作るだけ（手元の node-proxy・管理画面用）
+//
+//   --src <dir>           元データの場所（既定 kb-private）
+//   --out <dir>           詰め直した先（既定 .private-kb。.gitignore 済み）
+//   --namespace-id <ID>   KV の入れ物の ID（ダッシュボードの Workers KV に出ます）。
+//                         省くと wrangler.jsonc の PRIVATE_KB を使います
 //
 // 認証情報はこの道具には書きません。wrangler login か、環境変数
-// CLOUDFLARE_API_TOKEN（R2 の編集ができるトークン）を 持ち主が入れます。
+// CLOUDFLARE_API_TOKEN（Workers KV の編集ができるトークン）を持ち主が入れます。
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { packPrivateKb } from "../server/private-kb.js";
 
@@ -35,9 +40,9 @@ const opt = (f, d) => {
 
 const SRC = resolve(ROOT, opt("src", "kb-private"));
 const OUT = resolve(ROOT, opt("out", ".private-kb"));
-const BUCKET = opt("bucket", "tabisaki-private");
-if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(BUCKET)) {
-  console.error(`バケット名が使えない形です: ${BUCKET}`);
+const NAMESPACE = opt("namespace-id", "");
+if (NAMESPACE && !/^[0-9a-f]{32}$/.test(NAMESPACE)) {
+  console.error(`KV の ID の形が違います（英数字32文字）: ${NAMESPACE}`);
   process.exit(2);
 }
 
@@ -75,30 +80,26 @@ console.log(`詰め直しました: ${OUT}（バス停 ${manifest.counts.bus}件
   + `観光資源・文化施設 ${manifest.counts.spots}件・${manifest.spots.length}枚）`);
 if (has("pack-only")) process.exit(0);
 
-// 2. R2 に上げる
-const where = has("local") ? "--local" : "--remote";
+// 2. KV に一度に入れる（wrangler kv bulk put。1回の呼び出しで全部入ります）
+// 一括の入力は、リポジトリの外（一時フォルダ）に書きます。
+const bulk = join(mkdtempSync(join(tmpdir(), "tabisaki-kv-")), "bulk.json");
+const pairs = [...packed].map(([key, value]) => ({ key, value: JSON.stringify(value) }));
+// 目次は最後に。KV の一括は順番を約束しないので、目次だけ後から別に入れます。
+writeFileSync(bulk, JSON.stringify(pairs.filter((p) => p.key !== "manifest.json")));
+const target = NAMESPACE ? ["--namespace-id", NAMESPACE] : ["--binding", "PRIVATE_KB"];
 const run = (cmd) => {
   if (has("dry-run")) { console.log(`  npx wrangler ${cmd.join(" ")}`); return 0; }
   const r = spawnSync("npx", ["wrangler", ...cmd], { cwd: ROOT, stdio: "inherit", shell: process.platform === "win32" });
   return r.status ?? 1;
 };
-
-if (!has("local")) {
-  // あれば「もうある」と言って失敗するだけなので、そのまま進みます。
-  run(["r2", "bucket", "create", BUCKET]);
+let status = run(["kv", "bulk", "put", bulk, ...target, "--remote"]);
+if (status === 0) {
+  status = run(["kv", "key", "put", "manifest.json", "--path", join(OUT, "manifest.json"), ...target, "--remote"]);
 }
-// manifest.json は最後に上げます。途中で止まっても、中継は「まだ無い」と見て
-// available:false を返すだけです（半端なタイルで間違った答えを出しません）。
-const keys = [...packed.keys()].filter((k) => k !== "manifest.json").sort();
-let failed = 0;
-for (const key of [...keys, "manifest.json"]) {
-  const status = run(["r2", "object", "put", `${BUCKET}/${key}`, "--file", join(OUT, key),
-    "--content-type", "application/json", where]);
-  if (status !== 0) { failed++; console.error(`上がりませんでした: ${key}`); if (key === "manifest.json") break; }
-}
-if (failed) {
-  console.error(`${failed}件が上がりませんでした。もう一度走らせてください（上書きされます）。`);
+rmSync(bulk, { force: true });
+if (status !== 0) {
+  console.error("入りませんでした。もう一度走らせてください（上書きされます）。");
   process.exit(1);
 }
-console.log(has("dry-run") ? "（--dry-run なので、何も上げていません）"
-  : `R2（${BUCKET}）に ${packed.size}件を上げました。wrangler.jsonc の r2_buckets の // を外して出し直してください。`);
+console.log(has("dry-run") ? "（--dry-run なので、何も入れていません）"
+  : `Workers KV に ${packed.size}件を入れました。`);

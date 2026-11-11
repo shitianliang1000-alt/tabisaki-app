@@ -73,7 +73,7 @@ const LOCAL_MODELS = new Set(
   (process.env.LOCAL_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 
 /**
- * 非商用データ（国土数値情報 P11・P12・P27）の入れ物。Cloudflare 版の R2
+ * 非商用データ（国土数値情報 P11・P12・P27）の入れ物。Cloudflare 版の Workers KV
  * （PRIVATE_KB）の代わりに、手元の .private-kb/ を読みます。
  * 作りかた: node tools/upload_private_kb.mjs --pack-only（docs/private-kb.md）
  * 無ければ /stops/near・/spots/check は available:false を返します。

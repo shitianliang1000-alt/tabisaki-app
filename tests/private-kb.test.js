@@ -7,7 +7,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  packPrivateKb, privateKbHandler, radiusOf, spotListed, stopNear, tileOf,
+  checkUpload, MAX_VALUE_BYTES, packPrivateKb, privateKbHandler, privateStatus, putPrivate,
+  radiusOf, spotListed, stopNear, storeFrom, tileOf,
 } from "../server/private-kb.js";
 import { dirStore } from "../server/private-kb-dir.mjs";
 import { busStopNear, resetPrivateHintCache, spotListed as spotListedHint }
@@ -170,8 +171,56 @@ test("中継は /stops/near と /spots/check を無料の枠で数え、/status 
   assert.match(src, /privateKb: Boolean\(env\.PRIVATE_KB\)/);
 });
 
-test("R2 のバインディングは、バケットを作るまで外してある（無いバケットはデプロイを止める）", () => {
+test("KV のバインディングは、入れ物を作るまで外してある（無い id はデプロイを止める）", () => {
   const src = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
-  assert.match(src, /^\s*\/\/ "r2_buckets"/m);
+  assert.match(src, /^\s*\/\/ "kv_namespaces"/m);
+  assert.doesNotMatch(src, /^\s*"kv_namespaces"/m);
   assert.doesNotMatch(src, /^\s*"r2_buckets"/m);
+});
+
+/** Workers KV のバインディングの代わり（get(key, {type}) と put と getWithMetadata）。 */
+function fakeKv(initial = new Map()) {
+  const m = new Map([...initial].map(([k, v]) => [k, JSON.stringify(v)]));
+  return {
+    m, puts: 0,
+    async get(key, opts) { assert.equal(opts?.type, "text"); return m.has(key) ? m.get(key) : null; },
+    async getWithMetadata(key) { return { value: m.get(key) ?? null, metadata: null }; },
+    async put(key, value) { this.puts++; m.set(key, value); },
+  };
+}
+
+test("Workers KV でも同じ答え（storeFrom が包む）", async () => {
+  const env = { PRIVATE_KB: fakeKv(packed) };
+  assert.deepEqual(await privateKbHandler("/stops/near", { lat: 35.362, lng: 138.728, km: 1 }, env),
+    { available: true, within: true });
+  assert.equal(storeFrom(env.PRIVATE_KB), storeFrom(env.PRIVATE_KB), "同じ包みを使い回す");
+  assert.equal(storeFrom(null), null);
+});
+
+test("管理画面から入れる口は、決まった鍵と形だけ受け付ける", async () => {
+  const kv = fakeKv();
+  const env = { PRIVATE_KB: kv };
+  assert.equal(checkUpload("bus/35_138.json", JSON.stringify(busTile.stops)), null);
+  assert.equal(checkUpload("manifest.json", JSON.stringify(packed.get("manifest.json"))), null);
+  assert.match(checkUpload("../secret", "[]"), /鍵/);
+  assert.match(checkUpload("other/1_2.json", "[]"), /鍵/);
+  assert.match(checkUpload("bus/35_138.json", "{not json"), /JSON/);
+  assert.match(checkUpload("bus/35_138.json", JSON.stringify({ any: "thing" })), /形/);
+  assert.match(checkUpload("manifest.json", JSON.stringify({ bus: ["../x"], spots: [] })), /目次/);
+  assert.match(checkUpload("bus/35_138.json", JSON.stringify([[1, 2, "x".repeat(MAX_VALUE_BYTES)]])), /大きすぎ/);
+  assert.deepEqual(await putPrivate(env, "bus/35_138.json", JSON.stringify(busTile.stops)), { ok: true });
+  assert.equal((await putPrivate(env, "x.json", "[]")).status, 400);
+  assert.equal((await putPrivate({}, "manifest.json", "{}")).status, 503);
+  assert.deepEqual(await privateStatus(env), { bound: true, ready: false, tiles: null });
+  await putPrivate(env, "manifest.json", JSON.stringify(packed.get("manifest.json")));
+  assert.deepEqual(await privateStatus(env), { bound: true, ready: true, tiles: { bus: 1, spots: 2 } });
+  assert.deepEqual(await privateStatus({}), { bound: false, ready: false });
+});
+
+test("管理画面の入れる口は合言葉と専用の見出しの後ろにあり、中身を返さない", () => {
+  const src = readFileSync(new URL("../server/admin.js", import.meta.url), "utf8");
+  assert.match(src, /path === "private-kb" && m === "PUT"/);
+  // serveApi は X-Admin-Request と合言葉を通ったあとにだけ呼ばれます
+  assert.ok(src.indexOf('X-Admin-Request") !== "1"') < src.indexOf('path === "private-kb"'));
+  assert.doesNotMatch(src, /PRIVATE_KB\.get/);
 });

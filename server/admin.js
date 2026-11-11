@@ -27,6 +27,7 @@
 
 import { forward } from "./stats.js";
 import { openKbPullRequest } from "./github.js";
+import { privateStatus, putPrivate } from "./private-kb.js";
 
 export const ADMIN_PREFIX = "/private/";
 const API_PREFIX = `${ADMIN_PREFIX}api/`;
@@ -126,6 +127,14 @@ async function serveApi(request, env, url, path, overview) {
   const m = request.method;
   const body = async () => { try { return await request.json(); } catch { return null; } };
 
+  // 非商用データ（Workers KV の PRIVATE_KB）を入れる口（admin/private-kb.html）。
+  // **書くだけで、中身は返しません。** 見せるのは、つながっているかと件数だけです。
+  if (path === "private-kb" && m === "GET") return apiJson({ ok: true, ...(await privateStatus(env)) });
+  if (path === "private-kb" && m === "PUT") {
+    const key = url.searchParams.get("key") ?? "";
+    const out = await putPrivate(env, key, await request.text());
+    return apiJson(out.ok ? { ok: true, key } : { ok: false, error: out.error }, out.ok ? 200 : out.status);
+  }
   if (m === "GET" && path === "overview") return apiJson({ ok: true, ...(overview ? await overview() : {}) });
   if (m === "GET" && path === "stats") {
     return forward(env, "GET", `/summary?days=${encodeURIComponent(url.searchParams.get("days") ?? "30")}`);

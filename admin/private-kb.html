@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>旅さき — 非商用データを入れる</title>
+<!-- 国土数値情報の非商用データ（P11・P12・P27）を、Workers KV（PRIVATE_KB）に入れる画面。
+     Worker が合言葉つきで配ります（server/admin.js）。**入れるだけで、中身は見せません。**
+     手順: docs/private-kb.md -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
+<link rel="stylesheet" href="../css/hig-tokens.css">
+<link rel="stylesheet" href="../css/hig.css">
+<link rel="stylesheet" href="admin.css">
+
+<header class="bar">
+  <span class="mark" aria-hidden="true">✦</span>
+  <h1>非商用データを入れる</h1>
+</header>
+<main style="max-width: 44rem; margin: 0 auto; padding: 16px;">
+  <p>共有フォルダの <code>kb-private/kv-upload.zip</code> を展開し、出てきたフォルダ（<code>manifest.json</code>・<code>bus</code>・<code>spots</code> が入っているもの）を選んでください。
+     約160件を順に入れます。目次（<code>manifest.json</code>）は最後に入れます。</p>
+  <p>入れたデータは、中継の中の判定（バス停が近くにあるか・名前が載っているか）にだけ使い、外には返しません。</p>
+  <p id="status">つながりを確かめています…</p>
+  <p><input type="file" id="folder" webkitdirectory multiple></p>
+  <p><button id="go" disabled>入れる</button></p>
+  <progress id="bar" value="0" max="1" style="width:100%" hidden></progress>
+  <pre id="log" style="white-space:pre-wrap"></pre>
+  <p><a href="./">管理画面にもどる</a></p>
+</main>
+<script type="module" src="private-kb.js"></script>
+</html>

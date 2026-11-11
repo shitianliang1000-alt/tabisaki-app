@@ -1,7 +1,7 @@
-// 手元（node-proxy・試験）で使う、R2 と同じ形の入れ物。
+// 手元（node-proxy・試験）で使う、Workers KV と同じ答えを返す入れ物。
 //
 // tools/upload_private_kb.mjs --pack-only が作る .private-kb/ を読みます。
-// Worker の中では使いません（Cloudflare では R2 のバインディング PRIVATE_KB を使います）。
+// Worker の中では使いません（Cloudflare では Workers KV のバインディング PRIVATE_KB を使います）。
 
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";

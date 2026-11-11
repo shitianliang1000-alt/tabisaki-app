@@ -334,7 +334,7 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
       if (path.endsWith("/transit")) return cors(await transit(request, env), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
-      // 非商用データ（R2 の PRIVATE_KB）で確かめます。返すのは true/false だけで、
+      // 非商用データ（Workers KV の PRIVATE_KB）で確かめます。返すのは true/false だけで、
       // 名前や座標は返しません（server/private-kb.js・docs/private-kb.md）。
       if (path.endsWith("/stops/near") || path.endsWith("/spots/check")) {
         return cors(json(await privateKbHandler(path, await readJson(request), env)), origin, allow);
@@ -357,7 +357,7 @@ async function relay(request, env, ctx) {
           transit: providerStatus(env),
           // Workers AI が使えるなら、AIのキーは要りません。
           workersAi: Boolean(env.AI),
-          // 非商用データの入れ物（R2）がつながっているか（中身は返しません）。
+          // 非商用データの入れ物（Workers KV）がつながっているか（中身は返しません）。
           privateKb: Boolean(env.PRIVATE_KB),
           // 自前のモデルの入口が設定されているか（URL も鍵も返しません）。
           ownModel: ownModelConfigured(env),
