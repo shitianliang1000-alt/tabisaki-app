@@ -124,6 +124,8 @@ export function endpointFor(what, args = {}, cfg = {}) {
                         "status": "status",
                         "yahoo:transit": "yahoo/transit",
                         "transit": "transit",
+                        "stops:near": "stops/near",
+                        "spots:check": "spots/check",
                         "web:search": "web/search" }[what] ?? what}`;
   }
   if (what === "local:generate") {

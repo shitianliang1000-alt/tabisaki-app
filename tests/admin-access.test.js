@@ -17,7 +17,7 @@ import { basicPassword, serveAdmin, SITE_ROOT } from "../server/admin.js";
 const root = new URL("../", import.meta.url);
 const W = "https://tabisaki-github-io.example.workers.dev";
 
-const basic = (pw, user = "ryo") =>
+const basic = (pw, user = "traveler") =>
   `Basic ${Buffer.from(`${user}:${pw}`, "utf8").toString("base64")}`;
 
 const files = {

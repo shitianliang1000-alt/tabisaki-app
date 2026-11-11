@@ -43,6 +43,11 @@ function withYahoo(reply, fn) {
     if (u.includes("stops-bus")) {
       return { ok: true, json: async () => ({ year: 2012, stops: [] }) };
     }
+    // 中継の非商用データへの「バス停が近くにあるか」（packages/core/src/private-hint.js）。
+    // 乗り換え検索ではないので数えません。ここでは「無い」と答えます。
+    if (u.endsWith("/stops/near")) {
+      return { ok: true, json: async () => ({ available: true, within: false }) };
+    }
     const body = JSON.parse(init?.body ?? "{}");
     asked.push(body);
     const out = reply(body);

@@ -30,7 +30,7 @@ const ICS = [
 ].join("\r\n");
 
 /** 偽の CalDAV。PUT・DELETE を覚えておきます。 */
-function fakeCaldav({ user = "ryo", password = "app-pass", failPut = null } = {}) {
+function fakeCaldav({ user = "traveler", password = "app-pass", failPut = null } = {}) {
   const store = new Map();
   const log = [];
   const server = http.createServer((req, res) => {
@@ -51,7 +51,7 @@ function fakeCaldav({ user = "ryo", password = "app-pass", failPut = null } = {}
     });
   });
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => {
-    const url = `http://127.0.0.1:${server.address().port}/cal/ryo/travel/`;
+    const url = `http://127.0.0.1:${server.address().port}/cal/traveler/travel/`;
     resolve({ url, store, log, close: () => new Promise((r) => server.close(r)) });
   }));
 }
@@ -82,7 +82,7 @@ test("ファイル名は UID から決まり、記号を含まない", () => {
 test("カレンダーの URL: https か手元だけ・合言葉を URL に入れない", () => {
   assert.equal(checkCalendarUrl("https://dav.example.com/cal/me").href, "https://dav.example.com/cal/me/");
   assert.equal(checkCalendarUrl("http://127.0.0.1:5232/me/travel/").protocol, "http:");
-  for (const bad of ["http://dav.example.com/cal/", "https://ryo:pw@dav.example.com/cal/", "ftp://x/", "nope", "",
+  for (const bad of ["http://dav.example.com/cal/", "https://traveler:pw@dav.example.com/cal/", "ftp://x/", "nope", "",
     "https://dav.example.com/cal/?x=1"]) {
     assert.throws(() => checkCalendarUrl(bad), { code: "invalid_input" }, bad);
   }
@@ -99,9 +99,9 @@ test("合言葉は環境変数か、合言葉を出すコマンドから", async
 test("同じ旅を2度送っても増えない。無くなった予定は消し、ほかの予定には触れない", async () => {
   const dav = await fakeCaldav();
   try {
-    dav.store.set("/cal/ryo/travel/someone-else.ics", "BEGIN:VCALENDAR…");
+    dav.store.set("/cal/traveler/travel/someone-else.ics", "BEGIN:VCALENDAR…");
     const calendar = checkCalendarUrl(dav.url);
-    const credentials = { user: "ryo", password: "app-pass" };
+    const credentials = { user: "traveler", password: "app-pass" };
     const state = { version: 1, calendars: {} };
     const events = splitEvents(ICS);
 
@@ -115,7 +115,7 @@ test("同じ旅を2度送っても増えない。無くなった予定は消し�
     const fewer = await syncEvents({ calendar, credentials, events: events.slice(0, 1), seed: "trip-a", state });
     assert.equal(fewer.removed.length, 1);
     assert.equal(dav.store.size, 2);
-    assert.ok(dav.store.has("/cal/ryo/travel/someone-else.ics"));
+    assert.ok(dav.store.has("/cal/traveler/travel/someone-else.ics"));
     assert.ok(dav.log.every((l) => /\/tabisaki-[0-9a-f]{24}\.ics$/.test(l)), "旅さきのファイルにしか触れない");
 
     // 合言葉は、送った一覧に残りません。
@@ -123,7 +123,7 @@ test("同じ旅を2度送っても増えない。無くなった予定は消し�
 
     const gone = await removeEvents({ calendar, credentials, state });
     assert.equal(gone.removed.length, 1);
-    assert.deepEqual([...dav.store.keys()], ["/cal/ryo/travel/someone-else.ics"]);
+    assert.deepEqual([...dav.store.keys()], ["/cal/traveler/travel/someone-else.ics"]);
     assert.deepEqual(state.calendars, {});
   } finally {
     await dav.close();
@@ -136,10 +136,10 @@ test("断られたら auth、途中で失敗しても書けた分は一覧に残
     const calendar = checkCalendarUrl(dav.url);
     const state = { version: 1, calendars: {} };
     await assert.rejects(
-      syncEvents({ calendar, credentials: { user: "ryo", password: "wrong" }, events: splitEvents(ICS), seed: "s", state }),
+      syncEvents({ calendar, credentials: { user: "traveler", password: "wrong" }, events: splitEvents(ICS), seed: "s", state }),
       { code: "auth" });
     await assert.rejects(
-      syncEvents({ calendar, credentials: { user: "ryo", password: "app-pass" }, events: splitEvents(ICS), seed: "s", state }),
+      syncEvents({ calendar, credentials: { user: "traveler", password: "app-pass" }, events: splitEvents(ICS), seed: "s", state }),
       { code: "http" });
     assert.deepEqual(state.calendars[calendar.href].s.hrefs, [hrefFor("trip-a-eve@tabisaki")]);
   } finally {
@@ -188,7 +188,7 @@ function cli(args, env = {}) {
 test("tabisaki sync: 確かめてから書き、--remove で消す", async () => {
   const dav = await fakeCaldav();
   const state = mkdtempSync(path.join(os.tmpdir(), "tabisaki-sync-"));
-  const env = { XDG_STATE_HOME: state, TABISAKI_CALDAV_USER: "ryo", TABISAKI_CALDAV_PASSWORD: "app-pass" };
+  const env = { XDG_STATE_HOME: state, TABISAKI_CALDAV_USER: "traveler", TABISAKI_CALDAV_PASSWORD: "app-pass" };
   const trip = ["温泉と海", "--date=2026-11-07", `--caldav-url=${dav.url}`];
   try {
     // 端末でないときに --yes が無ければ、何も送りません。
