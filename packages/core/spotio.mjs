@@ -197,9 +197,19 @@ function geoJsonRecords(text) {
 // --- KML -------------------------------------------------------------------------
 
 const xmlEscape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const xmlText = (s) => String(s)
-  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, c) => c.replace(/&/g, "\u0000amp;").replace(/</g, "\u0000lt;"))
-  .replace(/<[^>]+>/g, "")
+// タグを外します。1回外した結果に、また タグの形が現れることがある（<scr<b>ipt> など）ので、
+// 変わらなくなるまで繰り返します。
+const stripTags = (s) => {
+  let out = String(s);
+  for (let prev = null; prev !== out;) {
+    prev = out;
+    out = out.replace(/<[^>]+>/g, "");
+  }
+  return out;
+};
+// 要素の中身を、ただの文字にします（HTML ではありません。画面に出す側が、文字として出します）。
+const xmlText = (s) => stripTags(String(s)
+  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, c) => c.replace(/&/g, "\u0000amp;").replace(/</g, "\u0000lt;")))
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
   .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
