@@ -886,6 +886,36 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
         itin.suggestions.map((s) => suggestionButton(s, handlers.onSuggest)))));
   }
 
+  // 行き先の注意報・警報と、もしものときの入口（#448。packages/core/src/alerts.js）。
+  // 警報が無くても、入口と「最後は自分で確かめて」の一文は必ず出します。
+  const al = itin.replan?.alerts;
+  if (al?.note) {
+    const level = al.top >= 4 ? "danger" : al.top >= 3 ? "warning" : al.top >= 2 ? "advisory" : "calm";
+    const box = el("section", { class: `panel alerts alerts-${level}`,
+                                ...(al.top >= 3 ? { role: "alert" } : {}) });
+    box.append(el("div", { class: "panel-head" },
+      el("h3", {}, al.top >= 3 ? "行き先に警報が出ています" : "もしものときに")));
+    if (al.lines?.length) {
+      box.append(el("ul", { class: "alert-lines" },
+        al.lines.map((t) => el("li", {}, icon("warn"), el("span", {}, t)))));
+      box.append(el("p", { class: "alert-src" },
+        "気象庁「気象警報・注意報」を加工して作成。行き先の府県全体に出ているものの一覧です。"));
+    } else if (al.checked) {
+      box.append(el("p", { class: "alert-src" },
+        "いま、行き先に気象庁の注意報・警報は出ていません。"));
+    } else if (al.ok === false) {
+      box.append(el("p", { class: "alert-src" },
+        "気象庁の注意報・警報を確かめられませんでした。下の入口から確かめてください。"));
+    }
+    if (al.links?.length) {
+      box.append(el("ul", { class: "alert-links" }, al.links.map((l) =>
+        el("li", {}, el("a", { href: l.url, target: "_blank", rel: "noopener noreferrer" },
+          icon("link"), el("span", {}, l.label))))));
+    }
+    box.append(el("p", { class: "alert-note" }, icon("info"), el("span", {}, al.note)));
+    detail.push(box);
+  }
+
   // 天気・日没・混雑からの見直し。**黙って変えません。**
   // 雨だからと勝手に行き先を差し替えられたら、楽しみにしていた場所が
   // 理由も分からず消えます。理由を添えて出し、押されたら組み直します。

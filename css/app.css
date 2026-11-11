@@ -2495,6 +2495,30 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 .rp-actions { margin-top: 14px; }
 .weather-days li { font-size: var(--hig-t-footnote); }
 
+/* 行き先の注意報・警報ともしものときの入口（#448）。
+   色だけに頼らず、見出しの言葉（「警報が出ています」）でも分かるようにします。 */
+.alerts .alert-lines { list-style: none; padding: 0; margin: 0; }
+.alerts .alert-lines li { display: flex; gap: 8px; align-items: baseline; font-size: var(--hig-t-subhead); line-height: 1.75; }
+.alerts .alert-lines .ic { flex: none; align-self: center; }
+/* 警報（レベル3）から上は、混雑の「非常に混雑」と同じ強い面にします。 */
+.alerts-warning, .alerts-danger {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+.alerts-warning .alert-src, .alerts-danger .alert-src { color: inherit; }
+.alert-src { margin: 8px 0 0; font-size: var(--hig-t-footnote); color: var(--md-sys-color-on-surface-variant); }
+.alert-links { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.alert-links a { display: inline-flex; gap: 6px; align-items: center; min-height: var(--md-touch); font-size: var(--hig-t-footnote); }
+.alert-note {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 12px 0 0; padding: 10px 12px;
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-surface-container-high);
+  font-size: var(--hig-t-footnote); line-height: 1.75;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.alert-note .ic { align-self: center; flex: none; }
+
 /* ------------------------------------------------------- エラー表示 --- */
 /* 技術用語を表に出さないための箱。詳細は開いた人だけが見ます。 */
 

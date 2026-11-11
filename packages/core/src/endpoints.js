@@ -253,6 +253,8 @@ function messageFor(code) {
     case "RATE_LIMITED":
     case "UPSTREAM_LIMIT":
       return "いま利用が集中しています。時間をおいてから、もう一度お試しください。";
+    case "DAILY_LIMIT":
+      return "今日の AI・経路の利用が上限に達しました。日本時間の0時に戻ります。";
     case "NOT_CONFIGURED":
       return "中継にキーが設定されていません。";
     case "FORBIDDEN":
