@@ -29,6 +29,8 @@
 
 import { createServer } from "node:http";
 import { transitHandler, TransitError } from "./transit.js";
+import { privateKbHandler } from "./private-kb.js";
+import { dirStore } from "./private-kb-dir.mjs";
 import { jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
@@ -69,6 +71,14 @@ const LOCAL_BASE_URL = trimSlashes(process.env.LOCAL_BASE_URL ?? "");
 /** 呼ばれてよいローカルモデル。空なら何でも通します（自分の機械なので）。 */
 const LOCAL_MODELS = new Set(
   (process.env.LOCAL_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+
+/**
+ * 非商用データ（国土数値情報 P11・P12・P27）の入れ物。Cloudflare 版の R2
+ * （PRIVATE_KB）の代わりに、手元の .private-kb/ を読みます。
+ * 作りかた: node tools/upload_private_kb.mjs --pack-only（docs/private-kb.md）
+ * 無ければ /stops/near・/spots/check は available:false を返します。
+ */
+const PRIVATE_KB = dirStore(process.env.PRIVATE_KB_DIR ?? ".private-kb");
 
 const GEMINI_ROOT = "https://generativelanguage.googleapis.com/v1beta";
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
@@ -244,6 +254,11 @@ export const handler = async (req, res) => {
         if (!(e instanceof TransitError)) throw e;
         return send(res, e.status, head, e.message);
       }
+    }
+    if (path.endsWith("/stops/near") || path.endsWith("/spots/check")) {
+      // 返すのは true/false だけです（server/private-kb.js）。
+      return send(res, 200, head, null,
+        await privateKbHandler(path, body, { PRIVATE_KB }));
     }
     if (path.endsWith("/routes")) {
       // 4. 入力の中身。経路は起点と終点が要ります。無いものを上流に流すと、

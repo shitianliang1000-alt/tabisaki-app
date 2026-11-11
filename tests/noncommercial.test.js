@@ -23,8 +23,10 @@ test("公開の kb/ に、バス停留所 P11 が無い", () => {
 test("kb-private/ はリポジトリにもサイトにも入らない", () => {
   const ignore = readFileSync(new URL("../.gitignore", import.meta.url), "utf8");
   assert.match(ignore, /^\/kb-private\/$/m);
+  // R2 に入れる形に詰め直したもの（tools/upload_private_kb.mjs）も同じ扱いです。
+  assert.match(ignore, /^\/\.private-kb\/$/m);
   for (const f of ["tools/build_site.sh", "tools/build_php.sh", "tools/build_worker.sh"]) {
     const sh = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
-    assert.doesNotMatch(sh, /kb-private/, f);
+    assert.doesNotMatch(sh, /kb-private|\.private-kb/, f);
   }
 });

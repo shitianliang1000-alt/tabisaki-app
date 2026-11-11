@@ -21,6 +21,11 @@
 //                         スポットの近くだけを抜き出したもの（全国では
 //                         25万件を超え、静的サイトに乗せる大きさではない）。
 //   どちらも「今の時刻表」ではなく「だいたいの位置」の目安でしかない。
+//
+//   **バス停（P11）は非商用なので、2026-11-04 からサイトには入れていません。**
+//   kb/stops-bus.json は読めず、ここでは駅だけで答えます。歩ける距離に
+//   バス停があるかは、中継の中のデータに聞きます（packages/core/src/private-hint.js、
+//   docs/private-kb.md）。
 
 import { haversineKm } from "./feasibility.js";
 import { appUrl } from "./root.js";

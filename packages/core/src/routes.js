@@ -41,6 +41,7 @@ import { QuotaBlockedError, meteredFetch } from "./quota.js";
 import { estimateMinutes, haversineKm, isSlowTerrain, taxiMinutes }
   from "./feasibility.js";
 import { findStop, nearbyStops, nearestStop } from "./stops.js";
+import { busStopNear } from "./private-hint.js";
 import { ropewayMinutes, ropewayNear } from "./ropeways.js";
 import { summarizeTransitLeg, summarizeYahooRoute, transitFieldMask }
   from "./transit.js";
@@ -1137,7 +1138,11 @@ async function accessFor(p) {
   const mountain = mountainish(p);
   // 山でなければ、その場所の位置で聞きます。Yahoo!は収録の停留所より
   // 多くのバス停を知っていて（「滝見台」）、位置からそれを選べます。
-  if (!mountain || await nearestStop(p, ACCESS_WALK_KM)) {
+  //
+  // バス停（国土数値情報 P11）は非商用なのでサイトに入れていません。歩ける距離に
+  // あるかどうかだけを、中継の中のデータに聞きます（packages/core/src/private-hint.js）。
+  if (!mountain || await nearestStop(p, ACCESS_WALK_KM)
+      || await busStopNear(p, ACCESS_WALK_KM, net())) {
     return { at: p, direct: true, hikeKm: 0, mountain };
   }
   const rw = await ropewayNear(p);

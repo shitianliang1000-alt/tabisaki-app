@@ -3,6 +3,7 @@ import { ENDPOINTS, record, Stats } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
+import { privateKbHandler } from "./private-kb.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
 import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
 import { dailyLimit, jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
@@ -75,6 +76,10 @@ const COST = {
   // 契約の回数で止まります。ここは取り違えたときの歯止めだけです。
   "/transit": 1,
   "/transit/providers": 0,
+  // 非商用データの「はい／いいえ」だけの判定（server/private-kb.js）。
+  // 外へは取りに行きません。
+  "/stops/near": 1,
+  "/spots/check": 1,
   "/routes": 3,
   "/gemini/generate": 5,
   "/gemini/embed": 1,
@@ -100,6 +105,8 @@ const POOL = {
   "/yahoo/transit": "free",
   "/transit": "free",
   "/transit/providers": "free",
+  "/stops/near": "free",
+  "/spots/check": "free",
   "/metrics": "free",
 };
 
@@ -327,6 +334,11 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
       if (path.endsWith("/transit")) return cors(await transit(request, env), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
+      // 非商用データ（R2 の PRIVATE_KB）で確かめます。返すのは true/false だけで、
+      // 名前や座標は返しません（server/private-kb.js・docs/private-kb.md）。
+      if (path.endsWith("/stops/near") || path.endsWith("/spots/check")) {
+        return cors(json(await privateKbHandler(path, await readJson(request), env)), origin, allow);
+      }
       if (path.endsWith("/web/search")) return cors(await webSearch(request, env, ctx), origin, allow);
       // 鍵が入っているかどうかだけを答えます（値は返しません）。
       // 「キーが無効です」と「中継に鍵が置かれていない」は別のことで、
@@ -345,6 +357,8 @@ async function relay(request, env, ctx) {
           transit: providerStatus(env),
           // Workers AI が使えるなら、AIのキーは要りません。
           workersAi: Boolean(env.AI),
+          // 非商用データの入れ物（R2）がつながっているか（中身は返しません）。
+          privateKb: Boolean(env.PRIVATE_KB),
           // 自前のモデルの入口が設定されているか（URL も鍵も返しません）。
           ownModel: ownModelConfigured(env),
           allowOrigin: allow,

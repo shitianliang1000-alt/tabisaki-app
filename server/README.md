@@ -222,3 +222,9 @@ curl "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/analytics_engine
 アプリ側の使用量ゲート（`packages/core/src/quota.js`、50件ごとの確認）は
 **その端末の中でしか数えていません**。サーバー側の上限の代わりには
 なりません。
+
+## 非商用データ（R2）
+
+国土数値情報の非商用データは、R2（バインディング `PRIVATE_KB`）に置き、中継の中の判定だけに使います。
+`POST /stops/near`・`POST /spots/check` は true/false だけを返します。入れかたと残る危うさは
+[docs/private-kb.md](../docs/private-kb.md) にあります。`node-proxy.mjs` は手元の `.private-kb/` を読みます。
