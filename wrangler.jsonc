@@ -110,8 +110,10 @@
   // **無い id を書くと、デプロイそのものが失敗します。** 作り直したときは ID を差し替えてください。
   // 中身がまだ空のあいだ、/stops/near と /spots/check は available:false を返すだけです。
   //
-  // 中身は管理画面の「非商用データを入れる」から入れます（docs/private-kb.md）。
-  "kv_namespaces": [
+  // 使うとき（docs/private-kb.md）: ダッシュボードの Storage & Databases → Workers KV →
+  // Create で tabisaki-private を作り、出てきた ID を下の id に入れます。そのあと、
+  // 上の migrations の行の末尾 ] のあとに「,」を足し、次の3行の // を外します。
+  "kv_namespaces": [,
     { "binding": "PRIVATE_KB", "id": "d3f7f2d6eb474d5598d4bbc44e87582e" }
   ]
 
