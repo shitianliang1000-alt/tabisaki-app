@@ -27,6 +27,10 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … / tabisaki a
   area ls [--custom-only]                     エリアの一覧（--custom-only で手で決めたものだけ）
   area rm <id>
 
+  自分のユーザーKB（~/.tabisaki/kbs/<名前>/。docs/user-kb.md）のスポットを足す・直す・消す:
+  spot add [項目=値 …]  spot edit <スポット> 項目=値 …  spot rm <スポット>  spot restore <スポット>
+  spot list  spot import <ファイル>  spot export  spot dedup   （くわしくは tabisaki spot add --help）
+
   <スポット> は名前・別名・id のどれでも。同じ名前がいくつもあるときは id で選びます。
   共通: --output=json（show・ls・candidates・check）
 
@@ -86,6 +90,17 @@ function httpsUrl(u, key) {
 }
 
 export async function main(argv, { stdout = process.stdout, stderr = process.stderr, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  // 足す・直す・消す・取り込み・書き出し（ユーザーKB）は spotkb.mjs が受け持ちます。
+  // spot show は、足したスポット（u:…）か --kb= を付けたときだけ、ユーザーKBの中身を出します。
+  if (argv[0] === "spot") {
+    const kbv = await import("./spotkb.mjs");
+    const verb = argv[1];
+    const rest = argv.slice(2);
+    // show だけは両方にあります。ユーザーKB の差分があるスポットならこちら、無ければ収録の情報（下）を出します
+    if (kbv.VERBS.includes(verb) && (verb !== "show" || (await kbv.showsUserKb(rest, env)))) {
+      return kbv.runSpot(verb, rest, { stdout, stderr, env });
+    }
+  }
   const realFetch = fetchImpl;
   try {
     const { opts, words } = parse(argv);

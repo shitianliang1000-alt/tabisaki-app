@@ -134,6 +134,16 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 足した情報は手元（`~/.tabisaki/spots.json`）に出典・確認の状態つきで入り、確認済みの営業時間は `plan`・`tui` の旅程に効きます。
 くわしくは [spot-data.md](./spot-data.md)。
 
+自分でスポットを足す・直す・消す・取り込む（CSV・GeoJSON・KML）ときは、ユーザーKB に入ります。`plan --kb=mine` で旅程に重なります。
+
+```sh
+./tabisaki spot add name=秘密の滝 lat=35.1 lng=139.2 genres=nature
+./tabisaki spot import mymaps.kml --dry-run
+./tabisaki plan "静岡で滝" --kb=mine
+```
+
+くわしくは [user-kb.md](./user-kb.md#コマンド)。
+
 ## Node.js から使う（packages/core）
 
 ```js

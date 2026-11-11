@@ -6,7 +6,69 @@
 ./tabisaki plan "高尾山で景色" --kb=mine     # ~/.tabisaki/kbs/mine/ の差分を重ねて組む
 ```
 
-足す・直すコマンド（`tabisaki spot add` など）は Issue #355 で入ります。ここに書くのは、その下にある**データの形と決まり**です。コードは [`packages/core/userkb.mjs`](../packages/core/userkb.mjs)、試験は [`tests/userkb.test.js`](../tests/userkb.test.js) です。
+端末からの足しかた・直しかた・取り込みかたは「[コマンド](#コマンド)」に、その下にある**データの形と決まり**はそのあとに書きます。コードは [`packages/core/userkb.mjs`](../packages/core/userkb.mjs)（形）・[`packages/core/spotio.mjs`](../packages/core/spotio.mjs)（取り込み・書き出し）・[`packages/cli/bin/spotkb.mjs`](../packages/cli/bin/spotkb.mjs)（コマンド）、試験は [`tests/userkb.test.js`](../tests/userkb.test.js)・[`tests/spotio.test.js`](../tests/spotio.test.js)・[`tests/spotkb.test.js`](../tests/spotkb.test.js) です。
+
+## コマンド
+
+```sh
+./tabisaki spot add name=裏高尾の湧き水 lat=35.64 lng=139.25 genres="nature;view" dwell=20
+./tabisaki spot add                         # 項目を書かずに端末で動かすと、1つずつ聞きます
+./tabisaki spot edit takao-1 fee=300 --unset=tel
+./tabisaki spot rm 高尾山山頂 --reason=混みすぎる   # 端末なら確かめます。スクリプトからは --yes
+./tabisaki spot restore 高尾山山頂
+./tabisaki spot list                        # 自分が足した・直した・消したもの
+./tabisaki spot list --all --q=薬王院       # 収録からも探す
+./tabisaki spot show takao-1                # 収録の値と、直した値を並べて
+./tabisaki spot import mymaps.kml --dry-run
+./tabisaki spot export --format=geojson --out=mine.geojson
+./tabisaki spot dedup                       # 足したスポットのうち、収録や互いに重なっていそうなもの
+```
+
+| コマンド | すること | おもなオプション |
+|---|---|---|
+| `spot add [項目=値 …]` | スポットを足す。100m 以内に同じ名前があれば止めます | `--force`（それでも足す） |
+| `spot edit <スポット> 項目=値 …` | 直す。公式のスポットは差分（`patch`）として持ちます | `--unset=項目,…` |
+| `spot rm <スポット>` | 消す（印を付けるだけ） | `--reason=…`・`--yes` |
+| `spot restore <スポット>` | 消した印・直した差分を取り消す | |
+| `spot list` | 差分のあるスポットの一覧 | `--all --q=語`・`--limit=50` |
+| `spot show <スポット>` | 1件の中身と差分の状態 | |
+| `spot import <ファイル>` | CSV・GeoJSON・KML・JSON から足す | `--format`・`--encoding`・`--dry-run`・`--strict`・`--allow-dup` |
+| `spot export` | 足したスポットを書き出す | `--format`・`--out`・`--with-edited` |
+| `spot dedup` | 重なっていそうなものを並べる（消すのは利用者） | `--radius=100`（m） |
+
+どのコマンドも `--kb=<名前>`（既定は環境変数 `TABISAKI_KB`、無ければ `mine`）で書く先を選べます。まだ無いユーザーKB は、はじめて書くときに作ります。`list`・`show`・`import`・`dedup` は `--output=json` で JSON を返します。
+
+`<スポット>` は id（`takao-1`・`u:…`）か名前です。同じ名前がいくつもあるときは、候補の id を出して止めます。`spot show` は、ユーザーKB に差分があるスポット（と `u:` の id、`--kb` を書いたとき）だけをこの形で出し、それ以外は収録の情報（[spot-data.md](./spot-data.md)）を出します。
+
+終了コードは `0` = できた、`1` = できなかった（取り込みで一部の行が入らなかったときを含む）、`2` = 使いかたのまちがい、です。
+
+## 取り込み・書き出し
+
+| 形 | 拡張子 | 読む | 書く |
+|---|---|---|---|
+| CSV | `.csv`・`.tsv` | 1行目が列名。カンマかタブ区切り。引用符の中の改行・`""` も読みます | 列は `id,name,lat,lng,category,genres,…`。改行は CRLF |
+| GeoJSON | `.geojson`・`.json` | `FeatureCollection` の `Point` だけ | `tabisaki.schema` を付けます |
+| KML | `.kml` | Google マイマップの書き出し（`<Placemark>` の `<Point>`）。CDATA も読みます | `ExtendedData` に項目を入れます |
+| JSON | `.json` | 旅さきの `tabisaki.spots/1` | 同じ形 |
+
+**列名。** CSV は `name`・`lat`・`lng` のほか、`名前`・`名称`・`緯度`・`経度`・`住所`・`説明`・`分類`・`料金` などの日本語の列名も読みます。使わなかった列は、黙って捨てずに「使わなかった列」として知らせます。
+
+**文字コード。** UTF-8（BOM があってもよい）でなければ、Shift_JIS として読みます（表計算ソフトの既定のため）。`--encoding=shift_jis` で決めることもできます。
+
+**部分失敗。** おかしい行は、行番号と理由を出して飛ばし、残りは足します。そのときの終了コードは `1` です。`--strict` を付けると、1行でもおかしければ1行も足しません。`--dry-run` は何も書かずに、足せる行・重なり・まちがいを数えます。
+
+| 見つけること | 扱い |
+|---|---|
+| 必須の項目が無い・値の形がちがう | その行を飛ばし、理由を出す |
+| 緯度と経度が逆（日本の外になり、入れ替えると日本に入る） | 「入れ替わっているようです」と出して飛ばす |
+| `0,0` | 座標が入っていないとみなして飛ばす |
+| 点（Point）でない形 | 飛ばす |
+| 収録・ユーザーKB・同じファイルの中に、100m 以内で同じ名前 | 重なりとして飛ばす。`--allow-dup` で足す |
+| 2万行より多い | 全体を断る（分けてください） |
+
+**書き出し。** 既定では、自分で足したスポットだけを書き出します（収録のスポットは、それぞれの出どころの条件があるため）。`--with-edited` で、直した公式のスポットも直したあとの値で入ります。`--out` のファイルがもうあるときは上書きせず、新しく作るファイルは `0600` です。書き出したものは、そのまま `spot import` で取り込み直せます。
+
+**安全のため。** CSV の欄が `=`・`+`・`-`・`@` などで始まるときは、頭に `'` を付けて書き出します（表計算ソフトで式として動かないように）。取り込むときは外します。KML の `DOCTYPE`・`ENTITY` は読みません（外のファイルを読ませる仕掛けを防ぐため）。
 
 ## 考えかた
 
@@ -129,7 +191,7 @@
 └── trash/
 ```
 
-まるごと持ち出すときは、このフォルダを写せば足ります（中身はただの JSON です）。差分の書き出し・取り込み（CSV・GeoJSON など）は #355、別の端末との統合は #358、git での履歴は #360 で入ります。
+まるごと持ち出すときは、このフォルダを写せば足ります（中身はただの JSON です）。足したスポットだけを CSV・GeoJSON などで持ち出すときは「[取り込み・書き出し](#取り込み書き出し)」を見てください。別の端末との統合は #358、git での履歴は #360 で入ります。
 
 ## 安全のための決まり
 
