@@ -405,6 +405,8 @@ export { toMarkdown, toPlainText, toJson } from "./format.mjs";
 export { LANGS, SOURCE_LANG, pickLang, createI18n, localizeSpot, sourceHash } from "./i18n.mjs";
 export { resolveLang } from "./locales.mjs";
 export * as userkb from "./userkb.mjs";
+export * as kbmerge from "./kbmerge.mjs";
+export * as kbhistory from "./kbhistory.mjs";
 export * from "./local.mjs";
 // 足りない条件だけを聞く（#440）。CLI・API からも同じ判断を使えます。
 export {

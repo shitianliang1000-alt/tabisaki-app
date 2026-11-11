@@ -29,6 +29,8 @@ export const LIMITS = Object.freeze({
   entries: 50000,              // 1つのユーザーKBに持てる差分の数
   backups: 30,                 // 取っておく控えの数（古いものから消します）
   lockStaleMs: 30000,          // これより古い鍵は、落ちた process の残りとみなします
+  historyBytes: 20 * 1024 * 1024, // history.jsonl がこれを超えたら、history.1.jsonl に回して新しく始めます
+  snapshots: 200,              // 1つのユーザーKBに持てるスナップショットの数
 });
 
 const GENRES = ["nature", "history", "view", "food", "art", "city", "sea", "onsen"];
@@ -525,6 +527,20 @@ async function readJsonSafe(file) {
   }
 }
 
+/**
+ * 置き場の外にある overlay.json（別の端末から持ってきたものなど）を読みます。
+ * 読むだけで、どこにも書きません。形が古ければ今の形に直し、中身がおかしければ断ります。
+ */
+export async function readOverlayFile(file) {
+  const doc = migrateOverlay(await readJsonSafe(path.resolve(file)));
+  const problems = checkOverlay(doc);
+  if (problems.length) {
+    throw new UserKbError("broken_file",
+      `ユーザーKBとして読めません: ${file}\n${problems.slice(0, 5).map((p) => `  ${p.id}: ${p.problem}`).join("\n")}`);
+  }
+  return doc;
+}
+
 /** 途中で落ちても半端なファイルが残らないよう、隣に書いてから差し替えます。 */
 async function writeAtomic(file, text) {
   if (Buffer.byteLength(text) > LIMITS.fileBytes) throw new UserKbError("too_large", "ユーザーKBが大きすぎます");
@@ -539,6 +555,8 @@ async function writeAtomic(file, text) {
   await fsp.rename(tmp, file);
 }
 
+/** 統合の土台（bases/<相手>.json）の形の版。 */
+const BASE_SCHEMA = "tabisaki.user-kb-base/1";
 const stampName = (now) => now.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1Z");
 const BACKUP_RE = /^\d{8}T\d{9}Z(?:-\d{1,3})?\.json$/;
 
@@ -549,6 +567,7 @@ const BACKUP_RE = /^\d{8}T\d{9}Z(?:-\d{1,3})?\.json$/;
 export function openStore({ home = userKbHome(), now = () => new Date() } = {}) {
   const root = path.resolve(home);
   const kbsDir = path.join(root, "kbs");
+  const currentFile = path.join(root, "current-kb");
 
   const dirOf = (name) => {
     validateKbName(name);
@@ -611,6 +630,93 @@ export function openStore({ home = userKbHome(), now = () => new Date() } = {}) 
     return name;
   }
 
+  // --- 履歴（#360。docs/user-kb.md「履歴・取り消し・スナップショット」） ---------------------
+
+  const HISTORY = "history.jsonl";
+  const HISTORY_OLD = "history.1.jsonl";
+  const HEAD = "history-head.json";
+  const kbhistory = () => import("./kbhistory.mjs");
+
+  /** 最後に履歴へ書いたときの中身。まだ履歴が無ければ null。 */
+  async function readHead(d) {
+    try {
+      const j = await readJsonSafe(path.join(d, HEAD));
+      return j?.spots && typeof j.spots === "object" && Number.isInteger(j.seq) ? j : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function appendRecords(d, records) {
+    const file = path.join(d, HISTORY);
+    const st = await fsp.lstat(file).catch(() => null);
+    if (st && (st.isSymbolicLink() || !st.isFile())) throw new UserKbError("unsafe_path", `ふつうのファイルではありません: ${file}`);
+    if (st && st.size > LIMITS.historyBytes) await fsp.rename(file, path.join(d, HISTORY_OLD));
+    const fh = await fsp.open(file, FS.O_WRONLY | FS.O_CREAT | FS.O_APPEND, 0o600);
+    try {
+      await fh.writeFile(records.map((r) => `${JSON.stringify(r)}\n`).join(""), "utf8");
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
+  }
+
+  /**
+   * 書いた内容を履歴に1行足します。旅さきの外で書き換えられていた分（手で直した・控えを写した）は、
+   * 別の1行（external）として先に足します。あとで取り消すときに、その変更を黙って消さないためです。
+   */
+  async function recordWrite(d, prev, next, log) {
+    const { entryChanges, HISTORY_VERSION } = await kbhistory();
+    const head = await readHead(d);
+    const before = prev?.spots ?? head?.spots ?? {};
+    const at = now().toISOString();
+    const records = [];
+    if (head) {
+      const ext = entryChanges(head.spots, before);
+      if (ext.length) records.push({ cmd: "external", note: "旅さきの外で書き換えられた変更", changes: ext });
+    } else if (Object.keys(before).length) {
+      records.push({ cmd: "start", note: "履歴を取りはじめる前からあった差分", changes: entryChanges({}, before) });
+    }
+    const changes = entryChanges(before, next.spots);
+    if (changes.length) {
+      records.push({
+        cmd: String(log?.cmd ?? "save").slice(0, 40), note: String(log?.note ?? "").slice(0, 200), changes,
+        ...(Number.isInteger(log?.reverts) ? { reverts: log.reverts } : {}),
+        ...(Number.isInteger(log?.undoes) ? { undoes: log.undoes } : {}),
+      });
+    }
+    let seq = head?.seq ?? 0;
+    const lines = records.map((r) => ({ v: HISTORY_VERSION, seq: ++seq, at, ...r }));
+    if (lines.length) await appendRecords(d, lines);
+    if (lines.length || !head) await writeAtomic(path.join(d, HEAD), JSON.stringify({ seq, at, spots: next.spots }) + "\n");
+    return { seq: changes.length ? seq : null, changes: changes.length };
+  }
+
+  /** overlay.json を差し替え、控え・履歴・git への写しをまとめて行います。 */
+  async function commitDoc(d, out, log) {
+    const file = path.join(d, "overlay.json");
+    let prev = null;
+    try { prev = migrateOverlay(await readJsonSafe(file)); } catch { prev = null; }
+    const backup = await backupNow(d);
+    await writeAtomic(file, JSON.stringify(out, null, 2) + "\n");
+    const hist = await recordWrite(d, prev, out, log);
+    let git = null;
+    if (await fsp.lstat(path.join(d, ".git")).catch(() => null)) {
+      const h = await kbhistory();
+      git = await h.gitCommit(d, h.commitMessage({ cmd: log?.cmd ?? "save", note: log?.note ?? "", seq: hist.seq, changes: hist.changes }));
+    }
+    return { backup, seq: hist.seq, changes: hist.changes, git };
+  }
+
+  const snapDir = (name) => path.join(dirOf(name), "snapshots");
+  const snapFile = async (name, label) => {
+    const { SNAPSHOT_LABEL_RE } = await kbhistory();
+    if (!SNAPSHOT_LABEL_RE.test(String(label))) {
+      throw new UserKbError("invalid_name", `スナップショットの名前は、英小文字・数字・「-」「_」で60字までにしてください: ${label}`);
+    }
+    return path.join(snapDir(name), `${label}.json`);
+  };
+
   const store = {
     root,
     kbsDir,
@@ -650,18 +756,16 @@ export function openStore({ home = userKbHome(), now = () => new Date() } = {}) 
      * @param {object} doc
      * @param {{kb?: object}} [opts] kb を渡すと、公式の収録の版を控えます
      */
-    async save(name, doc, { kb } = {}) {
+    async save(name, doc, { kb, log } = {}) {
       if (doc?.schema !== SCHEMA) throw new UserKbError("invalid_input", `形の版が違います: ${doc?.schema}`);
       const problems = checkOverlay(doc);
       if (problems.length) {
         throw new UserKbError("invalid_input", problems.slice(0, 5).map((p) => `${p.id}: ${p.problem}`).join("\n"));
       }
       return withLock(name, async (d) => {
-        const backup = await backupNow(d);
         const out = { ...doc, name };
         if (kb) out.base = { kind: "official", stamp: baseStamp(kb) };
-        await writeAtomic(path.join(d, "overlay.json"), JSON.stringify(out, null, 2) + "\n");
-        return { backup };
+        return commitDoc(d, out, log);
       });
     },
 
@@ -680,11 +784,93 @@ export function openStore({ home = userKbHome(), now = () => new Date() } = {}) 
       const problems = checkOverlay(doc);
       if (problems.length) throw new UserKbError("broken_file", `控えの中身がおかしいです: ${problems[0].id} ${problems[0].problem}`);
       return withLock(name, async () => {
-        const backup = await backupNow(d);
-        await writeAtomic(path.join(d, "overlay.json"), JSON.stringify({ ...doc, name }, null, 2) + "\n");
-        return { restored: backupName, backup };
+        const r = await commitDoc(d, { ...doc, name }, { cmd: "kb restore", note: `控え ${backupName} に戻した` });
+        return { restored: backupName, ...r };
       });
     },
+
+    // --- 履歴・スナップショット（#360） ------------------------------------------------
+
+    /** 履歴（古い順）。1つのコマンドが1行です。 */
+    async history(name) {
+      const d = dirOf(name);
+      const { parseHistory } = await kbhistory();
+      let text = "";
+      for (const f of [HISTORY_OLD, HISTORY]) {
+        const file = path.join(d, f);
+        const st = await fsp.lstat(file).catch(() => null);
+        if (!st || st.isSymbolicLink() || !st.isFile()) continue;
+        text += `${await fsp.readFile(file, "utf8")}\n`;
+      }
+      return parseHistory(text);
+    },
+
+    /**
+     * 旅さきの外で書き換えられた分（手で直した overlay.json など）を、履歴に取り込みます。
+     * 取り消し・履歴・出どころを調べる前に呼び、履歴とファイルを同じにそろえます。
+     */
+    async syncHistory(name) {
+      return withLock(name, async (d) => {
+        const doc = migrateOverlay(await readJsonSafe(path.join(d, "overlay.json")));
+        await recordWrite(d, doc, doc, null);
+      });
+    },
+
+    /** いまの中身を、名前を付けて取っておきます。同じ名前には上書きしません。 */
+    async snapshotSave(name, label, { note = "" } = {}) {
+      const h = await kbhistory();
+      const file = await snapFile(name, label);
+      const doc = await store.load(name);
+      return withLock(name, async (d) => {
+        await ensureDir(path.join(d, "snapshots"));
+        const all = (await fsp.readdir(path.join(d, "snapshots"))).filter((f) => f.endsWith(".json"));
+        if (all.length >= LIMITS.snapshots) throw new UserKbError("too_large", `スナップショットは${LIMITS.snapshots}個までです（kb snapshot rm で減らせます）`);
+        if (await fsp.lstat(file).catch(() => null)) throw new UserKbError("exists", `同じ名前のスナップショットがあります: ${label}`);
+        const snap = h.makeSnapshot(doc, label, { note, now: now(), seq: (await readHead(d))?.seq ?? null });
+        await writeAtomic(file, JSON.stringify(snap) + "\n");
+        return { label, at: snap.at, entries: snap.entries, sha256: snap.sha256, note: snap.note };
+      });
+    },
+
+    /** スナップショットの一覧（古い順）。中身が取ったときのままか（ok）も返します。 */
+    async snapshots(name) {
+      const h = await kbhistory();
+      const dir = snapDir(name);
+      const out = [];
+      for (const f of (await fsp.readdir(dir).catch(() => [])).sort()) {
+        const label = f.replace(/\.json$/, "");
+        if (!f.endsWith(".json") || !h.SNAPSHOT_LABEL_RE.test(label)) continue;
+        try {
+          const snap = await readJsonSafe(path.join(dir, f));
+          const problem = h.snapshotProblem(snap);
+          out.push({ label, at: snap?.at ?? null, note: snap?.note ?? "", entries: snap?.entries ?? null, sha256: snap?.sha256 ?? null, ok: !problem, problem });
+        } catch (e) {
+          out.push({ label, at: null, note: "", entries: null, sha256: null, ok: false, problem: e.message });
+        }
+      }
+      return out.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    },
+
+    /** スナップショットを読みます。取ったときから変わっていたら断ります。 */
+    async snapshotLoad(name, label) {
+      const h = await kbhistory();
+      const snap = await readJsonSafe(await snapFile(name, label));
+      const problem = h.snapshotProblem(snap);
+      if (problem) throw new UserKbError("broken_file", `スナップショット「${label}」は使えません: ${problem}`);
+      const overlay = migrateOverlay(snap.overlay);
+      const problems = checkOverlay(overlay);
+      if (problems.length) throw new UserKbError("broken_file", `スナップショット「${label}」の中身がおかしいです: ${problems[0].id} ${problems[0].problem}`);
+      return { label, at: snap.at, note: snap.note ?? "", seq: snap.seq ?? null, overlay };
+    },
+
+    async snapshotRemove(name, label) {
+      const file = await snapFile(name, label);
+      if (!(await fsp.lstat(file).catch(() => null))) throw new UserKbError("not_found", `ありません: ${label}`);
+      await fsp.rm(file, { force: true });
+    },
+
+    /** ユーザーKBのフォルダ（git への写しで使います）。 */
+    dir: (name) => dirOf(name),
 
     /** 消すときもファイルは消さず、trash/ へ動かします。 */
     async drop(name) {
@@ -694,8 +880,126 @@ export function openStore({ home = userKbHome(), now = () => new Date() } = {}) 
       await ensureDir(trash);
       const to = path.join(trash, `${name}-${stampName(now())}`);
       await fsp.rename(d, to);
+      if ((await store.current()) === name) await fsp.rm(currentFile, { force: true });
       return to;
     },
+
+    // --- 分ける・切り替える・まとめる（#358） ---------------------------------------
+
+    /** いま使うユーザーKB（kb switch で決めたもの）。決めていなければ null。 */
+    async current() {
+      const st = await fsp.lstat(currentFile).catch(() => null);
+      if (!st || st.isSymbolicLink() || !st.isFile() || st.size > 200) return null;
+      const n = (await fsp.readFile(currentFile, "utf8")).trim();
+      return KB_NAME_RE.test(n) ? n : null;
+    },
+
+    /** いま使うユーザーKBを決めます。null を渡すと、決めていない状態（収録だけ）に戻します。 */
+    async switchTo(name) {
+      if (name === null) {
+        await fsp.rm(currentFile, { force: true });
+        return null;
+      }
+      validateKbName(name);
+      if (!(await fsp.lstat(store.path(name)).catch(() => null))) throw new UserKbError("not_found", `ありません: ${name}`);
+      await ensureDir(root);
+      await writeAtomic(currentFile, `${name}\n`);
+      return name;
+    },
+
+    /**
+     * ユーザーKBを分けます（fork）。中身を写し、分けた元（parent）と、
+     * 分けたときの中身（あとで3者で統合するときの土台）を控えます。
+     */
+    async fork(src, dst, { title } = {}) {
+      validateKbName(dst);
+      const from = await store.load(src);
+      const problems = checkOverlay(from);
+      if (problems.length) throw new UserKbError("broken_file", `「${src}」の中身がおかしいので分けられません: ${problems[0].id} ${problems[0].problem}`);
+      return withLock(dst, async (d) => {
+        const file = path.join(d, "overlay.json");
+        if (await fsp.lstat(file).catch(() => null)) throw new UserKbError("exists", `もうあります: ${dst}`);
+        const at = now().toISOString();
+        const doc = {
+          ...from, name: dst,
+          title: title === undefined ? from.title ?? "" : cleanText(title).slice(0, 80),
+          parent: { name: src, forkedAt: at },
+          created: at, updated: at,
+        };
+        await writeAtomic(file, JSON.stringify(doc, null, 2) + "\n");
+        await writeBaseFile(d, src, from, at);
+        // 履歴も写します（分ける前の出どころを、blame でたどれるように）。
+        for (const f of [HISTORY_OLD, HISTORY, HEAD]) {
+          const st = await fsp.lstat(path.join(dirOf(src), f)).catch(() => null);
+          if (st?.isFile()) await fsp.copyFile(path.join(dirOf(src), f), path.join(d, f)).then(() => fsp.chmod(path.join(d, f), 0o600));
+        }
+        await recordWrite(d, from, doc, { cmd: "kb fork", note: `${src} から分けた` });
+        return doc;
+      });
+    },
+
+    /**
+     * name と other が最後に同じ中身だったときの控え（統合の土台）。無ければ null。
+     * 控えは、分けたとき（fork）と、統合が済んだとき（merge）に書きます。
+     */
+    async base(name, other) {
+      validateKbName(other);
+      const file = path.join(dirOf(name), "bases", `${other}.json`);
+      if (!(await fsp.lstat(file).catch(() => null))) return null;
+      const j = await readJsonSafe(file);
+      if (j?.schema !== BASE_SCHEMA || !j.overlay?.spots) return null;
+      return { at: String(j.at ?? ""), overlay: j.overlay };
+    },
+
+    async setBase(name, other, doc) {
+      validateKbName(other);
+      return withLock(name, (d) => writeBaseFile(d, other, doc, now().toISOString()));
+    },
+
+    /** 2つのユーザーKBの、いちばん新しい土台（どちらの側に控えてあってもよい）。 */
+    async commonBase(a, b) {
+      const [x, y] = await Promise.all([store.base(a, b).catch(() => null), store.base(b, a).catch(() => null)]);
+      if (x && y) return x.at >= y.at ? x : y;
+      return x ?? y ?? null;
+    },
+
+    /** 途中の統合（競合を解いている最中）の控え。無ければ null。 */
+    async mergeState(name) {
+      const file = path.join(dirOf(name), "MERGE.json");
+      if (!(await fsp.lstat(file).catch(() => null))) return null;
+      return readJsonSafe(file);
+    },
+
+    async setMergeState(name, state) {
+      return withLock(name, async (d) => {
+        const file = path.join(d, "MERGE.json");
+        if (state === null) await fsp.rm(file, { force: true });
+        else await writeAtomic(file, JSON.stringify(state, null, 2) + "\n");
+      });
+    },
+
+    /** 置き場の様子（大きさ・控えの数など）。 */
+    async info(name) {
+      const d = dirOf(name);
+      const st = await fsp.lstat(path.join(d, "overlay.json")).catch(() => null);
+      if (!st) throw new UserKbError("not_found", `ありません: ${name}`);
+      const count = async (sub, re) => (await fsp.readdir(path.join(d, sub)).catch(() => [])).filter((f) => re.test(f)).length;
+      return {
+        dir: d,
+        bytes: st.size,
+        backups: await count("backups", BACKUP_RE),
+        bases: (await fsp.readdir(path.join(d, "bases")).catch(() => [])).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).filter((n) => KB_NAME_RE.test(n)),
+        merging: !!(await fsp.lstat(path.join(d, "MERGE.json")).catch(() => null)),
+        snapshots: (await fsp.readdir(path.join(d, "snapshots")).catch(() => [])).filter((f) => f.endsWith(".json")).length,
+        git: !!(await fsp.lstat(path.join(d, ".git")).catch(() => null)),
+      };
+    },
   };
+
+  async function writeBaseFile(d, other, doc, at) {
+    const bdir = path.join(d, "bases");
+    await ensureDir(bdir);
+    await writeAtomic(path.join(bdir, `${other}.json`), JSON.stringify({ schema: BASE_SCHEMA, of: other, at, overlay: doc }) + "\n");
+  }
   return store;
 }

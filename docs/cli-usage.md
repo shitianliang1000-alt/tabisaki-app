@@ -88,6 +88,8 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 ```sh
 ./tabisaki build examples/trips/hakone.yaml
 ./tabisaki test examples/trips/hakone.yaml
+./tabisaki simulate examples/trips/hakone.yaml --delay=20% --late=15   # 遅れたら成り立つか（通信しない）
+./tabisaki replan examples/trips/hakone.yaml --weather-check           # 予報を見て、雨なら屋内に入れ替えた案を出す
 ```
 
 書きかたとコマンドは [journey-as-code.md](./journey-as-code.md) にあります。
@@ -133,6 +135,36 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 
 足した情報は手元（`~/.tabisaki/spots.json`）に出典・確認の状態つきで入り、確認済みの営業時間は `plan`・`tui` の旅程に効きます。
 くわしくは [spot-data.md](./spot-data.md)。
+
+自分でスポットを足す・直す・消す・取り込む（CSV・GeoJSON・KML）ときは、ユーザーKB に入ります。`plan --kb=mine` で旅程に重なります。
+
+```sh
+./tabisaki spot add name=秘密の滝 lat=35.1 lng=139.2 genres=nature
+./tabisaki spot import mymaps.kml --dry-run
+./tabisaki plan "静岡で滝" --kb=mine
+```
+
+ユーザーKB は、分けて（`kb fork`）、切り替えて（`kb switch`）、違いを見て（`kb diff`）、まとめられます（`kb merge`）。
+
+```sh
+./tabisaki kb fork family && ./tabisaki kb switch family
+./tabisaki kb diff mine family
+./tabisaki kb merge family --kb=mine --dry-run
+./tabisaki kb validate
+```
+
+書くたびに履歴が残り、取り消せます。項目ごとに、いつ入れた値かも調べられます。
+
+```sh
+./tabisaki spot history                     # いつ・どのコマンドで・何を変えたか
+./tabisaki spot undo                        # いちばん新しい変更を取り消す（spot redo でやり直す）
+./tabisaki spot blame takao-1               # 項目ごとに、いまの値を最後に書いた変更
+./tabisaki kb snapshot save before-trip     # 名前を付けて取っておく（kb snapshot restore で戻す）
+./tabisaki spot batch fix.js                # スクリプトでまとめて直す。--apply を付けるまでは試すだけ
+./tabisaki kb git init                      # git があれば、書くたびにコミットもする
+```
+
+くわしくは [user-kb.md](./user-kb.md#コマンド) と [履歴・取り消し・スナップショット](./user-kb.md#履歴取り消しスナップショット)。
 
 ## Node.js から使う（packages/core）
 

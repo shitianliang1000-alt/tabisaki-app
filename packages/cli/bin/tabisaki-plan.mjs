@@ -28,6 +28,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --output=<形式>     markdown / text / json / ics（既定: markdown）
   --lang=<言語>       ja / en（既定: ja。環境変数 TABISAKI_LANG でも決められます）
   --kb=<名前>         ユーザーKB（~/.tabisaki/kbs/<名前>/）を公式の収録に重ねて組む
+                      （書かなければ kb switch で決めたもの。--kb=official で重ねない）
   --local             手元の LLM（Ollama など）で行き先を選ぶ（docs/local-llm.md）
   --model=<名前>      --local で使うモデル（既定: gemma4:e2b）
   --llm-url=<URL>     手元の LLM の行き先（既定: http://127.0.0.1:11434）
@@ -45,6 +46,7 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
 
   tabisaki kb extract --region=<地方|都道府県> [--out=<file>]  地域の知識ベースを切り出す
   tabisaki kb index [--region=…] [--method=tfidf] [--out=…]   似たスポット検索の索引を作る
+  tabisaki kb help    自分のユーザーKBを分ける・切り替える・比べる・まとめる・点検する
   tabisaki similar "<スポット名か文>" [--region=…] [--limit=10] [--index=<file>] [--output=json]
 
   tabisaki trace "<希望>" [同じオプション] [--research] [--search-file=<json>] [--output=text|json]
@@ -74,9 +76,11 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
   "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style",
-  "threshold", "cloud-url", "target", "search-file", "input"]);
+  "threshold", "cloud-url", "target", "search-file", "input",
+  "delay", "late", "dwell", "closed", "on", "runs", "seed", "jitter", "provider", "rain", "state", "max-failures"]);
 // 値を取らないもの。
-const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research"]);
+const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research",
+  "weather-check", "apply", "quiet", "strict"]);
 // 旅程を組むコマンド。
 const COMMANDS = new Set(["plan", "tui", "sync", "voice-plan", "trace"]);
 // まだ無いもの（docs/roadmap.md）。黙って無視せず、無いと言います。
@@ -178,6 +182,25 @@ function reportOverlay(c, stderr) {
   }
 }
 
+/**
+ * 旅程に重ねるユーザーKB。--kb を書いていればそれ、無ければ kb switch で決めたものです。
+ * --kb=official は「重ねない」です。決めていなければ null（公式の収録だけ）。
+ */
+async function userKbFor(core, opts, { stderr, env = process.env } = {}) {
+  if (opts.kb === "official") return null;
+  if (opts.kb) return opts.kb;
+  try {
+    const store = core.userkb.openStore({ home: core.userkb.userKbHome(env) });
+    const name = await store.current();
+    if (!name) return null;
+    await store.load(name);
+    stderr?.write(`tabisaki: ユーザーKB「${name}」を重ねて組みます（kb switch で決めたもの。重ねないときは --kb=official）\n`);
+    return name;
+  } catch {
+    return null; // 決めた先が読めないときは、公式の収録だけで組みます
+  }
+}
+
 function planRequest(opts, wish) {
   return {
     wish, from: opts.from, days: opts.days === undefined ? undefined : Number(opts.days),
@@ -274,7 +297,8 @@ async function voicePlan(opts, words, io) {
 async function planWith(core, opts, wish, { stderr, local = null }) {
   // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
   const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
-  const c = await core.createCore({ plugins, local, ...(opts.kb ? { userKb: opts.kb } : {}) });
+  const userKb = await userKbFor(core, opts, { stderr });
+  const c = await core.createCore({ plugins, local, ...(userKb ? { userKb } : {}) });
   reportOverlay(c, stderr);
   const result = await c.plan(planRequest(opts, wish));
   if (result.template) stderr.write(`ひな形「${result.template.name}」を使いました（プラグイン ${result.template.plugin}）\n`);
@@ -287,6 +311,11 @@ export async function main(argv, {
   if (argv[0] === "spot" || argv[0] === "area") {
     const { main: spotMain } = await import("./spot.mjs");
     return spotMain(argv, { stdout, stderr });
+  }
+  // kb extract / kb index（収録の切り出し。下の kbCommand）のほかは、ユーザーKB のコマンドです。
+  if (argv[0] === "kb" && argv[1] !== "extract" && argv[1] !== "index") {
+    const { runKb } = await import("./kbuser.mjs");
+    return runKb(argv[1] ?? "help", argv.slice(2), { stdout, stderr, stdin, env });
   }
   try {
     const { opts, words } = parseArgs(argv);
@@ -375,7 +404,8 @@ export async function main(argv, {
     try {
       // 控えた（trust した）プラグインだけを読みます。TABISAKI_PLUGINS=0 で読みません。
       const plugins = process.env.TABISAKI_PLUGINS === "0" ? [] : await core.loadPlugins();
-      const c = await core.createCore({ plugins, ...(opts.kb ? { userKb: opts.kb } : {}), local, hybrid });
+      const userKb = await userKbFor(core, opts, { stderr, env });
+      const c = await core.createCore({ plugins, ...(userKb ? { userKb } : {}), local, hybrid });
       const rep = c.overlayReport;
       if (rep && (rep.orphans.length || rep.conflicts.length || rep.invalid.length)) {
         stderr.write(`tabisaki: ユーザーKB「${rep.name}」: 見失った差分 ${rep.orphans.length}件・公式と食い違う項目 ${rep.conflicts.length}件・使えない差分 ${rep.invalid.length}件\n`);
@@ -638,5 +668,10 @@ async function localCommand([sub, ...extra], opts, { stdout, stderr }) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("tabisaki-plan.mjs")) {
+  // `tabisaki spot history | head` のように、読む側が先に閉じても落ちないようにします。
+  process.stdout.on("error", (e) => {
+    if (e?.code === "EPIPE") process.exit(0);
+    throw e;
+  });
   process.exitCode = await main(process.argv.slice(2));
 }
