@@ -27,6 +27,15 @@
 写真はファイルを保存せず URL で指すだけで、ライセンスが読めない写真は入れません。取った値は利用者の手元（`~/.tabisaki/`）にだけ入り、
 `kb/` には入りません。Yahoo! のデータ・API は使いません。くわしくは [spot-data.md](./spot-data.md)。
 
+## 気象庁の注意報・警報（その場で取るもの）
+
+今日・明日の旅の行き先に出ている注意報・警報は、ブラウザから気象庁の
+`https://www.jma.go.jp/bosai/warning/data/r8/map.json` を1回取って調べます（`packages/core/src/alerts.js`）。
+保存も再配布もせず、画面には「気象庁「気象警報・注意報」を加工して作成」と出します
+（[公共データ利用規約 第1.0版](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0)）。
+予報区の名前の表（`packages/core/src/jma-areas.js`）は、同じく気象庁の `area.json` から
+`tools/build_jma_areas.mjs` で作ります。
+
 ## 国土数値情報
 
 国土数値情報は、データごとに使用許諾条件が違います。**鉄道（N02、2008年度版）は商用可、観光資源（P12）・文化施設（P27）・バス停留所（P11）は非商用**です

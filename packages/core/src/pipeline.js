@@ -52,6 +52,7 @@ import { costBreakdown } from "./cost.js";
 import { sunNotes, sunTimes } from "./sun.js";
 import { summarizeDay } from "./weather.js";
 import { normalsFor } from "./normals.js";
+import { alertsForItinerary } from "./alerts.js";
 import { suggestReplan } from "./replan.js";
 import { attachBackups } from "./backup.js";
 import { attachMeals, dietNote } from "./meals.js";
@@ -2225,6 +2226,16 @@ async function buildReplan(itin, candidates, opts = {}) {
       const n = await (opts.normals ?? normalsFor)(
         firstAt, new Date(firstDay.date), { signal: opts.signal });
       if (n?.ok) out.normals = { text: n.text, ...n.value };
+    } catch {
+      // 取れないのは、旅程の失敗ではありません。
+    }
+  }
+
+  // 行き先の注意報・警報（気象庁）と、もしものときの入口（#448）。
+  // 今日・明日の旅だけ気象庁に聞きます（packages/core/src/alerts.js）。
+  if (opts.alerts !== false) {
+    try {
+      out.alerts = await (opts.alerts ?? alertsForItinerary)(itin, { signal: opts.signal });
     } catch {
       // 取れないのは、旅程の失敗ではありません。
     }

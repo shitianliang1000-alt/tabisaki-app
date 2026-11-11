@@ -82,6 +82,7 @@
        fonts.googleapis.com / fonts.gstatic.com … 外のウェブフォント用（2026-11 から読み込みなし）
        *.googleapis   … AI と経路（キーを直に持つ場合）
        open-meteo     … 天気
+       www.jma.go.jp  … 行き先の注意報・警報（気象庁。今日・明日の旅だけ）
        ja.wikipedia   … 写真の在りかを聞く
 
      PROXY_URL を使う場合は、その行き先を connect-src に足してください。
@@ -106,6 +107,7 @@
               https://routes.googleapis.com
               https://api.open-meteo.com
               https://archive-api.open-meteo.com
+              https://www.jma.go.jp
               https://ja.wikipedia.org
               https://tabisaki-github-io.shitianliang1000.workers.dev;
   base-uri 'none';
