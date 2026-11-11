@@ -8,7 +8,7 @@
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 
-export const VERBS = ["ls", "create", "fork", "switch", "current", "diff", "merge", "validate", "stats", "rm", "backups", "restore"];
+export const VERBS = ["ls", "create", "fork", "switch", "current", "diff", "merge", "validate", "stats", "rm", "backups", "restore", "snapshot", "git"];
 
 export const HELP = `使いかた: tabisaki kb <コマンド> … [--kb=<名前>]
 
@@ -32,6 +32,14 @@ export const HELP = `使いかた: tabisaki kb <コマンド> … [--kb=<名前>
   kb restore <控え>              控えの中身に戻す（戻す前の中身も控えます）
   kb rm <名前> --yes             ユーザーKBを消す（trash/ へ動かすだけ）
 
+  kb snapshot save [<名前>] [--note=…]  いまの中身を、名前を付けて取っておく（名前を書かなければ日時）
+  kb snapshot ls                 スナップショットの一覧（取ったときのままかも確かめます）
+  kb snapshot restore <名前>     スナップショットの中身に戻す（spot undo で取り消せます）
+  kb snapshot verify [<名前>]    中身が、取ったときから変わっていないか確かめる
+  kb snapshot rm <名前> --yes    スナップショットを消す
+  kb git init                    ユーザーKBのフォルダを git リポジトリにして、書くたびにコミットする
+  kb git status                  git への写しの様子（最後のコミット・まだ写していない変更）
+
   --kb=<名前>    相手にするユーザーKB（既定: 環境変数 TABISAKI_KB、kb switch で決めたもの、無ければ mine）
   --output=json  ls・diff・merge・validate・stats の結果を JSON で
 
@@ -51,6 +59,8 @@ const FLAGS = {
   rm: ["yes"],
   backups: ["kb"],
   restore: ["kb"],
+  snapshot: ["kb", "note", "yes", "output"],
+  git: ["kb", "output"],
 };
 const BOOL = new Set(["switch", "official", "ours", "theirs", "dry-run", "continue", "abort", "strict", "yes", "help"]);
 
@@ -359,7 +369,7 @@ export async function runKb(verb, argv, { stdout = process.stdout, stderr = proc
         kbmerge.checkMerged(doc);
         // 書き込む前に「これを書く」と控えます。書いた直後に止まっても、--continue で後片付けできます。
         await store.setMergeState(into, { ...journal(), applying: kbmerge.overlayFingerprint(doc) });
-        ({ backup } = await store.save(into, doc, { log: { cmd: "kb merge", note: `${from.label} を取り込んだ` } }));
+        ({ backup } = await store.save(into, doc, { log: { cmd: "kb merge", note: `${path.basename(from.label)} を取り込んだ` } }));
         result.written = true;
         result.backup = backup;
       }
@@ -401,11 +411,13 @@ export async function runKb(verb, argv, { stdout = process.stdout, stderr = proc
       const { kb: view, report } = userkb.applyOverlay(kb, doc, { sameThing });
       const info = await store.info(name);
       if (verb === "stats") {
-        const s = { ...kbmerge.kbStats(doc, view, kb), bytes: info.bytes, backups: info.backups, merging: info.merging };
+        const records = await store.history(name);
+        const s = { ...kbmerge.kbStats(doc, view, kb), bytes: info.bytes, backups: info.backups, merging: info.merging, history: records.length, snapshots: info.snapshots, git: info.git };
         if (json) { say(JSON.stringify(s, null, 2)); return 0; }
         say(`${s.name}${s.title ? `（${s.title}）` : ""}: 差分 ${s.total} 件（足した ${s.counts.add}・直した ${s.counts.patch}・消した ${s.counts.remove}）`);
         say(`  作った日 ${day(s.created)}・最後に書いた日 ${day(s.updated)}${s.parent ? `・${s.parent.name} から分けた（${day(s.parent.forkedAt)}）` : ""}`);
         say(`  ファイル ${s.bytes.toLocaleString("en-US")} バイト・控え ${s.backups} 個${s.merging ? "・途中の統合あり" : ""}`);
+        say(`  履歴 ${s.history} 行・スナップショット ${s.snapshots} 個・git への写し ${s.git ? "あり" : "なし"}`);
         say(`  公式の収録の版: 書いたとき ${s.base.stamp || "（控えなし）"}・今 ${s.base.current}${s.base.changed ? "（変わっています。tabisaki kb validate で確かめられます）" : ""}`);
         const row = (label, list) => { if (list.length) say(`  ${label}: ${list.map((x) => `${x.name} ${x.count}`).join("・")}`); };
         row("都道府県", s.prefectures);
@@ -442,6 +454,74 @@ export async function runKb(verb, argv, { stdout = process.stdout, stderr = proc
       await mustLoad(name);
       const r = await store.restore(name, words[0]);
       say(`戻しました: ${name} ← ${r.restored}${r.backup ? `（戻す前の中身は ${r.backup} に控えました）` : ""}`);
+      return 0;
+    }
+
+    if (verb === "snapshot") {
+      const { kbhistory } = core;
+      const [sub, label, ...extra] = words;
+      if (extra.length || !["save", "ls", "restore", "verify", "rm"].includes(sub)) {
+        throw usage("使いかた: tabisaki kb snapshot save [<名前>] / ls / restore <名前> / verify [<名前>] / rm <名前> --yes");
+      }
+      const name = await current();
+      await mustLoad(name);
+      if (sub === "save") {
+        // 名前を書かなければ、日本時間の日時（20261111-201041）にします。
+        const auto = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
+        const snap = await store.snapshotSave(name, label ?? auto, { note: opts.note ?? "" });
+        if (json) say(JSON.stringify({ kb: name, ...snap }, null, 2));
+        else say(`取っておきました: ${snap.label}（${name}・差分 ${snap.entries} 件。戻すとき: tabisaki kb snapshot restore ${snap.label}）`);
+        return 0;
+      }
+      if (sub === "ls" || sub === "verify") {
+        let all = await store.snapshots(name);
+        if (sub === "verify" && label) {
+          all = all.filter((x) => x.label === label);
+          if (!all.length) throw usage(`スナップショット「${label}」はありません（tabisaki kb snapshot ls）`);
+        }
+        const bad = all.filter((x) => !x.ok);
+        if (json) { say(JSON.stringify({ kb: name, snapshots: all }, null, 2)); return sub === "verify" && bad.length ? 1 : 0; }
+        if (!all.length) { say(`「${name}」にスナップショットはまだありません（tabisaki kb snapshot save で取れます）`); return 0; }
+        for (const x of all) {
+          say(`${x.ok ? "✓" : "✗"} ${x.label}\t${x.at ? kbhistory.jst(x.at) : "?"}\t差分 ${x.entries ?? "?"} 件${x.note ? `\t${x.note}` : ""}${x.ok ? "" : `\t${x.problem}`}`);
+        }
+        if (sub === "verify") say(bad.length ? `${bad.length} 個が、取ったときから変わっています（戻すのには使えません）` : `${all.length} 個すべて、取ったときのままです`);
+        return sub === "verify" && bad.length ? 1 : 0;
+      }
+      if (!label) throw usage(`スナップショットの名前を書いてください（tabisaki kb snapshot ls で一覧）`);
+      if (sub === "restore") {
+        const snap = await store.snapshotLoad(name, label);
+        const r = await store.save(name, { ...snap.overlay, name, updated: new Date().toISOString() },
+          { log: { cmd: "kb snapshot restore", note: `スナップショット ${label} に戻した` } });
+        say(`戻しました: ${name} ← ${label}（${kbhistory.jst(snap.at)} に取ったもの）`);
+        note(`取り消すとき: tabisaki spot undo${r.backup ? `　戻す前の中身の控え: ${r.backup}` : ""}`);
+        return 0;
+      }
+      if (!opts.yes) throw usage(`消すときは --yes を付けてください: ${label}`);
+      await store.snapshotRemove(name, label);
+      say(`消しました: スナップショット ${label}`);
+      return 0;
+    }
+
+    if (verb === "git") {
+      const { kbhistory } = core;
+      const [sub, ...extra] = words;
+      if (extra.length || !["init", "status"].includes(sub)) throw usage("使いかた: tabisaki kb git init / tabisaki kb git status");
+      const name = await current();
+      await mustLoad(name);
+      const d = store.dir(name);
+      if (sub === "init") {
+        const r = await kbhistory.gitInit(d, { name });
+        if (!r.ok) throw fail(`git リポジトリにできませんでした: ${r.why ?? "理由は分かりません"}`);
+        say(`${r.created ? "git リポジトリにしました" : "もう git リポジトリです"}: ${d}`);
+        note("これからは、書くたびにコミットします。見るとき: git -C <このフォルダ> log --stat");
+        return 0;
+      }
+      const g = await kbhistory.gitSummary(d);
+      if (json) { say(JSON.stringify({ kb: name, dir: d, ...g }, null, 2)); return 0; }
+      if (!g.repo) { say(`「${name}」は git に写していません（始めるとき: tabisaki kb git init）`); return 0; }
+      if (!g.usable) { say(`git への写しを止めています: ${g.why}`); return 1; }
+      say(`${d}\n  コミット ${g.commits} 個・最後: ${g.last ?? "（なし）"}${g.dirty ? "\n  まだ写していない変更があります（次に書くときに、いっしょにコミットします）" : ""}`);
       return 0;
     }
 

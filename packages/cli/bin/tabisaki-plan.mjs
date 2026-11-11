@@ -666,5 +666,10 @@ async function localCommand([sub, ...extra], opts, { stdout, stderr }) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("tabisaki-plan.mjs")) {
+  // `tabisaki spot history | head` のように、読む側が先に閉じても落ちないようにします。
+  process.stdout.on("error", (e) => {
+    if (e?.code === "EPIPE") process.exit(0);
+    throw e;
+  });
   process.exitCode = await main(process.argv.slice(2));
 }

@@ -221,6 +221,205 @@ takao-1#fee　高尾山薬王院 の fee
 
 まちがいが1つでもあれば、終了コードは `1` です。`--strict` を付けると、気をつけることがあっても `1` にします（CI や、配る前の確かめに）。ファイルが JSON として読めないときも、点検の結果として `1` を返します。
 
+## 履歴・取り消し・スナップショット
+
+ユーザーKB に書くたびに、何を変えたかを履歴に残します。まちがえたら取り消せて、どの値がいつ入ったかも、あとから調べられます。
+
+```sh
+./tabisaki spot history                     # いつ・どのコマンドで・何を変えたか（新しい順）
+./tabisaki spot history takao-1             # そのスポットを変えたものだけ
+./tabisaki spot undo                        # いちばん新しい変更を取り消す
+./tabisaki spot undo takao-1                # そのスポットを最後に変えた分だけ取り消す
+./tabisaki spot undo --seq=12 --dry-run     # #12 を取り消すとどうなるか（書き込みません）
+./tabisaki spot redo                        # いちばん新しい取り消しを、取り消す
+./tabisaki spot blame takao-1               # 項目ごとに、いまの値を最後に書いた変更
+./tabisaki kb snapshot save before-trip --note=旅の前
+./tabisaki kb snapshot restore before-trip
+./tabisaki spot batch fix.js                # スクリプトでまとめて直す（まず試すだけ）
+./tabisaki spot batch fix.js --apply        # 書き込む
+./tabisaki kb git init                      # （git があれば）書くたびに git にもコミットする
+```
+
+| コマンド | すること | おもなオプション |
+|---|---|---|
+| `spot history [<スポット>]` | 履歴を新しい順に | `--limit=20` |
+| `spot undo [<スポット>]` | 変更を取り消す | `--seq=<番号>`・`--dry-run`・`--force` |
+| `spot redo` | いちばん新しい取り消しを、取り消す | |
+| `spot blame <スポット>` | 項目ごとの出どころ | |
+| `spot batch <スクリプト.js>` | スクリプトでまとめて直す | `--apply`・`--all`・`--q=語`・`--max=500`・`--timeout=5000` |
+| `kb snapshot save [<名前>]` | いまの中身を、名前を付けて取っておく | `--note=…` |
+| `kb snapshot ls` / `verify [<名前>]` | 一覧 / 取ったときのままかを確かめる | |
+| `kb snapshot restore <名前>` | スナップショットの中身に戻す | |
+| `kb snapshot rm <名前> --yes` | スナップショットを消す | |
+| `kb git init` / `kb git status` | git への写しを始める / 様子を見る | |
+
+どれも `--kb=<名前>` と `--output=json` が使えます。
+
+### 決めたこと
+
+| 決めること | 決めたこと | わけ |
+|---|---|---|
+| 履歴をどこに持つか | ユーザーKB のフォルダの `history.jsonl`。1つのコマンド = 1行 | git が入っていない端末でも、同じように動かすため。JSON の行なので、ほかの道具でも読めます |
+| git を使うか | 使わなくても全部動く。`kb git init` をしたユーザーKB だけ、書くたびに git にもコミットする（写し） | git がある人は `git log`・`git diff`・自分のリモートへの `push` が使える。無い人も困らない |
+| 取り消しのしかた | 履歴を書き換えず、「取り消した」という新しい行を足す（`git revert` と同じ考え） | 取り消しの取り消し（`redo`）ができる。履歴がうそをつかない |
+| 取り消しがぶつかったら | 止めて、あとの変更の番号を見せる。`--force` であとの変更ごと戻す | あとから入れた変更を、黙って消さないため |
+| 出どころ（blame）の単位 | スポットの項目ごと | 「この営業時間はいつ入れたか」を知りたいことが多いため |
+| スナップショット | 名前を付けた、中身の写し。指紋（SHA-256）を一緒に持つ | 控え（`backups/`）は30個で古いものから消える。消えてほしくない時点は、名前を付けて取っておく |
+| 一括編集 | スクリプトは「こう変えたい」を頼むだけ。書くのは旅さき。既定は試し（dry-run） | スクリプトのまちがいで、ユーザーKB を壊さないため |
+
+### 履歴の形
+
+`history.jsonl` の1行は、こういう形です。
+
+```json
+{"v":1,"seq":3,"at":"2026-11-11T11:46:14.401Z","cmd":"spot edit","note":"takao-1（fee・dwell）",
+ "changes":[{"id":"takao-1","before":{"op":"patch","set":{"fee":300},"…":"…"},"after":{"op":"patch","set":{"fee":500,"dwell":40},"…":"…"}}]}
+```
+
+| 欄 | 中身 |
+|---|---|
+| `seq` | 通し番号（`spot history` の `#3`）。ユーザーKB ごとに 1 から |
+| `cmd`・`note` | 書いたコマンドと、ひとこと |
+| `changes` | 変わったスポットごとに、前の差分（`before`）と後の差分（`after`）。`null` は「差分なし（収録のまま）」 |
+| `reverts` | 取り消しの行だけ。まるごと取り消した行の番号 |
+| `undoes` | 取り消しの行だけ。もとにした行の番号（スポット1つだけを取り消したときも付きます） |
+
+`cmd` には、コマンドの名前のほかに、次の2つが入ることがあります。
+
+- `external`: 旅さきを通さずに `overlay.json` が書き換えられていた分です（手で直した・控えを手で写した）。次に旅さきが読み書きするときに、気づいて1行にします。取り消すときに、その変更を黙って消さないためです。
+- `start`: 履歴を取りはじめる前からあった差分です（この機能より前に作ったユーザーKB）。
+
+`history-head.json` は、最後に履歴へ書いたときの中身の控えです。これと `overlay.json` を比べて、`external` に気づきます。`overlay.json` を書いた直後に落ちて履歴に書けなかったときも、次の回に `external` として拾うので、変更は履歴から漏れません。
+
+履歴が 20MB を超えたら `history.1.jsonl` に回して、新しく始めます（読むときは両方を読みます）。こわれた行（途中で止まった書き込み）は、飛ばして読みます。`kb fork` で分けたユーザーKB には、履歴もついていきます。
+
+### 取り消し（undo・redo）
+
+`spot undo` は、いちばん新しい「まだ取り消していない変更」を、その前の中身に戻します。取り込み（`spot import`）や統合（`kb merge`）、一括編集（`spot batch`）のように、たくさんのスポットを変えたコマンドも、1回で戻ります。
+
+```text
+$ tabisaki spot undo --seq=2
+#2 spot edit（takao-1（fee））を取り消せません。そのあとで、同じスポットが変わっています:
+  takao-1 高尾山薬王院（#3 で変更）
+あとの変更を先に取り消す（tabisaki spot undo --seq=3）か、あとの変更ごと戻すなら --force を付けてください
+```
+
+| 場面 | 動き |
+|---|---|
+| 取り消したい変更のあとで、同じスポットが変わっている | 止まる（終了コード `1`）。何も書かない。`--force` で、その変更の前の中身に戻す（あとの変更も消えます） |
+| もう前の中身に戻っている | 何もしない（「もう取り消されています」） |
+| スポットを書いた（`spot undo takao-1`） | そのスポットを最後に変えた変更の、そのスポットの分だけを戻す。同じ変更のほかのスポットはそのまま |
+| `spot redo` | いちばん新しい取り消しを取り消す。取り消したあとで別の変更をしていても、ぶつからなければできます |
+| 取り消しを取り消したい（スポット1つだけの取り消し） | もう一度 `spot undo`（ふつうの変更として扱います） |
+
+控えから戻す（`kb restore`）・スナップショットに戻す（`kb snapshot restore`）のも、履歴の1行になるので、`spot undo` で取り消せます。
+
+### 出どころ（blame）
+
+```text
+$ tabisaki spot blame takao-1
+高尾山薬王院（takao-1） ［直した］
+  name: 高尾山薬王院    収録
+  fee: 500              #3  2026-11-11 20:46  spot edit  takao-1（fee・dwell）
+  dwell: 40             #3  2026-11-11 20:46  spot edit  takao-1（fee・dwell）
+```
+
+履歴を古い順にたどり、その行で値が変わった項目に、その行の番号を付け替えていきます。git の blame は行ごとですが、こちらは項目ごとです。
+
+| 表示 | 意味 |
+|---|---|
+| `収録` | 公式の収録の値（ユーザーKB では変えていない） |
+| `#3 … spot edit …` | その変更で入った値 |
+| `（自動で付いた値）` | 足したスポットに、旅さきが付けた値（座標から決めたエリアなど） |
+| `（履歴を取りはじめる前）` | 履歴に残っていない |
+
+取り消し・やり直しの行は、出どころになりません。取り消して前の値に戻ったら、その値をもともと書いた行を指します（「いつ入れた値か」を知るためのものなので）。
+
+### スナップショット
+
+`kb snapshot save` は、いまの差分をまるごと `snapshots/<名前>.json` に写します。名前は英小文字・数字・`-`・`_`（60文字まで）。書かなければ日時（`20261111-204618`）にします。1つのユーザーKB に200個までです。
+
+| | 控え（`backups/`） | スナップショット（`snapshots/`） |
+|---|---|---|
+| 取るとき | 書くたびに自動で | `kb snapshot save` をしたとき |
+| 名前 | 日時 | 自分で付ける。ひとこと（`--note`）も書ける |
+| 消えるとき | 30個を超えたら古いものから | `kb snapshot rm` をしたときだけ |
+| 中身の確かめ | 形だけ | 形と、指紋（差分を決まった順に並べた JSON の SHA-256） |
+
+指紋が合わないスナップショット（あとから書き換えられた・こわれた）には戻しません。`kb snapshot verify` は、戻す前に確かめるためのものです（1つでも合わなければ終了コード `1`）。指紋は「取ったときから変わっていないか」を見るもので、だれが取ったかを証明するものではありません。
+
+### スクリプトでまとめて直す（spot batch）
+
+```js
+// fix.js: 足した滝に、滞在時間を入れる
+for (const s of spots) {
+  if (s.status === "add" && s.category === "滝" && s.dwell === undefined) edit(s.id, { dwell: 30 });
+}
+log("見た数", spots.length);
+```
+
+```text
+$ tabisaki spot batch fix.js
+  ｜見た数 12
+fix.js: 見せたスポット 12・頼まれた変更 3・変わるスポット 3・まちがい 0
+~ u:mwc1zgkv6b9c4b13 裏高尾の湧き水
+    dwell: （そのまま） → 30
+…
+試しです。書き込むには --apply を付けてください
+```
+
+スクリプトから使えるものは、これだけです。
+
+| 名前 | 中身 |
+|---|---|
+| `spots` | スポットの配列（読むだけ。書き換えられません）。`id`・`status`（`add`・`patch`・`remove`・`official`）と、[書ける項目](#書ける項目)、`region`・`prefecture` |
+| `edit(id, {項目: 値}, [消す項目])` | 直す（`spot edit` と同じ） |
+| `remove(id, 理由)` / `restore(id)` | 消す印を付ける / 消した印・直した差分を取り消す |
+| `add({name, lat, lng, …})` | 足す |
+| `log(…)` | 端末に出す（200行まで） |
+
+既定では、ユーザーKB に差分があるスポットだけを見せます。`--all` で収録のスポットも見せ、`--q=語` で名前・エリア・都道府県・分類にその語を含むものにしぼります。
+
+**試しと書き込み。** `--apply` を付けるまでは、どう変わるかを見せるだけです。`--apply` を付けても、頼まれた変更に1つでもまちがい（決まりに合わない値・知らない id など）があれば、**1つも書きません**（終了コード `1`）。書いたら履歴の1行になるので、`spot undo` 1回でまるごと戻ります。大きく変える前に `kb snapshot save` をしておくと、いつでもその時点に戻れます。
+
+**スクリプトにできること（権限）。** スクリプトは、ユーザーKB を自分では書き換えません。「こう変えたい」を頼むだけで、確かめて書くのは旅さきです。囲いは3重にしてあります。
+
+| 囲い | 止めるもの |
+|---|---|
+| 動かす前に、`import` という語を断る（文字や注釈の中でも） | `import()`。これだけは、次の囲いの中からでも外の世界のエラーに手が届いてしまうため、語そのものを断ります |
+| `node:vm` の別の文脈 | `require`・`process`・`fetch`・ファイル・タイマーは渡しません。`eval`・`new Function`・WebAssembly も止めます。渡すのはスポットの写し（文字にして渡し、中で組み立て直します）で、返ってくるのも文字だけです |
+| 別スレッド（worker） | 時間（既定 5 秒。`--timeout`）とメモリ（256MB）を使いすぎたら、そのスレッドだけを止めます。環境変数は渡しません。Node.js の権限モデルが使える版（22.13 以降）では、その worker から、ファイルの書き込み・子プロセス・別の worker を使えなくします（ファイルの読み取りは、いまいるフォルダの中だけ） |
+
+上限は、頼める変更が 500 件（`--max` で 20,000 件まで）、スクリプトの大きさが 256KB です。
+
+> **知らない人のスクリプトは動かさないでください。** `node:vm` は安全のための壁ではないと、Node.js の文書にもあります。この囲いは、自分のスクリプトのまちがいで手元を壊さないためのもので、悪意のあるスクリプトを防ぎきるものではありません。Node.js 22 の権限モデルは、ネットワークを止めません。
+
+### git への写し（kb git）
+
+git が入っていれば、ユーザーKB のフォルダを git リポジトリにできます。`kb git init` をしたあとは、書くたびに旅さきがコミットします。
+
+```text
+$ tabisaki kb git init
+git リポジトリにしました: ~/.tabisaki/kbs/mine
+これからは、書くたびにコミットします。見るとき: git -C <このフォルダ> log --stat
+
+$ git -C ~/.tabisaki/kbs/mine log -1 --format=%B
+spot edit: takao-1（fee）
+
+Tabisaki-Seq: 5
+Tabisaki-Changes: 1
+```
+
+| 決まり | わけ |
+|---|---|
+| コミットするのは `overlay.json`・履歴・スナップショット・土台（`bases/`）。控え（`backups/`）・鍵・途中のファイルは `.gitignore` に入れる | 控えは git の履歴と重なる。鍵や途中のファイルは、ほかの端末に持っていくものではない |
+| フックは動かさない（`core.hooksPath=/dev/null`・`--no-verify`）。署名もしない | 書くたびに、利用者の知らないところで別のプログラムが動かないように |
+| `.git/config` に、旅さきが知らない設定（`filter`・`include`・`alias`・`core.fsmonitor`・`core.sshCommand` など）があれば、git を呼ばない | よそから写してきたフォルダの `.git` に、プログラムを動かす仕掛けが入っていることがあるため。ユーザーKB への書き込みは通し、「git への写しはしていません」と伝えます |
+| `push`・`pull` はしない | どこへ送るかは、利用者が決めること。自分で `git remote add`・`git push` をしてください |
+| git が無い・失敗した | ユーザーKB への書き込みは通す。写せなかったことだけを伝える（次に書いたときに、まとめてコミットされます） |
+
+取り消し・出どころ・履歴は、git ではなく `history.jsonl` を読みます。git の側で `git checkout` や `git reset` をして `overlay.json` を巻き戻したときは、`history.jsonl` と `history-head.json` も一緒に巻き戻るので、つじつまは合います。
+
 ## 考えかた
 
 | | 公式の収録（`kb/`） | ユーザーKB |
@@ -337,11 +536,16 @@ takao-1#fee　高尾山薬王院 の fee
 ├── kbs/
 │   ├── mine/
 │   │   ├── overlay.json
+│   │   ├── history.jsonl       ← 履歴（書くたびに1行）
+│   │   ├── history-head.json   ← 最後に履歴へ書いたときの中身
 │   │   ├── backups/
 │   │   │   ├── 20261027T044100000Z.json
 │   │   │   └── 20261027T051200000Z.json
-│   │   └── bases/
-│   │       └── family.json     ← family と最後に同じ中身だったときの控え（統合の土台）
+│   │   ├── snapshots/
+│   │   │   └── before-trip.json  ← 名前を付けて取っておいた中身
+│   │   ├── bases/
+│   │   │   └── family.json     ← family と最後に同じ中身だったときの控え（統合の土台）
+│   │   └── .git/               ← kb git init をしたときだけ
 │   └── family/
 │       ├── overlay.json        ← parent: { name: "mine" }
 │       ├── bases/mine.json
@@ -366,6 +570,9 @@ takao-1#fee　高尾山薬王院 の fee
 | 取り込むファイル（別の端末の `overlay.json`）に、決まりに合わない差分 | 読むときに1件ずつ確かめ、合わなければ全体を断る。まとめた結果も、書く前にもう一度確かめる |
 | 手で壊した `overlay.json` | おかしい差分だけを使わず（`invalid`）、残りは重ねる。書き戻すときは断る |
 | 文字に制御文字・`javascript:` の URL | 制御文字は外す。URL は `http(s)` だけ |
+| 一括編集のスクリプトが、ファイルを読み書きする・止まらない・メモリを食いつぶす | 別スレッドの中の `node:vm` で動かし、道具を渡さない。時間・メモリ・変更の数に上限。書くのは旅さきで、決まりに合わない変更が1つでもあれば書かない（[スクリプトでまとめて直す](#スクリプトでまとめて直すspot-batch)） |
+| 写してきたフォルダの `.git` に、プログラムを動かす設定やフック | フックは止めて呼ぶ。`.git/config` に知らない設定があれば、git を呼ばない |
+| スナップショット・履歴のファイルをすり替える | スナップショットは指紋が合わなければ戻さない。履歴はリンクなら読まず、こわれた行は飛ばす。名前は決まった文字だけ |
 
 置き場の根は、環境変数 `TABISAKI_HOME` で変えられます（既定は `~/.tabisaki`）。
 
@@ -403,4 +610,24 @@ kbmerge.diffOverlays(ours, theirs);                       // [{ id, name, kind, 
 const merged = kbmerge.mergeOverlays(base, ours, theirs); // { spots, taken, conflicts, counts }
 const { spots, unresolved } = kbmerge.resolveMerge(merged, theirs, { "takao-1#fee": "theirs" });
 if (!unresolved.length) await store.save("mine", kbmerge.checkMerged({ ...ours, spots }));
+```
+
+履歴・取り消し・出どころは `kbhistory`（計算）と、置き場（`openStore`）の `history`・`snapshot…` にあります。
+
+```js
+import { kbhistory, userkb } from "./packages/core/index.mjs";
+
+const store = userkb.openStore();
+const doc = await store.load("mine");
+const records = await store.history("mine");            // [{ seq, at, cmd, note, changes, reverts? }]
+
+kbhistory.blameSpot(records, "takao-1").fields.fee;     // { seq, at, cmd, note }
+const plan = kbhistory.planUndo(records, doc.spots);    // { target, apply, conflicts, already, partial }
+if (plan.target && !plan.conflicts.length) {
+  kbhistory.applyUndo(doc, plan);
+  await store.save("mine", doc, { log: { cmd: "spot undo", note: `#${plan.target.seq}`, reverts: plan.target.seq, undoes: plan.target.seq } });
+}
+
+const { ops } = await kbhistory.runBatchScript('edit("takao-1", { fee: 300 })', []);  // 頼まれた変更だけを受け取る
+await store.snapshotSave("mine", "before-trip", { note: "旅の前" });
 ```

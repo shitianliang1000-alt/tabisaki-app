@@ -30,6 +30,8 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … / tabisaki a
   自分のユーザーKB（~/.tabisaki/kbs/<名前>/。docs/user-kb.md）のスポットを足す・直す・消す:
   spot add [項目=値 …]  spot edit <スポット> 項目=値 …  spot rm <スポット>  spot restore <スポット>
   spot list  spot import <ファイル>  spot export  spot dedup   （くわしくは tabisaki spot add --help）
+  spot history [<スポット>]  spot undo [<スポット>]  spot redo  spot blame <スポット>   履歴・取り消し・項目ごとの出どころ
+  spot batch <スクリプト.js> [--apply]        スクリプトでまとめて直す（--apply を付けるまでは試すだけ）
 
   <スポット> は名前・別名・id のどれでも。同じ名前がいくつもあるときは id で選びます。
   共通: --output=json（show・ls・candidates・check）

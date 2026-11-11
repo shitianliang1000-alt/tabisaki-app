@@ -151,7 +151,18 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 ./tabisaki kb validate
 ```
 
-くわしくは [user-kb.md](./user-kb.md#コマンド)。
+書くたびに履歴が残り、取り消せます。項目ごとに、いつ入れた値かも調べられます。
+
+```sh
+./tabisaki spot history                     # いつ・どのコマンドで・何を変えたか
+./tabisaki spot undo                        # いちばん新しい変更を取り消す（spot redo でやり直す）
+./tabisaki spot blame takao-1               # 項目ごとに、いまの値を最後に書いた変更
+./tabisaki kb snapshot save before-trip     # 名前を付けて取っておく（kb snapshot restore で戻す）
+./tabisaki spot batch fix.js                # スクリプトでまとめて直す。--apply を付けるまでは試すだけ
+./tabisaki kb git init                      # git があれば、書くたびにコミットもする
+```
+
+くわしくは [user-kb.md](./user-kb.md#コマンド) と [履歴・取り消し・スナップショット](./user-kb.md#履歴取り消しスナップショット)。
 
 ## Node.js から使う（packages/core）
 

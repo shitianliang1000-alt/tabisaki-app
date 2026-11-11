@@ -8,7 +8,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 
-export const VERBS = ["add", "edit", "rm", "restore", "list", "show", "import", "export", "dedup"];
+export const VERBS = ["add", "edit", "rm", "restore", "list", "show", "import", "export", "dedup", "undo", "redo", "history", "blame", "batch"];
 
 export const HELP = `使いかた: tabisaki spot <コマンド> … [--kb=<名前>]
 
@@ -22,6 +22,15 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … [--kb=<名�
                          [--dry-run] [--strict] [--allow-dup]
   spot export [--format=csv|geojson|kml|json] [--out=<ファイル>] [--with-edited]
   spot dedup [--radius=100]        足したスポットのうち、収録や互いに重なっていそうなもの
+
+  spot history [<スポット>] [--limit=20]   いつ・どのコマンドで・何を変えたか（新しい順）
+  spot undo [<スポット>] [--seq=<番号>] [--dry-run] [--force]
+                                   いちばん新しい変更を取り消す（スポットを書くと、その分だけ。
+                                   --seq でその番号の変更を取り消す）
+  spot redo                        いちばん新しい取り消しを、取り消す
+  spot blame <スポット>            項目ごとに、いまの値を最後に書いた変更
+  spot batch <スクリプト.js> [--apply] [--all] [--q=語] [--max=500] [--timeout=5000]
+                                   JavaScript でまとめて直す（--apply が無ければ試すだけ）
 
   <スポット> は id（takao-1・u:…）か名前。同じ名前がいくつもあるときは id で選びます。
   項目: name lat lng category genres regionId description address url wikipedia tel
@@ -43,8 +52,13 @@ const FLAGS = {
   import: ["kb", "format", "encoding", "dry-run", "strict", "allow-dup", "output"],
   export: ["kb", "format", "out", "with-edited"],
   dedup: ["kb", "radius", "output"],
+  undo: ["kb", "seq", "force", "dry-run", "output"],
+  redo: ["kb", "force", "dry-run", "output"],
+  history: ["kb", "limit", "output"],
+  blame: ["kb", "output"],
+  batch: ["kb", "apply", "all", "q", "max", "timeout", "output"],
 };
-const BOOL = new Set(["all", "yes", "dry-run", "strict", "allow-dup", "with-edited", "force", "help"]);
+const BOOL = new Set(["all", "yes", "dry-run", "strict", "allow-dup", "with-edited", "force", "apply", "help"]);
 
 function usage(message) {
   const e = new Error(message);
@@ -122,12 +136,12 @@ export async function openKb(opts, env) {
     kb: official.kb,
     doc: doc ?? userkb.emptyOverlay(name),
     exists: !!doc,
-    async save() {
+    async save(log) {
       if (!this.exists) {
         await store.create(name);
         this.exists = true;
       }
-      return store.save(name, this.doc, { kb: this.kb });
+      return store.save(name, this.doc, { kb: this.kb, log });
     },
     merged() {
       return userkb.applyOverlay(this.kb, this.doc, { sameThing }).kb;
@@ -234,6 +248,12 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
     const ctx = await openKb(opts, env);
     const { userkb } = ctx;
     const tty = !!(stdin.isTTY && stdout.isTTY);
+    /** 書きます。履歴に残す言葉（cmd・note）を渡します。git への写しができなかったら、ひとこと出します。 */
+    const save = async (cmd, noteText = "", extra = {}) => {
+      const r = await ctx.save({ cmd, note: noteText, ...extra });
+      if (r.git && !r.git.ok && r.git.why) note(`（git への写しはしていません: ${r.git.why}）`);
+      return r;
+    };
 
     if (verb === "add") {
       let input = parseAssignments(words);
@@ -250,7 +270,7 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
           + "直すなら spot edit、それでも足すなら --force を付けてください");
       }
       const id = userkb.addSpot(ctx.doc, value);
-      const r = await ctx.save();
+      const r = await save("spot add", value.name);
       if (json) say(JSON.stringify({ ok: true, id, kb: ctx.name, backup: r.backup }));
       else say(`足しました: ${id} ${value.name}（ユーザーKB「${ctx.name}」）`);
       return 0;
@@ -264,7 +284,7 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
       if (!Object.keys(set).length && !unset.length) throw usage("直す項目を書いてください。例: tabisaki spot edit takao-1 fee=500 --unset=tel");
       if (ctx.doc.spots[id]?.op === "remove") throw usage(`${id} は消した印が付いています。先に spot restore ${id}`);
       const entry = userkb.patchSpot(ctx.doc, ctx.kb.spotsById.get(id), id, { set, unset });
-      await ctx.save();
+      await save("spot edit", `${id}（${[...Object.keys(set), ...unset.map((u) => `-${u}`)].join("・")}）`);
       if (json) say(JSON.stringify({ ok: true, id, entry }));
       else say(`直しました: ${id}（${[...Object.keys(set), ...unset.map((u) => `-${u}`)].join("・")}）`);
       return 0;
@@ -280,7 +300,7 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
         if (!(await confirm(stdin, stdout, `「${name}」（${id}）を消しますか。spot restore で戻せます`))) { note("やめました"); return 1; }
       }
       userkb.removeSpot(ctx.doc, official, id, { reason: opts.reason ?? "" });
-      const r = await ctx.save();
+      const r = await save("spot rm", `${id} ${name}`);
       say(`消しました: ${id} ${name}（戻すとき: tabisaki spot restore ${id}${r.backup ? `。控え: ${r.backup}` : ""}）`);
       return 0;
     }
@@ -289,7 +309,7 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
       const id = resolveSpot(ctx, words[0]);
       if (!ctx.doc.spots[id]) throw usage(`${id} には差分がありません（収録のままです）`);
       const back = userkb.undoEntry(ctx.doc, id);
-      await ctx.save();
+      await save("spot restore", id);
       say(back ? `戻しました: ${id}（${STATUS[back.op]}状態に）` : `取り消しました: ${id}（収録のままに）`);
       return 0;
     }
@@ -370,7 +390,7 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
       let added = [];
       if (!opts["dry-run"] && !(opts.strict && (failed || dups.length))) {
         added = fresh.map((r) => ({ line: r.line, id: userkb.addSpot(ctx.doc, r.spot) }));
-        if (added.length) await ctx.save();
+        if (added.length) await save("spot import", `${path.basename(file)}（${added.length} 件）`);
       }
       const result = {
         file, format: parsed.format, encoding, kb: ctx.name, dryRun: !!opts["dry-run"],
@@ -440,6 +460,169 @@ export async function runSpot(verb, argv, { stdout = process.stdout, stderr = pr
       if (!pairs.length) { say("重なっていそうなものはありません"); return 0; }
       for (const p of pairs) say(`${p.id} ${p.name} ⇔ ${p.with} ${p.withName}${p.official ? "（収録）" : ""}　${p.meters}m`);
       note("同じものなら、足した方を tabisaki spot rm <id> --yes で消してください");
+      return 0;
+    }
+    // --- 履歴・取り消し・出どころ・一括編集（#360） ---------------------------------------
+    const { kbhistory, kbmerge } = ctx.core;
+    if (!ctx.exists && verb !== "batch") { say(`ユーザーKB「${ctx.name}」は、まだありません（履歴もありません）`); return verb === "history" ? 0 : 1; }
+    if (ctx.exists) {
+      // 旅さきの外で書き換えられていた分を、先に履歴へ取り込みます。
+      await ctx.store.syncHistory(ctx.name);
+    }
+    const records = ctx.exists ? await ctx.store.history(ctx.name) : [];
+    /** スポットを id に決めます。いまは差分が無くても、履歴に出てくる id・名前なら選べます。 */
+    const resolveInHistory = (key) => {
+      try {
+        return resolveSpot(ctx, key);
+      } catch (e) {
+        const ids = new Set();
+        for (const r of records) {
+          for (const c of r.changes) if (c.id === key || kbmerge.entryName(c.id, c.after, c.before) === key) ids.add(c.id);
+        }
+        if (ids.size === 1) return [...ids][0];
+        throw e;
+      }
+    };
+
+    if (verb === "history") {
+      const limit = opts.limit === undefined ? 20 : Number(opts.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 10000) throw usage("--limit は 1〜10000 の整数です");
+      const id = words[0] ? resolveInHistory(words[0]) : null;
+      if (json) {
+        const dead = kbhistory.revertedSeqs(records);
+        const rows = records.filter((r) => !id || r.changes.some((c) => c.id === id)).reverse().slice(0, limit);
+        say(JSON.stringify({ kb: ctx.name, total: records.length, records: rows.map((r) => ({ ...r, reverted: dead.has(r.seq) })) }, null, 2));
+        return 0;
+      }
+      const text = kbhistory.formatHistory(records, { id, limit });
+      say(text || (id ? `${id} を変えた履歴はありません` : "履歴はまだありません"));
+      return 0;
+    }
+
+    if (verb === "undo" || verb === "redo") {
+      const redo = verb === "redo";
+      if (redo && words.length) throw usage("spot redo は、何も書かずに使います（いちばん新しい取り消しを、取り消します）");
+      const id = words[0] ? resolveInHistory(words[0]) : null;
+      let seq = null;
+      if (opts.seq !== undefined) {
+        seq = Number(String(opts.seq).replace(/^#/, ""));
+        if (!Number.isInteger(seq) || seq < 1) throw usage("--seq は、spot history に出る番号（#12 なら 12）です");
+      }
+      const plan = kbhistory.planUndo(records, ctx.doc.spots, { seq, id, redo });
+      const t = plan.target;
+      if (!t) {
+        const why = seq !== null ? `#${seq} の変更は履歴にありません` : redo ? "取り消した変更がありません" : id ? `${id} を変えた履歴がありません` : "取り消せる変更がありません";
+        if (json) say(JSON.stringify({ ok: false, reason: why })); else note(why);
+        return 1;
+      }
+      const head = `#${t.seq} ${t.cmd}${t.note ? `（${t.note}）` : ""}`;
+      if (plan.conflicts.length && !opts.force) {
+        if (json) { say(JSON.stringify({ ok: false, target: t.seq, conflicts: plan.conflicts }, null, 2)); return 1; }
+        note(`${head}を取り消せません。そのあとで、同じスポットが変わっています:`);
+        for (const c of plan.conflicts) note(`  ${c.id} ${c.name}${c.later.length ? `（${c.later.map((n) => `#${n}`).join("・")} で変更）` : ""}`);
+        note(`あとの変更を先に取り消す（tabisaki spot undo --seq=${plan.conflicts[0].later.at(-1) ?? "<番号>"}）か、あとの変更ごと戻すなら --force を付けてください`);
+        return 1;
+      }
+      if (!plan.apply.length) { say(`${head} は、もう取り消されています`); return 0; }
+      if (opts["dry-run"]) {
+        if (json) { say(JSON.stringify({ ok: true, dryRun: true, target: t.seq, apply: plan.apply.map((a) => a.id) }, null, 2)); return 0; }
+        say(`${head} を取り消すと（試し。書き込みません）:`);
+        for (const a of plan.apply) say(`  ${a.id} ${kbmerge.entryName(a.id, a.to, ctx.doc.spots[a.id])}: ${kbhistory.describeChange({ before: ctx.doc.spots[a.id] ?? null, after: a.to })}`);
+        return 0;
+      }
+      const n = kbhistory.applyUndo(ctx.doc, plan);
+      const whole = !plan.partial;
+      const r = await save(redo ? "spot redo" : "spot undo", `#${t.seq} ${t.cmd} を取り消した${id ? `（${id} だけ）` : ""}`, whole ? { reverts: t.seq, undoes: t.seq } : { undoes: t.seq });
+      if (json) say(JSON.stringify({ ok: true, target: t.seq, changed: n, seq: r.seq, backup: r.backup }));
+      else say(`${redo ? "やり直しました" : "取り消しました"}: ${head}・${n} 件（これを取り消すとき: tabisaki spot ${redo || !whole ? "undo" : "redo"}）`);
+      return 0;
+    }
+
+    if (verb === "blame") {
+      const id = resolveInHistory(words[0]);
+      const b = kbhistory.blameSpot(records, id);
+      const entry = ctx.doc.spots[id] ?? null;
+      const spot = ctx.merged().spotsById.get(id) ?? ctx.kb.spotsById.get(id) ?? (entry?.spot ? { ...entry.spot, id } : null);
+      if (!spot) throw usage(`${id} は、いまのユーザーKBにも収録にもありません（履歴は tabisaki spot history ${id}）`);
+      const who = (w) => (w ? `#${w.seq}  ${kbhistory.jst(w.at)}  ${w.cmd}${w.note ? `  ${w.note}` : ""}` : null);
+      const rows = [];
+      for (const k of Object.keys(userkb.SPOT_FIELDS)) {
+        const unset = entry?.op === "patch" && entry.unset?.includes(k);
+        if (spot[k] === undefined && !unset) continue;
+        const own = entry?.op === "add" ? k in (entry.spot ?? {}) : entry?.op === "patch" && (k in (entry.set ?? {}) || unset);
+        // 足したスポットで、利用者が書いていない項目（エリアなど）は、まとめるときに自動で付いた値です。
+        const source = own ? (b.fields[k] ? "history" : "before_history") : entry?.op === "add" ? "derived" : "official";
+        rows.push({ field: k, value: unset ? null : spot[k], by: own ? b.fields[k] ?? null : null, source });
+      }
+      if (json) { say(JSON.stringify({ id, name: spot.name, status: entry?.op ?? "official", removed: b.removed, fields: rows }, null, 2)); return 0; }
+      say(`${spot.name}（${id}）${entry ? ` ［${STATUS[entry.op]}］` : ""}`);
+      if (entry?.op === "remove") say(`  消した: ${who(b.removed) ?? "（履歴より前）"}`);
+      for (const r of rows) {
+        const v = r.value === null ? "（なし）" : Array.isArray(r.value) ? r.value.join(", ") : String(r.value);
+        say(`  ${r.field}: ${v.length > 40 ? `${v.slice(0, 40)}…` : v}\t${r.source === "official" ? "収録" : r.source === "derived" ? "（自動で付いた値）" : who(r.by) ?? "（履歴を取りはじめる前）"}`);
+      }
+      return 0;
+    }
+
+    if (verb === "batch") {
+      const file = words[0];
+      if (!file || words.length > 1) throw usage("スクリプトのファイルを1つ書いてください。例: tabisaki spot batch fix.js（書き込むときは --apply）");
+      const num = (key, def, min, max) => {
+        if (opts[key] === undefined) return def;
+        const v = Number(opts[key]);
+        if (!Number.isInteger(v) || v < min || v > max) throw usage(`--${key} は ${min}〜${max} の整数です`);
+        return v;
+      };
+      const maxOps = num("max", kbhistory.BATCH_LIMITS.maxOps, 1, kbhistory.BATCH_LIMITS.hardMaxOps);
+      const timeoutMs = num("timeout", kbhistory.BATCH_LIMITS.timeoutMs, 100, 120000);
+      let code;
+      try { code = await readFile(file, "utf8"); } catch (e) { throw usage(`読めません: ${file}（${e.code ?? e.message}）`); }
+      const merged = ctx.merged();
+      const pick = (s, status) => {
+        const o = { id: s.id, status };
+        for (const k of [...Object.keys(userkb.SPOT_FIELDS), "region", "prefecture"]) if (s[k] !== undefined) o[k] = s[k];
+        return o;
+      };
+      let list = [];
+      if (opts.all) {
+        list = merged.spots.map((s) => pick(s, ctx.doc.spots[s.id]?.op ?? "official"));
+      } else {
+        for (const [id, e] of Object.entries(ctx.doc.spots)) {
+          const s = merged.spotsById.get(id);
+          if (s) list.push(pick(s, e.op));
+          else if (e.op === "remove") list.push(pick({ id, ...(e.spot ?? {}), name: e.spot?.name ?? e.anchor?.name, lat: e.spot?.lat ?? e.anchor?.lat, lng: e.spot?.lng ?? e.anchor?.lng }, "remove"));
+        }
+      }
+      const q = opts.q?.trim();
+      if (q) list = list.filter((s) => s.name?.includes(q) || s.region?.includes(q) || s.prefecture?.includes(q) || s.category?.includes(q));
+      let ops, logs;
+      try {
+        ({ ops, logs } = await kbhistory.runBatchScript(code, list, { timeoutMs, maxOps, filename: path.basename(file) }));
+      } catch (e) {
+        if (e.code !== "batch_failed") throw e;
+        note(`tabisaki: ${e.message}`);
+        return 1;
+      }
+      const work = structuredClone(ctx.doc);
+      const { errors } = kbhistory.applyBatchOps(work, ops, { userkb, official: ctx.kb.spotsById });
+      const changes = kbmerge.diffOverlays(ctx.doc, work);
+      const result = { kb: ctx.name, script: file, seen: list.length, ops: ops.length, changed: changes.length, errors, logs, applied: false };
+      const written = !!opts.apply && !errors.length && changes.length > 0;
+      if (written) {
+        ctx.doc = work;
+        const r = await save("spot batch", `${path.basename(file)}（${changes.length} 件）`);
+        result.applied = true;
+        result.backup = r.backup;
+      }
+      if (json) { say(JSON.stringify({ ...result, changes }, null, 2)); return errors.length ? 1 : 0; }
+      for (const l of logs) say(`  ｜${l}`);
+      say(`${file}: 見せたスポット ${list.length}・頼まれた変更 ${ops.length}・変わるスポット ${changes.length}・まちがい ${errors.length}`);
+      if (changes.length) say(kbmerge.formatDiff(changes.slice(0, 50), { from: "いま", to: "スクリプト" }));
+      if (changes.length > 50) say(`  ほか ${changes.length - 50} 件`);
+      for (const e of errors.slice(0, 20)) note(`  ✗ ${e.index + 1}番目の ${e.op}（${e.id}）: ${e.message}`);
+      if (errors.length) { note("まちがいがあるので、1つも書き込んでいません"); return 1; }
+      if (written) say(`書き込みました（取り消すとき: tabisaki spot undo）`);
+      else if (changes.length) say("試しです。書き込むには --apply を付けてください");
       return 0;
     }
     return 2;
