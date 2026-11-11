@@ -19,9 +19,19 @@ import { readFile } from "node:fs/promises";
 
 const HERE = new URL("./rail/", import.meta.url);
 
-/** 駅名の比べかた（「駅」と、かっこの県名を外す）。 */
-export const stationKey = (name) => String(name ?? "").normalize("NFKC")
-  .replace(/\s*[（(].*[）)]\s*$/, "").replace(/駅$/, "").trim();
+/**
+ * 駅名の比べかた（「駅」と、終わりのかっこの県名を外す）。
+ * 頼みの文から来る名前なので、正規表現の繰り返しは使わず、長さも切ります。
+ */
+export function stationKey(name) {
+  let s = String(name ?? "").slice(0, 100).normalize("NFKC").trim();
+  if (s.endsWith(")")) {
+    const open = s.lastIndexOf("(");
+    if (open >= 0) s = s.slice(0, open).trim();
+  }
+  if (s.endsWith("駅")) s = s.slice(0, -1);
+  return s.trim();
+}
 
 /** 路線網を読みます。 */
 export async function loadGraph(url = new URL("jr-graph.json", HERE)) {
