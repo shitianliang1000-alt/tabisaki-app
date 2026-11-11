@@ -48,6 +48,8 @@ Thumbs.db
 # JR の駅の記事から落とした情報欄（tools/fetch_rail_stations.py）。走らせ直せば
 # また作れます。路線網に直したもの（packages/core/rail/jr-graph.json）のほうを入れます。
 /data/rail-raw/
+# OpenTripPlanner の時刻表・地図・組み立てた経路網（tools/otp_fetch.py で作り直せます。Issue #429）
+/data/otp/
 # 最長片道切符のソルバー（Rust）を組み立てたもの。入れるのは WebAssembly にした
 # packages/core/rail/longest_ticket.wasm だけです。
 /solver/longest-ticket/target/

@@ -3,6 +3,7 @@
 // 中継の POST /transit が入口です。本文の provider で使う API を選びます。
 // 無ければ "auto" で、キーが入っているものを TRANSIT_ORDER の順に試します。
 //
+//   otp        手元の OpenTripPlanner          OTP_URL（docs/otp.md。入っているときだけ、いちばん先に試す）
 //   ekispert   駅すぱあと API（Val研究所）     EKISPERT_API_KEY
 //   navitime   NAVITIME Route(totalnavi)       NAVITIME_RAPIDAPI_KEY（RapidAPI 経由）
 //   here       HERE Public Transit API v8       HERE_API_KEY
@@ -21,10 +22,11 @@
 const TIMEOUT_MS = 20_000;
 const UA = "Tabisaki/1.0 (+https://github.com/shitianliang1000-alt/tabisaki-app)";
 
-export const PROVIDERS = ["ekispert", "navitime", "here", "yahoo", "transitous"];
+export const PROVIDERS = ["otp", "ekispert", "navitime", "here", "yahoo", "transitous"];
 export const DEFAULT_ORDER = PROVIDERS;
 
 export const LABELS = {
+  otp: "OpenTripPlanner",
   ekispert: "駅すぱあと",
   navitime: "NAVITIME",
   here: "HERE",
@@ -48,6 +50,7 @@ const off = (env, name) => String(env?.[name] ?? "").trim().toLowerCase() === "o
 /** その API が、いまの設定で使えるか。 */
 export function available(name, env) {
   switch (name) {
+    case "otp": return Boolean(otpBase(env));
     case "ekispert": return has(env, "EKISPERT_API_KEY");
     case "navitime": return has(env, "NAVITIME_RAPIDAPI_KEY");
     case "here": return has(env, "HERE_API_KEY");
@@ -335,6 +338,104 @@ async function transitous(q, env, fetchImpl) {
   return { routes: readTransitous(data, q), url: null };
 }
 
+// ── OpenTripPlanner（手元の OTP 2.6） ──────────────────────
+//
+// 自分で動かす OTP（docker compose --profile otp。docs/otp.md）に、GTFS GraphQL API の
+// planConnection で聞きます。読ませた時刻表（GTFS-JP）の範囲だけを答えるので、
+// 範囲の外（OUTSIDE_BOUNDS）・歩くだけの答えは「経路なし」として、次の API へ回します。
+
+/** OTP_URL を、末尾の / を外した http(s) の URL にします。おかしければ null。 */
+export function otpBase(env) {
+  if (!has(env, "OTP_URL")) return null;
+  try {
+    const u = new URL(env.OTP_URL.trim());
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    // 末尾の「/」は正規表現を使わずに外します（/\/+$/ は長い入力で遅くなる。CodeQL）。
+    let href = u.href;
+    while (href.endsWith("/")) href = href.slice(0, -1);
+    return href;
+  } catch { return null; }
+}
+
+const OTP_KIND = {
+  WALK: "walk", BUS: "bus", COACH: "coach", TROLLEYBUS: "bus", RAIL: "rail", SUBWAY: "rail",
+  MONORAIL: "monorail", TRAM: "tram", CABLE_CAR: "tram", FERRY: "ferry", AIRPLANE: "air",
+  GONDOLA: "ropeway", FUNICULAR: "cable",
+};
+
+export const OTP_QUERY = `query Plan($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!,
+  $dateTime: PlanDateTimeInput!) {
+  planConnection(origin: $origin, destination: $destination, dateTime: $dateTime, first: 3) {
+    routingErrors { code }
+    edges { node { numberOfTransfers legs {
+      mode distance from { name } to { name } start { scheduledTime } end { scheduledTime }
+      route { shortName longName agency { name } } intermediatePlaces { name }
+    } } }
+  }
+}`;
+
+/**
+ * 路線の呼び名。GTFS-JP では、系統の番号と経由地が longName に「C3-3：蓮台寺入口→…」と
+ * 入っていることが多いので、番号だけを取って事業者の名前を前に付けます（「熊本電鉄バス C3-3」）。
+ */
+export function otpLine(route) {
+  const agency = String(route?.agency?.name ?? "").trim();
+  let name = String(route?.shortName || route?.longName || "").trim();
+  if (name.includes("：")) name = name.split("：")[0].trim();
+  if (name.length > 24) name = `${name.slice(0, 23)}…`;
+  if (!agency || name.startsWith(agency)) return name || agency;
+  return name ? `${agency} ${name}` : agency;
+}
+
+/** OTP の答えを候補の並びに。歩くだけの答えは外します（乗り換え検索の答えではないので）。 */
+export function readOtp(data) {
+  const out = [];
+  for (const edge of data?.data?.planConnection?.edges ?? []) {
+    const it = edge?.node;
+    const legs = (it?.legs ?? []).map((l) => ({
+      vehicle: OTP_KIND[l.mode] ?? "rail",
+      from: String(l.from?.name ?? ""),
+      to: String(l.to?.name ?? ""),
+      departure: clockOf(l.start?.scheduledTime),
+      arrival: clockOf(l.end?.scheduledTime),
+      line: l.mode === "WALK" ? "" : otpLine(l.route),
+      stops: (l.intermediatePlaces ?? []).map((p) => p?.name).filter(Boolean),
+      distance: Number(l.distance) || 0,
+    }))
+      // 同じ停留所の中で乗り換える「0m の徒歩」は、区間として見せません。
+      .filter((l) => !(l.vehicle === "walk" && l.distance < 1 && l.from === l.to));
+    if (!legs.some((l) => l.vehicle !== "walk")) continue;
+    const km = legs.reduce((s, l) => s + l.distance, 0) / 1000;
+    out.push(routeFrom(legs, {
+      transfers: it.numberOfTransfers,
+      distanceKm: Math.round(km * 10) / 10,
+      intermediateStops: legs.flatMap((l) => l.stops),
+    }));
+  }
+  return out;
+}
+
+async function otp(q, env, fetchImpl) {
+  if (q.search === "last") throw new TransitError("unsupported", "OpenTripPlanner は終電を探せません", { status: 400 });
+  if (!q.fromAt || !q.toAt) throw new TransitError("unsupported", "OpenTripPlanner は位置が要ります", { status: 400 });
+  const at = (p, label) => ({ location: { coordinate: { latitude: p.lat, longitude: p.lng } }, label });
+  const data = await getJson(fetchImpl, `${otpBase(env)}/otp/gtfs/v1`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      query: OTP_QUERY,
+      variables: {
+        origin: at(q.fromAt, q.from), destination: at(q.toAt, q.to),
+        dateTime: { earliestDeparture: q.at.toISOString() },
+      },
+    }),
+  });
+  if (Array.isArray(data?.errors) && data.errors.length) {
+    throw new TransitError("bad_response", "OpenTripPlanner が問い合わせを受け付けませんでした");
+  }
+  return { routes: readOtp(data), url: null };
+}
+
 // ── 駅すぱあと API ───────────────────────────────
 
 /** 度を「度.分.秒」に（駅すぱあとの座標の書きかた）。 */
@@ -513,7 +614,7 @@ async function here(q, env, fetchImpl) {
 
 // ── 入口 ───────────────────────────────────────
 
-const SEARCH = { ekispert, navitime, here, transitous };
+const SEARCH = { otp, ekispert, navitime, here, transitous };
 
 /**
  * 1つの API で引きます。

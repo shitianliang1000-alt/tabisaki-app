@@ -19,3 +19,34 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+
+  # ── OpenTripPlanner（乗り換え検索を手元で。Issue #429、docs/otp.md） ──
+  # ふつうの docker compose up では動きません（--profile otp のときだけ）。
+  #     python3 tools/otp_fetch.py                        # 時刻表と地図を data/otp/kumamoto/ に集める
+  #     docker compose --profile otp run --rm otp-build   # 経路網を組み立てる（graph.obj）
+  #     docker compose --profile otp up -d otp            # http://127.0.0.1:8080/otp/gtfs/v1
+  # 中継（server/node-proxy.mjs）に OTP_URL=http://127.0.0.1:8080 を入れると、乗り換え検索で使います。
+  otp-build:
+    profiles: ["otp"]
+    image: &otp-image opentripplanner/opentripplanner:2.6.0@sha256:5027834b4a5e2b52deacbe65a97ec614fe1bf36a87297bfc0fd4142121cd3185
+    command: ["--build", "--save"]
+    environment:
+      JAVA_OPTS: "-Xmx6g"
+    volumes:
+      - ./data/otp/${OTP_REGION:-kumamoto}:/var/opentripplanner
+  otp:
+    profiles: ["otp"]
+    image: *otp-image
+    command: ["--load", "--serve"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      JAVA_OPTS: "-Xmx4g"
+    volumes:
+      - ./data/otp/${OTP_REGION:-kumamoto}:/var/opentripplanner:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/otp/actuators/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s

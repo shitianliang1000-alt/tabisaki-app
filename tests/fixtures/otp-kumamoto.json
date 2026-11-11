@@ -1,0 +1,521 @@
+{
+ "data": {
+  "planConnection": {
+   "routingErrors": [],
+   "edges": [
+    {
+     "node": {
+      "start": "2026-11-12T09:18:09+09:00",
+      "end": "2026-11-12T10:14:28+09:00",
+      "numberOfTransfers": 0,
+      "legs": [
+       {
+        "mode": "WALK",
+        "distance": 121.18,
+        "from": {
+         "name": "熊本駅"
+        },
+        "to": {
+         "name": "熊本駅前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:18:09+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:20:00+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       },
+       {
+        "mode": "BUS",
+        "distance": 13146.21,
+        "from": {
+         "name": "熊本駅前"
+        },
+        "to": {
+         "name": "再春医療センター前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:20:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:08:00+09:00"
+        },
+        "route": {
+         "shortName": null,
+         "longName": "C3-3：蓮台寺入口→熊本駅前→桜町バスターミナル→水道町→坪井→山室→御代志→菊池温泉",
+         "agency": {
+          "name": "熊本電鉄バス"
+         }
+        },
+        "intermediatePlaces": [
+         {
+          "name": "北岡神社前"
+         },
+         {
+          "name": "祇園橋（市道）"
+         },
+         {
+          "name": "呉服町（熊本市）"
+         },
+         {
+          "name": "商工会議所前（熊本）"
+         },
+         {
+          "name": "河原町（熊本 市道）"
+         },
+         {
+          "name": "桜町バスターミナル"
+         },
+         {
+          "name": "市役所前（熊本）"
+         },
+         {
+          "name": "通町筋"
+         },
+         {
+          "name": "水道町"
+         },
+         {
+          "name": "白川公園前"
+         },
+         {
+          "name": "藤崎宮前"
+         },
+         {
+          "name": "北浄行寺"
+         },
+         {
+          "name": "坪井"
+         },
+         {
+          "name": "市立必由館高校前"
+         },
+         {
+          "name": "男女共同参画センターはあもにい前"
+         },
+         {
+          "name": "西室園"
+         },
+         {
+          "name": "室園町・アイミースクエア前"
+         },
+         {
+          "name": "北熊本"
+         },
+         {
+          "name": "松崎（熊本）"
+         },
+         {
+          "name": "高平橋"
+         },
+         {
+          "name": "高平"
+         },
+         {
+          "name": "山室"
+         },
+         {
+          "name": "KMバイオ前（飛田バイパス）"
+         },
+         {
+          "name": "熊本機能病院前"
+         },
+         {
+          "name": "四王子橋"
+         },
+         {
+          "name": "羽田（熊本）"
+         },
+         {
+          "name": "須屋西"
+         },
+         {
+          "name": "菊南温泉前"
+         },
+         {
+          "name": "上須屋"
+         },
+         {
+          "name": "南小学校前"
+         },
+         {
+          "name": "黒石下"
+         },
+         {
+          "name": "黒石・ポリテクセンター熊本前"
+         },
+         {
+          "name": "熊本高専前(国道)"
+         }
+        ]
+       },
+       {
+        "mode": "WALK",
+        "distance": 453.65,
+        "from": {
+         "name": "再春医療センター前"
+        },
+        "to": {
+         "name": "御代志"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T10:08:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:14:28+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       }
+      ]
+     }
+    },
+    {
+     "node": {
+      "start": "2026-11-12T09:23:09+09:00",
+      "end": "2026-11-12T10:31:05+09:00",
+      "numberOfTransfers": 1,
+      "legs": [
+       {
+        "mode": "WALK",
+        "distance": 121.18,
+        "from": {
+         "name": "熊本駅"
+        },
+        "to": {
+         "name": "熊本駅前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:23:09+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:25:00+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       },
+       {
+        "mode": "BUS",
+        "distance": 3766.14,
+        "from": {
+         "name": "熊本駅前"
+        },
+        "to": {
+         "name": "藤崎宮前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:25:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:46:00+09:00"
+        },
+        "route": {
+         "shortName": null,
+         "longName": "C9-5：熊本駅前→桜町バスターミナル→水道町→三軒町→清水ヶ丘→楠団地→下群",
+         "agency": {
+          "name": "熊本電鉄バス"
+         }
+        },
+        "intermediatePlaces": [
+         {
+          "name": "北岡神社前"
+         },
+         {
+          "name": "祇園橋（市道）"
+         },
+         {
+          "name": "呉服町（熊本市）"
+         },
+         {
+          "name": "商工会議所前（熊本）"
+         },
+         {
+          "name": "河原町（熊本 市道）"
+         },
+         {
+          "name": "桜町バスターミナル"
+         },
+         {
+          "name": "市役所前（熊本）"
+         },
+         {
+          "name": "通町筋"
+         },
+         {
+          "name": "水道町"
+         },
+         {
+          "name": "白川公園前"
+         }
+        ]
+       },
+       {
+        "mode": "WALK",
+        "distance": 197.87,
+        "from": {
+         "name": "藤崎宮前"
+        },
+        "to": {
+         "name": "藤崎宮前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:46:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:48:54+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       },
+       {
+        "mode": "RAIL",
+        "distance": 9431.3,
+        "from": {
+         "name": "藤崎宮前"
+        },
+        "to": {
+         "name": "御代志"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:55:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:21:00+09:00"
+        },
+        "route": {
+         "shortName": null,
+         "longName": "本線",
+         "agency": {
+          "name": "熊本電鉄"
+         }
+        },
+        "intermediatePlaces": [
+         {
+          "name": "黒髪町"
+         },
+         {
+          "name": "北熊本"
+         },
+         {
+          "name": "亀井"
+         },
+         {
+          "name": "八景水谷"
+         },
+         {
+          "name": "堀川"
+         },
+         {
+          "name": "新須屋"
+         },
+         {
+          "name": "須屋"
+         },
+         {
+          "name": "三ツ石"
+         },
+         {
+          "name": "黒石"
+         },
+         {
+          "name": "熊本高専前"
+         },
+         {
+          "name": "再春医療センター前"
+         }
+        ]
+       },
+       {
+        "mode": "WALK",
+        "distance": 704.95,
+        "from": {
+         "name": "御代志"
+        },
+        "to": {
+         "name": "御代志"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T10:21:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:31:05+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       }
+      ]
+     }
+    },
+    {
+     "node": {
+      "start": "2026-11-12T09:24:35+09:00",
+      "end": "2026-11-12T10:31:05+09:00",
+      "numberOfTransfers": 1,
+      "legs": [
+       {
+        "mode": "WALK",
+        "distance": 90.21,
+        "from": {
+         "name": "熊本駅"
+        },
+        "to": {
+         "name": "熊本駅前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:24:35+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:26:00+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       },
+       {
+        "mode": "BUS",
+        "distance": 2945.69,
+        "from": {
+         "name": "熊本駅前"
+        },
+        "to": {
+         "name": "通町筋"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:26:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:39:00+09:00"
+        },
+        "route": {
+         "shortName": null,
+         "longName": "S4-9：JA飽田支所前→白藤→水道町",
+         "agency": {
+          "name": "九州産交バス"
+         }
+        },
+        "intermediatePlaces": [
+         {
+          "name": "北岡神社前"
+         },
+         {
+          "name": "祇園橋（市道）"
+         },
+         {
+          "name": "呉服町（熊本市）"
+         },
+         {
+          "name": "商工会議所前（熊本）"
+         },
+         {
+          "name": "河原町（熊本 市道）"
+         },
+         {
+          "name": "桜町バスターミナル"
+         },
+         {
+          "name": "市役所前（熊本）"
+         }
+        ]
+       },
+       {
+        "mode": "WALK",
+        "distance": 746.5,
+        "from": {
+         "name": "通町筋"
+        },
+        "to": {
+         "name": "藤崎宮前"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:39:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T09:50:05+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       },
+       {
+        "mode": "RAIL",
+        "distance": 9431.3,
+        "from": {
+         "name": "藤崎宮前"
+        },
+        "to": {
+         "name": "御代志"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T09:55:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:21:00+09:00"
+        },
+        "route": {
+         "shortName": null,
+         "longName": "本線",
+         "agency": {
+          "name": "熊本電鉄"
+         }
+        },
+        "intermediatePlaces": [
+         {
+          "name": "黒髪町"
+         },
+         {
+          "name": "北熊本"
+         },
+         {
+          "name": "亀井"
+         },
+         {
+          "name": "八景水谷"
+         },
+         {
+          "name": "堀川"
+         },
+         {
+          "name": "新須屋"
+         },
+         {
+          "name": "須屋"
+         },
+         {
+          "name": "三ツ石"
+         },
+         {
+          "name": "黒石"
+         },
+         {
+          "name": "熊本高専前"
+         },
+         {
+          "name": "再春医療センター前"
+         }
+        ]
+       },
+       {
+        "mode": "WALK",
+        "distance": 704.95,
+        "from": {
+         "name": "御代志"
+        },
+        "to": {
+         "name": "御代志"
+        },
+        "start": {
+         "scheduledTime": "2026-11-12T10:21:00+09:00"
+        },
+        "end": {
+         "scheduledTime": "2026-11-12T10:31:05+09:00"
+        },
+        "route": null,
+        "intermediatePlaces": null
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

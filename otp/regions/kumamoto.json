@@ -1,0 +1,16 @@
+{
+  "name": "熊本（熊本市と、そのまわり）",
+  "why": "鉄道（熊本電鉄）・路面電車（熊本市電）・路線バス4社の時刻表が、どれも GTFS-JP で公開されている。「徒歩→バス→鉄道→徒歩」を1回で確かめられる",
+  "osm": {
+    "extract": "https://download.openstreetmap.fr/extracts/asia/japan/kyushu.osm.pbf",
+    "bbox": [130.45, 32.60, 131.10, 33.05]
+  },
+  "feeds": [
+    { "org": "kumamotodentetsu", "feed": "kumamotodentetsu", "name": "熊本電鉄電車", "license": "CC0 1.0" },
+    { "org": "kumamoto-shiden", "feed": "kumamotoshiden", "name": "熊本市電", "license": "CC BY 2.1 JP" },
+    { "org": "kumamoto-toshibus", "feed": "kumamoto-toshibus", "name": "熊本都市バス", "license": "CC BY 4.0" },
+    { "org": "kuma-bus", "feed": "kuma-bus", "name": "熊本バス", "license": "CC BY 4.0" },
+    { "org": "kumamotodentetsu", "feed": "kumamotodentetsu-bus", "name": "熊本電鉄バス", "license": "CC BY 4.0" },
+    { "org": "sankobus", "feed": "sankobus", "name": "産交バス", "license": "CC BY 4.0" }
+  ]
+}
