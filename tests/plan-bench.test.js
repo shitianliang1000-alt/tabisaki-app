@@ -8,7 +8,7 @@ import test from "node:test";
 process.env.TZ = "Asia/Tokyo";
 const { hoursFor } = await import("../packages/core/src/hours.js");
 const {
-  auditItinerary, randomRequests, rng, summarize, compare, loadFixedRequests, HARD_KINDS,
+  auditItinerary, randomRequests, tightRequests, rng, summarize, compare, loadFixedRequests, HARD_KINDS,
 } = await import("../tools/plan_bench.mjs");
 
 const J = (hm, day = "2026-11-16") => `${day}T${hm}:00+09:00`;
@@ -57,6 +57,32 @@ test("帰りの時刻を過ぎる・ありえない速さ・長すぎる移動�
   assert.match(msgs, /帰りの時刻 20:00 を過ぎる/);
   const long = { days: [{ items: [item("spot", "10:00", "11:00", { place: museum }), { kind: "transit", title: "タクシー", start: J("11:00"), end: J("11:00", "2026-11-18"), km: 1900 }] }] };
   assert.match(auditItinerary(long, { days: 1 }, { hoursFor }).map((x) => x.msg).join(), /1本で 48 時間/);
+});
+
+test("空路の区間は、乗り物の種類（vehicle.kinds）で見分ける", () => {
+  // vehicle をそのまま文字にして "[object Object]" を見ていたので、
+  // 飛行機の区間を地上の速さで判定していました。
+  const fly = (vehicle) => ({ days: [{ items: [
+    item("spot", "08:30", "09:00", { place: temple }),
+    item("transit", "09:00", "12:00", { km: 2200, title: "札幌駅 → 県庁前駅", vehicle }),
+  ] }] });
+  const travel = (v) => auditItinerary(fly(v), request, { hoursFor }).filter((x) => x.kind === "travel");
+  assert.equal(travel({ kinds: ["air"], preferMet: true }).length, 0);
+  assert.equal(travel(null).length, 1);
+  assert.equal(travel({ kinds: ["train"] }).length, 1);
+});
+
+test("「遠くへ短く」の頼みごとは、シードが同じなら同じ並びで、1〜2日", () => {
+  const a = tightRequests(374, 30);
+  assert.deepEqual(a, tightRequests(374, 30));
+  assert.notDeepEqual(a, tightRequests(375, 30));
+  assert.equal(new Set(a.map((r) => r.id)).size, 30);
+  for (const r of a) {
+    assert.ok(r.days === 1 || r.days === 2, `${r.id}: ${r.days}日`);
+    assert.ok(["17:00", "18:00", "19:00"].includes(r.back));
+  }
+  // ふつうのランダムとは別の並びです（同じ頼みごとを2回数えません）。
+  assert.notDeepEqual(a.map((r) => r.wish), randomRequests(374, 30).map((r) => r.wish));
 });
 
 test("同じ場所に2回・予定の重なり・日数の違い・立ち寄りなしを拾う", () => {

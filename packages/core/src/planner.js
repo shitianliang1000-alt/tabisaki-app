@@ -8,8 +8,8 @@
 // 変わる日の朝には移動が入り、夜の宿はその日のエリアに取ります。
 
 import { TUNING } from "./config.js";
-import { addMinutes, atHour, estimateMinutes, haversineKm, profileOf }
-  from "./feasibility.js";
+import { addMinutes, assumesFlight, atHour, estimateMinutes, haversineKm,
+  profileOf } from "./feasibility.js";
 import { describeHours, hoursFor } from "./hours.js";
 import { pickLodging } from "./lodging.js";
 import { dedupeAreaNames, joinAreaNames, regionOfDay } from "./stays.js";
@@ -142,7 +142,10 @@ export function buildItinerary(input) {
     detail: legs?.outbound?.line && outFits
       ? legs.outbound.line
         + (board && !overnight ? `（${fmtHm(trip.departAt)}発の次の便）` : "")
-      : (legs?.outbound?.taxi ? "タクシー" : "") + `約${outMin}分`,
+      : (legs?.outbound?.taxi ? "タクシー" : "")
+        + (assumedVehicle(haversineKm(trip.origin, firstStation), legs?.outbound)
+          ? "飛行機を使う見込み・" : "")
+        + `約${outMin}分`,
     alternatives: outFits ? (legs?.outbound?.alternatives ?? []) : [],
     from: trip.origin,
     to: firstStation,
@@ -155,7 +158,8 @@ export function buildItinerary(input) {
     // 何に乗る区間か（飛行機・船・高速バス…）。routes.js が調べた
     // 結果に付けています。これが無いと、飛行機の区間が「電車」の顔で
     // 並び、搭乗手続きの断り書きも出ません。
-    vehicle: outFits ? vehicleOf(legs?.outbound) : null,
+    vehicle: (outFits ? vehicleOf(legs?.outbound) : null)
+      ?? assumedVehicle(haversineKm(trip.origin, firstStation), legs?.outbound),
     km: haversineKm(trip.origin, firstStation),
     costYen: 0,
     reason: overnight
@@ -435,9 +439,29 @@ export function buildItinerary(input) {
   // --- 復路 or 終点への移動 ---
   const lastRegion = baseOfDay(nights);
   const end = dayEnd(trip, nights);
+  /** 帰りが期限を過ぎるとき、どれだけ過ぎるか。 */
+  let lateReturn = null;
   if (end.place) {
-    const backMin = legs?.inbound?.minutes
-      ?? travelFn(visits.at(-1)?.spot ?? trip.origin, end.place);
+    // 帰りの所要時間は、**検証で使った数字**です（verify.js の back）。
+    //
+    // ここは legs.inbound.minutes を見ていました。経路を引いていない
+    // ときの inbound は往路の写しなので、「出発地 → 拠点の駅」の時間です。
+    // 検証は「最後の立ち寄り → 終点」で間に合うと見ているのに、旅程は
+    // 別の区間の時間で帰りを組むので、最後の立ち寄りが駅から離れている
+    // ぶんだけ、期限を過ぎていました（冠着山 → 広島駅が 18:09 着、など）。
+    // 実際に引いた区間でも同じで、組み直しで最後の立ち寄りが外れると、
+    // 調べた最後の区間は**もう旅程に無い場所から**の区間になります。
+    const lastSpot = visits.at(-1)?.spot ?? null;
+    const verified = input.back
+      && (!lastSpot || input.back.from === lastSpot
+          || input.back.from?.id === lastSpot.id);
+    // 帰りの区間の中身（路線・乗り物）は、**同じ2点を調べたもの**だけを
+    // 使います。検証の数字で組むときに legs.inbound の路線名を付けると、
+    // 別の区間の便を、この行の便として出すことになります。
+    const exact = lastSpot ? legDetail(lastSpot, end.place) : null;
+    const inLeg = exact ?? (verified ? null : legs?.inbound ?? null);
+    const backMin = verified ? input.back.minutes
+      : inLeg?.minutes ?? travelFn(lastSpot ?? trip.origin, end.place);
     const limit = addMinutes(trip.arriveBy, -TUNING.safetyBufferMin);
     const startBack = new Date(Math.max(prevEnd.getTime(),
                                         addMinutes(limit, -backMin).getTime()));
@@ -468,23 +492,36 @@ export function buildItinerary(input) {
       ? `${backFrom} → ${end.place.name}`
       : `${backFrom} → ${end.place.name}（最終目的地）`;
     // 帰りの便も、乗る路線の手順を付けます（行きと同じ形）。
+    const backEnd = addMinutes(startBack, backMin);
+    const backKm = haversineKm(lastSpot ?? lastRegion, end.place);
     items.push(withTransit({
       id: nextId(), kind: "transit",
-      start: startBack, end: addMinutes(startBack, backMin),
+      start: startBack, end: backEnd,
       title: label,
-      detail: `${legs?.inbound?.line ? legs.inbound.line + "・" : ""}`
-        + (legs?.inbound?.taxi ? "タクシー" : "") + `約${backMin}分`
-        + (legs?.inbound?.routed ? "" : "（推定）"),
-      from: null, to: end.place,
-      routed: Boolean(legs?.inbound?.routed),
-      vehicle: vehicleOf(legs?.inbound),
-      noTransit: legs?.inbound?.noTransit === true,
-      taxi: legs?.inbound?.taxi === true,
-      km: haversineKm(visits.at(-1)?.spot ?? lastRegion, end.place),
+      detail: `${inLeg?.line ? inLeg.line + "・" : ""}`
+        + (inLeg?.taxi ? "タクシー" : "")
+        + (assumedVehicle(backKm, inLeg) ? "飛行機を使う見込み・" : "")
+        + `約${backMin}分`
+        + (inLeg?.routed ? "" : "（推定）"),
+      from: lastSpot, to: end.place,
+      routed: Boolean(inLeg?.routed),
+      vehicle: vehicleOf(inLeg) ?? assumedVehicle(backKm, inLeg),
+      noTransit: inLeg?.noTransit === true,
+      taxi: inLeg?.taxi === true,
+      km: backKm,
       costYen: 0,
       reason: trip.endMode === END_MODES.RETURN_TO_ORIGIN
         ? "帰着時刻に間に合う便" : "最終目的地に向かう便",
-    }, legs?.inbound?.transit));
+    }, inLeg?.transit));
+    // ここまでで守れているはずですが、守れなかったときに黙りません。
+    //
+    // 「必ず行く」場所は時間が足りなくても削らないので、帰りが期限を
+    // 過ぎる旅程は残りえます。そのときは、過ぎると書きます。期限どおりの
+    // 顔をした旅程を渡すのが、いちばん困る出かたです。
+    const overMin = Math.round((backEnd - trip.arriveBy) / 60000);
+    if (overMin > 0) {
+      lateReturn = { overMin, arriveAt: backEnd };
+    }
   }
 
   // --- 日をまたぐ区間は、着いた日にも「着いた」を置く ---
@@ -550,6 +587,17 @@ export function buildItinerary(input) {
 
   const spotCount = items.filter((i) => i.kind === "spot").length;
   const warnings = [];
+  if (lateReturn) {
+    warnings.push(`この旅程では、${end.place?.name ?? "終点"}に着くのが`
+      + `${fmtHm(lateReturn.arriveAt)}ごろになり、ご希望の時刻を`
+      + `約${lateReturn.overMin}分過ぎます。立ち寄りを減らすか、帰りの時刻を`
+      + "遅らせてください。");
+  }
+  // 最終日の昼食を取らなかったとき。食事の行が無いことを、理由と一緒に伝えます。
+  if ((input.skippedMeals ?? []).some((m) => m.kind === "lunch")) {
+    warnings.push(`${nights > 0 ? "最終日は、" : ""}帰りの時刻に間に合わせるため、`
+      + "昼食の時間を取っていません。移動の途中（駅弁・車内・空港など）でどうぞ。");
+  }
   if (!spotCount) {
     warnings.push("時間が短く、立ち寄れる場所を組めませんでした。滞在時間を延ばしてください。");
   }
@@ -587,7 +635,22 @@ export function buildItinerary(input) {
     // （画面で「◯◯に3連泊」と言えるようにするためです）。
     stayStyle: trip.stayStyle ?? "auto",
     usedRoutesApi: Boolean(legs?.outbound?.routed || legs?.local?.routed),
+    // 帰りが期限を過ぎるとき（「必ず行く」を削れなかった、など）。
+    lateReturn,
   };
+}
+
+/**
+ * 時刻を引けていない長い区間で、見積もりが前提にしている乗り物。
+ *
+ * 距離からの見積もり（feasibility.js の estimateMinutes）は、遠い区間を
+ * 飛行機の速さで数えます。札幌→那覇の 2,200km が「約6時間半」と出るのは
+ * そのためです。ところが行には何に乗るとも書いていないので、新幹線より
+ * 速い地上の移動に見えます。**数字の前提を、行に書きます。**
+ */
+function assumedVehicle(km, leg) {
+  if (leg?.routed || !assumesFlight(km)) return null;
+  return { kinds: ["air"], preferMet: true, assumed: true };
 }
 
 /**

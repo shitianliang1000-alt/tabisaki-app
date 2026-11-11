@@ -23,7 +23,7 @@ export const USE_ROUTES_API = false;
 
 // 乗り換え検索で使う API（中継の POST /transit。docs/transit-apis.md）。
 // "auto" なら、中継にキーが入っているものを決まった順に試します。
-// "ekispert"・"navitime"・"here"・"transitous"・"yahoo" で名指しもできます。
+// "otp"・"ekispert"・"navitime"・"here"・"transitous"・"yahoo" で名指しもできます。
 export const TRANSIT_PROVIDER = "auto";
 
 // --- 3. どのモデルを、どこで動かすか ---------------------------------------

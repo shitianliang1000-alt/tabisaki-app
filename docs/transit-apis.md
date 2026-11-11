@@ -6,13 +6,14 @@
 
 | API | 中継に入れるもの | 費用 | 終電 | 範囲 |
 |---|---|---|---|---|
+| OpenTripPlanner（手元で動かす。[otp.md](otp.md)） | `OTP_URL` | 無料（自分の機械） | × | 読ませた GTFS-JP の範囲だけ。いまは熊本（路線バス・熊本電鉄・熊本市電）。JR は入らない |
 | [駅すぱあと API][1]（Val研究所） | `EKISPERT_API_KEY` | 従量課金。90日の無料試用・フリープランあり | ○ | 全国の鉄道・飛行機・船。バスは契約しだい |
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |
 | [Transitous][4]（MOTIS・GTFS） | 要らない（`TRANSITOUS=off` で止める） | 無料・**非商用だけ** | × | 公開された GTFS のある路線だけ。新幹線と大手私鉄は入っていて、京都市バスや JR 北海道、飛行機は入っていない（2026年10月に確かめた） |
 | Yahoo!路線情報 | 要らない（`YAHOO_TRANSIT=off` で止める） | 無料 | ○ | 全国。ただし検索結果のページを読んでいるので、使い続けてよいかは確かめていない（#367） |
 
-自動で試す順番は、`駅すぱあと → NAVITIME → HERE → Yahoo!路線情報 → Transitous` です。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
+自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → Yahoo!路線情報 → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
 
 Yahoo!路線情報から移るときは、駅すぱあとか NAVITIME のキーを入れてから `YAHOO_TRANSIT=off` にしてください。キーを入れる前に止めると、無料の Transitous だけになり、バスの入っていない地域では目安の時間になります。
 
@@ -28,6 +29,7 @@ Yahoo!路線情報から移るときは、駅すぱあとか NAVITIME のキー�
 npx wrangler secret put EKISPERT_API_KEY        # 駅すぱあと
 npx wrangler secret put NAVITIME_RAPIDAPI_KEY   # NAVITIME（RapidAPI の X-RapidAPI-Key）
 npx wrangler secret put HERE_API_KEY            # HERE
+npx wrangler secret put OTP_URL                 # 手元の OpenTripPlanner（HTTPS で届く URL。otp.md）
 npx wrangler secret put TRANSIT_ORDER           # 任意。例: ekispert,navitime,transitous
 npx wrangler secret put YAHOO_TRANSIT           # 任意。off で Yahoo!路線情報を止める
 ```

@@ -240,6 +240,106 @@
       "start": "08:00",
       "back": "20:00",
       "transport": "any"
+    },
+    {
+      "id": "fixed-25",
+      "wish": "函館で寺と庭園を見たい",
+      "from": "東京駅",
+      "days": 2,
+      "date": "2026-11-30",
+      "start": "10:00",
+      "back": "18:00",
+      "transport": "car"
+    },
+    {
+      "id": "fixed-26",
+      "wish": "広島で景色のいい展望台",
+      "from": "仙台駅",
+      "days": 2,
+      "date": "2026-12-20",
+      "start": "09:00",
+      "back": "18:00",
+      "transport": "transit"
+    },
+    {
+      "id": "fixed-27",
+      "wish": "箱根で景色のいい展望台",
+      "from": "札幌駅",
+      "days": 1,
+      "date": "2026-12-19",
+      "start": "06:30",
+      "back": "18:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-28",
+      "wish": "高知で美術館めぐり",
+      "from": "札幌駅",
+      "days": 1,
+      "date": "2026-12-03",
+      "start": "08:00",
+      "back": "21:00",
+      "transport": "transit"
+    },
+    {
+      "id": "fixed-29",
+      "wish": "松本で景色のいい展望台",
+      "from": "広島駅",
+      "days": 3,
+      "date": "2026-12-21",
+      "start": "09:00",
+      "back": "18:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-30",
+      "wish": "広島で子どもと水族館",
+      "from": "東京駅",
+      "days": 1,
+      "date": "2026-11-30",
+      "start": "06:30",
+      "back": "21:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-31",
+      "wish": "熊本で食べ歩き",
+      "from": "名古屋駅",
+      "days": 1,
+      "date": "2026-11-26",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-32",
+      "wish": "那覇で山歩きと滝",
+      "from": "札幌駅",
+      "days": 4,
+      "date": "2026-11-03",
+      "start": "08:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-33",
+      "wish": "名古屋で城と城下町",
+      "from": "博多駅",
+      "days": 4,
+      "date": "2026-11-29",
+      "start": "10:00",
+      "back": "20:00",
+      "transport": "any"
+    },
+    {
+      "id": "fixed-34",
+      "wish": "広島で温泉でのんびり",
+      "from": "名古屋駅",
+      "days": 1,
+      "date": "2026-12-23",
+      "start": "10:00",
+      "back": "19:00",
+      "transport": "transit"
     }
   ]
 }

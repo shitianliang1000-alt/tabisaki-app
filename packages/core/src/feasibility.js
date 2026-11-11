@@ -159,7 +159,9 @@ export function profileOf(spot, pace = "balanced") {
      * 裏取りができていないので「要確認」側に倒します。
      */
     estimated: open === undefined || close === undefined
-      || spot.verified === false,
+      // 出どころの分かる時間（hours.source。OpenStreetMap など）は、収録の
+      // 残りが未確認でも「目安」ではありません。出どころは注記で伝えます。
+      || (spot.verified === false && !h.source),
   };
 }
 
@@ -242,6 +244,15 @@ export function estimateMinutes(a, b, opts = {}) {
   const ground = Math.round((km / 120) * 60) + 35;
   const air = Math.round((km / 800) * 60) + 210;
   return Math.min(ground, air);
+}
+
+/**
+ * 距離からの見積もりが、飛行機を前提にしているか。
+ * estimateMinutes と同じ式で比べます（700km を超え、空路のほうが早いとき）。
+ */
+export function assumesFlight(km) {
+  if (!Number.isFinite(km) || km <= 700) return false;
+  return Math.round((km / 800) * 60) + 210 < Math.round((km / 120) * 60) + 35;
 }
 
 export function atHour(date, hour) {

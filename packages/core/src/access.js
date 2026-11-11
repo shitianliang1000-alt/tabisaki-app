@@ -110,6 +110,8 @@ const LIMIT = { stroller: 0.6, wheelchair: 0.55, senior: 0.75 };
 export function accessNote(spot, companions) {
   const who = normalizeCompanions(companions);
   if (!who.length) return { hard: false, why: "", who: [] };
+  const mapped = mappedAccess(spot, who);
+  if (mapped) return mapped;
   const h = hardnessOf(spot);
   const hit = who.filter((id) => h >= (LIMIT[id] ?? 1));
   if (!hit.length) return { hard: false, why: "", who: [] };
@@ -122,6 +124,44 @@ export function accessNote(spot, companions) {
     // 「そういう場所が多い」までで、その施設がどうかは知りません。
     why: `${what}。${names}では負担になることがあります。`
       + "段差や貸し出しの有無は、公式サイトか電話でご確認ください。",
+  };
+}
+
+/**
+ * 施設ごとの情報（OpenStreetMap の wheelchair。tools/osm_enrich.py が足します）。
+ *
+ * 分類の目安より、**その施設について書かれたこと**のほうを先に使います。
+ * 平らな城もあれば、段差だらけの美術館もあります。
+ *
+ * ただし、これは地図の利用者が書いた情報で、公式の発表ではありません。
+ * 「行けます」とは言い切らず、出どころと確かめ先を添えます。
+ */
+const MAPPED = {
+  yes: "車いすで利用できる",
+  designated: "車いすで利用できる",
+  limited: "車いすでは一部だけ利用できる",
+  no: "車いすでは利用できない",
+};
+
+/** OSM の wheelchair の値。車輪の同行者（車椅子・ベビーカー）に効きます。 */
+export function mappedWheelchair(spot) {
+  const v = spot?.osmInfo?.wheelchair;
+  return v in MAPPED ? v : "";
+}
+
+function mappedAccess(spot, who) {
+  const v = mappedWheelchair(spot);
+  const wheels = who.filter((id) => id === "wheelchair" || id === "stroller");
+  if (!v || !wheels.length) return null;
+  const tail = "（地図の利用者による情報です。段差や貸し出しの有無は、"
+    + "公式サイトか電話でもご確認ください）";
+  const toilet = spot.osmInfo.toiletsWheelchair === "yes"
+    ? "車いす用のトイレもあると書かれています。" : "";
+  return {
+    hard: v === "no" || v === "limited",
+    who: wheels,
+    source: "osm",
+    why: `OpenStreetMap には「${MAPPED[v]}」と登録されています。${toilet}${tail}`,
   };
 }
 
@@ -150,6 +190,11 @@ const REASON = {
 export function accessAppeal(spot, companions) {
   const who = normalizeCompanions(companions);
   if (!who.length) return 0.5;
+  // 施設ごとの情報があれば、分類の目安より先に使います（車輪の同行者だけ）。
+  const mapped = who.some((id) => id === "wheelchair" || id === "stroller")
+    ? mappedWheelchair(spot) : "";
+  if (mapped === "yes" || mapped === "designated") return 0.6;
+  if (mapped === "no") return 0.15;
   const h = hardnessOf(spot);
   // いちばん厳しい同行者に合わせます。
   const limit = Math.min(...who.map((id) => LIMIT[id] ?? 1));
@@ -198,9 +243,13 @@ export function attachAccess(itin, companions) {
     for (const item of day?.items ?? []) {
       if (item.kind !== "spot" || !item.place) continue;
       const note = accessNote(item.place, who);
-      if (!note.hard) continue;
-      item.access = { why: note.why, who: note.who };
-      n += 1;
+      // 施設ごとの情報（OpenStreetMap）は、「利用できる」も書きます。
+      // 分類の目安は、つらいときだけです（確かめていないので、
+      // 「歩きやすいです」とは言いません）。
+      if (!note.hard && !note.source) continue;
+      item.access = { why: note.why, who: note.who,
+                      ...(note.source ? { source: note.source } : {}) };
+      if (note.hard) n += 1;
     }
     // その日の、移動での徒歩。
     const km = (day?.items ?? [])

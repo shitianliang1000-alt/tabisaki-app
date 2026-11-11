@@ -50,7 +50,8 @@ export function scoreRow(row, answer, known, spotById = new Map()) {
     const bad = unknownNames(a, known);
     return { task, prefecture: pref ? (a.includes(pref) ? 1 : 0) : null, grounded: bad.length ? 0 : 1, unknown: bad.slice(0, 5) };
   }
-  if (task === "unknown_place") return { task, refused: REFUSE.test(a) ? 1 : 0 };
+  // 収録に無い名前を聞く行（学習データの unknown_place と、データセットの meta_unknown_name）
+  if (task === "unknown_place" || task === "meta_unknown_name") return { task: "unknown_place", refused: REFUSE.test(a) ? 1 : 0 };
   if (task === "area_list" || task === "itinerary") {
     const listed = [...a.matchAll(/^[・\-*]\s*(?:\d{1,2}:\d{2}\s*)?(.+?)(?:（.*）)?\s*$/gm)].map((m) => m[1].trim()).filter(Boolean);
     if (!listed.length) return { task, known: 0, listed: 0 };
@@ -61,6 +62,9 @@ export function scoreRow(row, answer, known, spotById = new Map()) {
 }
 
 const mean = (xs) => { const v = xs.filter((x) => typeof x === "number"); return v.length ? Math.round((v.reduce((s, x) => s + x, 0) / v.length) * 1000) / 1000 : null; };
+
+/** 採点できる種類（ほかの行は、聞かずに飛ばします）。 */
+export const SCORED_TASKS = new Set(["spot_fact", "unknown_place", "meta_unknown_name", "area_list", "itinerary"]);
 
 export function summarizeScores(scores) {
   const of = (t) => scores.filter((s) => s.task === t);
@@ -113,7 +117,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     process.exit(2);
   }
   const data = path.resolve(opt("data") ?? path.join(ROOT, ".tabisaki", "training", "eval.jsonl"));
-  let rows = readFileSync(data, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  let rows = readFileSync(data, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
+    .filter((r) => SCORED_TASKS.has(r?.meta?.task));
   const limit = Number(opt("limit") ?? 0);
   if (limit > 0) rows = rows.slice(0, limit);
   const { loadKb } = await import(pathToFileURL(path.join(ROOT, "tools", "export_training_data.mjs")).href);

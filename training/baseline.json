@@ -1,0 +1,12 @@
+{
+  "_": "学習のあとの採点（tools/model_eval.mjs の summary）が、これを下回ったら不合格（training/eval_gate.mjs）。floor は「これより下なら出さない」線、tolerance は学習前のモデルより下がってよい幅。元の Gemma 4 E2B の数字が取れたら before.json として渡し、floor も見直す。",
+  "floor": {
+    "fact.prefecture": 0.9,
+    "fact.grounded": 0.85,
+    "unknown.refused": 0.8,
+    "list.known": 0.7
+  },
+  "tolerance": 0.02,
+  "maxErrorRate": 0.05,
+  "minRows": 50
+}

@@ -22,6 +22,7 @@
 //     node tools/plan_bench.mjs --write-baseline  # 今の結果を基準にする
 //     node tools/plan_bench.mjs --random 40 --seed 7   # ランダムの本数とシード
 //     node tools/plan_bench.mjs --only fixed-03 # 1件だけ（失敗ケースの再現）
+//     node tools/plan_bench.mjs --sweep 20      # シード 1〜20 をまとめて（基準とは比べない）
 //     node tools/plan_bench.mjs --out bench-out # 失敗ケースを1件ずつ JSON で保存
 //
 // 判定の関数（auditItinerary など）は tests/plan-bench.test.js から直接呼びます。
@@ -58,7 +59,11 @@ function km(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-const isAir = (it) => /飛行機|空港|✈|flight|plane/i.test(`${it.vehicle ?? ""} ${it.title ?? ""} ${it.detail ?? ""}`);
+// 乗り物は item.vehicle.kinds（packages/core/src/modes.js の種類）に入っています。
+// ここは vehicle をそのまま文字にしていたので "[object Object]" を見ていて、
+// 空路の区間を地上の速さで判定していました。
+const isAir = (it) => (Array.isArray(it.vehicle?.kinds) && it.vehicle.kinds.includes("air"))
+  || /飛行機|空港|✈|flight|plane/i.test(`${it.title ?? ""} ${it.detail ?? ""}`);
 
 /**
  * 1本の旅程を調べて、見つかった違反を返します。
@@ -186,6 +191,37 @@ export function randomRequests(seed, n) {
       date,
       start: pick(STARTS),
       back: pick(BACKS),
+      transport: pick(TRANSPORTS),
+    });
+  }
+  return out;
+}
+
+/**
+ * 遠くへ、短く。帰りの時刻がいちばん効く頼みごとだけを集めた組です。
+ *
+ * ふつうのランダム（randomRequests）は 1〜4日・帰り 18〜21時で、半分ほどは
+ * 余裕のある旅になります。帰りの時刻を過ぎる・着く前に予定が始まる・
+ * 立ち寄りが1つも入らない、といった壊れかたは、**現地にいられる時間が
+ * 短い旅**でしか出ません。そこだけを濃く引きます（1〜2日、帰りは 17〜19時）。
+ * @param {number} seed
+ * @param {number} n
+ */
+export function tightRequests(seed, n) {
+  const r = rng(seed ^ 0x7167);
+  const pick = (list) => list[Math.floor(r() * list.length)];
+  const base = Date.UTC(2026, 10, 2);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const date = new Date(base + Math.floor(r() * 56) * 86400000).toISOString().slice(0, 10);
+    out.push({
+      id: `tight-${seed}-${String(i + 1).padStart(2, "0")}`,
+      wish: `${pick(PLACES)}で${pick(WANTS)}`,
+      from: pick(ORIGINS),
+      days: 1 + Math.floor(r() * 2),
+      date,
+      start: pick(["08:00", "09:00", "10:00"]),
+      back: pick(["17:00", "18:00", "19:00"]),
       transport: pick(TRANSPORTS),
     });
   }
@@ -348,7 +384,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const n = Number(arg("--random", baseline?.random?.count ?? 30));
   const only = arg("--only", null);
 
-  const suitesReq = { fixed: loadFixedRequests(), random: randomRequests(seed, n) };
+  const tightN = Number(arg("--tight", baseline?.tight?.count ?? 60));
+  const suitesReq = { fixed: loadFixedRequests(), random: randomRequests(seed, n),
+                      tight: tightRequests(seed, tightN) };
+  // --sweep 20 … シード 1〜20 のランダムと「遠くへ短く」をまとめて走らせます
+  // （直したあとに、基準のシードだけに合わせていないかを確かめる用。基準とは比べません）。
+  const sweep = Number(arg("--sweep", 0));
+  if (sweep > 0) {
+    for (const k of Object.keys(suitesReq)) delete suitesReq[k];
+    for (let sd = 1; sd <= sweep; sd++) {
+      suitesReq[`random-${sd}`] = randomRequests(sd, n);
+      suitesReq[`tight-${sd}`] = tightRequests(sd, tightN);
+    }
+  }
   if (only) {
     for (const k of Object.keys(suitesReq)) suitesReq[k] = suitesReq[k].filter((r) => r.id === only);
   }
@@ -371,25 +419,39 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     for (const r of allResults.filter((x) => x.violations.some((v) => HARD_KINDS.includes(v.kind)))) {
       writeFileSync(path.join(dir, `${r.id}.json`), JSON.stringify({
         id: r.id, request: r.request, violations: r.violations,
-        reproduce: `node tools/plan_bench.mjs --only ${r.id}${r.id.startsWith("random-") ? ` --seed ${seed} --random ${n}` : ""}`,
+        reproduce: `node tools/plan_bench.mjs --only ${r.id}${r.id.startsWith("random-") ? ` --seed ${seed} --random ${n}` : r.id.startsWith("tight-") ? ` --seed ${seed} --tight ${tightN}` : ""}`,
       }, null, 2) + "\n");
     }
     writeFileSync(path.resolve(outDir, "results.json"), JSON.stringify({ seed, count: n, suites, results: allResults.map(({ normalized, ...r }) => r) }, null, 2) + "\n");
   }
 
   if (process.argv.includes("--write-baseline")) {
-    if (only) throw new Error("--only と --write-baseline は一緒に使えません");
+    if (only || sweep) throw new Error("--only・--sweep と --write-baseline は一緒に使えません");
     writeFileSync(baselineFile, JSON.stringify({
       note: "旅程の成立率の基準。node tools/plan_bench.mjs --write-baseline で作り直します（docs/benchmarks.md）。",
       random: { seed, count: n },
+      tight: { seed, count: tightN },
       tolerance: baseline?.tolerance ?? DEFAULT_TOLERANCE,
       suites,
     }, null, 2) + "\n");
     console.log(`基準を書きました: bench/baseline.json`);
   }
 
-  const cmp = baseline && !only ? compare(baseline.suites, suites, baseline.tolerance) : null;
-  if (process.argv.includes("--md")) {
+  if (sweep > 0) {
+    // まとめ走りは、不成立と合計だけを出します。
+    const total = allResults.length;
+    const badAll = allResults.filter((r) => r.violations.some((v) => HARD_KINDS.includes(v.kind)));
+    for (const r of badAll) {
+      console.log(`✗ ${r.id}  ${r.request.wish}（${r.request.from}・${r.request.days}日）`);
+      for (const v of r.violations.filter((x) => HARD_KINDS.includes(x.kind))) console.log(`    [${v.kind}] ${v.msg}`);
+    }
+    console.log(`\nシード 1〜${sweep}: 成立率 ${pct((total - badAll.length) / total)}（${total - badAll.length}/${total}）（${(elapsed / 1000).toFixed(1)} 秒）`);
+    if (badAll.length) process.exitCode = 1;
+  }
+  const cmp = baseline && !only && !sweep ? compare(baseline.suites, suites, baseline.tolerance) : null;
+  if (sweep > 0) {
+    // 上で出しました
+  } else if (process.argv.includes("--md")) {
     console.log(toMarkdown(suites, cmp, { results: allResults }));
   } else {
     for (const r of allResults) {

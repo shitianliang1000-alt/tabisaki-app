@@ -20,7 +20,7 @@
 
 | 形 | 当たる書きかた（例） | 処理 |
 |---|---|---|
-| `longest_ticket` | 最長片道切符・最長往復きっぷ | 経路は専用ソルバー（#431）に任せる。無ければそう言って、全国を回る旅にする |
+| `longest_ticket` | 最長片道切符・最長往復きっぷ | 経路は専用ソルバー（#431、[longest-ticket.md](./longest-ticket.md)）で出す。使えなければそう言って、全国を回る旅にする |
 | `japan_loop` | 日本一周・日本縦断・本州横断 | [`journeys.js`](../packages/core/src/journeys.js) の道すじで組む。日数が足りなければそう言う |
 | `cruise` | 船旅・長距離フェリー・クルーズ船 | 出発地に近い乗り場の長距離フェリーを選び、着いた先から組む |
 | `seishun18` | 青春18きっぷ・18きっぷ | 普通列車だけ（`transport: "local"`）。使える時期と 3 日・5 日の連続を確かめる |
@@ -66,16 +66,24 @@ r.itinerary;       // 今回の旅程（いつもの流れで組んだもの）
 
 ### 最長片道切符のソルバー
 
-正確な経路は運賃計算の規則と路線の変化で毎年変わるので、手元には持っていません。専用ソルバー（Issue #431）をつなぐと、その経路から組みます。
+Node.js の `core.special()`・`core.research()` は、何も渡さなくても専用ソルバー（Issue #431）で
+JR の路線網から経路を出し、その経路から旅程を組みます。しくみと数字は [longest-ticket.md](./longest-ticket.md) にあります。
+全国の網では最長と確かめきれないので、制限時間（5秒）内に見つかったいちばん長い候補を出し、
+`route.proven` が `false` になります。
+
+出発駅は、頼みに「○○から」「○○発」と書かれたときだけ決めます（`ticketStart()`）。
+書かれていなければ全国でいちばん長い経路で、家の最寄り駅は `origin` として渡すだけです。
+
+ほかのソルバーを使うときは `solvers.longestTicket` で差し替えられます。
 
 ```js
-const longestTicket = async (kind /* "oneway" | "round" */, { from }) => ({
-  route: ["稚内駅", "旭川駅", /* … */, "肥前山口駅"], km: 10900,
+const longestTicket = async (kind /* "oneway" | "round" */, { from, origin }) => ({
+  route: ["稚内駅", "旭川駅", /* … */, "枕崎駅"], km: 10300, legs: [/* {line, from, to, km} */], proven: false,
 });
 await core.special({ wish: "最長片道切符で旅したい" }, { solvers: { longestTicket } });
 ```
 
-ソルバーが無いとき・失敗したときは `status: "needs_solver"` で、全国を地方ごとに回る旅として組みます。
+ソルバーが無いとき（ブラウザ）・失敗したときは `status: "needs_solver"` で、全国を地方ごとに回る旅として組みます。
 
 ## 持っているデータ
 

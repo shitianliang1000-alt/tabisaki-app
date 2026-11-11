@@ -96,12 +96,13 @@ test("最長片道切符: ソルバーが無ければ、そう言って全国を
 
 test("最長片道切符: 専用ソルバー（#431）につなぐと、その経路から組む", async () => {
   const asked = [];
-  const longestTicket = async (kind, { from }) => {
-    asked.push([kind, from]);
+  const longestTicket = async (kind, { from, origin }) => {
+    asked.push([kind, from, origin]);
     return { route: ["稚内駅", "旭川駅", "函館駅", "青森駅", "仙台駅", "東京駅", "名古屋駅", "大阪駅", "広島駅", "博多駅", "肥前山口駅"], km: 10900 };
   };
   const r = await run("最長片道切符で旅したい", { solvers: { longestTicket } });
-  assert.deepEqual(asked, [["oneway", "東京駅"]]);
+  // 出発地（家の最寄り）は参考に渡すだけ。「○○から」と書かれたときだけ、そこを出発駅にする。
+  assert.deepEqual(asked, [["oneway", null, "東京駅"]]);
   assert.equal(r.status, "handled");
   assert.equal(r.route.stations[0], "稚内駅");
   assert.equal(r.route.km, 10900);
@@ -109,6 +110,8 @@ test("最長片道切符: 専用ソルバー（#431）につなぐと、その�
   const round = await run("最長往復切符", { solvers: { longestTicket } });
   assert.equal(asked.at(-1)[0], "round");
   assert.equal(round.name, "最長往復切符");
+  await run("仙台から最長片道切符", { solvers: { longestTicket } });
+  assert.deepEqual(asked.at(-1), ["oneway", "仙台", "東京駅"]);
   // ソルバーが失敗しても止まらない
   const broken = await run("最長片道切符", { solvers: { longestTicket: async () => { throw new Error("timeout"); } } });
   assert.equal(broken.status, "needs_solver");

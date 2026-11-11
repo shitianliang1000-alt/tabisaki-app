@@ -1132,3 +1132,82 @@ test("駅まで歩く時間から、行を始める", () => {
   assert.equal(Math.round((board - started) / 60000), 6,
     "駅までの徒歩ぶんだけ前へ戻していません");
 });
+
+
+// ------------------------------------------------ 帰りの時刻を守る --
+
+test("帰りの行は、検証で使った所要時間で組む", () => {
+  // 経路を引いていないときの legs.inbound は往路の写し（出発地 → 駅）です。
+  // 最後の立ち寄りが駅から離れていると、検証（最後の立ち寄り → 終点）より
+  // 短い時間で帰りを組み、期限を過ぎていました。
+  const trip = makeTrip({ origin: TOKYO, departAt: d("2026-09-12T09:00"),
+                          arriveBy: d("2026-09-12T19:00") });
+  const far = { id: "far", name: "遠い山", category: "神社",
+                lat: 35.60, lng: 139.20 };
+  const travelFn = (a, b) => (a === far && b === TOKYO ? 200 : 30);
+  const v = verifyOrder([far], {
+    start: { lat: REGION.stationLat, lng: REGION.stationLng },
+    startAt: d("2026-09-12T10:00"), end: TOKYO, endBy: trip.arriveBy, travelFn,
+  });
+  assert.equal(v.back.minutes, 200);
+  const itin = buildItinerary({
+    trip, region: REGION, visits: v.visits, meals: v.meals, reasons: new Map(),
+    legs: { outbound: { minutes: 60, routed: false },
+            inbound: { minutes: 60, routed: false } },
+    back: v.back, skippedMeals: v.skippedMeals,
+  });
+  const back = itin.days.flatMap((x) => x.items).at(-1);
+  assert.equal(back.kind, "transit");
+  assert.equal((back.end - back.start) / 60000, 200);
+  assert.ok(back.end <= trip.arriveBy, `${back.end}`);
+  assert.equal(back.from, far);
+  assert.equal(itin.lateReturn, null);
+});
+
+test("帰りが期限を過ぎるなら、過ぎると書く", () => {
+  // 「必ず行く」場所は削らないので、過ぎる旅程は残りえます。黙りません。
+  const trip = makeTrip({ origin: TOKYO, departAt: d("2026-09-12T09:00"),
+                          arriveBy: d("2026-09-12T12:00") });
+  const v = verifyOrder([spots[0]], {
+    start: { lat: REGION.stationLat, lng: REGION.stationLng },
+    startAt: d("2026-09-12T10:00"), end: TOKYO, endBy: trip.arriveBy,
+    travelFn: () => 100, pinnedIds: ["s1"],
+  });
+  const itin = buildItinerary({
+    trip, region: REGION, visits: v.visits, meals: v.meals, reasons: new Map(),
+    legs: { outbound: { minutes: 60, routed: false } }, back: v.back,
+  });
+  assert.ok(itin.lateReturn?.overMin > 0, JSON.stringify(itin.lateReturn));
+  assert.ok(itin.warnings.some((w) => w.includes("過ぎます")), itin.warnings.join("/"));
+});
+
+test("最終日の昼食を取らなかったら、そう伝える", () => {
+  const trip = makeTrip({ origin: TOKYO, departAt: d("2026-09-12T09:00"),
+                          arriveBy: d("2026-09-12T14:00") });
+  const itin = buildItinerary({
+    trip, region: REGION, visits: [], reasons: new Map(),
+    legs: { outbound: { minutes: 60, routed: false } },
+    skippedMeals: [{ kind: "lunch", day: 0 }],
+  });
+  assert.ok(itin.warnings.some((w) => w.includes("昼食")), itin.warnings.join("/"));
+});
+
+test("飛行機の速さで見積もった区間は、そう書く", () => {
+  // 札幌 → 那覇の 2,200km が「約6時間半」。行に何に乗るとも書かないと、
+  // 新幹線より速い地上の移動に見えます。
+  const SAPPORO = { name: "札幌駅", lat: 43.0687, lng: 141.3508 };
+  const NAHA = { id: "r9", name: "那覇", prefecture: "沖縄県", station: "県庁前駅",
+                 stationLat: 26.2144, stationLng: 127.6792, lat: 26.21, lng: 127.68,
+                 genres: [] };
+  const trip = makeTrip({ origin: SAPPORO, departAt: d("2026-09-12T07:00"),
+                          arriveBy: d("2026-09-13T20:00") });
+  const itin = buildItinerary({ trip, region: NAHA, visits: [], reasons: new Map(),
+                                legs: { outbound: { minutes: 380, routed: false } } });
+  const out = itin.days[0].items[0];
+  assert.deepEqual(out.vehicle.kinds, ["air"]);
+  assert.equal(out.vehicle.assumed, true);
+  assert.ok(out.detail.includes("飛行機"), out.detail);
+  // 近い区間には付けません。
+  const near = plan().itin.days[0].items[0];
+  assert.equal(near.vehicle, null);
+});

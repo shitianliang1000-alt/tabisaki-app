@@ -131,7 +131,8 @@ export function directionsFromHereUrl(to, mode = "transit") {
  * 開けませんが、平文で開かせるよりはましです）。
  */
 export function officialUrl(place) {
-  const raw = String(place?.url ?? "").trim();
+  // 収録の公式サイトが無ければ、OpenStreetMap に書かれたサイト（osmInfo）。
+  const raw = String(place?.url ?? place?.osmInfo?.website ?? "").trim();
   if (!raw) return "";
   if (/^https:\/\//i.test(raw)) return raw;
   if (/^http:\/\//i.test(raw)) return raw.replace(/^http:/i, "https:");
@@ -149,7 +150,7 @@ export function officialUrl(place) {
  * @returns {{display:string, href:string}|null}
  */
 export function phoneOf(place) {
-  const raw = String(place?.tel ?? "").trim();
+  const raw = String(place?.tel ?? place?.osmInfo?.phone ?? "").trim();
   if (!raw) return null;
   const digits = raw.replace(/[^\d+]/g, "");
   if (!/^\+?\d{6,}$/.test(digits)) return null;

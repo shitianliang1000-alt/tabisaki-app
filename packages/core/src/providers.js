@@ -180,6 +180,7 @@ export const transitRouting = createTransitRouting();
 /** Yahoo!路線情報（中継経由）だけで引く。 */
 export const yahooRouting = createTransitRouting("yahoo", "Yahoo!路線情報（中継経由）");
 const namedTransit = [
+  ["otp", "OpenTripPlanner（中継経由・手元で動かすもの。docs/otp.md）"],
   ["ekispert", "駅すぱあと Web サービス（中継経由・要キー）"],
   ["navitime", "NAVITIME Route(totalnavi)（中継経由・要キー）"],
   ["here", "HERE Public Transit（中継経由・要キー）"],

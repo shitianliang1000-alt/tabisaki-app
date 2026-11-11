@@ -5,6 +5,7 @@
 // 問題ありません。独自のキャッシュ層は置きません。
 
 import { APP_ROOT } from "./root.js";
+import { applyOsmHours } from "./osm_hours.js";
 import { KB_INDEX_URL } from "./config.js";
 import { drivingAppeal } from "./touring.js";
 import { accessAppeal } from "./access.js";
@@ -159,6 +160,9 @@ function hydrate(spot, region) {
     spot.source ??= "external";
     spot.verified ??= false;
   }
+  // OpenStreetMap から足した営業時間（tools/osm_enrich.py）。収録が自分で
+  // 時間を持っていないときだけ、読み切れた書きかたのものを使います。
+  applyOsmHours(spot);
   return spot;
 }
 

@@ -24,6 +24,14 @@ jobs:
         run: for f in js/*.js sw.js server/*.js tools/*.mjs packages/*/*.mjs packages/cli/bin/*.mjs; do node --check "$f"; done
       - name: Unit tests
         run: node --test tests/*.test.js
+      # 自前モデルの学習の道具（training/。GPU も torch も要らない部分だけ）
+      - name: Training tools
+        run: |
+          python3 -m py_compile training/*.py
+          bash -n training/pipeline.sh && bash -n training/to_gguf.sh
+          node --check training/eval_gate.mjs
+          python3 -m unittest discover -s training -p 'test_*.py'
+          node tools/build_datasets.mjs --check >> "$GITHUB_STEP_SUMMARY"
       # 知識ベースの点検（誤りは単体試験でも止まります。ここでは件数と
       # 気になる点を、実行結果のまとめ欄に出します）
       - name: Knowledge base check
@@ -86,6 +94,31 @@ jobs:
           code=$?
           cat perf.md >> "$GITHUB_STEP_SUMMARY"
           exit $code
+      # 最長片道切符のソルバー（Issue #431）が、全国と代表的な出発駅で、
+      # 制限時間内に経路の候補を返すか（全国の網は最長と確かめきれないので、候補の長さも見ます）。
+      - name: Longest ticket solver (time limit)
+        run: |
+          set +e
+          { echo "### 最長片道切符のソルバー"; echo; node tools/longest_ticket_bench.mjs --check --md --limit 2000; } > ticket.md
+          code=$?
+          cat ticket.md >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+  # 最長片道切符のソルバー本体（Rust）。総当たりと答えが合うかを確かめ、
+  # WebAssembly にも組み立てられるかを見ます。
+  solver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Solver tests (against brute force)
+        working-directory: solver/longest-ticket
+        run: cargo test --release
+      - name: WebAssembly build
+        working-directory: solver/longest-ticket
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo build --release --target wasm32-unknown-unknown
+          ls -l target/wasm32-unknown-unknown/release/longest_ticket.wasm
 
   # 手元用 API サーバー（Dockerfile・compose.yaml）が、組み上がって旅程を返すか。
   docker:

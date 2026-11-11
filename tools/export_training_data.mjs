@@ -10,6 +10,11 @@
 //   node tools/export_training_data.mjs --with-yahoo    # Yahoo! の座標を含む一覧も入れる。保存・再配布の可否は未確認
 //   node tools/export_training_data.mjs --noncommercial # 上の4つをまとめて入れる（重みを非商用で出す前提）
 //   node tools/export_training_data.mjs --verify=any    # 裏取りの済んでいないものも入れる
+//   node tools/export_training_data.mjs --no-datasets   # training/datasets/ の知恵・ReAct・未知の要望を入れない
+//
+// training/datasets/（tools/build_datasets.mjs が作る。Issue #433）があれば、旅の知恵（tabisaki_wisdom）・
+// 道具を使う考えの流れ（tabisaki_react）・未知の要望への対応（tabisaki_meta）と、収録から作った指示
+// （tabisaki_instructions のうち tabisaki_kb から来たもの）を、行の meta.split どおりに学習用・評価用へ足します。
 //
 // 書くもの
 //   train.jsonl     学習用。1行 = {"messages":[…], "meta":{…}}（Hugging Face の TRL・Unsloth がそのまま読む形）
@@ -149,12 +154,19 @@ export function spotAnswer(spot, region, { withText = false } = {}) {
     if (s?.label && s.from && s.to) lines.push(`${s.label}の見ごろはおよそ${md(s.from)}〜${md(s.to)}です。`);
   }
   if (Number.isFinite(spot.open) && Number.isFinite(spot.close) && !(spot.open === 0 && spot.close === 24)) {
-    lines.push(`開いている時間の目安は${spot.open}時〜${spot.close}時です。`);
+    lines.push(`開いている時間の目安は${clock(spot.open)}〜${clock(spot.close)}です。`);
   }
   if (Number.isFinite(spot.fee)) lines.push(spot.fee === 0 ? "入るのにお金はかかりません（目安）。" : `入場料の目安は${spot.fee}円です。`);
   if (withText && spot.description) lines.push(spot.description);
   lines.push("最新の営業時間や料金は、出かける前に公式の案内で確かめてください。");
   return lines.join("");
+}
+
+/** 8.75 → "8時45分"、17 → "17時"（収録の時刻は時の小数で持っています）。 */
+export function clock(h) {
+  let H = Math.floor(h), M = Math.round((h - H) * 60);
+  if (M === 60) { H += 1; M = 0; }
+  return M ? `${H}時${M}分` : `${H}時`;
 }
 
 const md = (s) => { const [m, d] = String(s).split("-").map(Number); return `${m}月${d}日`; };
@@ -301,6 +313,34 @@ function jst(iso) {
   return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
 
+/** training/datasets/ の行を読みます（無ければ null）。 */
+export function loadDatasets(dir = path.join(ROOT, "training", "datasets")) {
+  const read = (name) => {
+    const f = path.join(dir, `${name}.jsonl`);
+    return existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  };
+  const rows = [
+    ...read("tabisaki_wisdom"), ...read("tabisaki_react"), ...read("tabisaki_meta"),
+    ...read("tabisaki_instructions").filter((r) => r.meta?.from === "tabisaki_kb"),
+  ];
+  return rows.length ? rows : null;
+}
+
+/** データセットの行を、meta.split どおりに足し、manifest に数を書きます。 */
+export function addDatasets(ds, rows) {
+  const counts = {};
+  for (const r of rows) {
+    (r.meta?.split === "eval" ? ds.eval : ds.train).push(r);
+    const k = r.meta?.from ?? r.meta?.dataset ?? "unknown";
+    counts[k] = (counts[k] ?? 0) + 1;
+  }
+  ds.manifest.counts.train = ds.train.length;
+  ds.manifest.counts.eval = ds.eval.length;
+  ds.manifest.counts.datasets = counts;
+  for (const r of rows) ds.manifest.counts.byTask[r.meta.task] = (ds.manifest.counts.byTask[r.meta.task] ?? 0) + 1;
+  return ds;
+}
+
 const toJsonl = (rows) => rows.map((r) => JSON.stringify(r)).join("\n") + (rows.length ? "\n" : "");
 
 // --- 走らせる ------------------------------------------------------------------
@@ -316,6 +356,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   if (has("with-kokudo")) groups.push("kokudo-noncommercial");
   if (has("with-yahoo")) groups.push("yahoo-unclear");
   if (has("noncommercial")) groups.push(...NONCOMMERCIAL_EXTRA.filter((g) => !groups.includes(g)));
+  const datasets = has("no-datasets") ? null : loadDatasets();
   let core = null;
   let planRequests = [];
   if (!has("no-plans")) {
@@ -325,6 +366,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     planRequests = [...bench.loadFixedRequests(), ...bench.randomRequests(Number(opt("seed") ?? 7001), Number(opt("plans") ?? 120))];
   }
   const ds = await buildDataset({ groups, verify: opt("verify") ?? "verified", withText: groups.includes("cc-by-sa"), core, planRequests });
+  if (datasets) addDatasets(ds, datasets);
   mkdirSync(out, { recursive: true });
   writeFileSync(path.join(out, "train.jsonl"), toJsonl(ds.train));
   writeFileSync(path.join(out, "eval.jsonl"), toJsonl(ds.eval));

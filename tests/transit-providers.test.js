@@ -12,12 +12,14 @@ import { readFile } from "node:fs/promises";
 
 import {
   available, choose, cleanName, clockOf, dms, labelLine, navitimeUnuse, orderFrom,
-  providerStatus, readEkispert, readHere, readNavitime, readQuery, readTransitous,
+  otpBase, otpLine, providerStatus, readEkispert, readHere, readNavitime, readOtp, readQuery, readTransitous,
   searchAuto, transitHandler, TransitError,
 } from "../server/transit.js";
 import worker from "../server/worker.js";
 import { classifyLine } from "../packages/core/src/modes.js";
 
+// 手元の OTP 2.6（熊本の時刻表 6本）が実際に返した答え。tests/fixtures/otp-kumamoto.json
+const otpKumamoto = JSON.parse(await readFile(new URL("./fixtures/otp-kumamoto.json", import.meta.url), "utf8"));
 const transitousOdawara = JSON.parse(await readFile(
   new URL("./fixtures/transitous-odawara-hakone.json", import.meta.url), "utf8"));
 
@@ -187,7 +189,7 @@ test("使えるもの: キーが無ければ有料の API は使わない。Yaho
 });
 
 test("順番: TRANSIT_ORDER で変えられ、知らない名前は捨てる", () => {
-  assert.deepEqual(orderFrom({}), ["ekispert", "navitime", "here", "yahoo", "transitous"]);
+  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "yahoo", "transitous"]);
   assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,yahoo" }), ["transitous", "yahoo"]);
   const st = providerStatus({ HERE_API_KEY: "x" });
   assert.equal(st.providers.find((p) => p.name === "here").available, true);
@@ -276,4 +278,122 @@ test("中継: 設定されていない API を名指しすると 503", async () 
   }), { ALLOW_ORIGIN: ORIGIN });
   assert.equal(res.status, 503);
   assert.equal((await res.json()).error.code, "NOT_CONFIGURED");
+});
+
+// ---------------------------------------------------------------------------
+//  OpenTripPlanner（Issue #429）
+// ---------------------------------------------------------------------------
+
+const KUMAMOTO = {
+  from: "熊本駅", to: "御代志",
+  fromAt: { lat: 32.7899, lng: 130.6886 }, toAt: { lat: 32.884, lng: 130.745 },
+  departAt: "2026-11-12T09:00:00+09:00",
+};
+
+test("OTP: OTP_URL を入れたときだけ使い、http(s) でない URL は使わない", () => {
+  assert.equal(available("otp", {}), false);
+  assert.equal(available("otp", { OTP_URL: "http://127.0.0.1:8080/" }), true);
+  assert.equal(otpBase({ OTP_URL: "http://127.0.0.1:8080//" }), "http://127.0.0.1:8080");
+  assert.equal(available("otp", { OTP_URL: "file:///etc/passwd" }), false);
+  assert.equal(available("otp", { OTP_URL: "nope" }), false);
+});
+
+test("OTP: 徒歩→バス→鉄道→徒歩 を1本の経路として読む（本物の答え）", () => {
+  const routes = readOtp(otpKumamoto);
+  assert.equal(routes.length, 3);
+  const r = routes[1];
+  assert.deepEqual(r.legs.map((l) => l.vehicle), ["walk", "bus", "walk", "rail", "walk"]);
+  assert.deepEqual(r.legs.map((l) => l.line), ["徒歩", "熊本電鉄バス C9-5", "徒歩", "熊本電鉄 本線", "徒歩"]);
+  assert.equal(r.legs[0].from, "熊本駅");
+  assert.equal(r.legs.at(-1).to, "御代志");
+  assert.equal(r.departure, "09:23");
+  assert.equal(r.arrival, "10:31");
+  assert.equal(r.transfers, 1);
+  assert.ok(r.distanceKm > 10 && r.distanceKm < 20);
+  assert.ok(r.intermediateStops.includes("北熊本"));
+  // 画面の見分けでも、バスと鉄道になる
+  assert.equal(classifyLine(r.legs[1].line).kind, "bus");
+  assert.notEqual(classifyLine(r.legs[3].line).kind, "bus");
+});
+
+test("OTP: 系統の番号だけを取り、事業者の名前を前に付ける", () => {
+  assert.equal(otpLine({ longName: "C3-3：蓮台寺入口→熊本駅前→菊池温泉", agency: { name: "熊本電鉄バス" } }), "熊本電鉄バス C3-3");
+  assert.equal(otpLine({ shortName: "A", agency: { name: "熊本市電" } }), "熊本市電 A");
+  assert.equal(otpLine({ longName: "熊本市電 健軍線", agency: { name: "熊本市電" } }), "熊本市電 健軍線");
+  assert.equal(otpLine({ agency: { name: "産交バス" } }), "産交バス");
+});
+
+test("OTP: 範囲の外・歩くだけの答えは「経路なし」にして、自動なら次へ進む", async () => {
+  const outside = { data: { planConnection: { routingErrors: [{ code: "OUTSIDE_BOUNDS" }], edges: [] } } };
+  const walkOnly = { data: { planConnection: { routingErrors: [], edges: [{ node: { numberOfTransfers: 0, legs: [
+    { mode: "WALK", distance: 300, from: { name: "a" }, to: { name: "b" },
+      start: { scheduledTime: "2026-11-12T09:00:00+09:00" }, end: { scheduledTime: "2026-11-12T09:05:00+09:00" } }] } }] } } };
+  assert.deepEqual(readOtp(outside), []);
+  assert.deepEqual(readOtp(walkOnly), []);
+  const calls = [];
+  const fetchStub = async (u, init) => {
+    calls.push(String(u));
+    if (new URL(String(u)).host === "otp.test") return new Response(JSON.stringify(outside), { status: 200 });
+    return new Response(JSON.stringify(transitousOdawara), { status: 200 });
+  };
+  const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", YAHOO_TRANSIT: "off" }, { fetch: fetchStub });
+  assert.equal(out.routed, true);
+  assert.equal(out.provider, "transitous");
+  assert.deepEqual(out.tried.map((t) => t.provider), ["otp", "transitous"]);
+  assert.match(calls[0], /^http:\/\/otp\.test\/otp\/gtfs\/v1$/);
+});
+
+test("OTP: 問い合わせは GraphQL の変数で送り、地名を文に埋め込まない", async () => {
+  let sent = null;
+  const fetchStub = async (u, init) => { sent = JSON.parse(init.body); return new Response(JSON.stringify(otpKumamoto), { status: 200 }); };
+  const out = await transitHandler({ ...KUMAMOTO, from: "熊本駅\"}", provider: "otp" }, { OTP_URL: "http://otp.test" }, { fetch: fetchStub });
+  assert.equal(out.routed, true);
+  assert.equal(out.provider, "otp");
+  assert.equal(out.providerLabel, "OpenTripPlanner");
+  assert.ok(!sent.query.includes("熊本"));
+  assert.equal(sent.variables.origin.label, "熊本駅\"}");
+  assert.deepEqual(sent.variables.origin.location.coordinate, { latitude: 32.7899, longitude: 130.6886 });
+  assert.equal(sent.variables.dateTime.earliestDeparture, "2026-11-12T00:00:00.000Z");
+  // いちばん早く着くもの（直通のバス 10:14 着）を選ぶ
+  assert.equal(out.meta.arrival, "10:14");
+});
+
+test("OTP: 終電と、位置の無い問い合わせは断る（自動なら飛ばす）", async () => {
+  await assert.rejects(transitHandler({ ...KUMAMOTO, search: "last", provider: "otp" }, { OTP_URL: "http://otp.test" }),
+    (e) => e instanceof TransitError && e.code === "unsupported");
+  await assert.rejects(transitHandler({ from: "a", to: "b", provider: "otp" }, { OTP_URL: "http://otp.test" }),
+    (e) => e instanceof TransitError && e.code === "unsupported");
+});
+
+test("OTP: Node の中継（server/node-proxy.mjs）の /transit からも、手元の OTP を引ける", async () => {
+  const { createServer } = await import("node:http");
+  const { handler } = await import("../server/node-proxy.mjs");
+  const listen = (srv) => new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok(srv.address().port)));
+  const fakeOtp = createServer((req, res) => {
+    res.writeHead(req.url === "/otp/gtfs/v1" ? 200 : 404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(otpKumamoto));
+  });
+  const proxy = createServer(handler);
+  const saved = { OTP_URL: process.env.OTP_URL, TRANSITOUS: process.env.TRANSITOUS };
+  try {
+    process.env.OTP_URL = `http://127.0.0.1:${await listen(fakeOtp)}`;
+    process.env.TRANSITOUS = "off";
+    const port = await listen(proxy);
+    const res = await fetch(`http://127.0.0.1:${port}/transit`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(KUMAMOTO),
+    });
+    const doc = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(doc.routed, true);
+    assert.equal(doc.provider, "otp");
+    assert.deepEqual(doc.tried, [{ provider: "otp", routed: true }]);
+    // 名指しで設定の無い API を呼ぶと、わけ付きで断る
+    const no = await fetch(`http://127.0.0.1:${port}/transit`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...KUMAMOTO, provider: "here" }),
+    });
+    assert.equal(no.status, 503);
+  } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    fakeOtp.close(); proxy.close();
+  }
 });

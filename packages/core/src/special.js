@@ -190,21 +190,36 @@ const centroid = (pts) => ({
 
 /**
  * 最長片道・往復切符。経路は専用ソルバー（Issue #431）が出します。
- * ソルバーは solvers.longestTicket(kind, {from}) → {route: 駅名[], km?, note?}。
- * 無ければ、全国を回る旅（journeys.js）として組み、経路は出さないと書きます。
+ * ソルバーは solvers.longestTicket(kind, {from, origin}) → {route: 駅名[], km?, note?, legs?, proven?}。
+ *
+ *   from    希望文に「○○駅から」「○○発」と書かれた出発駅。書かれていなければ null
+ *           （＝全国でいちばん長い経路。ふつう「最長片道切符」と言えば、これです）
+ *   origin  旅の出発地（家の最寄りなど）。経路は変えません。参考に渡すだけです
+ *
+ * core.special() は、何も渡さなければ packages/core/longest-ticket.mjs のソルバー
+ * （Rust の分枝限定法を WebAssembly にしたもの）を使います。ソルバーが無い・失敗した
+ * ときは、全国を回る旅（journeys.js）として組み、経路は出さないと書きます。
  */
+export function ticketStart(text) {
+  const m = /([^\s、。，,．.「」『』（）()!！?？]{1,24}?)(?:駅)?(?:から|発(?![着車見表]))/.exec(String(text ?? "").normalize("NFKC"));
+  if (!m) return null;
+  // 「最長片道切符で札幌から」の「札幌」だけを採ります（助詞より後ろ）。
+  const name = m[1].split(/[でをにはがへと]/).at(-1).replace(/駅$/, "");
+  return name && !/最長|片道|往復|切符|きっぷ|乗車券|ここ|そこ|どこ|自宅|家|最寄/.test(name) ? name : null;
+}
+
 async function longestTicket(ctx) {
   const kind = /往復/.test(ctx.text) ? "round" : "oneway";
   const name = kind === "round" ? "最長往復切符" : "最長片道切符";
   const solver = ctx.solvers?.longestTicket;
   const base = { name, transport: "transit", rules: [
-    "同じ駅を二度通らない（往復は、行きと帰りで同じ区間をなるべく重ねない）",
+    "同じ駅を二度通らない（片道は、最後に通った駅へ戻って終わる形だけ認められます。往復は、同じ経路を引き返します）",
     "JRの線だけをたどる（運賃の計算の規則に沿う経路です）",
   ] };
   if (typeof solver === "function") {
     let solved = null;
     try {
-      solved = await solver(kind, { from: ctx.origin?.name ?? null });
+      solved = await solver(kind, { from: ticketStart(ctx.text), origin: ctx.origin?.name ?? null });
     } catch (e) {
       ctx.notes.push(`経路を求める処理が失敗しました（${String(e?.message ?? e).slice(0, 60)}）。`);
     }
@@ -215,7 +230,11 @@ async function longestTicket(ctx) {
       const stops = Array.from({ length: n }, (_, i) => route[Math.round(i * (route.length - 1) / (n - 1))]);
       return {
         ...base, status: "handled",
-        route: { stations: route, km: Number.isFinite(solved.km) ? solved.km : null, solver: solved.solver ?? "longestTicket" },
+        route: {
+          stations: route, km: Number.isFinite(solved.km) ? solved.km : null, solver: solved.solver ?? "longestTicket",
+          ...(Array.isArray(solved.legs) ? { legs: solved.legs } : {}),
+          ...(typeof solved.proven === "boolean" ? { proven: solved.proven } : {}),
+        },
         request: { wish: `${[...new Set(stops.map((s) => s.replace(/駅$/, "")))].join("・")}をめぐる鉄道の旅` },
         notes: [`${name}の経路は${route[0]}から${route.at(-1)}まで${solved.km ? `約${Math.round(solved.km)}km` : ""}です。`
           + `${ctx.days}日では通しきれないので、経路の中から${n}か所を選んで組んでいます。`, ...(solved.note ? [solved.note] : [])],
@@ -225,7 +244,7 @@ async function longestTicket(ctx) {
   return {
     ...base, status: "needs_solver",
     request: { wish: ctx.text },
-    notes: [`${name}の正確な経路は、専用の計算（Issue #431）がまだ入っていないので出せません。`
+    notes: [`${name}の正確な経路は、専用の計算（Issue #431 のソルバー）を使えなかったので出せません。`
       + "かわりに、全国を地方ごとに回る旅として組んでいます。"],
   };
 }

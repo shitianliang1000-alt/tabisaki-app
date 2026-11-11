@@ -1,0 +1,7 @@
+{
+  "otpFeatures": {
+    "ActuatorAPI": true,
+    "DebugUi": false,
+    "SandboxAPIGeocoder": false
+  }
+}

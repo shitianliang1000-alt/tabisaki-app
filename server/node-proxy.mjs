@@ -28,6 +28,7 @@
  */
 
 import { createServer } from "node:http";
+import { transitHandler, TransitError } from "./transit.js";
 
 // 末尾の「/」をすべて外す。/\/+$/ は「/」が続く長い文字列で遅くなる
 // （CodeQL: polynomial regular expression）ので、正規表現を使わない。
@@ -211,6 +212,17 @@ export const handler = async (req, res) => {
       res.writeHead(r.status, head);
       return res.end(r.text);
     }
+    if (path.endsWith("/transit")) {
+      // 乗り換え検索（server/transit.js。Cloudflare 版と同じ）。手元の OpenTripPlanner
+      // （OTP_URL）や各社のキーを、この端末の環境変数から読みます。Yahoo!路線情報は
+      // Cloudflare 版にしか入っていないので、ここでは使いません。
+      try {
+        return send(res, 200, head, null, await transitHandler(body, transitEnv()));
+      } catch (e) {
+        if (!(e instanceof TransitError)) throw e;
+        return send(res, e.status, head, e.message);
+      }
+    }
     if (path.endsWith("/routes")) {
       // 4. 入力の中身。経路は起点と終点が要ります。無いものを上流に流すと、
       //    課金される呼び出しを、こちらが肩代わりして失敗させるだけです。
@@ -265,9 +277,16 @@ async function upstream(url, headers, payload) {
   return { status: r.status, text: await r.text() };
 }
 
-function send(res, status, head, message) {
+function send(res, status, head, message, doc = null) {
   res.writeHead(status, head);
-  res.end(JSON.stringify({ error: { message } }));
+  res.end(JSON.stringify(doc ?? { error: { message } }));
+}
+
+/** 乗り換え検索に渡す設定。必要な名前だけを環境変数から写します。 */
+function transitEnv() {
+  const names = ["OTP_URL", "EKISPERT_API_KEY", "NAVITIME_RAPIDAPI_KEY", "HERE_API_KEY", "TRANSIT_ORDER", "TRANSITOUS"];
+  const env = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+  return { ...env, YAHOO_TRANSIT: "off" };
 }
 
 /** 上限を超えたら、そこで読むのをやめます（最後まで受けてから測らない）。 */
