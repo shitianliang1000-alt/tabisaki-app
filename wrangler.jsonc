@@ -98,7 +98,7 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["RateLimiter"] },
     { "tag": "v2", "new_sqlite_classes": ["Stats"] }
-  ]
+  ],
 
   // --- 非商用データの入れ物（Workers KV） ----------------------------
   // 国土数値情報の非商用データ（P11 バス停・P12 観光資源・P27 文化施設）は、
@@ -106,9 +106,9 @@
   // 使います（server/private-kb.js。外へ返すのは true/false だけ）。KV は Workers の
   // 無料プランに入っていて、カードの登録は要りません（R2 は要ります）。
   //
-  // **入れ物（namespace）を作るまで、ここは外しておきます。** 無い id を書くと、
-  // デプロイそのものが失敗します。外してあるあいだ、/stops/near と /spots/check は
-  // available:false を返すだけです。
+  // 入れ物（namespace）の ID は、ダッシュボードの Workers KV に出るものです（秘密ではありません）。
+  // **無い id を書くと、デプロイそのものが失敗します。** 作り直したときは ID を差し替えてください。
+  // 中身がまだ空のあいだ、/stops/near と /spots/check は available:false を返すだけです。
   //
   // 使うとき（docs/private-kb.md）: ダッシュボードの Storage & Databases → Workers KV →
   // Create で tabisaki-private を作り、出てきた ID を下の id に入れます。そのあと、

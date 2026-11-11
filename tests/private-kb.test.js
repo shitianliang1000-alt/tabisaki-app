@@ -171,11 +171,20 @@ test("中継は /stops/near と /spots/check を無料の枠で数え、/status 
   assert.match(src, /privateKb: Boolean\(env\.PRIVATE_KB\)/);
 });
 
-test("KV のバインディングは、入れ物を作るまで外してある（無い id はデプロイを止める）", () => {
+test("KV のバインディング PRIVATE_KB は、書くなら本物の ID だけ（無い id はデプロイを止める）", () => {
   const src = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
-  assert.match(src, /^\s*\/\/ "kv_namespaces"/m);
-  assert.doesNotMatch(src, /^\s*"kv_namespaces"/m);
   assert.doesNotMatch(src, /^\s*"r2_buckets"/m);
+  const live = src.match(/^\s*"kv_namespaces"\s*:\s*\[([^\]]*)\]/m);
+  if (!live) {
+    // 入れ物を作るまでは、コメントのままにしておく
+    assert.match(src, /^\s*\/\/ "kv_namespaces"/m);
+    return;
+  }
+  // 書いてあるなら、PRIVATE_KB と 32文字の ID（「ここに ID」のような印のままでは出せない）
+  assert.match(live[1], /"binding"\s*:\s*"PRIVATE_KB"/);
+  assert.match(live[1], /"id"\s*:\s*"[0-9a-f]{32}"/);
+  // 前の項目（migrations の ]）のあとにカンマがあること
+  assert.match(src, /\]\s*,\s*(\/\/[^\n]*\n\s*)*"kv_namespaces"/);
 });
 
 /** Workers KV のバインディングの代わり（get(key, {type}) と put と getWithMetadata）。 */
