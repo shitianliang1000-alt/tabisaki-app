@@ -88,7 +88,7 @@ export function isQuestion(text) {
   return routeText(text) !== "plan";
 }
 
-/** 覚えておくやりとりの数（ryo の頼み：前の10件ほど）。 */
+/** 覚えておくやりとりの数（持ち主の頼み：前の10件ほど）。 */
 export const MEMORY_SIZE = 10;
 /** AIに渡すとき、1件をこの字数で切ります（枠＝TPMを食わないため）。 */
 const MEMORY_CLIP = 140;

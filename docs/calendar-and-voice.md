@@ -23,10 +23,10 @@ Web 版の旅程の「カレンダーに入れる」と、`tabisaki plan … --o
 ### CalDAV に直接書く（tabisaki sync）
 
 ```sh
-export TABISAKI_CALDAV_USER=ryo
+export TABISAKI_CALDAV_USER=traveler
 export TABISAKI_CALDAV_PASSWORD_CMD='pass show calendar/app-password'   # または TABISAKI_CALDAV_PASSWORD
 ./tabisaki sync "温泉と海をゆっくり" --days=2 --date=2026-11-07 \
-  --caldav-url=https://dav.example.com/remote.php/dav/calendars/ryo/travel/
+  --caldav-url=https://dav.example.com/remote.php/dav/calendars/traveler/travel/
 ```
 
 書く前に、書き込む予定の一覧を出して `よいですか [y/N]` と聞きます。`--dry-run` は一覧を出すだけで何も送らず、cron などの端末でないところでは、確かめたうえで `--yes` を付けたときだけ書きます。

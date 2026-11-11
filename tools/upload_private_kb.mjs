@@ -17,7 +17,7 @@
 //   --bucket <name>  R2 のバケット名（既定 tabisaki-private。wrangler.jsonc と合わせる）
 //
 // 認証情報はこの道具には書きません。wrangler login か、環境変数
-// CLOUDFLARE_API_TOKEN（R2 の編集ができるトークン）を ryo さんが入れます。
+// CLOUDFLARE_API_TOKEN（R2 の編集ができるトークン）を 持ち主が入れます。
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
