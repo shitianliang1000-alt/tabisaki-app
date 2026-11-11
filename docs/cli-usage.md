@@ -142,6 +142,15 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
 ./tabisaki plan "静岡で滝" --kb=mine
 ```
 
+ユーザーKB は、分けて（`kb fork`）、切り替えて（`kb switch`）、違いを見て（`kb diff`）、まとめられます（`kb merge`）。
+
+```sh
+./tabisaki kb fork family && ./tabisaki kb switch family
+./tabisaki kb diff mine family
+./tabisaki kb merge family --kb=mine --dry-run
+./tabisaki kb validate
+```
+
 くわしくは [user-kb.md](./user-kb.md#コマンド)。
 
 ## Node.js から使う（packages/core）

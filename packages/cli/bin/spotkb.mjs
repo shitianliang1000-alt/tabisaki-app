@@ -26,7 +26,8 @@ export const HELP = `使いかた: tabisaki spot <コマンド> … [--kb=<名�
   <スポット> は id（takao-1・u:…）か名前。同じ名前がいくつもあるときは id で選びます。
   項目: name lat lng category genres regionId description address url wikipedia tel
         fame_tier dwell open close fee（genres は nature;view のように ; で区切る）
-  --kb=<名前>  ユーザーKB の名前（既定: 環境変数 TABISAKI_KB、無ければ mine。無ければ作ります）
+  --kb=<名前>  ユーザーKB の名前（既定: 環境変数 TABISAKI_KB、kb switch で決めたもの、どちらも無ければ mine。
+               まだ無ければ作ります）
   --output=json  list・show・dedup・import の結果を JSON で
 
 置き場: TABISAKI_HOME（無ければ ~/.tabisaki）の kbs/<名前>/。書くたびに backups/ に控えます。
@@ -87,11 +88,18 @@ export function parseAssignments(words) {
 
 const STATUS = { add: "足した", patch: "直した", remove: "消した" };
 
-async function openKb(opts, env) {
+/**
+ * 使うユーザーKBの名前。--kb、環境変数 TABISAKI_KB、kb switch で決めたもの、mine の順に見ます。
+ */
+export async function kbNameFor(opts, env, store, userkb) {
+  return userkb.validateKbName(opts.kb ?? (env.TABISAKI_KB?.trim() || null) ?? (await store.current()) ?? "mine");
+}
+
+export async function openKb(opts, env) {
   const core = await import("../../core/index.mjs");
   const { userkb } = core;
   const store = userkb.openStore({ home: userkb.userKbHome(env) });
-  const name = userkb.validateKbName(opts.kb ?? env.TABISAKI_KB ?? "mine");
+  const name = await kbNameFor(opts, env, store, userkb);
   let doc;
   try {
     doc = await store.load(name);
@@ -138,7 +146,8 @@ export async function showsUserKb(argv, env = process.env) {
   if (key.startsWith("u:")) return true;
   const { userkb } = await import("../../core/index.mjs");
   try {
-    const doc = await userkb.openStore({ home: userkb.userKbHome(env) }).load(userkb.validateKbName(env.TABISAKI_KB ?? "mine"));
+    const store = userkb.openStore({ home: userkb.userKbHome(env) });
+    const doc = await store.load(await kbNameFor({}, env, store, userkb));
     return Object.entries(doc.spots).some(([id, e]) => id === key || e.spot?.name === key || e.anchor?.name === key);
   } catch {
     return false;

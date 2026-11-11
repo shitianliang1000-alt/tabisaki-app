@@ -525,6 +525,20 @@ async function readJsonSafe(file) {
   }
 }
 
+/**
+ * 置き場の外にある overlay.json（別の端末から持ってきたものなど）を読みます。
+ * 読むだけで、どこにも書きません。形が古ければ今の形に直し、中身がおかしければ断ります。
+ */
+export async function readOverlayFile(file) {
+  const doc = migrateOverlay(await readJsonSafe(path.resolve(file)));
+  const problems = checkOverlay(doc);
+  if (problems.length) {
+    throw new UserKbError("broken_file",
+      `ユーザーKBとして読めません: ${file}\n${problems.slice(0, 5).map((p) => `  ${p.id}: ${p.problem}`).join("\n")}`);
+  }
+  return doc;
+}
+
 /** 途中で落ちても半端なファイルが残らないよう、隣に書いてから差し替えます。 */
 async function writeAtomic(file, text) {
   if (Buffer.byteLength(text) > LIMITS.fileBytes) throw new UserKbError("too_large", "ユーザーKBが大きすぎます");
@@ -539,6 +553,8 @@ async function writeAtomic(file, text) {
   await fsp.rename(tmp, file);
 }
 
+/** 統合の土台（bases/<相手>.json）の形の版。 */
+const BASE_SCHEMA = "tabisaki.user-kb-base/1";
 const stampName = (now) => now.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1Z");
 const BACKUP_RE = /^\d{8}T\d{9}Z(?:-\d{1,3})?\.json$/;
 
@@ -549,6 +565,7 @@ const BACKUP_RE = /^\d{8}T\d{9}Z(?:-\d{1,3})?\.json$/;
 export function openStore({ home = userKbHome(), now = () => new Date() } = {}) {
   const root = path.resolve(home);
   const kbsDir = path.join(root, "kbs");
+  const currentFile = path.join(root, "current-kb");
 
   const dirOf = (name) => {
     validateKbName(name);
@@ -694,8 +711,118 @@ export function openStore({ home = userKbHome(), now = () => new Date() } = {}) 
       await ensureDir(trash);
       const to = path.join(trash, `${name}-${stampName(now())}`);
       await fsp.rename(d, to);
+      if ((await store.current()) === name) await fsp.rm(currentFile, { force: true });
       return to;
     },
+
+    // --- 分ける・切り替える・まとめる（#358） ---------------------------------------
+
+    /** いま使うユーザーKB（kb switch で決めたもの）。決めていなければ null。 */
+    async current() {
+      const st = await fsp.lstat(currentFile).catch(() => null);
+      if (!st || st.isSymbolicLink() || !st.isFile() || st.size > 200) return null;
+      const n = (await fsp.readFile(currentFile, "utf8")).trim();
+      return KB_NAME_RE.test(n) ? n : null;
+    },
+
+    /** いま使うユーザーKBを決めます。null を渡すと、決めていない状態（収録だけ）に戻します。 */
+    async switchTo(name) {
+      if (name === null) {
+        await fsp.rm(currentFile, { force: true });
+        return null;
+      }
+      validateKbName(name);
+      if (!(await fsp.lstat(store.path(name)).catch(() => null))) throw new UserKbError("not_found", `ありません: ${name}`);
+      await ensureDir(root);
+      await writeAtomic(currentFile, `${name}\n`);
+      return name;
+    },
+
+    /**
+     * ユーザーKBを分けます（fork）。中身を写し、分けた元（parent）と、
+     * 分けたときの中身（あとで3者で統合するときの土台）を控えます。
+     */
+    async fork(src, dst, { title } = {}) {
+      validateKbName(dst);
+      const from = await store.load(src);
+      const problems = checkOverlay(from);
+      if (problems.length) throw new UserKbError("broken_file", `「${src}」の中身がおかしいので分けられません: ${problems[0].id} ${problems[0].problem}`);
+      return withLock(dst, async (d) => {
+        const file = path.join(d, "overlay.json");
+        if (await fsp.lstat(file).catch(() => null)) throw new UserKbError("exists", `もうあります: ${dst}`);
+        const at = now().toISOString();
+        const doc = {
+          ...from, name: dst,
+          title: title === undefined ? from.title ?? "" : cleanText(title).slice(0, 80),
+          parent: { name: src, forkedAt: at },
+          created: at, updated: at,
+        };
+        await writeAtomic(file, JSON.stringify(doc, null, 2) + "\n");
+        await writeBaseFile(d, src, from, at);
+        return doc;
+      });
+    },
+
+    /**
+     * name と other が最後に同じ中身だったときの控え（統合の土台）。無ければ null。
+     * 控えは、分けたとき（fork）と、統合が済んだとき（merge）に書きます。
+     */
+    async base(name, other) {
+      validateKbName(other);
+      const file = path.join(dirOf(name), "bases", `${other}.json`);
+      if (!(await fsp.lstat(file).catch(() => null))) return null;
+      const j = await readJsonSafe(file);
+      if (j?.schema !== BASE_SCHEMA || !j.overlay?.spots) return null;
+      return { at: String(j.at ?? ""), overlay: j.overlay };
+    },
+
+    async setBase(name, other, doc) {
+      validateKbName(other);
+      return withLock(name, (d) => writeBaseFile(d, other, doc, now().toISOString()));
+    },
+
+    /** 2つのユーザーKBの、いちばん新しい土台（どちらの側に控えてあってもよい）。 */
+    async commonBase(a, b) {
+      const [x, y] = await Promise.all([store.base(a, b).catch(() => null), store.base(b, a).catch(() => null)]);
+      if (x && y) return x.at >= y.at ? x : y;
+      return x ?? y ?? null;
+    },
+
+    /** 途中の統合（競合を解いている最中）の控え。無ければ null。 */
+    async mergeState(name) {
+      const file = path.join(dirOf(name), "MERGE.json");
+      if (!(await fsp.lstat(file).catch(() => null))) return null;
+      return readJsonSafe(file);
+    },
+
+    async setMergeState(name, state) {
+      return withLock(name, async (d) => {
+        const file = path.join(d, "MERGE.json");
+        if (state === null) await fsp.rm(file, { force: true });
+        else await writeAtomic(file, JSON.stringify(state, null, 2) + "\n");
+      });
+    },
+
+    /** 置き場の様子（大きさ・控えの数など）。 */
+    async info(name) {
+      const d = dirOf(name);
+      const st = await fsp.lstat(path.join(d, "overlay.json")).catch(() => null);
+      if (!st) throw new UserKbError("not_found", `ありません: ${name}`);
+      const count = async (sub, re) => (await fsp.readdir(path.join(d, sub)).catch(() => [])).filter((f) => re.test(f)).length;
+      return {
+        dir: d,
+        bytes: st.size,
+        backups: await count("backups", BACKUP_RE),
+        bases: (await fsp.readdir(path.join(d, "bases")).catch(() => [])).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).filter((n) => KB_NAME_RE.test(n)),
+        merging: !!(await fsp.lstat(path.join(d, "MERGE.json")).catch(() => null)),
+      };
+    },
   };
+
+  async function writeBaseFile(d, other, doc, at) {
+    const bdir = path.join(d, "bases");
+    await ensureDir(bdir);
+    await writeAtomic(path.join(bdir, `${other}.json`), JSON.stringify({ schema: BASE_SCHEMA, of: other, at, overlay: doc }) + "\n");
+  }
   return store;
 }
