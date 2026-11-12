@@ -16,6 +16,8 @@
 /** 予定として書き出す種類。空き時間は、書いても相手にすることがありません。 */
 // 「荷物を預ける」も入れます。朝いちに何をするかは、家を出る前に
 // 通知が要る種類の予定です（luggage.js が入れています）。
+import { attributionText, spotOfItem } from "../packages/core/src/provenance.js";
+
 const KINDS = new Set(["spot", "meal", "lodging", "transit", "luggage"]);
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -110,6 +112,13 @@ function descriptionOf(item) {
   if (item.backup?.text) parts.push(`代わり: ${item.backup.text}`);
   if (typeof item.costYen === "number" && item.costYen > 0) {
     parts.push(`目安の費用: ¥${item.costYen.toLocaleString("ja-JP")}`);
+  }
+  // 出典。カレンダーに入れたあとは、この予定だけが独り歩きします。
+  // だから予定ごとに、その場所のデータの出どころを書きます（#426）。
+  const spot = spotOfItem(item);
+  if (spot) {
+    const credit = attributionText([spot]);
+    if (credit) parts.push(credit);
   }
   return parts.join("\n");
 }

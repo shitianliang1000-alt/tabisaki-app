@@ -42,7 +42,8 @@
 // v29: 声で書く js/voice.js を足しました（#363）。
 // v31: guided decoding の packages/core/src/guided.js を足しました（#435）。
 // v32: 特殊な旅程の packages/core/src/special.js と、ほかの PR をまとめて入れました（#442 など）。
-const VERSION = "tabisaki-v36";
+// v37: データの出どころを追う packages/core/src/provenance.js を足しました（#426）。
+const VERSION = "tabisaki-v37";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -177,6 +178,7 @@ const SHELL_FILES = [
   "./packages/core/src/pipeline.js",
   "./packages/core/src/places.js",
   "./packages/core/src/private-hint.js",
+  "./packages/core/src/provenance.js",
   "./packages/core/src/planner.js",
   "./packages/core/src/purpose.js",
   "./packages/core/src/providers.js",

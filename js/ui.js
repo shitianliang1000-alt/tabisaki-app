@@ -21,6 +21,7 @@ import { KIND_NOTE } from "../packages/core/src/modes.js";
 import { icon } from "./icons.js";
 import { NOTICE_LIMITS } from "./notify.js";
 import { describeOrderDiff } from "./orderdiff.js";
+import { itineraryLicenseSummary } from "../packages/core/src/provenance.js";
 import { laterToday } from "./tripmode.js";
 import { ISSUES, PACE, STATUS, clearFeedback, feedbackFor, issueUrl, loadFeedback,
          removeFeedback, reportMarkdown, saveFeedback, spotsOf, summarize, tripKey,
@@ -867,6 +868,20 @@ export function renderItinerary(container, itin, trip, handlers = {}) {
              s.title)))),
       el("p", { class: "fine" },
         "AIが検索して得た情報です。営業時間・料金は必ず公式でご確認ください。")));
+  }
+
+  // この旅程が使ったデータの出典（#426）。使ったものだけを、自動で並べます。
+  // 全体の表記は credits.html にありますが、旅程は画面の写しや共有で
+  // 独り歩きするので、ここにも出します。
+  const credit = itineraryLicenseSummary(itin);
+  if (credit.attribution.length) {
+    detail.push(el("section", { class: "panel sources data-credit" },
+      el("h3", {}, "この旅程のデータの出典"),
+      el("ul", { class: "src-list" },
+        credit.sources.filter((s) => credit.attribution.includes(s.attribution)).map((s) => el("li", {},
+          s.url ? el("a", { href: s.url, target: "_blank", rel: "noreferrer" }, s.attribution)
+            : el("span", {}, s.attribution))),
+        el("li", {}, el("a", { href: "./credits.html" }, "著作権表記の全体はこちら")))));
   }
 
   // この旅程の弱点。AIに自己採点させるのではなく、こちらで計算しています。
