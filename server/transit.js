@@ -3,12 +3,19 @@
 // 中継の POST /transit が入口です。本文の provider で使う API を選びます。
 // 無ければ "auto" で、キーが入っているものを TRANSIT_ORDER の順に試します。
 //
-//   otp        手元の OpenTripPlanner          OTP_URL（docs/otp.md。入っているときだけ、いちばん先に試す）
+//   ls8h       Transit API（JR を含む全国の時刻表。api.transit.ls8h.com）
+//                                               キー不要・無料。LS8H_TRANSIT=off で止まる
+//   otp        手元の OpenTripPlanner          OTP_URL（docs/otp.md。入っているときだけ試す）
 //   ekispert   駅すぱあと API（Val研究所）     EKISPERT_API_KEY
 //   navitime   NAVITIME Route(totalnavi)       NAVITIME_RAPIDAPI_KEY（RapidAPI 経由）
 //   here       HERE Public Transit API v8       HERE_API_KEY
 //   transitous Transitous（MOTIS・GTFS）       キー不要・非商用だけ
-//   yahoo      Yahoo!路線情報（ページを読む）  キー不要。YAHOO_TRANSIT=off で止まる
+//
+// Transit APIのページを読む取得は、やめました（2026-11-12）。
+// JR は Transit API で、それで答えが出ない区間は Google マップの URL
+// （https://developers.google.com/maps/documentation/urls）を添えます。
+// その URL は「Google マップで開く」ためのもので、時刻や所要時間は
+// 返らないので、画面には距離からの目安を出します。
 //
 // どの API の答えも、これまでの /yahoo/transit と同じ形で返します
 // （routed・minutes・rideMinutes・waitMinutes・summary・kinds・preferMet・
@@ -22,16 +29,16 @@
 const TIMEOUT_MS = 20_000;
 const UA = "Tabisaki/1.0 (+https://github.com/shitianliang1000-alt/tabisaki-app)";
 
-export const PROVIDERS = ["otp", "ekispert", "navitime", "here", "yahoo", "transitous"];
+export const PROVIDERS = ["otp", "ls8h", "ekispert", "navitime", "here", "transitous"];
 export const DEFAULT_ORDER = PROVIDERS;
 
 export const LABELS = {
+  ls8h: "Transit API",
   otp: "OpenTripPlanner",
   ekispert: "駅すぱあと",
   navitime: "NAVITIME",
   here: "HERE",
   transitous: "Transitous",
-  yahoo: "Yahoo!路線情報",
 };
 
 /** API が答えられなかったわけ。auto はこれを見て次へ進みます。 */
@@ -50,12 +57,12 @@ const off = (env, name) => String(env?.[name] ?? "").trim().toLowerCase() === "o
 /** その API が、いまの設定で使えるか。 */
 export function available(name, env) {
   switch (name) {
+    case "ls8h": return !off(env, "LS8H_TRANSIT");
     case "otp": return Boolean(otpBase(env));
     case "ekispert": return has(env, "EKISPERT_API_KEY");
     case "navitime": return has(env, "NAVITIME_RAPIDAPI_KEY");
     case "here": return has(env, "HERE_API_KEY");
     case "transitous": return !off(env, "TRANSITOUS");
-    case "yahoo": return !off(env, "YAHOO_TRANSIT");
     default: return false;
   }
 }
@@ -81,7 +88,7 @@ export function providerStatus(env) {
 }
 
 // 終電（search: "last"）を答えられるもの。ほかは auto で飛ばします。
-const SUPPORTS_LAST = new Set(["ekispert", "yahoo"]);
+const SUPPORTS_LAST = new Set(["ls8h", "ekispert"]);
 
 // ── 問い合わせの読み取り ───────────────────────────────
 
@@ -612,14 +619,147 @@ async function here(q, env, fetchImpl) {
   return { routes: readHere(data, q), url: null };
 }
 
-// ── 入口 ───────────────────────────────────────
+// ── Transit API（JR を含む全国の時刻表） ─────────────────────
+//
+// https://api.transit.ls8h.com ・読み取り専用・認証なし。出発地と到着地を
+// geo:<緯度>,<経度> で渡すと、徒歩を含めた経路が返ります。時刻は「その日の
+// 0時からの秒」で、24時を超えることがあります。終電は type=last で探せます。
+// 文書: https://api.transit.ls8h.com/api/openapi.json
 
-const SEARCH = { otp, ekispert, navitime, here, transitous };
+const LS8H_BASE = "https://api.transit.ls8h.com";
+
+/** LS8H_API_URL（自分で立てた同じ形の API）があればそれ、なければ公開の API。 */
+export function ls8hBase(env) {
+  if (!has(env, "LS8H_API_URL")) return LS8H_BASE;
+  try {
+    const u = new URL(env.LS8H_API_URL.trim());
+    if (u.protocol !== "https:" && u.protocol !== "http:") return LS8H_BASE;
+    let href = u.href;
+    while (href.endsWith("/")) href = href.slice(0, -1);
+    return href;
+  } catch { return LS8H_BASE; }
+}
+
+/** その日の0時からの秒を、東京の「HH:MM」に（24時超えは翌日の時刻として）。 */
+export function clockOfSecs(secs) {
+  const n = Number(secs);
+  if (!Number.isFinite(n)) return null;
+  const m = ((Math.floor(n / 60) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** Transit API の mode と路線名から、乗り物の種類（画面の見分けと同じ名前）を決めます。 */
+export function ls8hKind(leg) {
+  const mode = String(leg?.mode ?? "").toLowerCase();
+  const name = `${leg?.routeName ?? ""} ${leg?.trainType ?? ""}`;
+  if (/新幹線/.test(name)) return "shinkansen";
+  if (mode === "bus") return /高速|空港バス|リムジン/.test(name) ? "coach" : "bus";
+  return {
+    air: "air", ferry: "ferry", tram: "tram", monorail: "monorail",
+    cable: "cable", funicular: "cable", gondola: "ropeway", ropeway: "ropeway",
+  }[mode] ?? "rail";
+}
+
+/** 答え（journeys）を、候補1本ずつの形にします。 */
+export function readLs8h(data, q) {
+  return arr(data?.journeys).map((j) => {
+    const legs = [];
+    const access = Number(j.accessWalkSecs) || 0;
+    const egress = Number(j.egressWalkSecs) || 0;
+    const first = arr(j.legs)[0];
+    const last = arr(j.legs).at(-1);
+    // 歩き始めは、最初の乗り場に着く access 秒前（geo で聞いたときだけ入ります）。
+    if (access > 0 && first) {
+      legs.push({
+        vehicle: "walk", from: q.from, to: cleanName(first.from?.name),
+        departure: clockOfSecs(first.departureSecs - access), arrival: clockOfSecs(first.departureSecs),
+      });
+    }
+    for (const l of arr(j.legs)) {
+      const walk = l.kind === "walk";
+      legs.push({
+        vehicle: walk ? "walk" : ls8hKind(l),
+        from: cleanName(l.from?.name),
+        to: cleanName(l.to?.name),
+        departure: clockOfSecs(l.departureSecs),
+        arrival: clockOfSecs(l.arrivalSecs),
+        line: walk ? "" : [l.routeName, l.trainType, l.headsign ? `${cleanName(l.headsign)}行` : ""]
+          .filter(Boolean).join(" "),
+      });
+    }
+    if (egress > 0 && last) {
+      legs.push({
+        vehicle: "walk", from: cleanName(last.to?.name), to: q.to,
+        departure: clockOfSecs(last.arrivalSecs), arrival: clockOfSecs(last.arrivalSecs + egress),
+      });
+    }
+    const ticket = Number(j.fare?.ticket);
+    return routeFrom(legs, {
+      transfers: Number.isFinite(Number(j.transferCount)) ? Number(j.transferCount) : undefined,
+      fareYen: Number.isFinite(ticket) && ticket > 0 ? ticket : null,
+    });
+  });
+}
+
+/** modes の旗から、Transit API の avoidModes（事前に外す乗り物）を作ります。 */
+export function ls8hAvoid(modes) {
+  const out = [];
+  if (modes && !modes.al) out.push("air");
+  if (modes && !modes.sr) out.push("ferry");
+  // 路線バスと高速バスは同じ mode（bus）なので、両方外すときだけ事前に外します。
+  // 片方だけのときは、読んだあとに choose が種類で外します。
+  if (modes && !modes.lb && !modes.hb) out.push("bus");
+  return out.join(",");
+}
+
+async function ls8h(q, env, fetchImpl) {
+  if (!q.fromAt || !q.toAt) throw new TransitError("unsupported", "Transit API は位置が要ります", { status: 400 });
+  const t = tokyo(q.at);
+  const u = new URL(`${ls8hBase(env)}/api/v1/plan`);
+  u.searchParams.set("from", `geo:${q.fromAt.lat.toFixed(6)},${q.fromAt.lng.toFixed(6)}`);
+  u.searchParams.set("to", `geo:${q.toAt.lat.toFixed(6)},${q.toAt.lng.toFixed(6)}`);
+  u.searchParams.set("fromLabel", q.from.slice(0, 120));
+  u.searchParams.set("toLabel", q.to.slice(0, 120));
+  u.searchParams.set("date", `${t.y}${t.m}${t.d}`);
+  u.searchParams.set("time", `${t.hh}:${t.mm}`);
+  u.searchParams.set("type", q.search === "last" ? "last" : "departure");
+  u.searchParams.set("numItineraries", "4");
+  const avoid = ls8hAvoid(q.modes);
+  if (avoid) u.searchParams.set("avoidModes", avoid);
+  let data;
+  try {
+    data = await getJson(fetchImpl, u, { headers: { "User-Agent": UA, Accept: "application/json" } });
+  } catch (e) {
+    // 422（始点と終点が同じ・探せる範囲の外）は「経路なし」として、次へ回します。
+    if (e instanceof TransitError && e.code === "upstream" && /\b(404|422)\b/.test(e.message)) {
+      return { routes: [], url: null };
+    }
+    throw e;
+  }
+  return { routes: readLs8h(data, q), url: null };
+}
 
 /**
- * 1つの API で引きます。
- * yahoo は worker.js の中にあるので、呼ぶ側から渡してもらいます
- * （deps.yahoo(q) → /yahoo/transit と同じ形の答え）。
+ * Google マップの経路の URL（Maps URLs）。開いた人が Google マップで見るための
+ * リンクで、時刻や所要時間を取る API ではありません。答えが出ない区間に添えます。
+ * https://developers.google.com/maps/documentation/urls/get-started
+ */
+export function googleMapsUrl(q) {
+  const place = (p, name) => (p ? `${Number(p.lat).toFixed(6)},${Number(p.lng).toFixed(6)}` : name);
+  const u = new URL("https://www.google.com/maps/dir/");
+  u.searchParams.set("api", "1");
+  u.searchParams.set("origin", place(q.fromAt, q.from));
+  u.searchParams.set("destination", place(q.toAt, q.to));
+  u.searchParams.set("travelmode", "transit");
+  return u.toString();
+}
+
+// ── 入口 ───────────────────────────────────────
+
+const SEARCH = { ls8h, otp, ekispert, navitime, here, transitous };
+
+/**
+ * 1つの API で引きます。答えが出なかったときは、Google マップの URL を添えます。
  */
 export async function searchWith(name, q, env, deps = {}) {
   const fetchImpl = deps.fetch ?? fetch;
@@ -629,18 +769,13 @@ export async function searchWith(name, q, env, deps = {}) {
   if (q.search === "last" && !SUPPORTS_LAST.has(name)) {
     throw new TransitError("unsupported", `${LABELS[name]} は終電を探せません`, { status: 400 });
   }
-  if (name === "yahoo") {
-    if (!deps.yahoo) throw new TransitError("not_configured", "Yahoo!路線情報は使えません", { status: 503 });
-    const out = await deps.yahoo(q);
-    return { ...out, provider: "yahoo", providerLabel: LABELS.yahoo };
-  }
   const run = SEARCH[name];
   if (!run) throw new TransitError("bad_request", `知らない API です: ${name}`, { status: 400 });
   const { routes, url } = await run(q, env, fetchImpl);
   return choose(routes, q, {
     provider: name, providerLabel: LABELS[name],
     reason: `${LABELS[name]} から経路が返りませんでした`,
-    ...(url ? { url } : {}),
+    url: url ?? googleMapsUrl(q),
   });
 }
 
@@ -665,7 +800,10 @@ export async function searchAuto(q, env, deps = {}) {
       tried.push({ provider: name, error: e.code });
     }
   }
-  return { routed: false, reason: last?.reason ?? "使える乗り換え検索がありません", tried };
+  return {
+    routed: false, reason: last?.reason ?? "使える乗り換え検索がありません",
+    url: googleMapsUrl(q), tried,
+  };
 }
 
 /** POST /transit の本体。 */

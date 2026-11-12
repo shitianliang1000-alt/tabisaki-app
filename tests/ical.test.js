@@ -142,7 +142,7 @@ test("移動の出どころを説明に書く", () => {
   // 説明文は75オクテットで折られるので、畳み直してから見ます。
   const unfold = (s) => s.replace(/\r\n /g, "");
   const ics = unfold(toIcs(itin, { now: NOW }));
-  assert.match(ics, /Yahoo!路線情報で調べた実際の便です。/);
+  assert.match(ics, /Transit APIで調べた実際の便です。/);
   const est = toIcs({
     title: "試験",
     days: [{ date: d("2026-09-17T09:00"), items: [{

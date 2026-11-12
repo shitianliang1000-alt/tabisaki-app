@@ -1,7 +1,7 @@
 // 山頂のスポットとロープウェイ（packages/core/src/ropeways.js・packages/core/src/routes.js）。
 //
 // 大雪山の旅程（黒岳・北鎮岳・小泉岳・白雲岳）で、山頂どうしの区間を
-// Yahoo!路線情報に何度も聞いて外し、問い合わせの回数を使い切って
+// Transit APIに何度も聞いて外し、問い合わせの回数を使い切って
 // いました。43区間のうち10区間しか時刻が引けず、町なかの区間まで
 // 「目安」になります。
 import assert from "node:assert/strict";

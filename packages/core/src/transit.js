@@ -184,7 +184,7 @@ export function describeTransit(summary, opts = {}) {
 }
 
 /**
- * Yahoo!路線情報で調べた経路を、乗り換えの手順の形にします。
+ * Transit APIで調べた経路を、乗り換えの手順の形にします。
  *
  * **ここが無かったので、バスの経路が画面に出ていませんでした。**
  *

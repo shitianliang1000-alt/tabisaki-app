@@ -241,7 +241,7 @@ const breaker = { fails: 0, open: false, reason: "" };
  * 経路ごとに数えると、エリアが増えるだけ合計が膨らみます。
  */
 const transitBudget = { spent: 0 };
-// Yahoo!路線情報に聞いた回数（Googleの回数とは別勘定）。
+// Transit APIに聞いた回数（Googleの回数とは別勘定）。
 // hits は、そのうち時刻が取れた区間の数です。legs は調べた区間の数。
 const yahooBudgetSpent = { spent: 0, hits: 0, legs: 0 };
 
@@ -577,7 +577,7 @@ async function computeViaStations(points, opts) {
   // Yahoo!は新幹線も飛行機も含めて答えます（東京→鹿児島は約966km。
   // 目安では「約303分」でしたが、実際の便はもっとかかります）。
   // 引けなかったときだけ、これまでどおり目安に落ちます。
-  // まずYahoo!路線情報に聞きます。**区間ごとに**聞くので、経由地のある
+  // まずTransit APIに聞きます。**区間ごとに**聞くので、経由地のある
   // 旅程でも公共交通の実際の便が入ります（以前は2地点のときだけでした）。
   // 出発時刻は区間ごとにずらします。1区間目を10時に出るなら、
   // 2区間目に乗るのは10時ではありません。
@@ -795,7 +795,7 @@ async function computeViaStations(points, opts) {
     const labels = [...new Set(yahooLegs.filter(Boolean)
       .map((l) => l.providerLabel).filter(Boolean))];
     parts.push(`${rideLegs}区間のうち${searched}区間は`
-      + `${labels.length ? labels.join("・") : "Yahoo!路線情報"}で検索`
+      + `${labels.length ? labels.join("・") : "Transit API"}で検索`
       + (retried ? `（${retried}区間は聞き直し）` : ""));
   }
   if (walkLegs) parts.push(`${walkLegs}区間は徒歩`);
@@ -849,7 +849,7 @@ async function yahooLeg(a, b, opts) {
 }
 
 /**
- * 1区間を、Yahoo!路線情報で調べます。引けなければ null。
+ * 1区間を、Transit APIで調べます。引けなければ null。
  *
  * 出発地・目的地そのものは駅名ではないことが多いので、収録の停留所から
  * 最寄りを引いて名前にします（「箱根湯本駅」「大涌谷」）。
@@ -1056,7 +1056,7 @@ async function yahooLegUncached(a, b, opts) {
       // 旅程の1行としては長すぎます。読む人が知りたいのは、何時に出て
       // 何時に着くか、乗り換えが何回か、いくらか、の3つです。
       line: [transitLine(yahoo, walkA + walkB, total) ?? yahoo.summary
-        ?? yahoo.providerLabel ?? "Yahoo!路線情報", ...accessNotes(sideA, sideB)].join("・"),
+        ?? yahoo.providerLabel ?? "Transit API", ...accessNotes(sideA, sideB)].join("・"),
       routed: true,
       // どの乗り換え検索が答えたか（駅すぱあと・NAVITIME・HERE・Yahoo!・
       // Transitous。中継の POST /transit が付けます）。
@@ -1475,7 +1475,7 @@ export async function computeRoute(points, opts = {}) {
     const hit = routeCache.get(key);
     if (hit) return hit;
 
-    // 区間ごとにYahoo!路線情報へ聞き、引けない区間だけ駅の位置から見積もります。
+    // 区間ごとにTransit APIへ聞き、引けない区間だけ駅の位置から見積もります。
     const result = await computeViaStations(points, opts);
     // 途中でやめた結果は控えません。目安で埋まった半端な答えが残ると、
     // 次に同じ条件で組んだときに、それが返ってきます。
@@ -1709,7 +1709,7 @@ export async function diagnoseMapsKey(signal) {
       if (st && st.secrets && st.secrets.MAPS_API_KEY === false) {
         return { ok: false, code: "no-key",
           message: missingSecretHelp("MAPS_API_KEY", "経路APIのキー")
-            + "\n※ 電車・バス（Yahoo!路線情報）はキー不要なので、"
+            + "\n※ 電車・バス（Transit API）はキー不要なので、"
             + "そちらは設定しなくても動きます。" };
       }
     } catch { /* 状態を取れなくても、下の実地の確認は行います */ }
@@ -1766,9 +1766,9 @@ export async function diagnoseMapsKey(signal) {
 }
 
 /**
- * 公共交通（Yahoo!路線情報）の疎通確認。
+ * 公共交通（Transit API）の疎通確認。
  *
- * 電車・バスの時間はGoogleではなくYahoo!路線情報から取ります。
+ * 電車・バスの時間はGoogleではなくTransit APIから取ります。
  * 「確認」でGoogleだけを試すと、実際に旅程で使う側が通っているのか
  * 分かりません。新宿→箱根湯本で、中継とYahoo!の応答を見ます。
  */
@@ -1797,11 +1797,11 @@ export async function diagnoseYahooTransit(signal) {
       { departAt: neutralDepartureTime(), signal });
     if (r?.routed && r.minutes > 0) {
       return { ok: true, code: "ok",
-        message: `${r.providerLabel ?? "Yahoo!路線情報"}に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
+        message: `${r.providerLabel ?? "Transit API"}に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
           + `${r.summary ? "・" + r.summary : ""}）。` + where };
     }
     return { ok: false, code: "no-route",
-      message: "Yahoo!路線情報は応答しましたが、経路を取り出せませんでした。"
+      message: "Transit APIは応答しましたが、経路を取り出せませんでした。"
         + where + (r?.reason ? `\n詳細: ${r.reason}` : "") };
   } catch (e) {
     // 返事が返ってきているなら、出どころ（ALLOW_ORIGIN）の話ではありません。
@@ -1814,7 +1814,7 @@ export async function diagnoseYahooTransit(signal) {
             + "待ってからもう一度お試しください。"
             + "\n※ 旅程は組めます。この間の電車・バスの時間は、"
             + "駅の位置からの目安になります。"
-          : "Yahoo!路線情報に接続できませんでした。")
+          : "Transit APIに接続できませんでした。")
           + where + `\n詳細: ${String(e?.message ?? e)}` };
     }
     // 「Load failed」は、ブラウザが返事の中身を捨てたときの言い方です。
@@ -1823,7 +1823,7 @@ export async function diagnoseYahooTransit(signal) {
     // ブラウザはそれを読ませません）。何を直せばいいのかを書きます。
     const here = globalThis.location?.origin ?? "";
     return { ok: false, code: "error",
-      message: "Yahoo!路線情報に接続できませんでした。" + where
+      message: "Transit APIに接続できませんでした。" + where
         // 返事が1文字も返っていない状態です。中継まで届いていれば、
         // 断られたとしても番号と本文が返ります。まず、このページと外の
         // あいだで止められていないかを疑います（拡張機能・社内網・圏外）。

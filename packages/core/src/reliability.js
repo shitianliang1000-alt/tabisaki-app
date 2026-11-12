@@ -23,9 +23,9 @@ import { slackLevel } from "./score.js";
 export function travelSource(item) {
   if (!item || item.kind !== "transit") return null;
   // 時刻表で引いた区間。どの乗り換え検索が答えたかは、中継が付けた
-  // 名前で出します（無ければ、これまでどおり Yahoo!路線情報）。
+  // 名前で出します（無ければ、これまでどおり Transit API）。
   if (item.yahoo) {
-    return { key: "yahoo", label: item.yahoo.providerLabel || "Yahoo!路線情報" };
+    return { key: "yahoo", label: item.yahoo.providerLabel || "Transit API" };
   }
   if (item.routed) return { key: "routes", label: "Googleの経路" };
   // 歩きは距離で足ります（confidence.js と同じ見かたです）。

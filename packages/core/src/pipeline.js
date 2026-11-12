@@ -1002,7 +1002,7 @@ async function assembleTrip({ trip, kb, onProgress = () => {},
   //     粘れるか分からないので1本前で帰ります。そして、立ち寄りを
   //     足して帰りが終電より後になっても、**誰も何も言いません**。
   //
-  //     Yahoo!路線情報には終電の検索（type=2）があります。あるものを
+  //     Transit APIには終電の検索（type=2）があります。あるものを
   //     聞くだけです。聞けなければ黙って空けます。
   //
   //     経路を調べられなかった旅程（目安だけで組んだもの）には出ません。
@@ -1481,7 +1481,7 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
 
   // 夜行で行くと書かれていて、その区間に夜行があるなら、往路にします。
   //
-  // Yahoo!路線情報は「その時刻に出たら」で答えるので、夜行を狙って
+  // Transit APIは「その時刻に出たら」で答えるので、夜行を狙って
   // 引くのは向きません（朝10時に出れば新幹線が返ります）。夜行は毎日
   // 同じ時刻で走る定期列車なので、表から引きます（packages/core/src/trains.js）。
   //
@@ -1619,7 +1619,7 @@ async function verifyProposal(proposal, trip, candidates, kb, opts = {}) {
   //
   //   1. 旅程を組む（ここまで）
   //   2. 立ち寄り先ごとに、いちばん近い駅・バス停を見つける（routes.js）
-  //   3. その並びのまま、全区間をYahoo!路線情報に聞く
+  //   3. その並びのまま、全区間をTransit APIに聞く
   //   4. 返ってきた実際の所要時間で、もう一度時刻を組み直す
   //
   // 3で聞く回数は区間の数だけ増えます（5日で30回ほど）。中継の制限は
@@ -2004,7 +2004,7 @@ async function measureFinalOrder(trimmed, ctx, trip, ctxIn) {
 /**
  * 長い一本道を、経路APIの上限に合わせて切りながら引きます。
  *
- * 公共交通（Yahoo!路線情報）は区間ごとに聞くので、何地点あっても構い
+ * 公共交通（Transit API）は区間ごとに聞くので、何地点あっても構い
  * ません。車と徒歩（Googleの経路API）は1回12地点までで、超えると
  * まるごと推定に落ちます。旅程は20地点を超えるので、そのままでは
  * **車の旅がいつも推定**になります。つなぎ目を重ねて切ります。
@@ -2338,7 +2338,7 @@ export function overBudgetSpots(itin, cap) {
 /**
  * 電車・バスの時刻の出どころ。
  *
- * Yahoo!路線情報の検索結果を読んで組み立てています。公式の乗換案内では
+ * Transit APIの検索結果を読んで組み立てています。公式の乗換案内では
  * ないので、ダイヤの改正や臨時の運休は反映されないことがあります。
  * 現地で乗り遅れるのは利用者なので、出どころは書いておきます。
  */
@@ -2346,7 +2346,7 @@ function transitSourceNote(itin) {
   const routed = (itin?.days ?? []).flatMap((d) => d.items ?? [])
     .some((i) => i.kind === "transit" && i.routed && i.yahoo);
   if (!routed) return [];
-  return ["電車・バスの時刻はYahoo!路線情報の検索結果です。"
+  return ["電車・バスの時刻はTransit APIの検索結果です。"
     + "出発前に、公式の乗換案内でもう一度お確かめください。"];
 }
 

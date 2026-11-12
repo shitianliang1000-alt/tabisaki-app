@@ -87,7 +87,7 @@ export function confidenceOf(kind, subject, opts = {}) {
     }
     const out = build(routed ? "verified" : "estimated",
       s.yahoo
-        ? "Yahoo!路線情報の時刻です（乗換・待ち時間を含みます）"
+        ? "Transit APIの時刻です（乗換・待ち時間を含みます）"
         : routed
           ? (s.transit
               ? "経路検索で確認した所要時間です（乗換・待ち時間を含みます）"
@@ -95,8 +95,8 @@ export function confidenceOf(kind, subject, opts = {}) {
           : "距離からの推定です。実際の便やダイヤは反映していません",
       checkedAt, age);
     // 出どころの名前は、**見分けがつく必要があるときだけ**出します。
-    // 電車・バスの時刻はYahoo!路線情報からしか取らなくなったので、
-    // 「時刻表・Yahoo!路線情報」と並べても、読む人の判断は変わりません。
+    // 電車・バスの時刻はTransit APIからしか取らなくなったので、
+    // 「時刻表・Transit API」と並べても、読む人の判断は変わりません。
     // 印は短いほうが読まれます。
     out.source = routed && !s.yahoo ? "Googleの経路"
       : s.yahoo ? "" : "距離からの推定";

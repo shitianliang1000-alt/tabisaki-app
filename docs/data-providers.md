@@ -8,7 +8,7 @@
 
 | 種類 | 本体が使う関数 | 返す形 | 既定 | ほかに入っているもの |
 |---|---|---|---|---|
-| `routing`（経路） | `search(from, to, opts)` | `RouteResult` | `yahoo`（Yahoo!路線情報、中継経由） | `mock`・`off` |
+| `routing`（経路） | `search(from, to, opts)` | `RouteResult` | `yahoo`（Transit API、中継経由） | `mock`・`off` |
 | `weather`（天気） | `forecast(at, date, opts)` | `Forecast` | `open-meteo` | `mock`・`off` |
 | `geocoding`（地名） | `lookup(query)`・`reverse(lat, lng)` | `Place[]` | `local`（手元の駅・空港） | `gsi`（国土地理院） |
 | `spots`（スポット） | `load(opts)` | 知識ベース | `kb`（`kb/` の JSON） | `mock` |

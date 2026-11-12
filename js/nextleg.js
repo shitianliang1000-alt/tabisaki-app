@@ -99,7 +99,7 @@ export function requeryNote(found, planned = {}, ctx = {}) {
   const line = found?.line ? `${found.line}・` : "";
   const head = `いま出ると、次は ${where}${dep} 発です${tail}。${line}`;
   // 出どころを必ず添えます。ダイヤそのものを持っているわけではありません。
-  const src = "（Yahoo!路線情報でいま引き直しました。遅延は含みません）";
+  const src = "（Transit APIでいま引き直しました。遅延は含みません）";
 
   const shift = shiftMinutes(planned.departure, dep);
   if (shift == null) {

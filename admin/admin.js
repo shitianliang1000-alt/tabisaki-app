@@ -259,9 +259,9 @@ async function connection(out) {
   const lim = ov.limits;
   out.append(...section("回数の上限（1つのIPあたり）",
     card(
-      row("無料枠（Yahoo!）", `1分 ${lim.free.minute}点 / 1時間 ${lim.free.hour}点`),
+      row("無料枠（乗り換え検索）", `1分 ${lim.free.minute}点 / 1時間 ${lim.free.hour}点`),
       row("課金される側（Gemini・Routes）", `1分 ${lim.paid.minute}点 / 1時間 ${lim.paid.hour}点`)),
-    note("超えると 429 を返します（Gemini 5点、Routes 3点、Yahoo! 1点）。変えるときは Worker の環境変数 RATE_FREE_PER_MINUTE・RATE_PAID_PER_HOUR などを使います。")));
+    note("超えると 429 を返します（Gemini 5点、Routes 3点、乗り換え検索 1点）。変えるときは Worker の環境変数 RATE_FREE_PER_MINUTE・RATE_PAID_PER_HOUR などを使います。")));
 
   // 疎通
   const result = el("span", { class: "v" }, "まだ確かめていません");

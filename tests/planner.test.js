@@ -982,7 +982,7 @@ test("往路がYahoo!の答えなら、Googleの経路とは書かない", () =>
   });
   const out = itin.days[0].items.find((i) => i.kind === "transit");
   assert.ok(out.yahoo, "往路に調べた便の中身が渡っていません");
-  assert.match(out.reason, /Yahoo/);
+  assert.match(out.reason, /Transit API/);
 });
 
 test("行より前の便は、出さない（調べたときの時刻のまま残っている）", () => {

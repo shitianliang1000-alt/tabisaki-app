@@ -246,8 +246,8 @@ export const handler = async (req, res) => {
     }
     if (path.endsWith("/transit")) {
       // 乗り換え検索（server/transit.js。Cloudflare 版と同じ）。手元の OpenTripPlanner
-      // （OTP_URL）や各社のキーを、この端末の環境変数から読みます。Yahoo!路線情報は
-      // Cloudflare 版にしか入っていないので、ここでは使いません。
+      // （OTP_URL）や各社のキーを、この端末の環境変数から読みます。JR は Transit API
+      // （キー不要）で引きます。
       try {
         return send(res, 200, head, null, await transitHandler(body, transitEnv()));
       } catch (e) {
@@ -321,9 +321,9 @@ function send(res, status, head, message, doc = null) {
 
 /** 乗り換え検索に渡す設定。必要な名前だけを環境変数から写します。 */
 function transitEnv() {
-  const names = ["OTP_URL", "EKISPERT_API_KEY", "NAVITIME_RAPIDAPI_KEY", "HERE_API_KEY", "TRANSIT_ORDER", "TRANSITOUS"];
-  const env = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
-  return { ...env, YAHOO_TRANSIT: "off" };
+  const names = ["OTP_URL", "EKISPERT_API_KEY", "NAVITIME_RAPIDAPI_KEY", "HERE_API_KEY", "TRANSIT_ORDER", "TRANSITOUS",
+    "LS8H_TRANSIT", "LS8H_API_URL"];
+  return Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
 }
 
 /** 上限を超えたら、そこで読むのをやめます（最後まで受けてから測らない）。 */

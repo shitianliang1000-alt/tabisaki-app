@@ -102,7 +102,7 @@ test("同じ便なら、予定どおりと書く", () => {
   assert.equal(n.shiftMin, 0);
   assert.match(n.text, /出雲大社前 13:52 発/);
   assert.match(n.text, /予定どおり/);
-  assert.match(n.text, /Yahoo!路線情報/);
+  assert.match(n.text, /Transit API/);
   assert.match(n.text, /遅延は含みません/);
 });
 

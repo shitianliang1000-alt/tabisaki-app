@@ -165,7 +165,7 @@ export function buildItinerary(input) {
     reason: overnight
       ? `${overnight.train}で夜のうちに移動します（車中泊）`
       : legs?.outbound?.yahoo
-      ? "Yahoo!路線情報で調べた実際の便"
+      ? "Transit APIで調べた実際の便"
       : legs?.outbound?.routed
         ? "Google マップの経路検索による所要時間"
         : "経路APIを使えないため距離からの推定",
@@ -356,7 +356,7 @@ export function buildItinerary(input) {
           alternatives: fits ? (leg?.alternatives ?? []) : [],
           costYen: 0,
           reason: routed && fits
-            ? `${leg?.providerLabel ?? "Yahoo!路線情報"}で調べた実際の便`
+            ? `${leg?.providerLabel ?? "Transit API"}で調べた実際の便`
             : leg?.noTransit
               ? "近くに駅・バス停が無いため、タクシーでの移動として見積もり"
               : "時刻を引けなかったため距離からの目安",

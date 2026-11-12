@@ -11,7 +11,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import {
-  available, choose, cleanName, clockOf, dms, labelLine, navitimeUnuse, orderFrom,
+  available, choose, cleanName, clockOf, clockOfSecs, dms, googleMapsUrl, ls8hAvoid, ls8hKind, readLs8h, labelLine, navitimeUnuse, orderFrom,
   otpBase, otpLine, providerStatus, readEkispert, readHere, readNavitime, readOtp, readQuery, readTransitous,
   searchAuto, transitHandler, TransitError,
 } from "../server/transit.js";
@@ -180,24 +180,26 @@ test("選びかた: 終電では、いちばん遅く出る便を採る", () => 
   assert.equal(out.waitMinutes, 0);
 });
 
-test("使えるもの: キーが無ければ有料の API は使わない。Yahoo!と Transitous は止められる", () => {
+test("使えるもの: キーが無ければ有料の API は使わない。Transit API と Transitous は止められる", () => {
   assert.equal(available("ekispert", {}), false);
   assert.equal(available("ekispert", { EKISPERT_API_KEY: "k" }), true);
   assert.equal(available("transitous", {}), true);
   assert.equal(available("transitous", { TRANSITOUS: "off" }), false);
-  assert.equal(available("yahoo", { YAHOO_TRANSIT: "OFF" }), false);
+  assert.equal(available("ls8h", {}), true);
+  assert.equal(available("ls8h", { LS8H_TRANSIT: "OFF" }), false);
+  assert.equal(available("yahoo", {}), false);
 });
 
 test("順番: TRANSIT_ORDER で変えられ、知らない名前は捨てる", () => {
-  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "yahoo", "transitous"]);
-  assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,yahoo" }), ["transitous", "yahoo"]);
+  assert.deepEqual(orderFrom({}), ["otp", "ls8h", "ekispert", "navitime", "here", "transitous"]);
+  assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,yahoo,ls8h" }), ["transitous", "ls8h"]);
   const st = providerStatus({ HERE_API_KEY: "x" });
   assert.equal(st.providers.find((p) => p.name === "here").available, true);
   assert.ok(!JSON.stringify(st).includes('"x"'));
 });
 
 test("自動: キーのあるものから順に試し、経路が無ければ次へ進む", async () => {
-  const env = { HERE_API_KEY: "h", YAHOO_TRANSIT: "off" };
+  const env = { HERE_API_KEY: "h", LS8H_TRANSIT: "off" };
   const calls = [];
   const fetchStub = async (u) => {
     const url = String(u);
@@ -211,18 +213,104 @@ test("自動: キーのあるものから順に試し、経路が無ければ次
   assert.deepEqual(out.tried.map((t) => t.provider), ["here", "transitous"]);
 });
 
+const ls8hLast = JSON.parse(await readFile(new URL("./fixtures/ls8h-odawara-tokyo-last.json", import.meta.url), "utf8"));
+const ls8hDay = JSON.parse(await readFile(new URL("./fixtures/ls8h-tokyo-shinjuku.json", import.meta.url), "utf8"));
+
 test("自動: 終電は、終電を探せるものだけに聞く", async () => {
   const env = { HERE_API_KEY: "h" };
-  let asked = 0;
-  const yahoo = async () => { asked++; return { routed: true, search: "last", minutes: 33 }; };
+  const seen = [];
   const out = await searchAuto(Q({ search: "last" }), env, {
-    fetch: async () => { throw new Error("呼ばれないはず"); }, yahoo });
-  assert.equal(asked, 1);
-  assert.equal(out.provider, "yahoo");
+    fetch: async (u) => { seen.push(new URL(String(u))); return okJson(ls8hLast)(); } });
+  // HERE は終電を探せないので聞かれず、Transit API だけが type=last で聞かれる。
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].host, "api.transit.ls8h.com");
+  assert.equal(seen[0].searchParams.get("type"), "last");
+  assert.equal(out.provider, "ls8h");
+  assert.equal(out.search, "last");
+});
+
+test("Transit API: 時刻・徒歩・運賃を、ほかの API と同じ形に読む", () => {
+  const q = Q({ from: "東京駅", to: "新宿駅", fromAt: { lat: 35.681, lng: 139.767 }, toAt: { lat: 35.69, lng: 139.7 },
+    departAt: "2026-11-13T09:55:00+09:00" });
+  const routes = readLs8h(ls8hDay, q);
+  assert.equal(routes.length, 3);
+  const r = routes[0];
+  // 歩き始めは、最初の乗り場に着く access 秒前。
+  assert.equal(r.departure, clockOfSecs(36120 - ls8hDay.journeys[0].accessWalkSecs));
+  assert.equal(r.legs[0].line, "徒歩");
+  assert.equal(r.legs[0].from, "東京駅");
+  assert.equal(r.legs.at(-1).to, "新宿駅");
+  assert.ok(r.legs.some((l) => l.kind === "ride" && /山手線/.test(l.line)));
+  const out = choose(routes, q, { provider: "ls8h", url: googleMapsUrl(q) });
+  assert.equal(out.routed, true);
+  assert.ok(out.minutes > 0 && out.minutes < 120);
+  assert.match(out.meta.url, /^https:\/\/www\.google\.com\/maps\/dir\//);
+  assert.ok(!("vehicle" in out.meta.legs[0]));
+});
+
+test("Transit API: 24時を過ぎる時刻は翌日の時刻に直し、終電では遅く出る便を採る", () => {
+  assert.equal(clockOfSecs(103596), "04:46");
+  assert.equal(clockOfSecs(82740), "22:59");
+  const q = Q({ search: "last", from: "小田原", to: "東京" });
+  const out = choose(readLs8h(ls8hLast, q), q, { provider: "ls8h" });
+  assert.equal(out.routed, true);
+  assert.equal(out.search, "last");
+  assert.equal(out.meta.departure.length, 5);
+});
+
+test("Transit API: 乗り物の種類は mode と路線名から見分ける", () => {
+  assert.equal(ls8hKind({ mode: "rail", routeName: "東海道新幹線" }), "shinkansen");
+  assert.equal(ls8hKind({ mode: "bus", routeName: "高速バス 東京〜大阪" }), "coach");
+  assert.equal(ls8hKind({ mode: "bus", routeName: "市バス" }), "bus");
+  assert.equal(ls8hKind({ mode: "subway", routeName: "三田線" }), "rail");
+  assert.equal(ls8hKind({ mode: "ferry" }), "ferry");
+  assert.equal(ls8hAvoid({ al: 0, sr: 0, lb: 1, hb: 1 }), "air,ferry");
+  assert.equal(ls8hAvoid({ al: 1, sr: 1, lb: 0, hb: 0 }), "bus");
+  assert.equal(ls8hAvoid({ al: 1, sr: 1, lb: 0, hb: 1 }), "");
+});
+
+test("Transit API: 日時・位置を geo と date/time で渡し、経路が無ければ Google マップの URL を添える", async () => {
+  let called;
+  const out = await searchAuto(Q(), { LS8H_API_URL: "https://ls8h.test/" }, {
+    fetch: async (u) => {
+      called = new URL(String(u));
+      if (called.host === "ls8h.test") return okJson({ journeys: [] })();
+      return okJson({ itineraries: [] })();
+    },
+  });
+  assert.equal(called.host, "api.transitous.org"); // ls8h の次に Transitous も試す
+  assert.equal(out.routed, false);
+  const u = new URL(out.url);
+  assert.equal(u.host, "www.google.com");
+  assert.equal(u.searchParams.get("travelmode"), "transit");
+  assert.equal(u.searchParams.get("origin"), "35.256400,139.155600");
+  assert.equal(out.tried[0].provider, "ls8h");
+});
+
+test("Transit API: 日時と位置の渡しかた、422 は経路なしとして次へ", async () => {
+  const seen = [];
+  const out = await searchAuto(Q(), { TRANSIT_ORDER: "ls8h" }, {
+    fetch: async (u) => { seen.push(new URL(String(u))); return new Response("{}", { status: 422 }); } });
+  const p = seen[0].searchParams;
+  assert.equal(p.get("from"), "geo:35.256400,139.155600");
+  assert.equal(p.get("to"), "geo:35.232900,139.106700");
+  assert.equal(p.get("date"), "20261030");
+  assert.equal(p.get("time"), "10:00");
+  assert.equal(p.get("type"), "departure");
+  assert.equal(out.routed, false);
+  assert.match(out.url, /google\.com\/maps\/dir/);
+});
+
+test("Transit API: 位置が無いときは使わない（名前だけでは駅を決められない）", async () => {
+  const out = await searchAuto(Q({ fromAt: undefined, toAt: undefined }), { TRANSIT_ORDER: "ls8h" }, {
+    fetch: async () => { throw new Error("呼ばれないはず"); } });
+  assert.equal(out.routed, false);
+  assert.equal(out.tried[0].error, "unsupported");
+  assert.match(out.url, /origin=%E5%B0%8F%E7%94%B0%E5%8E%9F%E9%A7%85/);
 });
 
 test("自動: 相手が断っても、次の API で引く", async () => {
-  const env = { EKISPERT_API_KEY: "e", YAHOO_TRANSIT: "off" };
+  const env = { EKISPERT_API_KEY: "e", LS8H_TRANSIT: "off" };
   const fetchStub = async (u) => (String(u).includes("ekispert")
     ? new Response("no", { status: 429 }) : okJson(transitousOdawara)());
   const out = await searchAuto(Q(), env, { fetch: fetchStub });
@@ -336,7 +424,7 @@ test("OTP: 範囲の外・歩くだけの答えは「経路なし」にして、
     if (new URL(String(u)).host === "otp.test") return new Response(JSON.stringify(outside), { status: 200 });
     return new Response(JSON.stringify(transitousOdawara), { status: 200 });
   };
-  const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", YAHOO_TRANSIT: "off" }, { fetch: fetchStub });
+  const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", LS8H_TRANSIT: "off" }, { fetch: fetchStub });
   assert.equal(out.routed, true);
   assert.equal(out.provider, "transitous");
   assert.deepEqual(out.tried.map((t) => t.provider), ["otp", "transitous"]);

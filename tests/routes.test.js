@@ -346,9 +346,9 @@ test("待ちが無ければ、余計に足さない", () => {
   assert.equal(Math.round((t.lastArriveAt - start) / 60000), 25);
 });
 
-// --- Yahoo!路線情報 ---------------------------------------------------------
+// --- Transit API ---------------------------------------------------------
 //
-// 電車・バスの時間はYahoo!路線情報から取ります。以前は2地点のときだけで、
+// 電車・バスの時間はTransit APIから取ります。以前は2地点のときだけで、
 // 経由地があると駅の位置からの目安に落ちていました。区間ごとに聞きます。
 
 /** 駅データとYahoo!の応答を差し替えます。 */
@@ -389,7 +389,7 @@ const STOPS = [
   [35.2325, 139.1063, "箱根湯本"],
 ];
 
-test("経由地があっても、区間ごとにYahoo!路線情報で調べる", () =>
+test("経由地があっても、区間ごとにTransit APIで調べる", () =>
   withYahoo(STOPS, () => ({ routed: true, minutes: 90, summary: "小田急線" }),
     async (asked) => {
       const r = await computeRoute([SHINJUKU_ST, ODAWARA, HAKONE_YUMOTO],
@@ -398,7 +398,7 @@ test("経由地があっても、区間ごとにYahoo!路線情報で調べる",
       assert.equal(r.legs.length, 2);
       assert.ok(r.legs.every((l) => l.routed), "実測扱いになっていません");
       assert.equal(r.routed, true);
-      assert.match(r.modeNote ?? "", /Yahoo/);
+      assert.match(r.modeNote ?? "", /Transit API/);
       assert.equal(routesUsage().calls, 0, "Googleに投げています");
       // 2区間目に乗るのは、1区間目に乗った時刻ではありません。
       assert.ok(new Date(asked[1].departAt) > new Date(asked[0].departAt),
@@ -416,7 +416,7 @@ test("Yahoo!で引けない区間だけ、駅の位置からの目安に戻す",
       assert.equal(r.legs[0].routed, true);
       assert.equal(r.legs[1].routed, false);
       assert.equal(r.routed, false);
-      assert.match(r.modeNote ?? "", /Yahoo/);
+      assert.match(r.modeNote ?? "", /Transit API/);
       assert.match(r.modeNote ?? "", /最寄りの駅・バス停/);
     }));
 

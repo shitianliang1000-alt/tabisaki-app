@@ -103,7 +103,7 @@ curl -X POST https://<worker>/status \
 投げると、Googleから「API key not valid」が返ります。読んだ人は自分の
 入力を疑いますが、直す場所は中継です。中継はその手前で止めて、そう言います。
 
-なお、電車・バス（Yahoo!路線情報）に鍵は要りません。Routes API の鍵が
+なお、電車・バス（Transit API）に鍵は要りません。Routes API の鍵が
 無くても、公共交通の旅程は組めます。
 
 ## 必ずやること

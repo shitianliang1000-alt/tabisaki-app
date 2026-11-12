@@ -10,7 +10,7 @@
 //        ↓
 //     自分のサーバー（キーはここだけ）
 //        ↓
-//     Gemini / Routes API / Yahoo!路線情報
+//     Gemini / Routes API / Transit API
 //
 // `packages/core/src/config.js` の PROXY_URL にその入口を書くと、このモジュールが
 // 行き先を切り替えます。**キーはヘッダーに載せません**（サーバーが

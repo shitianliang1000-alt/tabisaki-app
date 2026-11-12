@@ -31,7 +31,7 @@
 旅程の行ごとの根拠は次のとおりです。
 
 * **立ち寄り先**: 収録（`kb/`）のスポットID（`lm-24`・`wd-Q587371` など）、分類、裏取りの結果（確認済み・結び直し）、営業時間が収録の実データか分類ごとの目安か
-* **移動**: 分・km、経路を引いたか距離からの目安か、答えた取り口（`grounding.source`。Transitous〈OpenTripPlanner 系〉・駅すぱあと・Yahoo!路線情報・時刻表・目安）
+* **移動**: 分・km、経路を引いたか距離からの目安か、答えた取り口（`grounding.source`。Transitous〈OpenTripPlanner 系〉・駅すぱあと・Transit API・時刻表・目安）
 * **裏取り**（[grounding.js](../packages/core/src/grounding.js)）: 確かめた数、外した場所、結び直した場所、外した列車名、書き直した AI の文
 
 ## 工程

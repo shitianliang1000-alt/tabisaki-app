@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- 電車・バスの乗り換えを、Yahoo!路線情報のページを読む方法から、Transit API（api.transit.ls8h.com。JR を含む全国の時刻表）に変えました。答えが出ない区間（一部のバスなど）は、次の API（Transitous など）を試し、それでも出なければ Google マップのリンクと距離からの目安を出します。Yahoo!路線情報へのリンクもやめました。
 - 収録のデータを、項目ごとに「どこから来たか」で追えるようにしました（Wikipedia・OpenStreetMap・Wikidata・Yahoo! JAPAN・国土地理院・旅さきの独自データなど）。旅程の Markdown・カレンダー（.ics）・画面には、その旅程が使ったデータの出典が自動で付きます。旅程の JSON と API、スポットの書き出しには、出どころ・ライセンス・書くべき表記をまとめた `license_summary` が入ります。収録を出どころごとに分けた形へ移す道具と手順も用意しました（[docs/data-provenance.md](./docs/data-provenance.md)、#426）
 - スポットどうしの関係を書きとめ（`./tabisaki spot relate`。一緒に回る・どちらか・先に行く・中にある）、近くにかたまっているスポットをまとめ（`spot cluster`）、直線の距離がいちばん短くなる回る順番を出し（`spot route`）、ほかに比べて収録の少ない地域と分類を探せます（`spot gap`）。距離は直線で、移動の時間ではないことを毎回出します（[docs/user-kb.md](./docs/user-kb.md#関係かたまり回る順番足りないところ)、#357）
 - 旅程ファイルを、時計を進めながらたどって確かめられるようにしました（`./tabisaki simulate trip.yaml --delay=20% --late=15`。電車の遅れ・寝坊・行ったら休みだった、を出かける前に試せます。通信はしません）。予報を見て、雨の時間に屋外へ行く予定を屋内に入れ替えた案も出せます（`./tabisaki replan trip.yaml --weather-check`。天気が取れなければ旅程は変えず、`must_visit` の場所は入れ替えず、元のファイルは書き換えません。cron で毎朝動かす書きかたも説明に入れました）（[docs/journey-as-code.md](./docs/journey-as-code.md)、#362）

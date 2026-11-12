@@ -3,7 +3,7 @@
 // 旅さきは、経路・天気・地名・スポットを外から（または手元の収録から）
 // もらっています。どこからもらうかを旅程を組む本体（pipeline.js・
 // routes.js）が直接知っていると、取り口が止まったり規約が変わったり
-// したとき（Yahoo!路線情報、#367）に、本体ごと書き直すことになります。
+// したとき（Transit API、#367）に、本体ごと書き直すことになります。
 //
 // そこで、取り口ごとに「何を渡すと、どんな形で返るか」を決めておき、
 // 本体はその形だけを使います。取り口を替えるときは、同じ形を返す
@@ -145,7 +145,7 @@ const idle = () => ({ waiting: false, seconds: 0, reason: "", retryable: false }
 /**
  * 乗り換え検索（自前の中継 server/worker.js の POST /transit 経由）。
  *
- * 中継が、駅すぱあと・NAVITIME・HERE・Yahoo!路線情報・Transitous の
+ * 中継が、駅すぱあと・NAVITIME・HERE・Transit API・Transitous の
  * どれかで引きます（server/transit.js、docs/transit-apis.md）。
  * "transit" は「中継に任せる」で、キーの入っているものから順に試します。
  * ほかの名前は、その API だけで引きます。キーは中継だけが持ちます。
@@ -177,8 +177,8 @@ export function createTransitRouting(name = "transit", label = "乗り換え検�
 
 /** 中継に任せる（既定）。キーのある API から順に、引けるまで試します。 */
 export const transitRouting = createTransitRouting();
-/** Yahoo!路線情報（中継経由）だけで引く。 */
-export const yahooRouting = createTransitRouting("yahoo", "Yahoo!路線情報（中継経由）");
+/** Transit API（中継経由）だけで引く。 */
+export const yahooRouting = createTransitRouting("yahoo", "Transit API（中継経由）");
 const namedTransit = [
   ["otp", "OpenTripPlanner（中継経由・手元で動かすもの。docs/otp.md）"],
   ["ekispert", "駅すぱあと Web サービス（中継経由・要キー）"],

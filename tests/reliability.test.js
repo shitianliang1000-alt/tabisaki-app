@@ -16,7 +16,7 @@ const spot = (extra) => ({ kind: "spot", ...extra });
 
 test("移動の出どころを見分ける", () => {
   assert.equal(travelSource(move({ routed: true, yahoo: {} })).label,
-               "Yahoo!路線情報");
+               "Transit API");
   assert.equal(travelSource(move({ routed: true })).label, "Googleの経路");
   assert.equal(travelSource(move({ routed: false })).label, "距離からの推定");
   // 近くに駅・バス停が無い区間は、「調べそこねた区間」とは別ものです。

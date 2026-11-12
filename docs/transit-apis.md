@@ -11,11 +11,11 @@
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |
 | [Transitous][4]（MOTIS・GTFS） | 要らない（`TRANSITOUS=off` で止める） | 無料・**非商用だけ** | × | 公開された GTFS のある路線だけ。新幹線と大手私鉄は入っていて、京都市バスや JR 北海道、飛行機は入っていない（2026年10月に確かめた） |
-| Yahoo!路線情報 | 要らない（`YAHOO_TRANSIT=off` で止める） | 無料 | ○ | 全国。ただし検索結果のページを読んでいるので、使い続けてよいかは確かめていない（#367） |
+| [Transit API](https://api.transit.ls8h.com/)（api.transit.ls8h.com） | 要らない（`LS8H_TRANSIT=off` で止める。自前の同じ形の API は `LS8H_API_URL`） | 無料 | ○ | JR を含む全国の時刻表（GTFS・ODPT）。**一部のバスは入っていない**（持ち主の確認）。入っていない区間は次の API（Transitous など）へ進み、全部だめなら Google マップのリンクと距離からの目安になる |
 
-自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → Yahoo!路線情報 → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
+自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → Transit API → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
 
-Yahoo!路線情報から移るときは、駅すぱあとか NAVITIME のキーを入れてから `YAHOO_TRANSIT=off` にしてください。キーを入れる前に止めると、無料の Transitous だけになり、バスの入っていない地域では目安の時間になります。
+Transit APIから移るときは、駅すぱあとか NAVITIME のキーを入れてから `YAHOO_TRANSIT=off` にしてください。キーを入れる前に止めると、無料の Transitous だけになり、バスの入っていない地域では目安の時間になります。
 
 ## 対応していないもの
 
@@ -31,7 +31,7 @@ npx wrangler secret put NAVITIME_RAPIDAPI_KEY   # NAVITIME（RapidAPI の X-Rapi
 npx wrangler secret put HERE_API_KEY            # HERE
 npx wrangler secret put OTP_URL                 # 手元の OpenTripPlanner（HTTPS で届く URL。otp.md）
 npx wrangler secret put TRANSIT_ORDER           # 任意。例: ekispert,navitime,transitous
-npx wrangler secret put YAHOO_TRANSIT           # 任意。off で Yahoo!路線情報を止める
+npx wrangler secret put YAHOO_TRANSIT           # 任意。off で Transit APIを止める
 ```
 
 入っているかは `POST /transit/providers` か `POST /status` の `transit` で確かめられます（キーの値は返しません）。
@@ -70,3 +70,13 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
   [3]: https://docs.here.com/transit/docs/route
   [4]: https://transitous.org/
   [5]: https://transitous.org/sources/
+
+## Yahoo!路線情報のページ読みは、やめました（2026-11-12）
+
+以前は Yahoo!路線情報の検索結果ページを読んでいましたが、API ではなく規約上も確かめられないため、
+取り除きました（`/yahoo/transit` の入口は残してあり、いまは `/transit` と同じ答えを返します）。
+
+* 引く順番は `otp` → `ls8h`（Transit API）→ `ekispert` → `navitime` → `here` → `transitous`。答えが出なければ次へ進みます
+* どれも答えなかった区間には、Google マップの経路 URL（[Maps URLs](https://developers.google.com/maps/documentation/urls/get-started)）を `url` に添えます。
+  これは「Google マップで開く」リンクで、時刻・所要時間を返す API ではありません。ページを機械で読むのは
+  Google の規約で禁じられているので、やっていません。画面には距離からの目安を出します

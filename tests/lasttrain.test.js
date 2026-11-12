@@ -12,14 +12,11 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
 
 import {
   TIGHT_MIN, attachLastTrain, clockMinutes, lastRideOf, lastTrainNote,
   lateMinutes, marginMinutes, stationsOf,
 } from "../packages/core/src/lasttrain.js";
-import { parseRouteDetail, parseSummary, routeBlocks }
-  from "../server/worker.js";
 
 // --- 数えかた -------------------------------------------------------------
 
@@ -65,7 +62,7 @@ test("余裕があるときは、あと何時間粘れるかを書く", () => {
   assert.match(n.text, /小田原 22:58 発/);
   assert.match(n.text, /4時間18分/);
   // 出どころを必ず添えます。ダイヤそのものを持っているわけではありません。
-  assert.match(n.text, /Yahoo!路線情報/);
+  assert.match(n.text, /Transit API/);
   assert.match(n.text, /遅延は含みません/);
 });
 
@@ -202,37 +199,3 @@ test("聞く関数を渡さなければ、何もしない", async () => {
   assert.equal(await attachLastTrain(null, async () => ({})), 0);
 });
 
-// --- 中継が読む、本物の終電の画面 -------------------------------------------
-
-const lastHtml = await readFile(
-  new URL("./fixtures/yahoo-odawara-tokyo-last.html", import.meta.url), "utf8");
-
-test("終電の画面から、候補を全部読める", () => {
-  const rows = routeBlocks(lastHtml).map((b) => {
-    const s = parseSummary(b);
-    const d = parseRouteDetail(b);
-    return { departure: s.departure, arrival: s.arrival,
-             from: d.legs[0]?.from, to: d.legs.at(-1)?.to };
-  });
-  assert.equal(rows.length, 3);
-  assert.deepEqual(rows.map((r) => r.departure), ["22:58", "22:58", "22:56"]);
-  assert.deepEqual(rows.map((r) => r.arrival), ["00:39", "00:43", "23:29"]);
-  for (const r of rows) {
-    assert.equal(r.from, "小田原");
-    assert.equal(r.to, "東京");
-  }
-});
-
-test("終電は「いちばん早く着く便」ではなく「いちばん遅く出る便」", () => {
-  // 小田原→東京では 22:56 の新幹線が 23:29 に着き、いちばん早いです。
-  // でも最後まで粘れるのは 22:58 のほうです。ここを取り違えると、
-  // 「23:29に着けるから22:56が終電」という、2分早い嘘になります。
-  const rows = routeBlocks(lastHtml).map((b) => parseSummary(b));
-  const latest = rows.reduce((a, b) =>
-    (lateMinutes(a.departure) >= lateMinutes(b.departure) ? a : b));
-  const earliestArrival = rows.reduce((a, b) =>
-    (lateMinutes(a.arrival) <= lateMinutes(b.arrival) ? a : b));
-  assert.equal(latest.departure, "22:58");
-  assert.equal(earliestArrival.departure, "22:56");
-  assert.notEqual(latest.departure, earliestArrival.departure);
-});

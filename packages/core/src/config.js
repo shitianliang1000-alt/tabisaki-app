@@ -6,7 +6,7 @@
 
 /**
  * 自分のバックエンドの入口（https のみ）。
- * Cloudflare Worker を経由して Gemini / Routes API / Yahoo!路線情報へ接続します。
+ * Cloudflare Worker を経由して Gemini / Routes API / Transit APIへ接続します。
  */
 export const PROXY_URL = "https://tabisaki-github-io.shitianliang1000.workers.dev";
 
@@ -140,7 +140,7 @@ export const TUNING = {
   walkableKm: 1.0,
   // 徒歩の実測（Googleの経路API）に使う回数。ここは課金対象なので絞ります。
   maxTransitRequests: 8,
-  // Yahoo!路線情報に聞く回数。こちらは課金されず、中継側で1時間控える
+  // Transit APIに聞く回数。こちらは課金されず、中継側で1時間控える
   // ので、**実際の時刻を全区間ぶん取りにいきます**。目安で埋めるくらいなら
   // 時間をかけて本物を取ったほうがよい、という判断です。
   //

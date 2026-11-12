@@ -3,7 +3,7 @@ import { effectiveConfig } from "./settings.js";
 import { TRANSIT_PROVIDER } from "./config.js";
 
 /**
- * Yahoo!路線情報の検索をバックエンド経由で実行します。
+ * Transit APIの検索をバックエンド経由で実行します。
  *
  * 旅程で使うのは「この日、この時刻に出発地を出たら、次に乗れる
  * 公共交通で何時に到着するか」です。日時はそのまま渡します。
@@ -212,7 +212,7 @@ export async function searchYahooTransit(from, to, opts = {}) {
   // ここまで来たら、しばらく聞きません。旅程1つで区間の数だけ聞くので、
   // 断られた直後に残りを投げても、全部断られるだけです。
   hold(lastError);
-  throw lastError ?? new Error("Yahoo!路線情報に接続できませんでした");
+  throw lastError ?? new Error("Transit APIに接続できませんでした");
 }
 
 /** しばらく聞かない。区間ごとに同じ壁へぶつかりに行かないためです。 */
