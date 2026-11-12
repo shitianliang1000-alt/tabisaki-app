@@ -43,19 +43,19 @@ import { estimateMinutes, haversineKm, isSlowTerrain, taxiMinutes }
 import { findStop, nearbyStops, nearestStop } from "./stops.js";
 import { busStopNear } from "./private-hint.js";
 import { ropewayMinutes, ropewayNear } from "./ropeways.js";
-import { summarizeTransitLeg, summarizeYahooRoute, transitFieldMask }
+import { summarizeTransitLeg, summarizeTransitRoute, transitFieldMask }
   from "./transit.js";
 import { KIND_NOTE, asksTimetable, classifyLine, kindsOf, preferredKinds,
-  yahooFlags } from "./modes.js";
+  transitFlags } from "./modes.js";
 import { getProvider } from "./providers.js";
 
 // 公共交通の経路は、いま選ばれている取り口（providers.js）から引きます。
 // 本体は取り口の名前（Yahoo!など）を知らず、決まった形の答えだけを使います。
 const routing = () => getProvider("routing");
-const searchYahooTransit = (from, to, opts) => routing().search(from, to, opts);
-const yahooCooldown = () => routing().cooldown();
-const resetYahooCooldown = () => routing().resetCooldown();
-const resetYahooPace = () => routing().resetPace();
+const searchTransit = (from, to, opts) => routing().search(from, to, opts);
+const transitCooldown = () => routing().cooldown();
+const resetTransitCooldown = () => routing().resetCooldown();
+const resetTransitPace = () => routing().resetPace();
 
 /**
  * どこへ投げるか。
@@ -243,7 +243,7 @@ const breaker = { fails: 0, open: false, reason: "" };
 const transitBudget = { spent: 0 };
 // Yahoo!路線情報に聞いた回数（Googleの回数とは別勘定）。
 // hits は、そのうち時刻が取れた区間の数です。legs は調べた区間の数。
-const yahooBudgetSpent = { spent: 0, hits: 0, legs: 0 };
+const transitBudgetSpent = { spent: 0, hits: 0, legs: 0 };
 
 // 断られたときに待ち直す回数の上限。1回およそ1分です。
 // 待てば入る時刻を、待たずに「目安」にするほうが損です。
@@ -309,9 +309,9 @@ export function routesUsage() {
            // 電車・バスはGoogleではなくYahoo!に聞きます。ここを数えて
            // いなかったので、30区間を調べた旅程でも画面には何も出ず、
            // 「一度しか問い合わせていないのでは」と見えていました。
-           yahooAsks: yahooBudgetSpent.spent,
-           yahooLegs: yahooBudgetSpent.legs,
-           yahooHits: yahooBudgetSpent.hits };
+           transitAsks: transitBudgetSpent.spent,
+           transitLegs: transitBudgetSpent.legs,
+           transitHits: transitBudgetSpent.hits };
 }
 
 /**
@@ -319,8 +319,8 @@ export function routesUsage() {
  * 旅程を組み直すだけのときには呼びません（中継側の1分は続いています）。
  */
 export function resetTransitPacing() {
-  resetYahooPace();
-  resetYahooCooldown();
+  resetTransitPace();
+  resetTransitCooldown();
 }
 
 export function routesBreakerState() {
@@ -329,9 +329,9 @@ export function routesBreakerState() {
 
 export function resetRoutesBreaker() {
   transitBudget.spent = 0;
-  yahooBudgetSpent.spent = 0;
-  yahooBudgetSpent.hits = 0;
-  yahooBudgetSpent.legs = 0;
+  transitBudgetSpent.spent = 0;
+  transitBudgetSpent.hits = 0;
+  transitBudgetSpent.legs = 0;
   // 回数制限の待ちは、**消しません**。
   //
   // ここは旅程を組むたびに呼ばれます。前回の終わりに回数制限へ当たって
@@ -340,7 +340,7 @@ export function resetRoutesBreaker() {
   // 全区間が「目安」になります。作り直すほど直らない、の正体でした。
   // 消してよいのは、設定の不備で止まっているときだけです（キーを入れ
   // 直した直後など、待っても意味がなく、条件が変わっているため）。
-  if (!yahooCooldown().retryable) resetYahooCooldown();
+  if (!transitCooldown().retryable) resetTransitCooldown();
   breaker.fails = 0;
   breaker.open = false;
   breaker.reason = "";
@@ -582,7 +582,7 @@ async function computeViaStations(points, opts) {
   // 出発時刻は区間ごとにずらします。1区間目を10時に出るなら、
   // 2区間目に乗るのは10時ではありません。
   const plans = new Array(n);
-  const yahooLegs = new Array(n).fill(null);
+  const transitLegs = new Array(n).fill(null);
   // 聞かずに組んだ区間（山から山への登山道、ロープウェイと徒歩だけの区間）。
   const localLegs = new Array(n).fill(null);
   // 区間ごとの出発時刻。呼ぶ側が「この区間を通るのは何日目の何時か」を
@@ -591,11 +591,11 @@ async function computeViaStations(points, opts) {
   // 3日目の区間を初日の昼として調べていたのが、これです。
   const given = Array.isArray(opts.departTimes) ? opts.departTimes : null;
   let clock = opts.departAt ? new Date(opts.departAt) : null;
-  // Yahoo!の回数は、Googleの徒歩実測とは別に数えます。混ぜていたので、
-  // 徒歩を測ると、そのぶん実際の時刻が取れなくなっていました。
-  // Yahoo!は課金されず、中継側で控えるので、多めに取ります。
-  let yahooBudget = Math.max(0,
-    (TUNING.maxYahooRequests ?? 40) - yahooBudgetSpent.spent);
+  // 乗り換え検索の回数は、Googleの徒歩実測とは別に数えます。混ぜていた
+  // ので、徒歩を測ると、そのぶん実際の時刻が取れなくなっていました。
+  // 乗り換え検索は課金されず、中継側で控えるので、多めに取ります。
+  let transitBudget = Math.max(0,
+    (TUNING.maxTransitSearchRequests ?? 40) - transitBudgetSpent.spent);
   // 断られたあと、どれだけ待ってやり直したか。
   let waited = 0;
   // 引けなかった区間を、あとでもう一度聞くための出発時刻。
@@ -634,9 +634,9 @@ async function computeViaStations(points, opts) {
     // 回数制限に当たったまま次を組むと、1区間目から待てません**。
     // すると最後まで一度も答えが返らないので、以降も待たず、
     // 全区間が「目安」になります。作り直すほど直らない、の正体でした。
-    const cool = yahooCooldown();
-    const worthWaiting = cool.retryable || yahooLegs.some(Boolean);
-    if (worthWaiting && yahooBudget > 0 && cool.waiting
+    const cool = transitCooldown();
+    const worthWaiting = cool.retryable || transitLegs.some(Boolean);
+    if (worthWaiting && transitBudget > 0 && cool.waiting
         && waited < MAX_COOLDOWN_WAITS) {
       await sleep(Math.min(cool.seconds + 1, 65) * 1000, opts.signal);
       waited++;
@@ -658,16 +658,16 @@ async function computeViaStations(points, opts) {
     // やめると言われたら、残りの区間は聞きません。外れた区間を
     // 目安で埋めて続けると、要らない問い合わせが最後まで走ります。
     opts.signal?.throwIfAborted();
-    const hit = (!onFoot && yahooBudget > 0 && routing().available !== false
-        && !yahooCooldown().waiting)
-      ? await yahooLeg(points[i], points[i + 1],
-                       { ...opts, departAt: at, tries: yahooBudget })
+    const hit = (!onFoot && transitBudget > 0 && routing().available !== false
+        && !transitCooldown().waiting)
+      ? await transitLeg(points[i], points[i + 1],
+                       { ...opts, departAt: at, tries: transitBudget })
       : null;
     // 使った回数は、当たっても外れても引きます。1区間で名前を3通り
     // 試したなら3回ぶんです。
     if (hit?.spent) {
-      yahooBudget -= hit.spent;
-      yahooBudgetSpent.spent += hit.spent;
+      transitBudget -= hit.spent;
+      transitBudgetSpent.spent += hit.spent;
     }
     if (hit?.noTransit) { noTransitLegs++; noTransitAt[i] = true; }
     if (hit?.local) {
@@ -678,7 +678,7 @@ async function computeViaStations(points, opts) {
       plans[i] = { minutes: hit.minutes, walkKm: 0, walk: true,
                    fromStop: null, toStop: null, walkMeasured: false };
     } else if (hit && !hit.miss) {
-      yahooLegs[i] = hit;
+      transitLegs[i] = hit;
       plans[i] = { minutes: hit.minutes, walkKm: 0,
                    fromStop: null, toStop: null, walkMeasured: false };
     } else if (onFoot) {
@@ -722,25 +722,25 @@ async function computeViaStations(points, opts) {
   // 拾い直すのは、ほかの区間が引けているときだけです。ぜんぶ外して
   // いるなら、原因は区間ではなく設定か通信なので、もう一度投げても
   // 同じ答えが返るだけです。
-  if (yahooLegs.some(Boolean)) {
+  if (transitLegs.some(Boolean)) {
     for (let i = 0; i < n; i++) {
-      if (yahooLegs[i] || !askedAt[i] || yahooBudget <= 0) continue;
-      const cool2 = yahooCooldown();
+      if (transitLegs[i] || !askedAt[i] || transitBudget <= 0) continue;
+      const cool2 = transitCooldown();
       if (cool2.waiting) {
         if (!cool2.retryable || waited >= MAX_COOLDOWN_WAITS) continue;
         await sleep(Math.min(cool2.seconds + 1, 65) * 1000, opts.signal);
         waited++;
       }
-      const again = await yahooLeg(points[i], points[i + 1],
+      const again = await transitLeg(points[i], points[i + 1],
         { ...opts, departAt: askedAt[i],
-          tries: Math.min(yahooBudget, retryTries[i] ?? yahooBudget) });
+          tries: Math.min(transitBudget, retryTries[i] ?? transitBudget) });
       if (again?.spent) {
-        yahooBudget -= again.spent;
-        yahooBudgetSpent.spent += again.spent;
+        transitBudget -= again.spent;
+        transitBudgetSpent.spent += again.spent;
         retried++;
       }
       if (again && !again.miss && !again.local) {
-        yahooLegs[i] = again;
+        transitLegs[i] = again;
         plans[i] = { minutes: again.minutes, walkKm: 0,
                      fromStop: null, toStop: null, walkMeasured: false };
       }
@@ -764,7 +764,7 @@ async function computeViaStations(points, opts) {
     if (walked) { plans[i] = walked; measured++; transitBudget.spent++; }
   }
 
-  const legs = plans.map((p, i) => yahooLegs[i] ?? localLegs[i] ?? ({
+  const legs = plans.map((p, i) => transitLegs[i] ?? localLegs[i] ?? ({
     minutes: p.minutes,
     meters: Math.round(haversineKm(points[i], points[i + 1]) * 1000),
     line: null,
@@ -780,22 +780,22 @@ async function computeViaStations(points, opts) {
       : null,
   }));
 
-  const searched = yahooLegs.filter(Boolean).length;
+  const searched = transitLegs.filter(Boolean).length;
   // 数えるのは、聞くべき区間だけです。歩く区間を分母に入れると
   // 「7区間中4区間」と出て、3区間を引きそこねたように読めます。
   const rideLegs = n - walkLegs;
-  yahooBudgetSpent.legs += rideLegs;
-  yahooBudgetSpent.hits += searched;
+  transitBudgetSpent.legs += rideLegs;
+  transitBudgetSpent.hits += searched;
   const viaStations = plans.filter((p) => p.fromStop && p.toStop).length;
   const parts = [];
   if (searched) {
     // どこで引いたかは、答えた乗り換え検索の名前で書きます。中継が
     // 駅すぱあとや Transitous に回したのに「Yahoo!」と書くと、
     // 読む人が時刻を確かめに行く先を間違えます。
-    const labels = [...new Set(yahooLegs.filter(Boolean)
+    const labels = [...new Set(transitLegs.filter(Boolean)
       .map((l) => l.providerLabel).filter(Boolean))];
     parts.push(`${rideLegs}区間のうち${searched}区間は`
-      + `${labels.length ? labels.join("・") : "Yahoo!路線情報"}で検索`
+      + `${labels.length ? labels.join("・") : "乗り換え検索"}で検索`
       + (retried ? `（${retried}区間は聞き直し）` : ""));
   }
   if (walkLegs) parts.push(`${walkLegs}区間は徒歩`);
@@ -833,11 +833,11 @@ const legKey = (a, b, opts) =>
       ? Math.floor(opts.departAt.getTime() / 600000) : "-"}`
   + `|${opts.transport ?? "any"}`;
 
-async function yahooLeg(a, b, opts) {
+async function transitLeg(a, b, opts) {
   const key = legKey(a, b, opts);
   const cached = legCache.get(key);
   if (cached) return { ...cached, spent: 0 };
-  const res = await yahooLegUncached(a, b, opts);
+  const res = await transitLegUncached(a, b, opts);
   // 引けたもの（時刻・歩き・停留所なし）だけ控えます。外したものは
   // 控えません。通信の失敗や断りは次に聞けば通るかもしれず、「経路なし」
   // も、あとの拾い直しで別の名前を試すためです。
@@ -854,7 +854,7 @@ async function yahooLeg(a, b, opts) {
  * 出発地・目的地そのものは駅名ではないことが多いので、収録の停留所から
  * 最寄りを引いて名前にします（「箱根湯本駅」「大涌谷」）。
  */
-async function yahooLegUncached(a, b, opts) {
+async function transitLegUncached(a, b, opts) {
   // 使った回数は、途中で失敗しても数えます。投げたものは投げたものです。
   let spent = 0;
   try {
@@ -927,7 +927,7 @@ async function yahooLegUncached(a, b, opts) {
       Math.min(YAHOO_NAME_TRIES, opts.tries ?? YAHOO_NAME_TRIES));
     let from = null;
     let to = null;
-    let yahoo = null;
+    let doc = null;
     let byLocation = false;
     // **指定された乗り物を、問い合わせにそのまま乗せます。**
     //
@@ -935,7 +935,7 @@ async function yahooLegUncached(a, b, opts) {
     // 問い合わせは同じ（全部の乗り物・速い順）でした。「電車で」を
     // 選んでも空路が返り、「フェリーで」を選んでも陸の経路が返ります。
     const ask = { ...opts,
-      modes: yahooFlags(opts.transport ?? "any"),
+      modes: transitFlags(opts.transport ?? "any"),
       prefer: preferredKinds(opts.transport ?? "any") };
 
     // **まず、位置で聞きます。**
@@ -957,12 +957,12 @@ async function yahooLegUncached(a, b, opts) {
     const askFrom = accA.direct ? label(a, "出発地") : accA.at;
     const askTo = accB.direct ? label(b, "目的地") : accB.at;
     spent++;
-    const near = await searchYahooTransit(askFrom, askTo, ask);
+    const near = await searchTransit(askFrom, askTo, ask);
     // 位置を受け付けない古い中継だと、名前だけで聞いた答えが返ります
     // （スポット名で聞いたもの）。それは使わず、下の停留所名で聞きます。
     if (near?.routed && near.minutes > 0 && near.byLocation === true
         && plausibleRoute(near, askFrom, askTo)) {
-      yahoo = near;
+      doc = near;
       from = askFrom;
       to = askTo;
       byLocation = true;
@@ -971,17 +971,17 @@ async function yahooLegUncached(a, b, opts) {
     // 位置で引けなければ、これまでどおり近くの停留所の名前で聞きます。
     for (const cand of byLocation ? [] : pairs.slice(0, tries - 1)) {
       spent++;
-      const r = await searchYahooTransit(cand.from, cand.to, { ...ask, byName: true });
+      const r = await searchTransit(cand.from, cand.to, { ...ask, byName: true });
       if (r?.routed && r.minutes > 0 && plausibleRoute(r, a, b)) {
         from = cand.from;
         to = cand.to;
-        yahoo = r;
+        doc = r;
         break;
       }
     }
     // ここまで来て引けなければ、Yahoo!が「経路なし」と答えています。
     // 通信の不調ではないので、あとで聞き直しても同じです。
-    if (!yahoo) return { spent, miss: true, definitive: true };
+    if (!doc) return { spent, miss: true, definitive: true };
 
     // **停留所までの徒歩を足します。**
     //
@@ -1010,7 +1010,7 @@ async function yahooLegUncached(a, b, opts) {
     };
     const walkA = endWalk(accA, a, from, sideA);
     const walkB = endWalk(accB, b, to, sideB);
-    const total = walkA + yahoo.minutes + walkB;
+    const total = walkA + doc.minutes + walkB;
 
     // 歩いたほうが早いなら、歩きます。
     //
@@ -1033,7 +1033,7 @@ async function yahooLegUncached(a, b, opts) {
     // 手順は、Yahoo!の区間の前後に、山頂の側（ロープウェイ・山道）を
     // つなぎます。乗り場までの徒歩は、山頂の側に入っています。
     const steps = withAccessSteps(
-      summarizeYahooRoute(yahoo.meta, {
+      summarizeTransitRoute(doc.meta, {
         walkA: accA.direct ? walkA : walkA - sideA.minutes,
         walkB: accB.direct ? walkB : walkB - sideB.minutes,
       }),
@@ -1042,8 +1042,8 @@ async function yahooLegUncached(a, b, opts) {
     return {
       spent,
       minutes: total,
-      rideMinutes: yahoo.rideMinutes ?? yahoo.minutes,
-      waitMinutes: yahoo.waitMinutes ?? 0,
+      rideMinutes: doc.rideMinutes ?? doc.minutes,
+      waitMinutes: doc.waitMinutes ?? 0,
       walkA, walkB,
       meters: Math.round(straightKm * 1000),
       // 画面に出す一行は、こちらで組み立てます。
@@ -1055,29 +1055,29 @@ async function yahooLegUncached(a, b, opts) {
       //
       // 旅程の1行としては長すぎます。読む人が知りたいのは、何時に出て
       // 何時に着くか、乗り換えが何回か、いくらか、の3つです。
-      line: [transitLine(yahoo, walkA + walkB, total) ?? yahoo.summary
-        ?? yahoo.providerLabel ?? "Yahoo!路線情報", ...accessNotes(sideA, sideB)].join("・"),
+      line: [transitLine(doc, walkA + walkB, total) ?? doc.summary
+        ?? doc.providerLabel ?? "乗り換え検索", ...accessNotes(sideA, sideB)].join("・"),
       routed: true,
-      // どの乗り換え検索が答えたか（駅すぱあと・NAVITIME・HERE・Yahoo!・
+      // どの乗り換え検索が答えたか（ls8h・駅すぱあと・NAVITIME・HERE・
       // Transitous。中継の POST /transit が付けます）。
-      provider: yahoo.provider ?? null,
-      providerLabel: yahoo.providerLabel ?? null,
-      searchedAt: yahoo.searchedAt ?? null,
+      provider: doc.provider ?? null,
+      providerLabel: doc.providerLabel ?? null,
+      searchedAt: doc.searchedAt ?? null,
       stations: byLocation
         ? { from: steps?.boardAt ?? from.name ?? null,
             to: steps?.alightAt ?? to.name ?? null, walkMeasured: true }
         : { from: from.name, to: to.name, walkMeasured: false },
       // 答えた乗り換え検索の名前も、便の中身といっしょに持たせます
       // （旅程の「どこまで確かめたか」に、その名前で出ます）。
-      yahoo: yahoo.meta
-        ? { ...yahoo.meta, provider: yahoo.provider ?? undefined,
-            providerLabel: yahoo.providerLabel ?? undefined }
+      transitDoc: doc.meta
+        ? { ...doc.meta, provider: doc.provider ?? undefined,
+            providerLabel: doc.providerLabel ?? undefined }
         : null,
       // 乗る路線と乗り場の手順（どのバスに、どこから乗るのか）。
       // 旅程の行の「乗換の手順」で開けます。
       transit: steps ?? undefined,
       ropeway,
-      alternatives: yahoo.meta?.alternatives ?? [],
+      alternatives: doc.meta?.alternatives ?? [],
       // **何に乗る区間なのか。**
       //
       // これが無いと、飛行機の区間も船の区間も「電車」として旅程に
@@ -1085,15 +1085,15 @@ async function yahooLegUncached(a, b, opts) {
       // 搭乗手続きの時間が要り、船は欠航します。旅程がそのまま
       // 使えるかどうかが変わるので、種類として持ちます。
       //
-      // 中継が数えたもの（yahoo.kinds）を先に使い、無ければ区間の
+      // 中継が数えたもの（doc.kinds）を先に使い、無ければ区間の
       // 路線名から見分けます（古い中継につながったときのため）。
-      kinds: yahoo.kinds?.length ? yahoo.kinds
-        : kindsOf(yahoo.meta?.legs ?? [{ line: yahoo.summary }]),
+      kinds: doc.kinds?.length ? doc.kinds
+        : kindsOf(doc.meta?.legs ?? [{ line: doc.summary }]),
       // 指定した乗り物で組めたか。false なら、そう書きます。
-      preferMet: yahoo.preferMet !== false,
+      preferMet: doc.preferMet !== false,
     };
   } catch (e) {
-    usage.lastError = `Yahoo Transit: ${String(e?.message ?? e).slice(0, 200)}`;
+    usage.lastError = `Transit: ${String(e?.message ?? e).slice(0, 200)}`;
     // 断られた・つながらなかった。こちらは時間をおけば通ります。
     return { spent, miss: true };
   }
@@ -1324,16 +1324,16 @@ export function plausibleRoute(r, a, b) {
  * 地図で見れば分かり、乗車時間は「30分のうち何分座っているか」で、
  * 予定を立てるのには使いません。
  */
-function transitLine(yahoo, walkMin = 0, totalMin = 0) {
-  const m = yahoo?.meta ?? {};
+function transitLine(doc, walkMin = 0, totalMin = 0) {
+  const m = doc?.meta ?? {};
   if (!m.departure || !m.arrival) return null;
   const parts = [`${m.departure}発→${m.arrival}着`];
   // 出す所要時間は、**その便に乗っている時間**です。
   //
-  // yahoo.minutes は「頼んだ時刻から着くまで」で、便を待つ時間を含みます。
+  // doc.minutes は「頼んだ時刻から着くまで」で、便を待つ時間を含みます。
   // それをここに出すと「06:28発→08:49着（4時間49分）」になり、同じ行の
   // 中で計算が合いません（引き算すると2時間21分です）。
-  const ride = yahoo.rideMinutes ?? yahoo.minutes;
+  const ride = doc.rideMinutes ?? doc.minutes;
   if (ride > 0) parts[0] += `（${fmtMinutes(ride)}）`;
   if (Number.isFinite(m.transfers)) {
     parts.push(m.transfers > 0 ? `乗換${m.transfers}回` : "乗換なし");
@@ -1465,7 +1465,7 @@ export async function computeRoute(points, opts = {}) {
     // 入れないと、「電車で」で組んだあと「フェリーで」に変えても、
     // 同じ鍵に当たって前の答えが返ります。画面では選び直したのに
     // 旅程が変わらない、という出かたになります。
-    const key = cacheKey(points, `TRANSIT-yahoo-${opts.transport ?? "any"}`,
+    const key = cacheKey(points, `TRANSIT-search-${opts.transport ?? "any"}`,
                          opts.departAt)
       + (Array.isArray(opts.departTimes)
         ? "|" + opts.departTimes
@@ -1709,7 +1709,7 @@ export async function diagnoseMapsKey(signal) {
       if (st && st.secrets && st.secrets.MAPS_API_KEY === false) {
         return { ok: false, code: "no-key",
           message: missingSecretHelp("MAPS_API_KEY", "経路APIのキー")
-            + "\n※ 電車・バス（Yahoo!路線情報）はキー不要なので、"
+            + "\n※ 電車・バス（乗り換え検索）はキー不要なので、"
             + "そちらは設定しなくても動きます。" };
       }
     } catch { /* 状態を取れなくても、下の実地の確認は行います */ }
@@ -1793,15 +1793,15 @@ export async function diagnoseYahooTransit(signal) {
     }
   })();
   try {
-    const r = await searchYahooTransit(shinjuku, hakone,
+    const r = await searchTransit(shinjuku, hakone,
       { departAt: neutralDepartureTime(), signal });
     if (r?.routed && r.minutes > 0) {
       return { ok: true, code: "ok",
-        message: `${r.providerLabel ?? "Yahoo!路線情報"}に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
+        message: `${r.providerLabel ?? "乗り換え検索"}に接続できました（新宿駅→箱根湯本駅 約${r.minutes}分`
           + `${r.summary ? "・" + r.summary : ""}）。` + where };
     }
     return { ok: false, code: "no-route",
-      message: "Yahoo!路線情報は応答しましたが、経路を取り出せませんでした。"
+      message: "乗り換え検索は応答しましたが、経路を取り出せませんでした。"
         + where + (r?.reason ? `\n詳細: ${r.reason}` : "") };
   } catch (e) {
     // 返事が返ってきているなら、出どころ（ALLOW_ORIGIN）の話ではありません。
@@ -1814,7 +1814,7 @@ export async function diagnoseYahooTransit(signal) {
             + "待ってからもう一度お試しください。"
             + "\n※ 旅程は組めます。この間の電車・バスの時間は、"
             + "駅の位置からの目安になります。"
-          : "Yahoo!路線情報に接続できませんでした。")
+          : "乗り換え検索に接続できませんでした。")
           + where + `\n詳細: ${String(e?.message ?? e)}` };
     }
     // 「Load failed」は、ブラウザが返事の中身を捨てたときの言い方です。
@@ -1823,7 +1823,7 @@ export async function diagnoseYahooTransit(signal) {
     // ブラウザはそれを読ませません）。何を直せばいいのかを書きます。
     const here = globalThis.location?.origin ?? "";
     return { ok: false, code: "error",
-      message: "Yahoo!路線情報に接続できませんでした。" + where
+      message: "乗り換え検索に接続できませんでした。" + where
         // 返事が1文字も返っていない状態です。中継まで届いていれば、
         // 断られたとしても番号と本文が返ります。まず、このページと外の
         // あいだで止められていないかを疑います（拡張機能・社内網・圏外）。

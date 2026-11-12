@@ -11,11 +11,11 @@
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |
 | [Transitous][4]（MOTIS・GTFS） | 要らない（`TRANSITOUS=off` で止める） | 無料・**非商用だけ** | × | 公開された GTFS のある路線だけ。新幹線と大手私鉄は入っていて、京都市バスや JR 北海道、飛行機は入っていない（2026年10月に確かめた） |
-| Yahoo!路線情報 | 要らない（`YAHOO_TRANSIT=off` で止める） | 無料 | ○ | 全国。ただし検索結果のページを読んでいるので、使い続けてよいかは確かめていない（#367） |
+| [ls8h Transit API][6] | 要らない（`LS8H=off` で止める） | 無料 | ○ | 全国の鉄道・バス（GTFS / ODPT 由来）。フェリーは入っていない。運賃は返らないことが多い。非公式の個人運営 API で、利用条件・継続性は未確認 |
 
-自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → Yahoo!路線情報 → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
+自動で試す順番は、`OpenTripPlanner → ls8h → 駅すぱあと → NAVITIME → HERE → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
 
-Yahoo!路線情報から移るときは、駅すぱあとか NAVITIME のキーを入れてから `YAHOO_TRANSIT=off` にしてください。キーを入れる前に止めると、無料の Transitous だけになり、バスの入っていない地域では目安の時間になります。
+Yahoo!路線情報のスクレイピングは廃止しました（#367）。鉄道は ls8h が担います。ls8h で経路が組めない区間（フェリー、ls8h 未収録のバスなど）は、アプリ内では目安の時間で組み、旅程の区間にある「経路を開く」から Google マップ（Maps URLs）の公共交通検索へ案内します。
 
 ## 対応していないもの
 
@@ -31,7 +31,7 @@ npx wrangler secret put NAVITIME_RAPIDAPI_KEY   # NAVITIME（RapidAPI の X-Rapi
 npx wrangler secret put HERE_API_KEY            # HERE
 npx wrangler secret put OTP_URL                 # 手元の OpenTripPlanner（HTTPS で届く URL。otp.md）
 npx wrangler secret put TRANSIT_ORDER           # 任意。例: ekispert,navitime,transitous
-npx wrangler secret put YAHOO_TRANSIT           # 任意。off で Yahoo!路線情報を止める
+npx wrangler secret put LS8H                    # 任意。off で ls8h を止める
 ```
 
 入っているかは `POST /transit/providers` か `POST /status` の `transit` で確かめられます（キーの値は返しません）。
@@ -47,15 +47,15 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
 }'
 ```
 
-`provider` は `auto`（既定）・`ekispert`・`navitime`・`here`・`transitous`・`yahoo` のどれかです。答えの形は `/yahoo/transit` と同じで、`provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
+`provider` は `auto`（既定）・`otp`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` のどれかです。答えには `provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
 
-本文の `modes`（`al` 飛行機・`shin` 新幹線・`ex` 特急・`hb` 高速バス・`lb` 路線バス・`sr` 船、0 で使わない）と `prefer`（`air`・`ferry`）、`search: "last"`（終電）も、`/yahoo/transit` と同じです。
+本文の `modes`（`al` 飛行機・`shin` 新幹線・`ex` 特急・`hb` 高速バス・`lb` 路線バス・`sr` 船、0 で使わない）と `prefer`（`air`・`ferry`）、`search: "last"`（終電）が使えます。
 
 ## アプリの側
 
-アプリ（`packages/core`）は、乗り換えを中継の `POST /transit` で引きます。どれを使うかは `packages/core/src/config.js` の `TRANSIT_PROVIDER` で決まり、既定の `auto` なら中継が上の順に試します。中継がまだ古く `/transit` を知らない（404）ときは、これまでの `/yahoo/transit` で引き直します。
+アプリ（`packages/core`）は、乗り換えを中継の `POST /transit` で引きます。どれを使うかは `packages/core/src/config.js` の `TRANSIT_PROVIDER` で決まり、既定の `auto` なら中継が上の順に試します。
 
-旅程の「どこまで確かめたか」と区間の説明には、答えた API の名前（`providerLabel`）が出ます。CLI や組み込みでは、経路の取り口を `transit`（既定・中継に任せる）・`ekispert`・`navitime`・`here`・`transitous`・`yahoo` から選べます（`useProvider("routing", "transitous")`）。
+旅程の「どこまで確かめたか」と区間の説明には、答えた API の名前（`providerLabel`）が出ます。CLI や組み込みでは、経路の取り口を `transit`（既定・中継に任せる）・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` から選べます（`useProvider("routing", "transitous")`）。
 
 ## 各社の決まり
 
@@ -70,3 +70,4 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
   [3]: https://docs.here.com/transit/docs/route
   [4]: https://transitous.org/
   [5]: https://transitous.org/sources/
+  [6]: https://api.transit.ls8h.com/api/docs

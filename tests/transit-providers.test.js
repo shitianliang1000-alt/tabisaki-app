@@ -11,9 +11,9 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import {
-  available, choose, cleanName, clockOf, dms, labelLine, navitimeUnuse, orderFrom,
-  otpBase, otpLine, providerStatus, readEkispert, readHere, readNavitime, readOtp, readQuery, readTransitous,
-  searchAuto, transitHandler, TransitError,
+  available, choose, cleanName, clockOf, clockOfSecs, dms, labelLine, navitimeUnuse, orderFrom,
+  otpBase, otpLine, providerStatus, readEkispert, readHere, readLs8h, readNavitime, readOtp, readQuery, readTransitous,
+  searchAuto, searchWith, transitHandler, TransitError,
 } from "../server/transit.js";
 import worker from "../server/worker.js";
 import { classifyLine } from "../packages/core/src/modes.js";
@@ -22,6 +22,9 @@ import { classifyLine } from "../packages/core/src/modes.js";
 const otpKumamoto = JSON.parse(await readFile(new URL("./fixtures/otp-kumamoto.json", import.meta.url), "utf8"));
 const transitousOdawara = JSON.parse(await readFile(
   new URL("./fixtures/transitous-odawara-hakone.json", import.meta.url), "utf8"));
+// ls8h が実際に返した答え（東京→新宿。tests/fixtures/ls8h-tokyo-shinjuku.json）
+const ls8hTokyoShinjuku = JSON.parse(await readFile(
+  new URL("./fixtures/ls8h-tokyo-shinjuku.json", import.meta.url), "utf8"));
 
 const Q = (over = {}) => readQuery({
   from: "小田原駅", to: "箱根湯本",
@@ -180,24 +183,26 @@ test("選びかた: 終電では、いちばん遅く出る便を採る", () => 
   assert.equal(out.waitMinutes, 0);
 });
 
-test("使えるもの: キーが無ければ有料の API は使わない。Yahoo!と Transitous は止められる", () => {
+test("使えるもの: キーが無ければ有料の API は使わない。ls8h と Transitous は止められる", () => {
   assert.equal(available("ekispert", {}), false);
   assert.equal(available("ekispert", { EKISPERT_API_KEY: "k" }), true);
   assert.equal(available("transitous", {}), true);
   assert.equal(available("transitous", { TRANSITOUS: "off" }), false);
-  assert.equal(available("yahoo", { YAHOO_TRANSIT: "OFF" }), false);
+  assert.equal(available("ls8h", {}), true);
+  assert.equal(available("ls8h", { LS8H: "OFF" }), false);
+  assert.equal(available("yahoo", {}), false);
 });
 
 test("順番: TRANSIT_ORDER で変えられ、知らない名前は捨てる", () => {
-  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "yahoo", "transitous"]);
-  assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,yahoo" }), ["transitous", "yahoo"]);
+  assert.deepEqual(orderFrom({}), ["otp", "ls8h", "ekispert", "navitime", "here", "transitous"]);
+  assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,ls8h" }), ["transitous", "ls8h"]);
   const st = providerStatus({ HERE_API_KEY: "x" });
   assert.equal(st.providers.find((p) => p.name === "here").available, true);
   assert.ok(!JSON.stringify(st).includes('"x"'));
 });
 
 test("自動: キーのあるものから順に試し、経路が無ければ次へ進む", async () => {
-  const env = { HERE_API_KEY: "h", YAHOO_TRANSIT: "off" };
+  const env = { HERE_API_KEY: "h", LS8H: "off" };
   const calls = [];
   const fetchStub = async (u) => {
     const url = String(u);
@@ -211,18 +216,19 @@ test("自動: キーのあるものから順に試し、経路が無ければ次
   assert.deepEqual(out.tried.map((t) => t.provider), ["here", "transitous"]);
 });
 
-test("自動: 終電は、終電を探せるものだけに聞く", async () => {
+test("自動: 終電は、終電を探せるものだけに聞く（ls8h が答える）", async () => {
   const env = { HERE_API_KEY: "h" };
-  let asked = 0;
-  const yahoo = async () => { asked++; return { routed: true, search: "last", minutes: 33 }; };
-  const out = await searchAuto(Q({ search: "last" }), env, {
-    fetch: async () => { throw new Error("呼ばれないはず"); }, yahoo });
-  assert.equal(asked, 1);
-  assert.equal(out.provider, "yahoo");
+  const calls = [];
+  const fetchStub = async (u) => { calls.push(String(u)); return okJson(ls8hTokyoShinjuku)(); };
+  const out = await searchAuto(Q({ search: "last" }), env, { fetch: fetchStub });
+  assert.equal(out.provider, "ls8h");
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /api\.transit\.ls8h\.com/);
+  assert.match(calls[0], /type=arrival/);
 });
 
 test("自動: 相手が断っても、次の API で引く", async () => {
-  const env = { EKISPERT_API_KEY: "e", YAHOO_TRANSIT: "off" };
+  const env = { EKISPERT_API_KEY: "e", LS8H: "off" };
   const fetchStub = async (u) => (String(u).includes("ekispert")
     ? new Response("no", { status: 429 }) : okJson(transitousOdawara)());
   const out = await searchAuto(Q(), env, { fetch: fetchStub });
@@ -336,7 +342,7 @@ test("OTP: 範囲の外・歩くだけの答えは「経路なし」にして、
     if (new URL(String(u)).host === "otp.test") return new Response(JSON.stringify(outside), { status: 200 });
     return new Response(JSON.stringify(transitousOdawara), { status: 200 });
   };
-  const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", YAHOO_TRANSIT: "off" }, { fetch: fetchStub });
+  const out = await searchAuto(Q(), { OTP_URL: "http://otp.test", LS8H: "off" }, { fetch: fetchStub });
   assert.equal(out.routed, true);
   assert.equal(out.provider, "transitous");
   assert.deepEqual(out.tried.map((t) => t.provider), ["otp", "transitous"]);
@@ -396,4 +402,98 @@ test("OTP: Node の中継（server/node-proxy.mjs）の /transit からも、手
     for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
     fakeOtp.close(); proxy.close();
   }
+});
+
+// ---------------------------------------------------------------------------
+//  ls8h Transit API（#367。Yahoo! スクレイピングの置き換え）
+// ---------------------------------------------------------------------------
+
+test("ls8h: 秒数を HH:MM にする（深夜は 24 時台、前日の便は繰り上げる）", () => {
+  assert.equal(clockOfSecs(9 * 3600 + 3 * 60), "09:03");
+  assert.equal(clockOfSecs(86400 + 39 * 60), "24:39");
+  assert.equal(clockOfSecs(-300), "23:55");
+  assert.equal(clockOfSecs("x"), null);
+});
+
+test("ls8h: 本物の答えを読み、地点からの徒歩を区間に戻す", () => {
+  const q = readQuery({
+    from: "東京駅", to: "新宿駅",
+    fromAt: { lat: 35.6812, lng: 139.7671 }, toAt: { lat: 35.6896, lng: 139.7006 },
+    departAt: "2026-11-13T09:00:00+09:00",
+  });
+  const routes = readLs8h(ls8hTokyoShinjuku, q);
+  assert.ok(routes.length >= 1);
+  const r = routes[0];
+  // accessWalkSecs の徒歩が先頭に入り、出発は地点（東京駅）からになる
+  assert.equal(r.legs[0].vehicle, "walk");
+  assert.equal(r.legs[0].from, "東京駅");
+  assert.equal(r.departure, "09:02");
+  const ride = r.legs.find((l) => l.vehicle !== "walk");
+  assert.equal(ride.line, "山手線（外回り）");
+  assert.equal(ride.from, "東京");
+  const out = choose(routes, q, { provider: "ls8h" });
+  assert.equal(out.routed, true);
+  assert.equal(out.provider, "ls8h");
+});
+
+test("ls8h: 新幹線は shinkansen、特急は express に見分ける（modes で外せるように）", () => {
+  const data = { journeys: [{
+    departureSecs: 36000, arrivalSecs: 39600, durationSecs: 3600, transferCount: 0,
+    legs: [
+      { kind: "transit", routeName: "東海道新幹線", mode: "rail", trainType: "のぞみ",
+        from: { id: "a", name: "東京" }, to: { id: "b", name: "名古屋" },
+        departureSecs: 36000, arrivalSecs: 39600, headwayBased: false },
+    ] }] };
+  const [r] = readLs8h(data, Q());
+  assert.equal(r.legs[0].vehicle, "shinkansen");
+  const out = choose([r], Q({ modes: { al: 1, shin: 0, ex: 1, hb: 1, lb: 1, sr: 1 } }), {});
+  assert.equal(out.routed, false);
+});
+
+test("ls8h: 位置が無いときは、名前から駅を探して ID で聞く", async () => {
+  const calls = [];
+  const fetchStub = async (u) => {
+    const url = String(u);
+    calls.push(url);
+    if (url.includes("/places/suggest")) {
+      return okJson({ places: [{ endpoint: "feed:stop1", name: "小田原" }] })();
+    }
+    return okJson(ls8hTokyoShinjuku)();
+  };
+  const q = readQuery({ from: "小田原駅", to: "箱根湯本", departAt: "2026-11-13T09:00:00+09:00" });
+  const out = await searchWith("ls8h", q, {}, { fetch: fetchStub });
+  assert.equal(out.routed, true);
+  assert.equal(calls.filter((c) => c.includes("/places/suggest")).length, 2);
+  const plan = calls.find((c) => c.includes("/plan"));
+  assert.match(plan, /from=feed%3Astop1/);
+});
+
+
+test("ls8h: 終電では、途中で始発まで待つ候補を落とす", () => {
+  const leg = (routeName, from, to, dep, arr) => ({
+    kind: "transit", routeName, mode: "rail",
+    from: { id: "a", name: from }, to: { id: "b", name: to },
+    departureSecs: dep, arrivalSecs: arr, headwayBased: false,
+  });
+  const H = 3600;
+  const data = { journeys: [
+    // 東京 24:46 発 → 田町で 3時間44分待ち → 新宿 29:03 着（実測した形）
+    { departureSecs: 24 * H + 46 * 60, arrivalSecs: 29 * H + 3 * 60,
+      durationSecs: 15420, transferCount: 1,
+      legs: [leg("山手線（外回り）", "東京", "田町", 24 * H + 46 * 60, 24 * H + 55 * 60),
+             leg("山手線（外回り）", "田町", "新宿", 28 * H + 39 * 60, 29 * H + 3 * 60)] },
+    // まともな終電: 東京 24:40 発 → 新宿 25:14 着
+    { departureSecs: 24 * H + 40 * 60, arrivalSecs: 25 * H + 14 * 60,
+      durationSecs: 2040, transferCount: 0,
+      legs: [leg("中央線", "東京", "新宿", 24 * H + 40 * 60, 25 * H + 14 * 60)] },
+  ] };
+  const q = Q({ search: "last" });
+  const routes = readLs8h(data, q);
+  assert.equal(routes.length, 1);
+  assert.equal(routes[0].departure, "24:40");
+  const out = choose(routes, q, { provider: "ls8h" });
+  assert.equal(out.routed, true);
+  assert.equal(out.meta.departure, "24:40");
+  // 出発検索では、この候補も「引けた経路」として残します
+  assert.equal(readLs8h(data, Q()).length, 2);
 });

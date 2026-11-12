@@ -346,13 +346,13 @@ test("待ちが無ければ、余計に足さない", () => {
   assert.equal(Math.round((t.lastArriveAt - start) / 60000), 25);
 });
 
-// --- Yahoo!路線情報 ---------------------------------------------------------
+// --- 乗り換え検索 ---------------------------------------------------------
 //
-// 電車・バスの時間はYahoo!路線情報から取ります。以前は2地点のときだけで、
+// 電車・バスの時間は乗り換え検索から取ります。以前は2地点のときだけで、
 // 経由地があると駅の位置からの目安に落ちていました。区間ごとに聞きます。
 
-/** 駅データとYahoo!の応答を差し替えます。 */
-function withYahoo(stops, reply, fn, { located = true } = {}) {
+/** 駅データと乗り換え検索の応答を差し替えます。 */
+function withTransit(stops, reply, fn, { located = true } = {}) {
   const real = globalThis.fetch;
   const asked = [];
   globalThis.fetch = async (url, init) => {
@@ -389,8 +389,8 @@ const STOPS = [
   [35.2325, 139.1063, "箱根湯本"],
 ];
 
-test("経由地があっても、区間ごとにYahoo!路線情報で調べる", () =>
-  withYahoo(STOPS, () => ({ routed: true, minutes: 90, summary: "小田急線" }),
+test("経由地があっても、区間ごとに乗り換え検索で調べる", () =>
+  withTransit(STOPS, () => ({ routed: true, minutes: 90, summary: "小田急線" }),
     async (asked) => {
       const r = await computeRoute([SHINJUKU_ST, ODAWARA, HAKONE_YUMOTO],
         { mode: "TRANSIT", departAt: new Date("2026-10-01T10:00:00+09:00") });
@@ -398,15 +398,15 @@ test("経由地があっても、区間ごとにYahoo!路線情報で調べる",
       assert.equal(r.legs.length, 2);
       assert.ok(r.legs.every((l) => l.routed), "実測扱いになっていません");
       assert.equal(r.routed, true);
-      assert.match(r.modeNote ?? "", /Yahoo/);
+      assert.match(r.modeNote ?? "", /乗り換え検索/);
       assert.equal(routesUsage().calls, 0, "Googleに投げています");
       // 2区間目に乗るのは、1区間目に乗った時刻ではありません。
       assert.ok(new Date(asked[1].departAt) > new Date(asked[0].departAt),
         "2区間目も同じ時刻で聞いています");
     }));
 
-test("Yahoo!で引けない区間だけ、駅の位置からの目安に戻す", () =>
-  withYahoo(STOPS,
+test("乗り換え検索で引けない区間だけ、駅の位置からの目安に戻す", () =>
+  withTransit(STOPS,
     (body) => (body.from === "新宿"
       ? { routed: true, minutes: 90, summary: "小田急線" }
       : { routed: false, reason: "経路が見つかりません" }),
@@ -416,12 +416,12 @@ test("Yahoo!で引けない区間だけ、駅の位置からの目安に戻す",
       assert.equal(r.legs[0].routed, true);
       assert.equal(r.legs[1].routed, false);
       assert.equal(r.routed, false);
-      assert.match(r.modeNote ?? "", /Yahoo/);
+      assert.match(r.modeNote ?? "", /乗り換え検索/);
       assert.match(r.modeNote ?? "", /最寄りの駅・バス停/);
     }));
 
-test("頼んだ日時を、そのままYahoo!に渡す", () =>
-  withYahoo(STOPS, () => ({
+test("頼んだ日時を、そのまま乗り換え検索に渡す", () =>
+  withTransit(STOPS, () => ({
     routed: true, minutes: 329, rideMinutes: 329, waitMinutes: 13,
     summary: "04:13 発→ 09:42 着 5時間29分",
   }), async (asked) => {
@@ -436,7 +436,7 @@ test("頼んだ日時を、そのままYahoo!に渡す", () =>
   }));
 
 test("同じ日なら、実際に乗る便の時刻を返す", () =>
-  withYahoo(STOPS, () => ({
+  withTransit(STOPS, () => ({
     routed: true, minutes: 95, rideMinutes: 87, waitMinutes: 8,
     summary: "10:08 発→ 11:35 着 1時間27分",
   }), async () => {
@@ -448,7 +448,7 @@ test("同じ日なら、実際に乗る便の時刻を返す", () =>
   }));
 
 test("回数制限で断られたら、設定のせいにしない", () =>
-  withYahoo(STOPS, () => ({}), async () => {
+  withTransit(STOPS, () => ({}), async () => {
     // 中継が429を返す形。以前は本文を捨てて「Yahoo Transit 429」とだけ
     // 出していたので、Yahoo!に断られたのか、こちらの回数制限なのかが
     // 分かりませんでした。しかも「ALLOW_ORIGIN を確認してください」と
@@ -487,7 +487,7 @@ test("回数制限で断られたら、設定のせいにしない", () =>
   }));
 
 test("区間がいくつあっても、全部Yahoo!に聞く", () =>
-  withYahoo([
+  withTransit([
     [35.6896, 139.7006, "新宿"],
     [35.2560, 139.1550, "小田原"],
     [35.2325, 139.1063, "箱根湯本"],
@@ -516,9 +516,9 @@ test("区間がいくつあっても、全部Yahoo!に聞く", () =>
   }));
 
 test("断られたら、しばらく聞きに行かない", async () => {
-  const { searchYahooTransit, yahooCooldown, resetYahooCooldown }
-    = await import("../packages/core/src/yahoo-transit.js");
-  resetYahooCooldown();
+  const { searchTransit, transitCooldown, resetTransitCooldown }
+    = await import("../packages/core/src/transit-search.js");
+  resetTransitCooldown();
   const real = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => {
@@ -534,21 +534,21 @@ test("断られたら、しばらく聞きに行かない", async () => {
     // 何度も聞き直します（待ち時間はテストでは待たずに済むよう、
     // 呼び出し回数だけを見ます）。
     await assert.rejects(
-      searchYahooTransit({ name: "新宿" }, { name: "箱根湯本" },
+      searchTransit({ name: "新宿" }, { name: "箱根湯本" },
                          { retryWaits: [1, 1, 1] }));
     assert.ok(calls > 1, "一度きりで諦めています");
 
     // そのあとは、間を置くまで投げません。旅程1つで区間の数だけ聞くので、
     // 断られた直後に残りを投げても、全部断られるだけです。
-    assert.equal(yahooCooldown().waiting, true);
+    assert.equal(transitCooldown().waiting, true);
     const before = calls;
     await assert.rejects(
-      searchYahooTransit({ name: "東京" }, { name: "横浜" },
+      searchTransit({ name: "東京" }, { name: "横浜" },
                          { retryWaits: [1, 1, 1] }));
     assert.equal(calls, before, "断られている間も投げています");
   } finally {
     globalThis.fetch = real;
-    resetYahooCooldown();
+    resetTransitCooldown();
   }
 });
 
@@ -570,7 +570,7 @@ const CLUSTER = [
 ];
 
 test("両端の最寄りが同じでも、次の候補で聞き直す", () =>
-  withYahoo(CLUSTER,
+  withTransit(CLUSTER,
     (body) => (body.from === body.to
       ? { routed: false, reason: "同じ駅です" }
       : { routed: true, minutes: 14, rideMinutes: 14, waitMinutes: 0,
@@ -595,7 +595,7 @@ test("両端の最寄りが同じでも、次の候補で聞き直す", () =>
     }, { located: false }));
 
 test("最初の名前で引けなければ、別の停留所名で試す", () =>
-  withYahoo(CLUSTER,
+  withTransit(CLUSTER,
     // いちばん近い停留所（西口・東口）では引けず、少し離れた「中央」で
     // だけ引ける、という状況です。
     (body) => (body.from === "中央" || body.to === "中央"
@@ -613,7 +613,7 @@ test("最初の名前で引けなければ、別の停留所名で試す", () =>
     }));
 
 test("何通り試しても引けなければ、目安に戻す（無限には聞かない）", () =>
-  withYahoo(CLUSTER, () => ({ routed: false, reason: "経路が見つかりません" }),
+  withTransit(CLUSTER, () => ({ routed: false, reason: "経路が見つかりません" }),
     async (asked) => {
       const r = await computeRoute([NEAR_A, NEAR_B], {
         mode: "TRANSIT", departAt: new Date("2026-10-01T10:00:00+09:00"),
@@ -630,11 +630,11 @@ test("何通り試しても引けなければ、目安に戻す（無限には�
 // 最後まで一度も通らず、全区間が目安になっていました。
 
 test("前の旅程で回数制限に当たっていても、待って調べ直す", async () => {
-  const { resetYahooCooldown, searchYahooTransit } =
-    await import("../packages/core/src/yahoo-transit.js");
+  const { resetTransitCooldown, searchTransit } =
+    await import("../packages/core/src/transit-search.js");
   resetRoutesBreaker();
   resetTransitPacing();
-  resetYahooCooldown();
+  resetTransitCooldown();
 
   // まず429を1回起こして、待ちに入れます（＝前の旅程の終わりの状態）。
   const real = globalThis.fetch;
@@ -644,22 +644,22 @@ test("前の旅程で回数制限に当たっていても、待って調べ直�
       code: "RATE_LIMITED", service: "proxy", retryable: true,
       message: "呼び出しが多すぎます", retryAfter: 1 } }),
   });
-  await searchYahooTransit({ name: "新宿" }, { name: "箱根湯本" },
+  await searchTransit({ name: "新宿" }, { name: "箱根湯本" },
     { retryWaits: [], pace: false }).catch(() => {});
   globalThis.fetch = real;
 
-  const { yahooCooldown } = await import("../packages/core/src/yahoo-transit.js");
-  assert.equal(yahooCooldown().waiting, true, "待ちに入っていません");
-  assert.equal(yahooCooldown().retryable, true,
+  const { transitCooldown } = await import("../packages/core/src/transit-search.js");
+  assert.equal(transitCooldown().waiting, true, "待ちに入っていません");
+  assert.equal(transitCooldown().retryable, true,
     "待てば通る断りだと分かっていません");
 
   // 旅程を組み直します。ここで待ちを消してしまうと、また同じ壁です。
   resetRoutesBreaker();
-  assert.equal(yahooCooldown().waiting, true,
+  assert.equal(transitCooldown().waiting, true,
     "組み直しで待ちを消しています（また断られます）");
 
   // 待ったあとは、1区間目から実際の時刻が入ります。
-  await withYahoo(STOPS, () => ({
+  await withTransit(STOPS, () => ({
     routed: true, minutes: 90, rideMinutes: 82, waitMinutes: 8,
     summary: "10:08 発→ 11:30 着 1時間22分",
   }), async (asked) => {
@@ -674,11 +674,11 @@ test("前の旅程で回数制限に当たっていても、待って調べ直�
 });
 
 test("設定の不備で止まっているときは、組み直しで待ちを消す", async () => {
-  const { resetYahooCooldown, searchYahooTransit, yahooCooldown } =
-    await import("../packages/core/src/yahoo-transit.js");
+  const { resetTransitCooldown, searchTransit, transitCooldown } =
+    await import("../packages/core/src/transit-search.js");
   resetRoutesBreaker();
   resetTransitPacing();
-  resetYahooCooldown();
+  resetTransitCooldown();
 
   const real = globalThis.fetch;
   globalThis.fetch = async () => ({
@@ -687,14 +687,14 @@ test("設定の不備で止まっているときは、組み直しで待ちを�
       code: "FORBIDDEN", service: "proxy", retryable: false,
       message: "このサイトからは呼べません" } }),
   });
-  await searchYahooTransit({ name: "新宿" }, { name: "箱根湯本" },
+  await searchTransit({ name: "新宿" }, { name: "箱根湯本" },
     { retryWaits: [], pace: false }).catch(() => {});
   globalThis.fetch = real;
 
-  assert.equal(yahooCooldown().retryable, false);
+  assert.equal(transitCooldown().retryable, false);
   // キーや出どころを直したかもしれないので、こちらは消します。
   resetRoutesBreaker();
-  assert.equal(yahooCooldown().waiting, false,
+  assert.equal(transitCooldown().waiting, false,
     "設定を直しても待ち続けています");
   resetTransitPacing();
 });
@@ -702,7 +702,7 @@ test("設定の不備で止まっているときは、組み直しで待ちを�
 test("1区間目だけ外したら、あとで拾い直す", () => {
   // 1区間目は一度だけ落ちる。以降は通る。
   let first = 0;
-  return withYahoo(STOPS, (body) => {
+  return withTransit(STOPS, (body) => {
     if (body.from === "新宿" && ++first === 1) {
       return { routed: false, reason: "経路が見つかりません" };
     }
@@ -721,7 +721,7 @@ test("1区間目だけ外したら、あとで拾い直す", () => {
 });
 
 test("ぜんぶ外しているときは、拾い直さない（同じ答えが返るだけ）", () =>
-  withYahoo(STOPS, () => ({ routed: false, reason: "経路が見つかりません" }),
+  withTransit(STOPS, () => ({ routed: false, reason: "経路が見つかりません" }),
     async (asked) => {
       await computeRoute([SHINJUKU_ST, ODAWARA, HAKONE_YUMOTO], {
         mode: "TRANSIT", departAt: new Date("2026-10-01T10:00:00+09:00"),
@@ -741,7 +741,7 @@ const CLOSE_A = { lat: 35.6550, lng: 139.7010, name: "寺A" };
 const CLOSE_B = { lat: 35.6590, lng: 139.7045, name: "寺B" };   // 約0.5km
 
 test("歩ける距離の区間は、時刻表に聞かない", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 81, rideMinutes: 81, waitMinutes: 0,
     summary: "07:46 発→ 09:07 着 1時間21分",
   }), async (asked) => {
@@ -758,7 +758,7 @@ test("歩ける距離の区間は、時刻表に聞かない", () =>
   }));
 
 test("歩ける距離を超えたら、聞く", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 14, rideMinutes: 14, waitMinutes: 0,
     summary: "10:05 発→ 10:19 着 14分",
   }), async (asked) => {
@@ -771,7 +771,7 @@ test("歩ける距離を超えたら、聞く", () =>
   }));
 
 test("歩く区間は、「◯区間中◯区間で時刻表」の分母から外す", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 14, rideMinutes: 14, waitMinutes: 0,
     summary: "10:05 発→ 10:19 着 14分",
   }), async () => {
@@ -802,7 +802,7 @@ const FAR_FROM_STOP_A = { lat: 35.6450, lng: 139.6950, name: "森林科学園" }
 const FAR_FROM_STOP_B = { lat: 35.6700, lng: 139.7150, name: "浄泉寺" };
 
 test("停留所までの徒歩を、区間の所要時間に足す", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 1, rideMinutes: 1, waitMinutes: 0,
     summary: "10:07 発→ 10:08 着 1分",
     meta: { departure: "10:07", arrival: "10:08", transfers: 0, fareYen: 140,
@@ -824,7 +824,7 @@ test("停留所までの徒歩を、区間の所要時間に足す", () =>
   }, { located: false }));
 
 test("出発地そのものが駅なら、その端の徒歩は数えない", () =>
-  withYahoo(STOPS, () => ({
+  withTransit(STOPS, () => ({
     routed: true, minutes: 90, rideMinutes: 82, waitMinutes: 8,
     summary: "10:08 発→ 11:30 着 1時間22分",
     meta: { departure: "10:08", arrival: "11:30", transfers: 1, fareYen: 1190,
@@ -838,7 +838,7 @@ test("出発地そのものが駅なら、その端の徒歩は数えない", ()
   }));
 
 test("乗るより歩くほうが早いなら、歩く", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     // 2km先へ行くのに、遠回りして1時間かかる乗り継ぎ。
     routed: true, minutes: 60, rideMinutes: 60, waitMinutes: 0,
     summary: "10:00 発→ 11:00 着 1時間",
@@ -872,7 +872,7 @@ const SPARSE = [
 ];
 
 test("5km以内に無ければ、広げて探す", () =>
-  withYahoo(SPARSE, () => ({
+  withTransit(SPARSE, () => ({
     routed: true, minutes: 40, rideMinutes: 40, waitMinutes: 0,
     summary: "10:00 発→ 10:40 着 40分",
     meta: { departure: "10:00", arrival: "10:40", transfers: 0, fareYen: 700,
@@ -889,7 +889,7 @@ test("5km以内に無ければ、広げて探す", () =>
   }, { located: false }));
 
 test("どこにも停留所が無いなら、「目安」ではなくそう言う", () =>
-  withYahoo([], () => ({ routed: false }), async (asked) => {
+  withTransit([], () => ({ routed: false }), async (asked) => {
     const r = await computeRoute([REMOTE, TOWN], {
       mode: "TRANSIT", departAt: new Date("2026-10-01T10:00:00+09:00"),
     });
@@ -905,7 +905,7 @@ test("どこにも停留所が無いなら、「目安」ではなくそう言�
 // まず位置で聞き、Yahoo!に近くの駅・バス停を選ばせます。
 
 test("まず位置で聞き、引けたら停留所名では聞かない", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 38, rideMinutes: 21, waitMinutes: 5,
     summary: "10:05 発→ 10:43 着 38分",
     meta: { departure: "10:05", arrival: "10:43", transfers: 1, fareYen: 460,
@@ -935,7 +935,7 @@ test("まず位置で聞き、引けたら停留所名では聞かない", () =>
   }));
 
 test("位置を受け取らない中継なら、停留所名で聞き直す", () =>
-  withYahoo(CLUSTER, () => ({
+  withTransit(CLUSTER, () => ({
     routed: true, minutes: 14, rideMinutes: 14, waitMinutes: 0,
     summary: "10:05 発→ 10:19 着 14分",
   }), async (asked) => {

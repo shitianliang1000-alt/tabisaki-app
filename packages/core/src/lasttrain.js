@@ -100,7 +100,7 @@ export function lastTrainNote(last, planned = {}) {
   const margin = marginMinutes(planned.departure, dep);
   const head = `${to}最終は、${where}${dep} 発です${tail}。`;
   // 出どころを必ず添えます。ダイヤそのものを持っているわけではありません。
-  const src = "（Yahoo!路線情報の終電検索より。遅延は含みません）";
+  const src = "（乗り換え検索の終電検索より。遅延は含みません）";
 
   if (margin == null) return { level: "ok", marginMin: null, text: head + src };
   if (margin < 0) {
@@ -139,7 +139,7 @@ function fmtSpan(min) {
  * 終電が要るのは帰りの1本だけです。日中の乗り継ぎに終電を書いても、
  * 読むものが増えるだけで、決めかたは変わりません。
  *
- * 歩きと運転は外します（終電がありません）。調べた便（yahoo）が
+ * 歩きと運転は外します（終電がありません）。調べた便（transitDoc）が
  * 付いていないものも外します。**どの駅から乗るのかが分からないと、
  * 終電も聞けません**（「出雲大社」の終電はありません。乗るのは
  * 「出雲大社前駅」です）。
@@ -147,7 +147,7 @@ function fmtSpan(min) {
 export function lastRideOf(day) {
   const rides = (day?.items ?? []).filter((i) =>
     i.kind === "transit" && !i.walk && i.drive !== true
-    && i.yahoo?.departure);
+    && (i.transitDoc ?? i.yahoo)?.departure);
   return rides.length ? rides.at(-1) : null;
 }
 
@@ -159,7 +159,8 @@ export function lastRideOf(day) {
  * 同じ経路の終電が返ります。
  */
 export function stationsOf(item) {
-  const legs = Array.isArray(item?.yahoo?.legs) ? item.yahoo.legs : [];
+  const doc = item?.transitDoc ?? item?.yahoo;
+  const legs = Array.isArray(doc?.legs) ? doc.legs : [];
   const from = legs[0]?.from ?? null;
   const to = legs.at(-1)?.to ?? null;
   return from && to ? { from, to } : null;
@@ -203,7 +204,7 @@ export async function attachLastTrain(itin, ask, opts = {}) {
     }
     if (!res?.routed || !res?.meta?.departure) continue;
     const note = lastTrainNote(res.meta, {
-      departure: ride.yahoo.departure,
+      departure: (ride.transitDoc ?? ride.yahoo).departure,
       station: st.from,
       to: st.to,
     });

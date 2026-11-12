@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  describeTransit, summarizeTransitLeg, summarizeYahooRoute, transitFieldMask,
+  describeTransit, summarizeTransitLeg, summarizeTransitRoute, transitFieldMask,
 } from "../packages/core/src/transit.js";
 
 /** 大阪 → 京都（乗り換え1回）を模した応答。 */
@@ -192,7 +192,7 @@ const KYOTO_GINKAKUJI = {
 };
 
 test("Yahoo!の経路から、乗るバスと乗り場を手順にする", () => {
-  const t = summarizeYahooRoute(KYOTO_GINKAKUJI, { walkA: 5, walkB: 3 });
+  const t = summarizeTransitRoute(KYOTO_GINKAKUJI, { walkA: 5, walkB: 3 });
   assert.deepEqual(t.segments.map((s) => s.kind),
     ["walk", "ride", "walk", "wait", "ride", "walk"]);
   const bus = t.segments.filter((s) => s.kind === "ride")[1];
@@ -212,16 +212,16 @@ test("Yahoo!の経路から、乗るバスと乗り場を手順にする", () =>
 });
 
 test("Yahoo!の区間が無ければ手順は作らない（作り話をしない）", () => {
-  assert.equal(summarizeYahooRoute({ legs: [] }), null);
-  assert.equal(summarizeYahooRoute(null), null);
+  assert.equal(summarizeTransitRoute({ legs: [] }), null);
+  assert.equal(summarizeTransitRoute(null), null);
   // 歩くだけの答えは、乗る手順になりません
-  assert.equal(summarizeYahooRoute({ legs: [
+  assert.equal(summarizeTransitRoute({ legs: [
     { from: "祇園", to: "京都", departure: "10:00", arrival: "10:20",
       minutes: 20, line: "徒歩" }] }), null);
 });
 
 test("保存した旅程を開き直しても、手順の時刻が読める", () => {
-  const t = summarizeYahooRoute(KYOTO_GINKAKUJI);
+  const t = summarizeTransitRoute(KYOTO_GINKAKUJI);
   const revived = JSON.parse(JSON.stringify(t));
   assert.deepEqual(describeTransit(revived), describeTransit(t));
 });

@@ -132,7 +132,7 @@ export function unknownNames(text, known) {
 /** 時刻表・経路の検索で引いた区間か。 */
 function isLookedUp(item) {
   const key = travelSource(item)?.key;
-  return key === "yahoo" || key === "routes";
+  return key === "transit" || key === "routes";
 }
 
 // 「特急まぼろし号」のように号で終わるなら、ひらがなも名前のうちです。

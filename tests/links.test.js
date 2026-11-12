@@ -47,7 +47,7 @@ test("スポットのリンクに、公式サイトと電話が並ぶ", () => {
 });
 
 test("駅は名前で地図に渡す（座標だと知らない建物から始まる）", async () => {
-  const { directionsUrl, yahooTransitUrl } = await import("../js/links.js");
+  const { directionsUrl } = await import("../js/links.js");
   const nan = { name: "難波駅", lat: 34.6659, lng: 135.5015 };
   const sumi = { name: "住吉大社", lat: 34.61251, lng: 135.49293 };
   const u = new URL(directionsUrl(nan, sumi));
@@ -55,14 +55,8 @@ test("駅は名前で地図に渡す（座標だと知らない建物から始�
   // スポットの座標は正確なので、そのまま。
   assert.equal(u.searchParams.get("destination"), "34.61251,135.49293");
 
-  const y = new URL(yahooTransitUrl(nan, sumi, new Date("2026-10-11T06:36:00")));
-  assert.equal(y.searchParams.get("from"), "難波駅");
-  assert.equal(y.searchParams.get("flatlon"), "34.665900,135.501500");
-  assert.equal(y.searchParams.get("hh"), "06");
-  assert.equal(y.searchParams.get("m1"), "3");
-  assert.equal(y.searchParams.get("m2"), "6");
-
   const links = linksForItem({ kind: "transit", start: new Date("2026-10-11T06:36:00") },
     { from: nan, to: sumi });
-  assert.ok(links.some((l) => /Yahoo/.test(l.label)), "実際の便を調べるリンクがありません");
+  assert.ok(links.some((l) => l.url.includes("google.com/maps/dir")), "Google マップの経路リンクがありません");
+  assert.ok(!links.some((l) => /Yahoo/.test(l.label)), "Yahoo!へのリンクが残っています");
 });

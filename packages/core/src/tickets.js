@@ -170,7 +170,8 @@ export function ridesByOperator(day) {
   const count = new Map();
   for (const item of day?.items ?? []) {
     if (item.kind !== "transit") continue;
-    const legs = Array.isArray(item.yahoo?.legs) ? item.yahoo.legs : [];
+    const doc = item.transitDoc ?? item.yahoo;
+    const legs = Array.isArray(doc?.legs) ? doc.legs : [];
     for (const leg of legs) {
       const op = operatorOf(leg?.line);
       if (!op) continue;
@@ -213,8 +214,9 @@ export function attachTickets(itin) {
   for (const day of itin?.days ?? []) {
     for (const item of day?.items ?? []) {
       if (item.kind !== "transit") continue;
-      const lines = Array.isArray(item.yahoo?.legs)
-        ? item.yahoo.legs.map((l) => l?.line) : [];
+      const doc = item.transitDoc ?? item.yahoo;
+      const lines = Array.isArray(doc?.legs)
+        ? doc.legs.map((l) => l?.line) : [];
       // 同じ断り書きを2つ出しません（乗換で新幹線を2本乗り継いでも、
       // 特急券の話は1回で足ります）。
       const seen = new Set();

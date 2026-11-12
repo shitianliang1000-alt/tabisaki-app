@@ -63,7 +63,7 @@ import { attachAccess } from "./access.js";
 import { attachLastTrain } from "./lasttrain.js";
 import { attachTickets } from "./tickets.js";
 import { getProvider } from "./providers.js";
-import { yahooFlags } from "./modes.js";
+import { transitFlags } from "./modes.js";
 import { nearestStop } from "./stops.js";
 import { eventNotesFor } from "./events.js";
 import { attachLuggage, luggagePlanFor } from "./luggage.js";
@@ -1011,7 +1011,7 @@ async function assembleTrip({ trip, kb, onProgress = () => {},
     try {
       return await getProvider("routing").search(from, to, {
         departAt: when, search: "last",
-        modes: yahooFlags(trip.transport ?? "any"),
+        modes: transitFlags(trip.transport ?? "any"),
         signal: opts.signal,
       });
     } catch {
@@ -2338,15 +2338,15 @@ export function overBudgetSpots(itin, cap) {
 /**
  * 電車・バスの時刻の出どころ。
  *
- * Yahoo!路線情報の検索結果を読んで組み立てています。公式の乗換案内では
- * ないので、ダイヤの改正や臨時の運休は反映されないことがあります。
+ * 乗り換え検索（ls8h 等）の結果を読んで組み立てています。公式の乗換案内
+ * ではないので、ダイヤの改正や臨時の運休は反映されないことがあります。
  * 現地で乗り遅れるのは利用者なので、出どころは書いておきます。
  */
 function transitSourceNote(itin) {
   const routed = (itin?.days ?? []).flatMap((d) => d.items ?? [])
-    .some((i) => i.kind === "transit" && i.routed && i.yahoo);
+    .some((i) => i.kind === "transit" && i.routed && (i.transitDoc ?? i.yahoo));
   if (!routed) return [];
-  return ["電車・バスの時刻はYahoo!路線情報の検索結果です。"
+  return ["電車・バスの時刻は乗り換え検索の結果です。"
     + "出発前に、公式の乗換案内でもう一度お確かめください。"];
 }
 

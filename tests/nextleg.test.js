@@ -25,7 +25,7 @@ const ride = (o) => ({
   id: o.id, kind: "transit", title: o.title ?? "移動",
   start: at(o.start), end: at(o.end ?? o.start),
   walk: o.walk, drive: o.drive,
-  yahoo: o.yahoo === null ? null : {
+  transitDoc: o.transitDoc === null ? null : {
     departure: o.departure ?? o.start,
     legs: (o.legs ?? [["出雲大社前", "電鉄出雲市"]])
       .map(([from, to, line]) => ({ from, to, line })),
@@ -102,7 +102,7 @@ test("同じ便なら、予定どおりと書く", () => {
   assert.equal(n.shiftMin, 0);
   assert.match(n.text, /出雲大社前 13:52 発/);
   assert.match(n.text, /予定どおり/);
-  assert.match(n.text, /Yahoo!路線情報/);
+  assert.match(n.text, /乗り換え検索でいま引き直しました/);
   assert.match(n.text, /遅延は含みません/);
 });
 

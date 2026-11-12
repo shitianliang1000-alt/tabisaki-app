@@ -354,7 +354,7 @@ test("旅程に出る時刻と、調べた便の時刻がそろう", async () =>
   const real = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     const u = String(url);
-    // 乗り換えは中継の /transit（古い中継なら /yahoo/transit）へ聞きます。
+    // 乗り換えは中継の /transit へ聞きます。
     if (!/\/transit$/.test(u)) {
       const path = u.startsWith("file:")
         ? new URL(u).pathname
@@ -395,16 +395,16 @@ test("旅程に出る時刻と、調べた便の時刻がそろう", async () =>
       kb,
     });
     const moves = itin.days.flatMap((d) => d.items)
-      .filter((i) => i.kind === "transit" && i.yahoo?.departure);
+      .filter((i) => i.kind === "transit" && i.transitDoc?.departure);
     assert.ok(moves.length, "時刻の入った移動がありません");
     for (const m of moves) {
-      const [h, min] = m.yahoo.departure.split(":").map(Number);
+      const [h, min] = m.transitDoc.departure.split(":").map(Number);
       const shown = new Date(m.start);
       const gap = Math.abs((h * 60 + min)
         - (shown.getHours() * 60 + shown.getMinutes()));
       assert.ok(gap <= 30,
         `${m.title}: 行は ${hhmm(shown)} なのに、`
-        + `調べたのは ${m.yahoo.departure} の便です`);
+        + `調べたのは ${m.transitDoc.departure} の便です`);
     }
   } finally {
     globalThis.fetch = real;

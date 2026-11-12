@@ -101,7 +101,7 @@ function descriptionOf(item) {
   if (item.detail) parts.push(String(item.detail));
   if (item.kind === "transit") {
     if (item.taxi) parts.push("近くに駅・バス停が無いため、タクシーを想定した目安です。");
-    else if (item.yahoo) parts.push("Yahoo!路線情報で調べた実際の便です。");
+    else if (item.transitDoc ?? item.yahoo) parts.push("乗り換え検索で調べた実際の便です。");
     else if (!item.routed) parts.push("距離からの目安です。実際の便は時刻表でご確認ください。");
   }
   if (item.kind === "spot" && item.estimated) {

@@ -216,7 +216,7 @@ const SHELL_FILES = [
   "./packages/core/src/trip.js",
   "./packages/core/src/verify.js",
   "./packages/core/src/weather.js",
-  "./packages/core/src/yahoo-transit.js",
+  "./packages/core/src/transit-search.js",
 ];
 
 self.addEventListener("install", (e) => {

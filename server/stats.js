@@ -27,7 +27,7 @@ export const MAX_EDITS = 500;
 
 /** 数えるときの入口の名前。これ以外は「other」にまとめます。 */
 export const ENDPOINTS = ["/gemini/generate", "/gemini/embed", "/gemini/models",
-  "/routes", "/cf/generate", "/yahoo/transit", "/transit", "/web/search", "/metrics"];
+  "/routes", "/cf/generate", "/transit", "/web/search", "/metrics"];
 
 // 書き込みは、まとめてから行います。
 // Durable Object（SQLite）の無料枠は、書き込む行の数が1日10万行までです。

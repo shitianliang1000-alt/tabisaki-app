@@ -131,13 +131,13 @@ test("収録の時刻表にある列車名と、乗換検索で引いた区間�
     { id: "t1", kind: "transit", start: at(9), end: at(12), title: "東京駅 → 出雲市駅",
       detail: "サンライズ出雲・東京 21:50発", routed: false },
     { id: "t2", kind: "transit", start: at(13), end: at(14), title: "京都駅 → 清水寺",
-      detail: "のぞみ123号", routed: true, yahoo: { departure: "13:00" } },
+      detail: "のぞみ123号", routed: true, transitDoc: { departure: "13:00" } },
   ]), { kb: kbOf() });
   const [a, b] = itin.days[0].items;
   assert.match(a.detail, /サンライズ出雲/);
   assert.match(b.detail, /のぞみ123号/);
   assert.equal(b.grounding.status, "verified");
-  assert.equal(b.grounding.source, "yahoo");
+  assert.equal(b.grounding.source, "transit");
 });
 
 // --- AIの文 -------------------------------------------------------------------

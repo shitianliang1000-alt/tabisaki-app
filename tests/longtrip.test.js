@@ -47,8 +47,8 @@ test("2周目は、動いた区間だけ聞き直す", async () => {
     asked.push(body);
     return { ok: true, json: async () => RIDE(body) };
   };
-  const was = TUNING.maxYahooRequests;
-  TUNING.maxYahooRequests = 60;
+  const was = TUNING.maxTransitSearchRequests;
+  TUNING.maxTransitSearchRequests = 60;
   clearRouteCache(); resetRoutesBreaker(); resetTransitPacing(); resetStopsCache();
   try {
     const pts = trip(40);
@@ -67,7 +67,7 @@ test("2周目は、動いた区間だけ聞き直す", async () => {
       `2周目: ${r2.legs.filter((l) => l.routed).length}区間`);
   } finally {
     globalThis.fetch = real;
-    TUNING.maxYahooRequests = was;
+    TUNING.maxTransitSearchRequests = was;
     clearRouteCache(); resetStopsCache();
   }
 });

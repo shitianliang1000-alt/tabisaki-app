@@ -667,7 +667,7 @@ test("往路は、実際に乗れる便の時刻から始まる", () => {
       outbound: {
         minutes: 355, rideMinutes: 230, waitMinutes: 125, routed: true,
         line: "05:00 発→ 08:50 着 3時間50分", shifted: false,
-        yahoo: { departure: "05:00", arrival: "08:50" },
+        transitDoc: { departure: "05:00", arrival: "08:50" },
       },
       inbound: { minutes: 60, routed: false },
     },
@@ -694,7 +694,7 @@ test("待ち時間が無ければ、出発時刻は動かさない", () => {
       outbound: {
         minutes: 230, rideMinutes: 230, waitMinutes: 0, routed: true,
         line: "04:00 発→ 07:50 着 3時間50分",
-        yahoo: { departure: "04:00", arrival: "07:50" },
+        transitDoc: { departure: "04:00", arrival: "07:50" },
       },
       inbound: { minutes: 60, routed: false },
     },
@@ -901,7 +901,7 @@ test("拠点を移す区間も、調べた結果があれば実測として出�
     // 区間の中身は引ける、という状況。
     legDetail: (a, b) => (a === from && b === to
       ? { routed: true, line: "09:00 発→ 10:40 着 1時間40分",
-          yahoo: { departure: "09:00", arrival: "10:40" } }
+          transitDoc: { departure: "09:00", arrival: "10:40" } }
       : null),
     legs: { outbound: { minutes: 60, routed: false },
             inbound: { minutes: 60, routed: false } },
@@ -911,7 +911,7 @@ test("拠点を移す区間も、調べた結果があれば実測として出�
   assert.ok(move, "拠点の移動が見つかりません");
   assert.equal(move.routed, true, "調べてあるのに推定と出しています");
   assert.match(move.detail, /09:00 発/);
-  assert.ok(move.yahoo, "時刻表から取ったことが残っていません");
+  assert.ok(move.transitDoc, "時刻表から取ったことが残っていません");
 });
 
 // --- 区間ごとに調べた結果を、そのまま出す ---------------------------------
@@ -943,7 +943,7 @@ test("区間ごとに調べた便を、その区間の印と一行に出す", ()
     (a?.id === "s1" && b?.id === "s2")
       ? { minutes: 12, routed: true,
           line: `${dep}発→${arr}着（12分）・乗換なし・180円`,
-          yahoo: { departure: dep, arrival: arr } }
+          transitDoc: { departure: dep, arrival: arr } }
       : null;
   const itin = buildItinerary({
     trip, region: REGION, visits: v.visits, reasons: new Map(), legDetail,
@@ -955,16 +955,16 @@ test("区間ごとに調べた便を、その区間の印と一行に出す", ()
   assert.ok(hit, "寺Bへの移動がありません");
   assert.equal(hit.routed, true,
     "引けた区間なのに「目安」の印のままです");
-  assert.ok(hit.yahoo, "調べた便の中身が渡っていません");
+  assert.ok(hit.transitDoc, "調べた便の中身が渡っていません");
   assert.match(hit.detail, new RegExp(`${dep}発`),
     "調べた時刻ではなく「移動約◯分」のままです");
   // 引けていない区間は、印も中身も付けません。
   const miss = moves.find((i) => i.to?.id === "s3");
   assert.equal(miss?.routed, false);
-  assert.equal(miss?.yahoo, null);
+  assert.equal(miss?.transitDoc, null);
 });
 
-test("往路がYahoo!の答えなら、Googleの経路とは書かない", () => {
+test("往路が乗り換え検索の答えなら、Googleの経路とは書かない", () => {
   const trip = makeTrip({ origin: TOKYO, departAt: d("2026-09-12T09:00"),
                           arriveBy: d("2026-09-12T19:00") });
   const v = verifyOrder(spots, {
@@ -976,13 +976,13 @@ test("往路がYahoo!の答えなら、Googleの経路とは書かない", () =>
     legs: {
       outbound: { minutes: 91, routed: true,
                   line: "09:38発→11:09着（1時間31分）・乗換1回・1,174円",
-                  yahoo: { departure: "09:38", arrival: "11:09" } },
+                  transitDoc: { departure: "09:38", arrival: "11:09" } },
       inbound: { minutes: 60, routed: false },
     },
   });
   const out = itin.days[0].items.find((i) => i.kind === "transit");
-  assert.ok(out.yahoo, "往路に調べた便の中身が渡っていません");
-  assert.match(out.reason, /Yahoo/);
+  assert.ok(out.transitDoc, "往路に調べた便の中身が渡っていません");
+  assert.match(out.reason, /乗り換え検索で調べた実際の便/);
 });
 
 test("行より前の便は、出さない（調べたときの時刻のまま残っている）", () => {
@@ -999,7 +999,7 @@ test("行より前の便は、出さない（調べたときの時刻のまま�
     (a?.id === "s1" && b?.id === "s2")
       ? { minutes: 12, routed: true,
           line: "04:00発→04:12着（12分）・乗換なし・180円",
-          yahoo: { departure: "04:00", arrival: "04:12" } }
+          transitDoc: { departure: "04:00", arrival: "04:12" } }
       : null;
   const itin = buildItinerary({
     trip, region: REGION, visits: v.visits, reasons: new Map(), legDetail,
@@ -1013,7 +1013,7 @@ test("行より前の便は、出さない（調べたときの時刻のまま�
   assert.match(hit.detail, /約\d+分/, "所要時間も出ていません");
   assert.equal(hit.routed, false,
     "合っていない便なのに「時刻表」の印が付いています");
-  assert.equal(hit.yahoo, null);
+  assert.equal(hit.transitDoc, null);
 });
 
 test("行より後の便は、そのまま出す（それは待ち時間）", () => {
@@ -1027,7 +1027,7 @@ test("行より後の便は、そのまま出す（それは待ち時間）", ()
     (a?.id === "s1" && b?.id === "s2")
       ? { minutes: 20, rideMinutes: 12, waitMinutes: 8, routed: true,
           line: "18:00発→18:12着（12分）・乗換なし・180円",
-          yahoo: { departure: "18:00", arrival: "18:12" } }
+          transitDoc: { departure: "18:00", arrival: "18:12" } }
       : null;
   const itin = buildItinerary({
     trip, region: REGION, visits: v.visits, reasons: new Map(), legDetail,
@@ -1116,7 +1116,7 @@ test("駅まで歩く時間から、行を始める", () => {
   const legDetail = (a, b) => ((a?.id === "s1" && b?.id === "s2")
     ? { minutes: 20, rideMinutes: 5, waitMinutes: 4, walkA: 6, walkB: 8,
         routed: true, line: `${hm(dep)}発→…着（5分）`,
-        yahoo: { departure: hm(dep), arrival: hm(dep) } }
+        transitDoc: { departure: hm(dep), arrival: hm(dep) } }
     : null);
   const itin = buildItinerary({
     trip, region: REGION, visits: v.visits, reasons: new Map(), legDetail,
