@@ -194,7 +194,7 @@ test("使えるもの: キーが無ければ有料の API は使わない。ls8h
 });
 
 test("順番: TRANSIT_ORDER で変えられ、知らない名前は捨てる", () => {
-  assert.deepEqual(orderFrom({}), ["otp", "ls8h", "ekispert", "navitime", "here", "transitous"]);
+  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "ls8h", "transitous"]);
   assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,ls8h" }), ["transitous", "ls8h"]);
   const st = providerStatus({ HERE_API_KEY: "x" });
   assert.equal(st.providers.find((p) => p.name === "here").available, true);
@@ -224,7 +224,7 @@ test("自動: 終電は、終電を探せるものだけに聞く（ls8h が答�
   assert.equal(out.provider, "ls8h");
   assert.equal(calls.length, 1);
   assert.match(calls[0], /api\.transit\.ls8h\.com/);
-  assert.match(calls[0], /type=arrival/);
+  assert.match(calls[0], /type=last/);
 });
 
 test("自動: 相手が断っても、次の API で引く", async () => {
@@ -469,7 +469,7 @@ test("ls8h: 位置が無いときは、名前から駅を探して ID で聞く"
 });
 
 
-test("ls8h: 終電では、途中で始発まで待つ候補を落とす", () => {
+test("ls8h: 終電の候補は、API が返したものをそのまま読みます", () => {
   const leg = (routeName, from, to, dep, arr) => ({
     kind: "transit", routeName, mode: "rail",
     from: { id: "a", name: from }, to: { id: "b", name: to },
@@ -477,23 +477,15 @@ test("ls8h: 終電では、途中で始発まで待つ候補を落とす", () =>
   });
   const H = 3600;
   const data = { journeys: [
-    // 東京 24:46 発 → 田町で 3時間44分待ち → 新宿 29:03 着（実測した形）
     { departureSecs: 24 * H + 46 * 60, arrivalSecs: 29 * H + 3 * 60,
       durationSecs: 15420, transferCount: 1,
       legs: [leg("山手線（外回り）", "東京", "田町", 24 * H + 46 * 60, 24 * H + 55 * 60),
              leg("山手線（外回り）", "田町", "新宿", 28 * H + 39 * 60, 29 * H + 3 * 60)] },
-    // まともな終電: 東京 24:40 発 → 新宿 25:14 着
     { departureSecs: 24 * H + 40 * 60, arrivalSecs: 25 * H + 14 * 60,
       durationSecs: 2040, transferCount: 0,
       legs: [leg("中央線", "東京", "新宿", 24 * H + 40 * 60, 25 * H + 14 * 60)] },
   ] };
-  const q = Q({ search: "last" });
-  const routes = readLs8h(data, q);
-  assert.equal(routes.length, 1);
-  assert.equal(routes[0].departure, "24:40");
-  const out = choose(routes, q, { provider: "ls8h" });
-  assert.equal(out.routed, true);
-  assert.equal(out.meta.departure, "24:40");
-  // 出発検索では、この候補も「引けた経路」として残します
+  // 候補の取捨はしません（Yahoo! の終電検索を ls8h に置き換えただけです）
+  assert.equal(readLs8h(data, Q({ search: "last" })).length, 2);
   assert.equal(readLs8h(data, Q()).length, 2);
 });

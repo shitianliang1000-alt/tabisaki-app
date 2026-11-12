@@ -1,12 +1,11 @@
 // 中継が「終電」を聞けるか。
 //
-// 終電は ls8h Transit API で引きます（Yahoo!路線情報のスクレイピングは
-// 廃止。#367）。type=last は途中で始発まで待つ候補を返すことがあるので、
-// 「27:00 までに着く」到着検索を主に使います。
+// 終電は ls8h Transit API の type=last で引きます（Yahoo!路線情報の
+// スクレイピングは廃止。#367）。
 //
 // ここで確かめたいのは2つです。
 //
-//   ① 終電のときだけ到着検索（type=arrival・27:00）を使うこと
+//   ① 終電のときだけ type=last で聞くこと
 //   ② 終電では「いちばん早く着く便」ではなく「いちばん遅く出る便」を
 //      採ること。取り違えると、2分早い嘘になります
 
@@ -65,7 +64,7 @@ const BASE = {
   departAt: "2026-10-30T18:00:00+09:00",
 };
 
-test("終電: 到着検索で聞き、いちばん遅く出る便を採る", async () => {
+test("終電: type=last で聞き、いちばん遅く出る便を採る", async () => {
   const calls = [];
   const restore = stubFetch(calls);
   try {
@@ -78,8 +77,8 @@ test("終電: 到着検索で聞き、いちばん遅く出る便を採る", asy
     assert.equal(calls.length, 1);
     const u = new URL(calls[0]);
     assert.equal(u.host, "api.transit.ls8h.com");
-    assert.equal(u.searchParams.get("type"), "arrival");
-    assert.equal(u.searchParams.get("time"), "27:00");
+    assert.equal(u.searchParams.get("type"), "last");
+    assert.equal(u.searchParams.get("time"), "18:00");
     assert.equal(u.searchParams.get("date"), "20261030");
   } finally { restore(); }
 });

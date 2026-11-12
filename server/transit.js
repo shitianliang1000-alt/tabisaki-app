@@ -26,7 +26,7 @@
 const TIMEOUT_MS = 20_000;
 const UA = "Tabisaki/1.0 (+https://github.com/shitianliang1000-alt/tabisaki-app)";
 
-export const PROVIDERS = ["otp", "ls8h", "ekispert", "navitime", "here", "transitous"];
+export const PROVIDERS = ["otp", "ekispert", "navitime", "here", "ls8h", "transitous"];
 export const DEFAULT_ORDER = PROVIDERS;
 
 export const LABELS = {
@@ -644,20 +644,7 @@ export function clockOfSecs(secs) {
 }
 
 export function readLs8h(data, q) {
-  let journeys = data?.journeys ?? [];
-  if (q.search === "last") {
-    // 終電では「出発地をいちばん遅く出る候補」を返すことがあり、途中の駅で
-    // 始発まで何時間も待つ候補が混ざります（実測: 東京 24:46 発→田町で
-    // 3時間44分待ち→新宿 29:03 着）。それを終電として見せるわけには
-    // いかないので、乗り換えの待ちが2時間を超える候補は落とします。
-    journeys = journeys.filter((j) => {
-      const legs = j.legs ?? [];
-      for (let i = 1; i < legs.length; i++) {
-        if (legs[i].departureSecs - legs[i - 1].arrivalSecs > 7200) return false;
-      }
-      return true;
-    });
-  }
+  const journeys = data?.journeys ?? [];
   const routes = journeys.map((j) => {
     const legs = (j.legs ?? []).map((l) => {
       if (l.kind === "walk") {
@@ -742,13 +729,6 @@ async function ls8h(q, env, fetchImpl) {
     return readLs8h(data, q);
   };
   if (q.search === "last") {
-    // type=last は「出発地をいちばん遅く出る候補」を優先し、途中の駅で
-    // 始発まで待つ候補しか返らないことがあります（実測: 東京→新宿）。
-    // まず「27:00 までに着く」到着検索で完走できる候補を引き、無ければ
-    // type=last に切り替えます（どちらも readLs8h の待ち時間チェックで
-    // 完走できない候補は落とします）。
-    const byArrival = await plan("arrival", "27:00");
-    if (byArrival.length) return { routes: byArrival, url: null };
     return { routes: await plan("last", `${t.hh}:${t.mm}`), url: null };
   }
   return { routes: await plan("departure", `${t.hh}:${t.mm}`), url: null };
