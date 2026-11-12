@@ -65,9 +65,12 @@ Web 版と同じエンジン（`packages/core/src/`）で組むので、AI を�
   "days": [
     { "n": 1, "date": "…", "items": [
       { "kind": "spot", "start": "…", "end": "…", "title": "MOA美術館", "detail": "…",
-        "hours": "09:00〜16:00・最終入場 15:30", "estimated": false, "km": null }
+        "hours": "09:00〜16:00・最終入場 15:30", "estimated": false, "km": null,
+        "sources": ["wikipedia", "wikidata", "tabisaki_original"] }
     ] }
-  ]
+  ],
+  "license_summary": { "schema": "tabisaki.license-summary/1", "sources": [ … ], "licenses": [ … ],
+                       "shareAlike": ["wikipedia"], "attribution": ["Wikipedia の執筆者（CC BY-SA 4.0）"], "complete": true }
 }
 ```
 

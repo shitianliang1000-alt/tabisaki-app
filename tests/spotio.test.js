@@ -14,7 +14,8 @@ const SPOTS = [
 
 test("CSV: 引用符・改行入りの欄・CRLF・BOM を読み、同じ中身に戻る", () => {
   const csv = formatSpots(SPOTS, "csv");
-  assert.equal(csv.split("\r\n")[0], CSV_COLUMNS.join(","));
+  // 最後の列 sources は、その行のデータの出どころです（#426。取り込みでは読みません）。
+  assert.equal(csv.split("\r\n")[0], [...CSV_COLUMNS, "sources"].join(","));
   const r = parseSpots("﻿" + csv, { format: "csv" });
   assert.deepEqual(r.bad, []);
   assert.equal(r.ok.length, 2);

@@ -4,6 +4,7 @@
 // スポットの名前など、収録データの文は原文のままです。
 
 import { i18nFor } from "./locales.mjs";
+import { attributionText, itineraryLicenseSummary, sourcesOf, spotOfItem } from "./src/provenance.js";
 
 const ja = i18nFor("ja");
 export const hm = ja.time;
@@ -22,6 +23,8 @@ export function rows(itinerary) {
       hours: it.kind === "spot" ? (it.hoursText ?? "") : "",
       estimated: Boolean(it.estimated),
       km: it.kind === "transit" && Number.isFinite(it.km) ? it.km : null,
+      // どこから来たデータか（#426）。収録の1件が付いている行にだけ出ます。
+      ...(spotOfItem(it) ? { sources: sourcesOf(spotOfItem(it)) } : {}),
     })),
   }));
 }
@@ -60,6 +63,9 @@ export function toMarkdown({ request, itinerary, ai }, { lang } = {}) {
   const warn = [...(itinerary.warnings ?? []), ...(itinerary.hoursWarnings ?? [])].map((w) => (typeof w === "string" ? w : w?.message)).filter(Boolean);
   if (warn.length) out.push(`## ${i.t("plan.warnings")}`, "", ...warn.map((w) => `- ${w}`), "");
   out.push("---", "", i.t("plan.footer"));
+  // 出典は、使ったデータから自動で付けます（#426）。
+  const credit = attributionText(itineraryLicenseSummary(itinerary, { lang: i.lang }), { lang: i.lang });
+  if (credit) out.push("", credit);
   return out.join("\n") + "\n";
 }
 
@@ -71,6 +77,8 @@ export function toPlainText({ request, itinerary, ai }, { lang } = {}) {
     out.push("", day.date ? i.t("plan.dayPlain", { n: day.n, date: i.date(day.date) }) : i.t("plan.day", { n: day.n }));
     for (const it of day.items) out.push(`  ${i.time(it.start)}  ${it.title}`);
   }
+  const credit = attributionText(itineraryLicenseSummary(itinerary, { lang: i.lang }), { lang: i.lang });
+  if (credit) out.push("", credit);
   return out.join("\n") + "\n";
 }
 
@@ -86,5 +94,7 @@ export function toJson({ request, itinerary, ai }) {
     totalCostYen: itinerary.totalCostYen ?? null,
     ...(ai ? { ai } : {}),
     days: rows(itinerary),
+    // 使ったデータの出どころ・ライセンス・書くべき表記（#426）。
+    license_summary: itineraryLicenseSummary(itinerary),
   }, null, 2) + "\n";
 }

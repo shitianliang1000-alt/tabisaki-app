@@ -6,6 +6,7 @@
 
 import { APP_ROOT } from "./root.js";
 import { applyOsmHours } from "./osm_hours.js";
+import { joinSources } from "./provenance.js";
 import { KB_INDEX_URL } from "./config.js";
 import { drivingAppeal } from "./touring.js";
 import { accessAppeal } from "./access.js";
@@ -291,7 +292,9 @@ export async function loadKnowledgeBase(onProgress, signal, pre = null) {
     // 出どころがシャード側にまとめて書かれていることがあります
     // （同じ文字列を全行に書くと、それだけで100KBを超えるため）。
     const from = doc.dataSource;
-    for (const spot of doc.spots ?? []) {
+    // 出どころごとに分けた形（#426。provenance.js）で置いてあっても読めます。
+    for (const kept of doc.spots ?? []) {
+      const spot = joinSources(kept);
       // 宿や町の記事は、行き先として並べません（packages/core/src/notaspot.js）。
       // 収録からも外してありますが、取り込み直すと戻るので、ここでも見ます。
       if (whyNotASpot(spot)) { skipped++; continue; }
@@ -401,7 +404,9 @@ export async function ensureShards(kb, files, opts = {}) {
   for (const { file, doc } of docs) {
     const from = doc.dataSource;
     const spots = [];
-    for (const spot of doc.spots ?? []) {
+    // 出どころごとに分けた形（#426。provenance.js）で置いてあっても読めます。
+    for (const kept of doc.spots ?? []) {
+      const spot = joinSources(kept);
       // 休館中のように収録に残してあるものは、外した数を数えておきます
       // （収録◯件と、実際に行ける数の差の説明に使います）。
       if (whyNotASpot(spot)) { kb.skipped = (kb.skipped ?? 0) + 1; continue; }

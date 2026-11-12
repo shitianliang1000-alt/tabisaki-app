@@ -46,7 +46,7 @@
 
 | 形 | 拡張子 | 読む | 書く |
 |---|---|---|---|
-| CSV | `.csv`・`.tsv` | 1行目が列名。カンマかタブ区切り。引用符の中の改行・`""` も読みます | 列は `id,name,lat,lng,category,genres,…`。改行は CRLF |
+| CSV | `.csv`・`.tsv` | 1行目が列名。カンマかタブ区切り。引用符の中の改行・`""` も読みます | 列は `id,name,lat,lng,category,genres,…`、最後に出どころの列 `sources`（取り込みでは読みません。[data-provenance.md](./data-provenance.md)）。改行は CRLF |
 | GeoJSON | `.geojson`・`.json` | `FeatureCollection` の `Point` だけ | `tabisaki.schema` を付けます |
 | KML | `.kml` | Google マイマップの書き出し（`<Placemark>` の `<Point>`）。CDATA も読みます | `ExtendedData` に項目を入れます |
 | JSON | `.json` | 旅さきの `tabisaki.spots/1` | 同じ形 |

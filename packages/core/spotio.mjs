@@ -5,6 +5,7 @@
 // 形の決まりは docs/user-kb.md の「取り込み・書き出し」にあります。
 
 import { SPOT_FIELDS, validateSpot } from "./userkb.mjs";
+import { licenseSummary, sourcesOf } from "./src/provenance.js";
 
 /** 書き出すファイルの形の版。CSV では列の並び、GeoJSON・KML・JSON では中に書きます。 */
 export const EXPORT_SCHEMA = "tabisaki.spots/1";
@@ -15,6 +16,9 @@ export const MAX_ROWS = 20000;
 /** CSV の列。この並びで書き出します（id は書き出しにだけ入り、取り込みでは使いません）。 */
 export const CSV_COLUMNS = ["id", "name", "lat", "lng", "category", "genres", "regionId", "description",
   "address", "url", "wikipedia", "tel", "fame_tier", "dwell", "open", "close", "fee"];
+
+/** 書き出しにだけ付く列（その行のデータの出どころ）。 */
+export const SOURCES_COLUMN = "sources";
 
 // 取り込むときの列名の言いかえ（小文字にしてから引きます）。
 const ALIASES = {
@@ -129,8 +133,11 @@ const csvCell = (v) => {
 };
 
 export function toCsv(spots) {
-  const lines = [CSV_COLUMNS.join(",")];
-  for (const s of spots) lines.push(CSV_COLUMNS.map((c) => csvCell(s[c])).join(","));
+  // 最後の列 sources は、その行のデータの出どころです（#426。例: wikipedia;osm）。
+  // 表には入れ子を書けないので、ライセンスの名前は docs/data-licenses.md の表で引きます。
+  // 取り込みでは読みません（出どころは、取り込む人が決めるものではないためです）。
+  const lines = [[...CSV_COLUMNS, SOURCES_COLUMN].join(",")];
+  for (const s of spots) lines.push([...CSV_COLUMNS.map((c) => csvCell(s[c])), csvCell(sourcesOf(s).join(";"))].join(","));
   return lines.join("\r\n") + "\r\n";
 }
 
@@ -142,7 +149,7 @@ function csvRecords(text) {
   const errors = [];
   if (!fields.includes("name")) errors.push("名前の列（name・名前）がありません");
   if (!fields.includes("lat") || !fields.includes("lng")) errors.push("緯度・経度の列（lat・lng / 緯度・経度）がありません");
-  const unknown = header.filter((h, i) => h && !fields[i]);
+  const unknown = header.filter((h, i) => h && !fields[i] && h !== SOURCES_COLUMN);
   const records = rows.slice(1).map((r, n) => {
     const raw = {};
     fields.forEach((f, i) => {
@@ -162,7 +169,7 @@ function csvRecords(text) {
 export function toGeoJson(spots) {
   return JSON.stringify({
     type: "FeatureCollection",
-    tabisaki: { schema: EXPORT_SCHEMA },
+    tabisaki: { schema: EXPORT_SCHEMA, license_summary: licenseSummary(spots) },
     features: spots.map((s) => {
       const { lat, lng, ...props } = s;
       return { type: "Feature", id: s.id, geometry: { type: "Point", coordinates: [lng, lat] }, properties: props };
@@ -232,7 +239,10 @@ export function toKml(spots) {
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>旅さき ユーザーKB</name>
-    <ExtendedData><Data name="schema"><value>${EXPORT_SCHEMA}</value></Data></ExtendedData>
+    <ExtendedData>
+      <Data name="schema"><value>${EXPORT_SCHEMA}</value></Data>
+      <Data name="license_summary"><value>${xmlEscape(JSON.stringify(licenseSummary(spots)))}</value></Data>
+    </ExtendedData>
 ${marks.join("\n")}
   </Document>
 </kml>
@@ -279,7 +289,7 @@ function kmlRecords(text) {
 // --- JSON（旅さきの形） --------------------------------------------------------------
 
 export function toJson(spots) {
-  return JSON.stringify({ schema: EXPORT_SCHEMA, spots }, null, 2) + "\n";
+  return JSON.stringify({ schema: EXPORT_SCHEMA, license_summary: licenseSummary(spots), spots }, null, 2) + "\n";
 }
 
 function jsonRecords(text) {
