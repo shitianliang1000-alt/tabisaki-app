@@ -169,7 +169,7 @@ test("Markdown・ふつうの文・.ics に、使ったデータの出典が自�
   const first = spotsOfItinerary(result.itinerary).find((s) => attributionText([s]));
   assert.ok(first, "出典の要る場所が旅程にありません");
   // .ics の中では「,」「;」に \ が付きます（RFC 5545）。
-  const esc = (s) => s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,");
+  const esc = (s) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,");
   assert.ok(ics.includes(esc(attributionText([first]))), "予定の説明に出典がありません");
 });
 
