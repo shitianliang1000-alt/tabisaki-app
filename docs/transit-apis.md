@@ -6,14 +6,14 @@
 
 | API | 中継に入れるもの | 費用 | 終電 | 範囲 |
 |---|---|---|---|---|
-| OpenTripPlanner（手元で動かす。[otp.md](otp.md)） | `OTP_URL` | 無料（自分の機械） | × | 読ませた GTFS-JP の範囲だけ。いまは熊本（路線バス・熊本電鉄・熊本市電）。JR は入らない |
+| 自前エンジン（この Worker の中。GTFS-JP を D1（`TRANSIT_DB`）・KV（`TRANSIT_KV`）から引く） | wrangler のバインディング | 無料（自分の Cloudflare） | ○ | 採用地域の GTFS-JP の範囲だけ。v1 は熊本（路線バス・熊本電鉄・熊本市電）。JR は入らない |
 | [駅すぱあと API][1]（Val研究所） | `EKISPERT_API_KEY` | 従量課金。90日の無料試用・フリープランあり | ○ | 全国の鉄道・飛行機・船。バスは契約しだい |
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |
 | [Transitous][4]（MOTIS・GTFS） | 要らない（`TRANSITOUS=off` で止める） | 無料・**非商用だけ** | × | 公開された GTFS のある路線だけ。新幹線と大手私鉄は入っていて、京都市バスや JR 北海道、飛行機は入っていない（2026年10月に確かめた） |
 | [ls8h Transit API][6] | 要らない（`LS8H=off` で止める） | 無料 | ○ | 全国の鉄道・バス（GTFS / ODPT 由来）。フェリーは入っていない。運賃は返らないことが多い。非公式の個人運営 API で、利用条件・継続性は未確認 |
 
-自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → ls8h → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
+自動で試す順番は、`自前エンジン → 駅すぱあと → NAVITIME → HERE → ls8h → Transitous` です（自前エンジンは、両端の座標が採用地域の中のときだけ答えます）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
 
 Yahoo!路線情報のスクレイピングは廃止しました（#367）。鉄道は ls8h が担います。ls8h で経路が組めない区間（フェリー、ls8h 未収録のバスなど）は、アプリ内では目安の時間で組み、旅程の区間にある「経路を開く」から Google マップ（Maps URLs）の公共交通検索へ案内します。
 
@@ -29,10 +29,11 @@ Yahoo!路線情報のスクレイピングは廃止しました（#367）。鉄�
 npx wrangler secret put EKISPERT_API_KEY        # 駅すぱあと
 npx wrangler secret put NAVITIME_RAPIDAPI_KEY   # NAVITIME（RapidAPI の X-RapidAPI-Key）
 npx wrangler secret put HERE_API_KEY            # HERE
-npx wrangler secret put OTP_URL                 # 手元の OpenTripPlanner（HTTPS で届く URL。otp.md）
 npx wrangler secret put TRANSIT_ORDER           # 任意。例: ekispert,navitime,transitous
 npx wrangler secret put LS8H                    # 任意。off で ls8h を止める
 ```
+
+自前エンジンの時刻表は、秘密情報ではなく wrangler のバインディングで入れます。`wrangler.jsonc` の `TRANSIT_DB`（D1）と `TRANSIT_KV`（KV）に、作ったデータベースの ID を書いてください（作り方は `tools/own_convert.py` の冒頭。データは GTFS-JP を `tools/own_convert.py` で変換して入れます）。バインディングが無いあいだ、自前エンジンは「設定なし」として飛ばします。
 
 入っているかは `POST /transit/providers` か `POST /status` の `transit` で確かめられます（キーの値は返しません）。
 
@@ -47,7 +48,7 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
 }'
 ```
 
-`provider` は `auto`（既定）・`otp`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` のどれかです。答えには `provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
+`provider` は `auto`（既定）・`own`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` のどれかです。答えには `provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
 
 本文の `modes`（`al` 飛行機・`shin` 新幹線・`ex` 特急・`hb` 高速バス・`lb` 路線バス・`sr` 船、0 で使わない）と `prefer`（`air`・`ferry`）、`search: "last"`（終電）が使えます。
 
@@ -55,7 +56,7 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
 
 アプリ（`packages/core`）は、乗り換えを中継の `POST /transit` で引きます。どれを使うかは `packages/core/src/config.js` の `TRANSIT_PROVIDER` で決まり、既定の `auto` なら中継が上の順に試します。
 
-旅程の「どこまで確かめたか」と区間の説明には、答えた API の名前（`providerLabel`）が出ます。CLI や組み込みでは、経路の取り口を `transit`（既定・中継に任せる）・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` から選べます（`useProvider("routing", "transitous")`）。
+旅程の「どこまで確かめたか」と区間の説明には、答えた API の名前（`providerLabel`）が出ます。CLI や組み込みでは、経路の取り口を `transit`（既定・中継に任せる）・`own`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` から選べます（`useProvider("routing", "transitous")`）。
 
 ## 各社の決まり
 
