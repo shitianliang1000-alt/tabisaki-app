@@ -15,8 +15,8 @@ const move = (extra) => ({ kind: "transit", ...extra });
 const spot = (extra) => ({ kind: "spot", ...extra });
 
 test("移動の出どころを見分ける", () => {
-  assert.equal(travelSource(move({ routed: true, yahoo: {} })).label,
-               "Yahoo!路線情報");
+  assert.equal(travelSource(move({ routed: true, transitDoc: {} })).label,
+               "乗り換え検索");
   assert.equal(travelSource(move({ routed: true })).label, "Googleの経路");
   assert.equal(travelSource(move({ routed: false })).label, "距離からの推定");
   // 近くに駅・バス停が無い区間は、「調べそこねた区間」とは別ものです。
@@ -30,7 +30,7 @@ test("移動の出どころを見分ける", () => {
 
 test("目安を、もう一度調べて直るものと直らないものに分ける", () => {
   const itin = { days: [{ items: [
-    move({ routed: true, yahoo: {} }),
+    move({ routed: true, transitDoc: {} }),
     move({ routed: false }),                    // 引けなかった → 直ることがある
     move({ routed: false, noTransit: true }),   // 駅もバス停も無い → 直らない
     move({ routed: false, walk: true }),        // 歩き → 目安ではありません
@@ -44,7 +44,7 @@ test("目安を、もう一度調べて直るものと直らないものに分�
 
 test("1区間も目安が無ければ、数は0", () => {
   const e = estimatedTravel({ days: [{ items: [
-    move({ routed: true, yahoo: {} }),
+    move({ routed: true, transitDoc: {} }),
     move({ routed: false, walk: true }),
   ] }] });
   assert.equal(e.total, 0);
@@ -55,8 +55,8 @@ test("全部の裏が取れていれば、星は多い", () => {
   const r = tripReliability({
     slackMin: 200,
     days: [{ items: [
-      move({ routed: true, yahoo: {} }),
-      move({ routed: true, yahoo: {} }),
+      move({ routed: true, transitDoc: {} }),
+      move({ routed: true, transitDoc: {} }),
       spot({ estimated: false }),
       spot({ estimated: false }),
     ] }],
@@ -70,7 +70,7 @@ test("目安のままの区間があれば、そう言う", () => {
   const r = tripReliability({
     slackMin: 200,
     days: [{ items: [
-      move({ routed: true, yahoo: {} }),
+      move({ routed: true, transitDoc: {} }),
       move({ routed: false }),
       spot({ estimated: true }),
     ] }],
@@ -90,7 +90,7 @@ test("目安のままの区間があれば、そう言う", () => {
 test("帰りが危ないときは、星を引く", () => {
   const base = {
     days: [{ items: [
-      move({ routed: true, yahoo: {} }),
+      move({ routed: true, transitDoc: {} }),
       spot({ estimated: false }),
     ] }],
   };
@@ -106,7 +106,7 @@ test("休みに当たりそうなら、そう言う", () => {
     slackMin: 200,
     hoursWarnings: ["◯◯museum: 月曜が休みの可能性"],
     days: [{ items: [
-      move({ routed: true, yahoo: {} }),
+      move({ routed: true, transitDoc: {} }),
       spot({ estimated: false }),
     ] }],
   });
@@ -119,7 +119,7 @@ test("駅もバス停も無い区間は、作り直しを勧めない", () => {
   const r = tripReliability({
     slackMin: 200,
     days: [{ items: [
-      move({ routed: true, yahoo: {} }),
+      move({ routed: true, transitDoc: {} }),
       move({ routed: false, noTransit: true }),
       spot({ estimated: false }),
     ] }],
@@ -156,7 +156,7 @@ test("電車の旅の言いかたは、これまでどおり", () => {
   const r = tripReliability({
     transport: "transit",
     slackMin: 200,
-    days: [{ items: [move({ routed: true, yahoo: {} }), spot({})] }],
+    days: [{ items: [move({ routed: true, transitDoc: {} }), spot({})] }],
   });
   assert.ok(r.checks.find((c) => c.label === "移動時間"));
 });

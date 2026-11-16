@@ -44,7 +44,7 @@ test("拠点を移す区間は、実際に乗れる便の時刻に置かれる",
   const leg = {
     minutes: 85, rideMinutes: 84, waitMinutes: 130, routed: true,
     line: "12:16 発→ 13:40 着 1時間24分",
-    yahoo: { departure: "12:16", arrival: "13:40" },
+    transitDoc: { departure: "12:16", arrival: "13:40" },
   };
   const itin = buildItinerary({
     trip, region: REGION, visits: [], reasons: new Map(),
@@ -79,7 +79,7 @@ test("便に合わせて遅れたぶん、その日の立ち寄りも後ろへ�
     moves: [move],
     legDetail: () => ({
       minutes: 85, rideMinutes: 84, waitMinutes: 130, routed: true,
-      line: "12:16 発→ 13:40 着", yahoo: { departure: "12:16" },
+      line: "12:16 発→ 13:40 着", transitDoc: { departure: "12:16" },
     }),
     legs: { outbound: { minutes: 85, routed: true } },
   });
@@ -291,7 +291,7 @@ test("電車・バスの一行は、発着と乗換と運賃だけにする", as
   resetTransitPacing();
   }
   const line = route.legs[0].line;
-  // 出すのは「乗っている時間」です。yahoo.minutes（30分）は4:00から
+  // 出すのは「乗っている時間」です。transitDoc.minutes（30分）は4:00から
   // 数えた時間で、便を待つ13分を含みます。それを出すと、発着の時刻と
   // 引き算が合いません。
   assert.equal(line, "04:49発→05:19着（17分）・乗換1回・375円", line);

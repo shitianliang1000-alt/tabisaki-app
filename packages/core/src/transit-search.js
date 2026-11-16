@@ -3,7 +3,7 @@ import { effectiveConfig } from "./settings.js";
 import { TRANSIT_PROVIDER } from "./config.js";
 
 /**
- * Yahoo!路線情報の検索をバックエンド経由で実行します。
+ * 乗り換え検索を中継（バックエンド）経由で実行します。
  *
  * 旅程で使うのは「この日、この時刻に出発地を出たら、次に乗れる
  * 公共交通で何時に到着するか」です。日時はそのまま渡します。
@@ -11,7 +11,7 @@ import { TRANSIT_PROVIDER } from "./config.js";
 /**
  * 断られたら、しばらく置いてから。
  *
- * 続けて何度も聞くと、Yahoo!からも中継の回数制限からも断られます（429）。
+ * 続けて何度も聞くと、上流の API からも中継の回数制限からも断られます（429）。
  * そこで**急がず**、失敗したら待ってもう一度、それでも駄目なら
  * しばらく聞かない、という形にします。旅程1つで区間の数だけ聞くので、
  * 断られた直後に残りを投げても、全部断られるだけです。
@@ -26,10 +26,10 @@ const COOLDOWN_MS = 60000;
  * やり直しになるうえ、その間の残りの区間も道連れになります。先に自分で
  * 数えておけば、やり直しそのものが起きません。
  *
- * 中継の枠は2つに分かれていて、電車・バス（Yahoo!）はお金のかからない
+ * 中継の枠は2つに分かれていて、電車・バス（乗り換え検索）はお金のかからない
  * 側です。旅程1本ぶんを止めずに通せる速さにしてあります。
  */
-// 中継のYahoo!の枠は1分600点（1回=1点）です。ここはその内側に収まって
+// 中継の乗り換え検索の枠は1分600点（1回=1点）です。ここはその内側に収まって
 // いれば足ります。旅程1本の30区間ほどを止めずに通せる速さにしつつ、
 // 取り違えて無限に呼んでしまったときの歯止めは残します。
 const PACE_PER_MINUTE = 120;
@@ -47,7 +47,7 @@ async function pace() {
 }
 
 /** テストと、旅程を組み直すときのために、数えた回数を捨てます。 */
-export function resetYahooPace() { sentAt.length = 0; }
+export function resetTransitPace() { sentAt.length = 0; }
 const cooldown = { until: 0, reason: "", retryable: false };
 
 /**
@@ -63,13 +63,13 @@ const cooldown = { until: 0, reason: "", retryable: false };
  * いましたが、そのせいで**前回の旅程で回数制限に当たったまま次を組むと、
  * 1区間目から待てず、全区間が目安**になっていました。
  */
-export function yahooCooldown(now = Date.now()) {
+export function transitCooldown(now = Date.now()) {
   const left = Math.max(0, cooldown.until - now);
   return { waiting: left > 0, seconds: Math.ceil(left / 1000),
            reason: cooldown.reason, retryable: cooldown.retryable };
 }
 
-export function resetYahooCooldown() {
+export function resetTransitCooldown() {
   cooldown.until = 0;
   cooldown.reason = "";
   cooldown.retryable = false;
@@ -77,14 +77,14 @@ export function resetYahooCooldown() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function searchYahooTransit(from, to, opts = {}) {
+export async function searchTransit(from, to, opts = {}) {
   const cfg = effectiveConfig();
   const fromName = String(from?.name ?? from ?? "").trim();
   const toName = String(to?.name ?? to ?? "").trim();
   if (!fromName || !toName) return null;
 
   // 断られた直後は、間を置きます。ここで投げても、また断られます。
-  const wait = yahooCooldown();
+  const wait = transitCooldown();
   if (wait.waiting && !opts.force) {
     const e = new Error(`あと約${wait.seconds}秒お待ちください（${wait.reason}）`);
     e.status = 429;
@@ -97,8 +97,8 @@ export async function searchYahooTransit(from, to, opts = {}) {
   // 以前は、過ぎた日なら「いま」、先すぎる日なら「同じ曜日の来週」に
   // 寄せていました。返ってくるのは別の日の便なので、旅程の時刻と
   // 食い違います（9月6日4:00発の旅程に「14:50発→18:40着」）。
-  // Yahoo!は過ぎた日でもその日のダイヤで答えるので、寄せる必要は
-  // ありませんでした。答えられない日はYahoo!がそう言います。
+  // 上流は過ぎた日でもその日のダイヤで答えるので、寄せる必要は
+  // ありませんでした。答えられない日は上流がそう言います。
   const requested = opts.departAt ? new Date(opts.departAt) : neutralDepartureTime();
   const departAt = Number.isNaN(requested.getTime())
     ? neutralDepartureTime() : requested;
@@ -124,10 +124,10 @@ export async function searchYahooTransit(from, to, opts = {}) {
   const search = opts.search === "last" ? "last" : undefined;
   const provider = String(opts.provider ?? TRANSIT_PROVIDER ?? "auto").trim() || "auto";
 
-  // 位置も渡します（中継が Yahoo!に flatlon / tlatlon として渡します）。
+  // 位置も渡します（中継が各 API の座標の形に直して渡します）。
   // 名前だけだと、同じ名前の別の駅や、駅前の店に読み替えられます
   // （「県庁前」が神戸の駅に、「京都駅前」が飲食店に）。位置があれば、
-  // Yahoo!がその近くの駅・バス停を選び、そこまでの徒歩も数えます。
+  // 上流がその近くの駅・バス停を選び、そこまでの徒歩も数えます。
   // opts.byName を立てると、これまでどおり名前だけで聞きます。
   const at = (p) => (!opts.byName && Number.isFinite(p?.lat) && Number.isFinite(p?.lng)
     ? { lat: p.lat, lng: p.lng } : undefined);
@@ -143,9 +143,8 @@ export async function searchYahooTransit(from, to, opts = {}) {
     // どの乗り換え検索で引くか（中継の POST /transit が選びます）。
     provider,
   });
-  // 中継の /transit で引きます。中継がまだ古く /transit を知らなければ
-  // （404）、これまでの /yahoo/transit で引き直します。
-  let url = endpointFor("transit", {}, cfg);
+  // 中継の /transit で引きます。
+  const url = endpointFor("transit", {}, cfg);
 
   // 待ち時間は差し替えられます（テストで18秒待たないため）。
   const waits = Array.isArray(opts.retryWaits) ? opts.retryWaits : RETRY_WAIT_MS;
@@ -177,13 +176,8 @@ export async function searchYahooTransit(from, to, opts = {}) {
       if (attempt >= 1) break;
       continue;
     }
-    if (res.status === 404 && /\/transit$/.test(url) && !/yahoo\/transit$/.test(url)) {
-      url = endpointFor("yahoo:transit", {}, cfg);
-      attempt--;
-      continue;
-    }
     if (res.ok) {
-      resetYahooCooldown();
+      resetTransitCooldown();
       const doc = await res.json();
       return { ...doc, searchedAt: departAt.toISOString() };
     }
@@ -193,7 +187,7 @@ export async function searchYahooTransit(from, to, opts = {}) {
     // 待つ先が違うので、中継が付けてくれる手がかりごと受け取ります。
     const raw = await res.text().catch(() => "");
     const info = readProxyError(raw, res.status);
-    const err = new Error(info.message || `Yahoo Transit ${res.status}`);
+    const err = new Error(info.message || `乗り換え検索 ${res.status}`);
     err.status = res.status;
     err.code = info.code;
     err.retryable = info.retryable;
@@ -212,7 +206,7 @@ export async function searchYahooTransit(from, to, opts = {}) {
   // ここまで来たら、しばらく聞きません。旅程1つで区間の数だけ聞くので、
   // 断られた直後に残りを投げても、全部断られるだけです。
   hold(lastError);
-  throw lastError ?? new Error("Yahoo!路線情報に接続できませんでした");
+  throw lastError ?? new Error("乗り換え検索に接続できませんでした");
 }
 
 /** しばらく聞かない。区間ごとに同じ壁へぶつかりに行かないためです。 */

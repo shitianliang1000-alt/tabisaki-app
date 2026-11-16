@@ -200,7 +200,7 @@ export function describeTransit(summary, opts = {}) {
  *   停留所までの徒歩（分）。旅程の行はこれを含めて数えています。
  * @returns {object|null} summarizeTransitLeg と同じ形。区間が無ければ null。
  */
-export function summarizeYahooRoute(meta, opts = {}) {
+export function summarizeTransitRoute(meta, opts = {}) {
   const legs = Array.isArray(meta?.legs) ? meta.legs : [];
   if (!legs.length) return null;
   const segments = [];

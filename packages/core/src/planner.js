@@ -36,7 +36,7 @@ const MIN_IDLE_MIN = 60;
 /**
  * その区間で乗る乗り物の種類（packages/core/src/modes.js の classifyLine による）。
  *
- * routes.js の yahooLeg が、調べた経路の路線名から見分けて kinds に
+ * routes.js の transitLeg が、調べた経路の路線名から見分けて kinds に
  * 入れています。preferMet は「指定した乗り物で組めたか」です
  * （フェリーを指定したのに船の便が無かった、など）。
  */
@@ -152,9 +152,9 @@ export function buildItinerary(input) {
     routed: Boolean(legs?.outbound?.routed) && outFits,
     noTransit: legs?.outbound?.noTransit === true,
     taxi: legs?.outbound?.taxi === true,
-    // 調べた便の中身。これを渡していなかったので、Yahoo!で引いた往路が
-    // 画面では「収録データ・Googleの経路」と出ていました。
-    yahoo: outFits ? (legs?.outbound?.yahoo ?? null) : null,
+    // 調べた便の中身。これを渡していなかったので、乗り換え検索で引いた
+    // 往路が画面では「収録データ・Googleの経路」と出ていました。
+    transitDoc: outFits ? (legs?.outbound?.transitDoc ?? null) : null,
     // 何に乗る区間か（飛行機・船・高速バス…）。routes.js が調べた
     // 結果に付けています。これが無いと、飛行機の区間が「電車」の顔で
     // 並び、搭乗手続きの断り書きも出ません。
@@ -164,8 +164,8 @@ export function buildItinerary(input) {
     costYen: 0,
     reason: overnight
       ? `${overnight.train}で夜のうちに移動します（車中泊）`
-      : legs?.outbound?.yahoo
-      ? "Yahoo!路線情報で調べた実際の便"
+      : legs?.outbound?.transitDoc
+      ? "乗り換え検索で調べた実際の便"
       : legs?.outbound?.routed
         ? "Google マップの経路検索による所要時間"
         : "経路APIを使えないため距離からの推定",
@@ -239,7 +239,7 @@ export function buildItinerary(input) {
         routed: Boolean(leg?.routed) && fits, costYen: 0,
         noTransit: leg?.noTransit === true,
         taxi: leg?.taxi === true,
-        yahoo: fits ? (leg?.yahoo ?? null) : null,
+        transitDoc: fits ? (leg?.transitDoc ?? null) : null,
         vehicle: fits ? vehicleOf(leg) : null,
         alternatives: fits ? (leg?.alternatives ?? []) : [],
         km: haversineKm(mv.from, mv.to),
@@ -351,12 +351,12 @@ export function buildItinerary(input) {
           routed: routed && fits,
           noTransit: leg?.noTransit === true && !onFoot,
           taxi: leg?.taxi === true && !onFoot,
-          yahoo: fits ? (leg?.yahoo ?? null) : null,
+          transitDoc: fits ? (leg?.transitDoc ?? null) : null,
           vehicle: fits ? vehicleOf(leg) : null,
           alternatives: fits ? (leg?.alternatives ?? []) : [],
           costYen: 0,
           reason: routed && fits
-            ? `${leg?.providerLabel ?? "Yahoo!路線情報"}で調べた実際の便`
+            ? `${leg?.providerLabel ?? "乗り換え検索"}で調べた実際の便`
             : leg?.noTransit
               ? "近くに駅・バス停が無いため、タクシーでの移動として見積もり"
               : "時刻を引けなかったため距離からの目安",
@@ -670,7 +670,7 @@ function assumedVehicle(km, leg) {
  * 意味があるのはそちらだけです。
  */
 function boardingTime(from, leg) {
-  const hm = leg?.yahoo?.departure;
+  const hm = leg?.transitDoc?.departure;
   if (!hm) return null;
   const [h, m] = hm.split(":").map(Number);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
@@ -706,7 +706,7 @@ function boardingTime(from, leg) {
  * **間違った時刻を出すくらいなら、分からないと言うほうがましです。**
  */
 function legFitsRow(from, leg) {
-  const hm = leg?.yahoo?.departure;
+  const hm = leg?.transitDoc?.departure;
   if (!hm) return true;           // 発着時刻が無いなら、食い違いようがない
   const [h, m] = hm.split(":").map(Number);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return true;

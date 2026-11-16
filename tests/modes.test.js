@@ -20,26 +20,26 @@ import test from "node:test";
 
 import {
   BOARDING_LEAD_MIN, KIND_NOTE, classifyLine, kindsOf, matchesPreference,
-  preferredKinds, yahooFlags,
+  preferredKinds, transitFlags,
 } from "../packages/core/src/modes.js";
 import { routeKinds } from "../server/worker.js";
 
 test("指定した乗り物だけ、旗が変わる", () => {
   // おまかせは全部。減らす理由がありません。
-  assert.deepEqual(yahooFlags("any"),
+  assert.deepEqual(transitFlags("any"),
     { al: 1, shin: 1, ex: 1, hb: 1, lb: 1, sr: 1 });
   // 「電車・バス」に空路を返すのは、指定を無視したのと同じです。
-  assert.equal(yahooFlags("transit").al, 0);
-  assert.equal(yahooFlags("transit").lb, 1);
+  assert.equal(transitFlags("transit").al, 0);
+  assert.equal(transitFlags("transit").lb, 1);
   // 普通列車のみ（青春18きっぷ）。乗れない便で組んだ旅程は使えません。
-  assert.equal(yahooFlags("local").shin, 0);
-  assert.equal(yahooFlags("local").ex, 0);
-  assert.equal(yahooFlags("local").lb, 1, "路線バスまで切る必要はありません");
+  assert.equal(transitFlags("local").shin, 0);
+  assert.equal(transitFlags("local").ex, 0);
+  assert.equal(transitFlags("local").lb, 1, "路線バスまで切る必要はありません");
   // 空路と船は、**陸を切りません**。空港・港までの移動が要ります。
-  assert.equal(yahooFlags("air").al, 1);
-  assert.equal(yahooFlags("air").lb, 1, "空港までのバスが要ります");
-  assert.equal(yahooFlags("ferry").sr, 1);
-  assert.equal(yahooFlags("ferry").lb, 1, "港までのバスが要ります");
+  assert.equal(transitFlags("air").al, 1);
+  assert.equal(transitFlags("air").lb, 1, "空港までのバスが要ります");
+  assert.equal(transitFlags("ferry").sr, 1);
+  assert.equal(transitFlags("ferry").lb, 1, "港までのバスが要ります");
 });
 
 test("速さより指定が先になるのは、空路と船のときだけ", () => {

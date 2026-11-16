@@ -12,14 +12,11 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
 
 import {
   TIGHT_MIN, attachLastTrain, clockMinutes, lastRideOf, lastTrainNote,
   lateMinutes, marginMinutes, stationsOf,
 } from "../packages/core/src/lasttrain.js";
-import { parseRouteDetail, parseSummary, routeBlocks }
-  from "../server/worker.js";
 
 // --- 数えかた -------------------------------------------------------------
 
@@ -65,7 +62,7 @@ test("余裕があるときは、あと何時間粘れるかを書く", () => {
   assert.match(n.text, /小田原 22:58 発/);
   assert.match(n.text, /4時間18分/);
   // 出どころを必ず添えます。ダイヤそのものを持っているわけではありません。
-  assert.match(n.text, /Yahoo!路線情報/);
+  assert.match(n.text, /乗り換え検索の終電検索より/);
   assert.match(n.text, /遅延は含みません/);
 });
 
@@ -108,22 +105,22 @@ test("予定の発車が分からなくても、終電だけは書く", () => {
 // --- どの移動に付けるか -----------------------------------------------------
 
 const ride = (o) => ({ kind: "transit", id: o.id, start: o.start ?? new Date(),
-  yahoo: o.yahoo, walk: o.walk, drive: o.drive });
+  transitDoc: o.transitDoc, walk: o.walk, drive: o.drive });
 
 test("その日の最後の「乗る」移動だけに付ける", () => {
   const day = { items: [
-    ride({ id: "a", yahoo: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
+    ride({ id: "a", transitDoc: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
     { kind: "spot", id: "s" },
-    ride({ id: "b", yahoo: { departure: "18:40", legs: [{ from: "小田原", to: "東京" }] } }),
+    ride({ id: "b", transitDoc: { departure: "18:40", legs: [{ from: "小田原", to: "東京" }] } }),
   ] };
   assert.equal(lastRideOf(day).id, "b");
 });
 
 test("歩きと運転には終電がないので、選ばない", () => {
   const day = { items: [
-    ride({ id: "a", yahoo: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
-    ride({ id: "w", walk: true, yahoo: { departure: "18:40", legs: [] } }),
-    ride({ id: "c", drive: true, yahoo: { departure: "19:00", legs: [] } }),
+    ride({ id: "a", transitDoc: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
+    ride({ id: "w", walk: true, transitDoc: { departure: "18:40", legs: [] } }),
+    ride({ id: "c", drive: true, transitDoc: { departure: "19:00", legs: [] } }),
   ] };
   assert.equal(lastRideOf(day).id, "a");
 });
@@ -131,15 +128,15 @@ test("歩きと運転には終電がないので、選ばない", () => {
 test("調べた便が付いていない移動は選ばない", () => {
   // 目安だけで組んだ区間は、どの駅から乗るのかが分かりません。
   // 「出雲大社」の終電はありません。乗るのは「出雲大社前駅」です。
-  const day = { items: [ride({ id: "x", yahoo: null })] };
+  const day = { items: [ride({ id: "x", transitDoc: null })] };
   assert.equal(lastRideOf(day), null);
 });
 
 test("聞く相手は、場所ではなく駅", () => {
-  const item = ride({ id: "b", yahoo: { departure: "18:40",
+  const item = ride({ id: "b", transitDoc: { departure: "18:40",
     legs: [{ from: "出雲大社前", to: "川跡" }, { from: "川跡", to: "電鉄出雲市" }] } });
   assert.deepEqual(stationsOf(item), { from: "出雲大社前", to: "電鉄出雲市" });
-  assert.equal(stationsOf(ride({ yahoo: { legs: [] } })), null);
+  assert.equal(stationsOf(ride({ transitDoc: { legs: [] } })), null);
 });
 
 // --- 旅程に足す -------------------------------------------------------------
@@ -147,9 +144,9 @@ test("聞く相手は、場所ではなく駅", () => {
 function itinOf() {
   return { days: [{ items: [
     ride({ id: "a", start: new Date("2026-09-19T09:00:00+09:00"),
-           yahoo: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
+           transitDoc: { departure: "09:00", legs: [{ from: "東京", to: "小田原" }] } }),
     ride({ id: "b", start: new Date("2026-09-19T18:40:00+09:00"),
-           yahoo: { departure: "18:40", legs: [{ from: "小田原", to: "東京" }] } }),
+           transitDoc: { departure: "18:40", legs: [{ from: "小田原", to: "東京" }] } }),
   ] }] };
 }
 
@@ -200,39 +197,4 @@ test("聞く回数に上限がある", async () => {
 test("聞く関数を渡さなければ、何もしない", async () => {
   assert.equal(await attachLastTrain(itinOf(), null), 0);
   assert.equal(await attachLastTrain(null, async () => ({})), 0);
-});
-
-// --- 中継が読む、本物の終電の画面 -------------------------------------------
-
-const lastHtml = await readFile(
-  new URL("./fixtures/yahoo-odawara-tokyo-last.html", import.meta.url), "utf8");
-
-test("終電の画面から、候補を全部読める", () => {
-  const rows = routeBlocks(lastHtml).map((b) => {
-    const s = parseSummary(b);
-    const d = parseRouteDetail(b);
-    return { departure: s.departure, arrival: s.arrival,
-             from: d.legs[0]?.from, to: d.legs.at(-1)?.to };
-  });
-  assert.equal(rows.length, 3);
-  assert.deepEqual(rows.map((r) => r.departure), ["22:58", "22:58", "22:56"]);
-  assert.deepEqual(rows.map((r) => r.arrival), ["00:39", "00:43", "23:29"]);
-  for (const r of rows) {
-    assert.equal(r.from, "小田原");
-    assert.equal(r.to, "東京");
-  }
-});
-
-test("終電は「いちばん早く着く便」ではなく「いちばん遅く出る便」", () => {
-  // 小田原→東京では 22:56 の新幹線が 23:29 に着き、いちばん早いです。
-  // でも最後まで粘れるのは 22:58 のほうです。ここを取り違えると、
-  // 「23:29に着けるから22:56が終電」という、2分早い嘘になります。
-  const rows = routeBlocks(lastHtml).map((b) => parseSummary(b));
-  const latest = rows.reduce((a, b) =>
-    (lateMinutes(a.departure) >= lateMinutes(b.departure) ? a : b));
-  const earliestArrival = rows.reduce((a, b) =>
-    (lateMinutes(a.arrival) <= lateMinutes(b.arrival) ? a : b));
-  assert.equal(latest.departure, "22:58");
-  assert.equal(earliestArrival.departure, "22:56");
-  assert.notEqual(latest.departure, earliestArrival.departure);
 });

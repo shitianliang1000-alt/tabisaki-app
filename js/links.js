@@ -79,31 +79,6 @@ export function directionsUrl(from, to, mode = "transit") {
 }
 
 /**
- * Yahoo!路線情報の検索結果へのリンク。南海・大阪メトロなど、実際の便が出ます。
- * 駅名と位置の両方を渡すので、同名の駅に迷いません。
- */
-export function yahooTransitUrl(from, to, at) {
-  const f = (p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
-  const url = new URL("https://transit.yahoo.co.jp/search/result");
-  url.searchParams.set("from", String(from.name ?? ""));
-  url.searchParams.set("to", String(to.name ?? ""));
-  url.searchParams.set("flatlon", f(from));
-  url.searchParams.set("tlatlon", f(to));
-  const d = at instanceof Date && !Number.isNaN(at.getTime()) ? at : null;
-  if (d) {
-    const p = (n) => String(n).padStart(2, "0");
-    url.searchParams.set("y", String(d.getFullYear()));
-    url.searchParams.set("m", p(d.getMonth() + 1));
-    url.searchParams.set("d", p(d.getDate()));
-    url.searchParams.set("hh", p(d.getHours()));
-    url.searchParams.set("m1", String(Math.floor(d.getMinutes() / 10)));
-    url.searchParams.set("m2", String(d.getMinutes() % 10));
-  }
-  url.searchParams.set("type", "1");
-  return url.toString();
-}
-
-/**
  * いまいる場所から、その場所への経路。
  *
  * `origin` を空にすると、Google マップ側が現在地を使います。
@@ -238,14 +213,10 @@ export function linksForItem(item, ctx = {}) {
     }
     case "transit": {
       if (ctx.from && ctx.to) {
+        // 経路は Google マップで開きます。アプリ内で経路が組めた区間は
+        // その確認に、組めなかった区間（フェリー・未収録のバス等）は
+        // 実際の便の確認に使います（Maps URLs。#367）。
         out.push({ label: "経路を開く", url: directionsUrl(ctx.from, ctx.to) });
-        // 実際の便（Yahoo!路線情報）。調べた結果があればそのリンク、
-        // 目安の区間なら、同じ駅・時刻で調べるリンクを作ります。
-        const y = item.yahoo?.url
-          || (Number.isFinite(ctx.from.lat) && Number.isFinite(ctx.to.lat)
-            && ctx.from.name && ctx.to.name && !item.walk
-            ? yahooTransitUrl(ctx.from, ctx.to, item.start) : "");
-        if (y) out.push({ label: "時刻表で調べる（Yahoo!路線情報）", url: y });
       }
       break;
     }

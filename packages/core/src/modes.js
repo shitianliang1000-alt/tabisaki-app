@@ -98,7 +98,7 @@ const PREFER = {
 };
 
 /** 指定された乗り物で、Yahoo!に渡す旗を返します。 */
-export function yahooFlags(transport = "any") {
+export function transitFlags(transport = "any") {
   return { ...(FLAGS[transport] ?? ALL_ON) };
 }
 

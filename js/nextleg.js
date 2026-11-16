@@ -38,7 +38,7 @@ export const PUSH_MIN = 10;
  * 見るのは**まだ乗っていない移動**だけです。乗っている最中の電車を
  * 引き直しても、降りる先は変わりません。
  *
- * 歩きと運転は外します（便がありません）。調べた便（yahoo）の付いて
+ * 歩きと運転は外します（便がありません）。調べた便（transitDoc）の付いて
  * いないものも外します。
  *
  * @param {object} itin
@@ -50,7 +50,7 @@ export function nextRide(itin, now = new Date()) {
   for (const day of itin?.days ?? []) {
     for (const item of day?.items ?? []) {
       if (item.kind !== "transit" || item.walk || item.drive === true) continue;
-      if (!item.yahoo?.departure || !item.start) continue;
+      if (!(item.transitDoc ?? item.yahoo)?.departure || !item.start) continue;
       if (new Date(item.start) <= now) continue;
       rides.push(item);
     }
@@ -99,7 +99,7 @@ export function requeryNote(found, planned = {}, ctx = {}) {
   const line = found?.line ? `${found.line}・` : "";
   const head = `いま出ると、次は ${where}${dep} 発です${tail}。${line}`;
   // 出どころを必ず添えます。ダイヤそのものを持っているわけではありません。
-  const src = "（Yahoo!路線情報でいま引き直しました。遅延は含みません）";
+  const src = "（乗り換え検索でいま引き直しました。遅延は含みません）";
 
   const shift = shiftMinutes(planned.departure, dep);
   if (shift == null) {
@@ -182,7 +182,7 @@ export async function requeryNextLeg(itin, ask, opts = {}) {
   const note = requeryNote(
     { departure: res.meta.departure, arrival: res.meta.arrival,
       line: res.meta.legs?.[0]?.line ?? null },
-    { departure: item.yahoo.departure, station: st.from, to: st.to,
+    { departure: (item.transitDoc ?? item.yahoo).departure, station: st.from, to: st.to,
       title: item.title },
     { restMin: restMinutesAfter(itin, item) });
   if (!note) return null;

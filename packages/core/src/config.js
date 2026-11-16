@@ -23,7 +23,7 @@ export const USE_ROUTES_API = false;
 
 // 乗り換え検索で使う API（中継の POST /transit。docs/transit-apis.md）。
 // "auto" なら、中継にキーが入っているものを決まった順に試します。
-// "otp"・"ekispert"・"navitime"・"here"・"transitous"・"yahoo" で名指しもできます。
+// "otp"・"ls8h"・"ekispert"・"navitime"・"here"・"transitous" で名指しもできます。
 export const TRANSIT_PROVIDER = "auto";
 
 // --- 3. どのモデルを、どこで動かすか ---------------------------------------
@@ -140,7 +140,7 @@ export const TUNING = {
   walkableKm: 1.0,
   // 徒歩の実測（Googleの経路API）に使う回数。ここは課金対象なので絞ります。
   maxTransitRequests: 8,
-  // Yahoo!路線情報に聞く回数。こちらは課金されず、中継側で1時間控える
+  // 乗り換え検索に聞く回数。こちらは課金されず、中継側で1時間控える
   // ので、**実際の時刻を全区間ぶん取りにいきます**。目安で埋めるくらいなら
   // 時間をかけて本物を取ったほうがよい、という判断です。
   //
@@ -149,7 +149,7 @@ export const TUNING = {
   // 尽き、後ろの区間は町なかでも「目安」になります。中継の無料側の枠は
   // 1分600回なので、1つの旅程ぶんとしては400でも十分に内側です。
   // 時刻が動いた区間だけを調べ直すので（区間ごとの控え）、5泊でも足ります。
-  maxYahooRequests: 400,
+  maxTransitSearchRequests: 400,
   // 案を練り直す回数。作って、検証して、問題を伝えてまた作らせます。
   // 1回で止めていたころは、「時間が合わない場所が3件」のまま出ることが
   // ありました。時間はかかっても、通る案に近づけます。

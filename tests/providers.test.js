@@ -11,7 +11,7 @@ import {
   createGsiGeocoding, createMockRouting, createMockSpots, createMockWeather,
   getProvider, listProviders, localGeocoding, normalizeGsi, offRouting,
   offWeather, registerProvider, resetProviders, toProviderError, useProvider,
-  useProviders, yahooRouting,
+  useProviders, transitRouting,
 } from "../packages/core/src/providers.js";
 
 const TOKYO = { name: "東京駅", lat: 35.6812, lng: 139.7671 };
@@ -22,7 +22,7 @@ test("既定は、いまの取り口（中継の乗り換え検索・Open-Meteo�
   const all = listProviders();
   assert.deepEqual(Object.keys(all), [...PROVIDER_KINDS]);
   assert.equal(all.routing.active, "transit");
-  for (const n of ["yahoo", "ekispert", "navitime", "here", "transitous"]) {
+  for (const n of ["ls8h", "ekispert", "navitime", "here", "transitous"]) {
     assert.ok(all.routing.names.includes(n), `routing に ${n} がありません`);
   }
   assert.equal(all.weather.active, "open-meteo");
@@ -140,8 +140,8 @@ test("off の経路は聞かせない（available=false）、聞かれたら not
     (e) => e instanceof ProviderError && e.code === "not_configured" && !e.retryable);
 });
 
-test("Yahoo!の取り口は、中継の断りを ProviderError にして返す", async () => {
-  yahooRouting.resetCooldown();
+test("乗り換え検索の取り口は、中継の断りを ProviderError にして返す", async () => {
+  transitRouting.resetCooldown();
   const real = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: false, status: 429, headers: { get: () => "3" },
@@ -151,28 +151,28 @@ test("Yahoo!の取り口は、中継の断りを ProviderError にして返す",
   });
   try {
     await assert.rejects(
-      yahooRouting.search({ name: "新宿" }, { name: "箱根湯本" },
+      transitRouting.search({ name: "新宿" }, { name: "箱根湯本" },
         { retryWaits: [], pace: false }),
       (e) => e instanceof ProviderError && e.code === "rate_limited"
-        && e.status === 429 && e.retryable && e.provider === "yahoo");
-    assert.equal(yahooRouting.cooldown().waiting, true);
+        && e.status === 429 && e.retryable && e.provider === "transit");
+    assert.equal(transitRouting.cooldown().waiting, true);
   } finally {
     globalThis.fetch = real;
-    yahooRouting.resetCooldown();
+    transitRouting.resetCooldown();
   }
 });
 
-test("Yahoo!の取り口の答えには、どこの答えかが付く", async () => {
-  yahooRouting.resetCooldown();
+test("乗り換え検索の取り口の答えには、どこの答えかが付く", async () => {
+  transitRouting.resetCooldown();
   const real = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: true, status: 200,
     json: async () => ({ routed: true, minutes: 90, summary: "10:08 発→ 11:30 着" }),
   });
   try {
-    const r = await yahooRouting.search({ name: "新宿" }, { name: "箱根湯本" },
+    const r = await transitRouting.search({ name: "新宿" }, { name: "箱根湯本" },
       { pace: false });
-    assert.equal(r.provider, "yahoo");
+    assert.equal(r.provider, "transit");
     assert.equal(r.minutes, 90);
     assert.ok(r.searchedAt);
   } finally {
@@ -312,28 +312,22 @@ test("乗り換え検索は中継の /transit へ聞き、名指しした API �
   }
 });
 
-test("中継が古く /transit が無ければ（404）、/yahoo/transit で引き直す", async () => {
+test("中継が /transit を知らなければ（404）、引き直さずに断る", async () => {
   const sent = [];
   const real = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    const u = String(url);
-    sent.push(u);
-    if (!u.endsWith("yahoo/transit")) {
-      return { ok: false, status: 404, headers: { get: () => null }, text: async () => "" };
-    }
-    return { ok: true, status: 200, json: async () => ({ routed: true, minutes: 90 }) };
+    sent.push(String(url));
+    return { ok: false, status: 404, headers: { get: () => null }, text: async () => "" };
   };
   try {
-    yahooRouting.resetCooldown();
-    const r = await getProvider("routing").search(TOKYO, HAKONE,
-      { pace: false, retryWaits: [] });
-    assert.equal(sent.length, 2);
+    transitRouting.resetCooldown();
+    await assert.rejects(
+      getProvider("routing").search(TOKYO, HAKONE, { pace: false, retryWaits: [] }),
+      (e) => e instanceof ProviderError);
+    assert.equal(sent.length, 1);
     assert.match(sent[0], /\/transit$/);
-    assert.match(sent[1], /yahoo\/transit$/);
-    // 古い中継は provider を書かないので、Yahoo!の答えとして扱う。
-    assert.equal(r.provider, "yahoo");
-    assert.equal(r.minutes, 90);
   } finally {
     globalThis.fetch = real;
+    transitRouting.resetCooldown();
   }
 });

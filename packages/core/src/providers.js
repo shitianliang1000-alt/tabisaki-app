@@ -9,7 +9,7 @@
 // 本体はその形だけを使います。取り口を替えるときは、同じ形を返す
 // アダプタを1つ書いて登録し、useProvider() で選ぶだけです。
 //
-//   routing   … 2地点の公共交通の経路（中継の /transit 経由。駅すぱあと・NAVITIME・HERE・Yahoo!・Transitous）
+//   routing   … 2地点の公共交通の経路（中継の /transit 経由。ls8h・駅すぱあと・NAVITIME・HERE・Transitous）
 //   weather   … その場所・その日の時間ごとの予報（いまは Open-Meteo）
 //   geocoding … 地名・駅名から位置（いまは手元の収録。国土地理院も用意）
 //   spots     … 観光地の知識ベース（いまは kb/ の JSON）
@@ -25,8 +25,8 @@
 
 import { findPlace, nearestPlaceInfo } from "./places.js";
 import { forecastFor } from "./weather.js";
-import { resetYahooCooldown, resetYahooPace, searchYahooTransit, yahooCooldown }
-  from "./yahoo-transit.js";
+import { resetTransitCooldown, resetTransitPace, searchTransit, transitCooldown }
+  from "./transit-search.js";
 import { requestSignal } from "./endpoints.js";
 
 /** 取り口の種類。 */
@@ -145,7 +145,7 @@ const idle = () => ({ waiting: false, seconds: 0, reason: "", retryable: false }
 /**
  * 乗り換え検索（自前の中継 server/worker.js の POST /transit 経由）。
  *
- * 中継が、駅すぱあと・NAVITIME・HERE・Yahoo!路線情報・Transitous の
+ * 中継が、ls8h・駅すぱあと・NAVITIME・HERE・Transitous などの
  * どれかで引きます（server/transit.js、docs/transit-apis.md）。
  * "transit" は「中継に任せる」で、キーの入っているものから順に試します。
  * ほかの名前は、その API だけで引きます。キーは中継だけが持ちます。
@@ -161,26 +161,25 @@ export function createTransitRouting(name = "transit", label = "乗り換え検�
     async search(from, to, opts = {}) {
       let doc;
       try {
-        doc = await searchYahooTransit(from, to, provider ? { provider, ...opts } : opts);
+        doc = await searchTransit(from, to, provider ? { provider, ...opts } : opts);
       } catch (e) {
         throw toProviderError(e, name);
       }
       // 答えた API は中継が provider に書きます。古い中継は書かないので、
-      // そのときは頼んだ名前（任せたなら Yahoo!）にします。
-      return doc ? { ...doc, provider: doc.provider ?? provider ?? "yahoo" } : null;
+      // そのときは頼んだ名前（任せたなら "transit"）にします。
+      return doc ? { ...doc, provider: doc.provider ?? provider ?? "transit" } : null;
     },
-    cooldown: (now) => yahooCooldown(now),
-    resetCooldown: () => resetYahooCooldown(),
-    resetPace: () => resetYahooPace(),
+    cooldown: (now) => transitCooldown(now),
+    resetCooldown: () => resetTransitCooldown(),
+    resetPace: () => resetTransitPace(),
   };
 }
 
 /** 中継に任せる（既定）。キーのある API から順に、引けるまで試します。 */
 export const transitRouting = createTransitRouting();
-/** Yahoo!路線情報（中継経由）だけで引く。 */
-export const yahooRouting = createTransitRouting("yahoo", "Yahoo!路線情報（中継経由）");
 const namedTransit = [
   ["otp", "OpenTripPlanner（中継経由・手元で動かすもの。docs/otp.md）"],
+  ["ls8h", "ls8h（中継経由・キー不要）"],
   ["ekispert", "駅すぱあと Web サービス（中継経由・要キー）"],
   ["navitime", "NAVITIME Route(totalnavi)（中継経由・要キー）"],
   ["here", "HERE Public Transit（中継経由・要キー）"],
@@ -493,7 +492,7 @@ export function resetProviders() {
 }
 
 for (const a of [
-  transitRouting, yahooRouting, ...namedTransit, createMockRouting(), offRouting,
+  transitRouting, ...namedTransit, createMockRouting(), offRouting,
   openMeteoWeather, createMockWeather(), offWeather,
   localGeocoding, createGsiGeocoding(),
   kbSpots, createMockSpots(),

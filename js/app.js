@@ -49,7 +49,7 @@ import { orderDiff } from "./orderdiff.js";
 import { reachOf } from "./reach.js";
 import { clearTripMode, loadTripMode, saveTripMode } from "./tripmode.js";
 import { getProvider } from "../packages/core/src/providers.js";
-import { yahooFlags } from "../packages/core/src/modes.js";
+import { transitFlags } from "../packages/core/src/modes.js";
 import { tripCodeFrom, tripLink, unpackTrip } from "./snapshot.js";
 import { addChat, addHistory, clearHistory, freezeItinerary, isChat, loadHistory, removeHistory,
          savedLabel, thawItinerary } from "./history.js";
@@ -1755,7 +1755,7 @@ function showRoutesUsage() {
   const u = routesUsage();
   const box = $("#routes-usage");
   if (!box) return;
-  if (!u.calls && !u.skipped && !u.yahooLegs) {
+  if (!u.calls && !u.skipped && !u.transitLegs) {
     box.textContent = ""; box.hidden = true; return;
   }
   box.hidden = false;
@@ -1764,9 +1764,9 @@ function showRoutesUsage() {
   // 問い合わせていないのでは」と見えていました。区間の数と、そのうち
   // 時刻が入った数を、そのまま出します。
   const parts = [];
-  if (u.yahooLegs) {
-    parts.push(`電車・バス: ${u.yahooLegs}区間中 ${u.yahooHits}区間で時刻表`
-      + `（問い合わせ ${u.yahooAsks}回）`);
+  if (u.transitLegs) {
+    parts.push(`電車・バス: ${u.transitLegs}区間中 ${u.transitHits}区間で時刻表`
+      + `（問い合わせ ${u.transitAsks}回）`);
   }
   parts.push(`Googleの経路: ${u.calls}回`);
   if (u.failures) parts.push(`失敗 ${u.failures}回`);
@@ -1775,7 +1775,7 @@ function showRoutesUsage() {
   box.textContent = parts.join(" / ");
   box.classList.toggle("ng",
     Boolean(u.failures || u.breakerOpen
-            || (u.yahooLegs && u.yahooHits < u.yahooLegs)));
+            || (u.transitLegs && u.transitHits < u.transitLegs)));
   if (u.lastError) box.title = u.lastError;
   showQuota();
 }
@@ -3000,7 +3000,7 @@ function renderTodayBox(itin, trip) {
           try {
             return await getProvider("routing").search(from, to, {
               departAt: when,
-              modes: yahooFlags(trip.transport ?? "any"),
+              modes: transitFlags(trip.transport ?? "any"),
             });
           } catch {
             return null;

@@ -52,17 +52,17 @@ function allowList(env) {
 // 同じ扱いになります。後ろにあるものの重さが違うので、**点**で数えます。
 //
 //   /status      0点  こちらで完結します
-//   Yahoo!       1点  取りに行きますが、**無料です**
+//   /transit    1点  取りに行きますが、**無料です**（ls8h・Transitous）
 //   Routes API   3点  Googleの従量課金
 //   Gemini       5点  1日14,400回の枠を分け合います
 //   Workers AI   5点  1日10,000ニューロンの枠
 //
 // 数える枠は**2つに分けます**。以前は全部を1分20点の1つの枠で数えて
 // いました。ところが旅程1本で電車・バスを30区間ほど聞くので、1分20点は
-// 最初の1本の途中で尽きます。無料のYahoo!が、お金のかかるGeminiと
+// 最初の1本の途中で尽きます。無料の乗り換え検索が、お金のかかるGeminiと
 // 同じ枠を奪い合っていたわけで、これは数えかたの誤りでした。
 //
-//   free … Yahoo!路線情報。こちらの費用はゼロなので、大きく取ります。
+//   free … 乗り換え検索など。こちらの費用はゼロなので、大きく取ります。
 //          上限は「取り違えて無限に呼んでしまったとき」の歯止めだけです。
 //   paid … Gemini・Routes・Workers AI。使い切るとその日は誰も使えない
 //          ので、ここは絞ったままにします。
@@ -71,7 +71,6 @@ function allowList(env) {
 // RATE_LIMIT に off を入れると、数えるのをやめます。
 const COST = {
   "/status": 0,
-  "/yahoo/transit": 1,
   // 乗り換え検索（server/transit.js）。有料の API は、その会社との
   // 契約の回数で止まります。ここは取り違えたときの歯止めだけです。
   "/transit": 1,
@@ -102,7 +101,6 @@ const COST = {
 
 /** その入口が、どちらの枠か。 */
 const POOL = {
-  "/yahoo/transit": "free",
   "/transit": "free",
   "/transit/providers": "free",
   "/stops/near": "free",
@@ -142,9 +140,6 @@ const AI_TIMEOUT_MS = 120_000;
 const GEMINI_ROOT = "https://generativelanguage.googleapis.com/v1beta";
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 // 検索結果のページを読みます。印刷用（/search/print）は1本しか載って
-// いません。Yahoo!は候補を3本出す（早い順・安い順・乗換の少ない順）ので、
-// 全部読んで、選べるようにします。
-const YAHOO_TRANSIT_URL = "https://transit.yahoo.co.jp/search/result";
 // 中継が通すモデル。ここに無いものは 400 で返します（高いモデルを
 // 勝手に呼ばれないため）。
 // Cloudflare の Workers AI で動かすモデル。**Googleのキーは要りません。**
@@ -300,7 +295,7 @@ async function relay(request, env, ctx) {
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
     const path = trimSlashes(new URL(request.url).pathname);
     // 重さに応じて数えます（Geminiの1回と /status の1回は別ものです）。
-    // 枠は2つ。無料のYahoo!が、お金のかかるGeminiの枠を食べません。
+    // 枠は2つ。無料の側が、お金のかかるGeminiの枠を食べません。
     const gate = await rateCheck(env, ip, costOf(path), poolOf(path));
     if (!gate.ok) {
       return cors(fail(429, "RATE_LIMITED",
@@ -329,7 +324,6 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/gemini/models")) return cors(await geminiModels(env), origin, allow);
       if (path.endsWith("/routes")) return cors(await routes(request, env), origin, allow);
       if (path.endsWith("/cf/generate")) return cors(await cfGenerate(request, env), origin, allow);
-      if (path.endsWith("/yahoo/transit")) return cors(await yahooTransit(request), origin, allow);
       // どの乗り換え検索が使えるか（キーの値は返しません）。
       if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
       if (path.endsWith("/transit")) return cors(await transit(request, env), origin, allow);
@@ -766,292 +760,18 @@ async function geminiModels(env) {
 
 /**
  * 乗り換え検索（POST /transit）。どの API で引くかは server/transit.js が
- * 決めます。Yahoo!路線情報だけはこのファイルにあるので、ここから渡します。
+ * 決めます（Yahoo!路線情報のスクレイピングは廃止済み。#367）。
  */
 async function transit(request, env) {
   const body = await readJson(request);
-  const yahoo = async (q) => {
-    const res = await yahooTransit(new Request("https://transit.invalid/yahoo/transit", {
-      method: "POST",
-      body: JSON.stringify({
-        from: q.from, to: q.to, fromAt: q.fromAt, toAt: q.toAt,
-        departAt: q.at.toISOString(), search: q.search, modes: q.modes, prefer: q.prefer,
-      }),
-    }));
-    if (res.status === 429) throw new TransitError("rate_limited", "Yahoo!路線情報から断られています", { status: 429, retryable: true });
-    if (!res.ok) throw new TransitError("upstream", `Yahoo!路線情報が ${res.status} でした`, { retryable: res.status >= 500 });
-    return res.json();
-  };
   try {
-    return json(await transitHandler(body, env, { yahoo }));
+    return json(await transitHandler(body, env));
   } catch (e) {
     if (!(e instanceof TransitError)) throw e;
     return fail(e.status, e.code.toUpperCase(), e.message,
       { service: "transit", retryable: e.retryable,
         ...(e.status === 429 ? { retryAfter: 60, headers: { "Retry-After": "60" } } : {}) });
   }
-}
-
-async function yahooTransit(request) {
-  const body = await readJson(request);
-  const from = String(body?.from ?? "").trim();
-  const to = String(body?.to ?? "").trim();
-  if (!from || !to || from.length > 100 || to.length > 100) return text("出発地と到着地が必要です", 400);
-
-  const requested = body?.departAt ? new Date(body.departAt) : new Date();
-  if (Number.isNaN(requested.getTime())) return text("出発時刻が不正です", 400);
-
-  const p = tokyoParts(requested);
-  const u = new URL(YAHOO_TRANSIT_URL);
-  u.searchParams.set("from", from);
-  u.searchParams.set("to", to);
-  // **場所は、名前ではなく位置で渡せます。**
-  //
-  // 名前だけで聞くと、Yahoo!が別の場所に読み替えます。実際に起きて
-  // いたのは
-  //
-  //   「県庁前駅」（那覇・ゆいレール）→ 県庁前(兵庫県)。沖縄の旅の行きが
-  //     東京→神戸の新幹線になり、飛行機の便が一度も出ませんでした。
-  //   「京都駅前」（市バスの乗り場）→ 駅前の飲食店。バスに乗る経路が
-  //     返りませんでした。
-  //
-  // 位置（flatlon / tlatlon）を渡すと、Yahoo!がその近くの駅・バス停を
-  // 選び、そこまでの徒歩も含めて答えます（名前は表示用に使われます）。
-  const at = (v) => {
-    const lat = Number(v?.lat);
-    const lng = Number(v?.lng);
-    // 日本の範囲だけ受け付けます。おかしな値で上流を叩きません。
-    if (!(lat >= 20 && lat <= 46 && lng >= 122 && lng <= 154)) return "";
-    return `${lat.toFixed(6)},${lng.toFixed(6)}`;
-  };
-  u.searchParams.set("flatlon", at(body?.fromAt));
-  u.searchParams.set("tlatlon", at(body?.toAt));
-  u.searchParams.set("y", p.year);
-  u.searchParams.set("m", p.month);
-  u.searchParams.set("d", p.day);
-  u.searchParams.set("hh", p.hour);
-  u.searchParams.set("m1", p.minute.slice(0, 1));
-  u.searchParams.set("m2", p.minute.slice(1));
-  // 何を調べるか。
-  //
-  //   depart（既定）… その時刻に出たら、次に乗れるのは何時か（type=1）
-  //   last          … **その日の終電**（type=2）
-  //
-  // type の番号は、Yahoo!路線情報の検索欄そのものから読みました
-  // （<input type="radio" name="type" value="2"><label>終電</label>）。
-  // 実際に小田原→東京を type=2 で引くと、見出しが「終電」になり、
-  // 22:58発・22:56発の候補が返ります。推測ではありません。
-  //
-  // 終電が要るのは、**帰れなくなる旅程を黙って出さない**ためです。
-  // 「18:40発の電車で帰ります」と書いてあっても、その駅の終電が
-  // 22:58だと分かってはじめて、立ち寄りを1つ増やせるかが決められます。
-  // 逆に、組んだ帰りが終電より後なら、その旅程では帰れません。
-  const search = body?.search === "last" ? "last" : "depart";
-  u.searchParams.set("type", search === "last" ? "2" : "1");
-  u.searchParams.set("ticket", "ic");
-  u.searchParams.set("expkind", "1");
-  u.searchParams.set("userpass", "1");
-  u.searchParams.set("ws", "3");
-  u.searchParams.set("s", "0");
-  // どの乗り物を使ってよいか。
-  //
-  // ここは「全部1（使う）」の決め打ちでした。旗の意味は実測で
-  // 確かめてあります（東京→那覇を al=1 で引くと4時間46分の空路、
-  // al=0 で引くと33時間39分の陸と船）。つまり**切り替えは効くのに、
-  // 切り替えていなかった**だけでした。
-  //
-  //   al=飛行機 / shin=新幹線 / ex=有料特急 / hb=高速バス /
-  //   lb=路線バス / sr=船
-  //
-  // 画面で選ばれた乗り物に合わせて、呼ぶ側（packages/core/src/modes.js）が決めます。
-  // 渡されなければ、これまでどおり全部使います。
-  const flags = { al: 1, shin: 1, ex: 1, hb: 1, lb: 1, sr: 1 };
-  const asked = body?.modes;
-  if (asked && typeof asked === "object") {
-    for (const k of Object.keys(flags)) {
-      if (asked[k] === 0 || asked[k] === "0" || asked[k] === false) flags[k] = 0;
-    }
-  }
-  for (const [k, v] of Object.entries(flags)) u.searchParams.set(k, String(v));
-
-  // 同じ検索は、取りに行きません。
-  //
-  // 旅程1つで区間の数だけ聞きますし、条件を少し変えて何度も作り直します。
-  // 同じ日・同じ区間なら答えも同じなので、そのたびにYahoo!へ行くのは
-  // 相手にも失礼で、断られる（429）もとになります。1時間置きます。
-  const cacheKey = new Request(u.toString(), { method: "GET" });
-  const cache = globalThis.caches?.default;
-  const cached = await cache?.match(cacheKey);
-  const res = cached ?? await fetch(u, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; TabisakiTransit/1.0)",
-      "Accept-Language": "ja-JP,ja;q=0.9",
-    },
-    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-  });
-  if (!res.ok) {
-    // 断られたのがYahoo!なのか、こちらの回数制限なのかが分かるように
-    // 書きます。同じ「429」でも、待つ先が違います。
-    if (res.status === 429) {
-      return text("Yahoo!路線情報から一時的に断られています（429）。"
-        + "少し時間をおくと戻ります。それまでは、駅の位置からの目安で"
-        + "組み立てます。", 429, { "Retry-After": "60" });
-    }
-    return text(`Yahoo Transit ${res.status}`, 502);
-  }
-
-  const html = await res.text();
-  if (!cached && cache) {
-    // 本文はもう読んでしまったので、控えは作り直して入れます。
-    await cache.put(cacheKey, new Response(html, {
-      headers: { "Content-Type": "text/html; charset=utf-8",
-                 "Cache-Control": "max-age=3600" },
-    }));
-  }
-  const requestedMinutes = tokyoClockMinutes(requested);
-
-  // 候補は全部読みます。1本目だけを見ていたときは、Yahoo!が「早い順」で
-  // 並べた1本しか使えませんでした。
-  const routes = [];
-  for (const block of routeBlocks(html)) {
-    const summary = parseSummary(block);
-    const detail = parseRouteDetail(block);
-    const departure = summary.departure ?? detail.departure;
-    const arrival = summary.arrival ?? detail.arrival;
-    if (!departure || !arrival) continue;
-    const rideMinutes = departure !== arrival
-      ? clockDiff(departure, arrival)
-      : (summary.minutes ?? 0);
-    // 0分の経路は捨てます。旅程では「移動時間0分」が「隣にある」と
-    // 同じ意味になり、行けない予定が組めてしまいます。
-    if (!(rideMinutes > 0)) continue;
-    const waitMinutes = (clockMinutes(departure) - requestedMinutes + 1440) % 1440;
-    routes.push({
-      minutes: waitMinutes + rideMinutes,
-      rideMinutes, waitMinutes, departure, arrival,
-      summary: summary.text,
-      transfers: summary.transfers,
-      fareYen: summary.fareYen,
-      distanceKm: summary.distanceKm,
-      legs: detail.legs,
-      intermediateStops: detail.intermediateStops,
-    });
-  }
-
-  if (!routes.length) {
-    return json({ routed: false, url: u.toString(),
-      reason: "Yahoo!路線情報から経路を取り出せませんでした" });
-  }
-
-  // 終電を聞いたときは、選びかたが違います。
-  //
-  // ふつうは「いちばん早く着くもの」ですが、終電で知りたいのは
-  // **いちばん遅く出られるもの**です。小田原→東京では
-  // 22:58→00:39（各駅）と 22:56→23:29（新幹線）が返り、早く着くのは
-  // 新幹線ですが、最後まで粘れるのは 22:58 のほうです。
-  //
-  // 日付をまたぐ便があるので、午前4時より前の発車は「翌日」として
-  // 数えます（終電は1時ごろまで、始発は4時半ごろから。あいだに
-  // 発車はありません）。
-  if (search === "last") {
-    const late = (hm) => {
-      const m = clockMinutes(hm);
-      return m < 4 * 60 ? m + 1440 : m;
-    };
-    const best = routes.reduce((a, b) =>
-      (late(a.departure) >= late(b.departure) ? a : b));
-    return json({
-      routed: true, search: "last",
-      minutes: best.rideMinutes,
-      rideMinutes: best.rideMinutes,
-      waitMinutes: 0,
-      summary: best.summary,
-      kinds: routeKinds(best),
-      preferMet: true,
-      meta: {
-        url: u.toString(),
-        departure: best.departure,
-        arrival: best.arrival,
-        requestedDeparture: requested.toISOString(),
-        transfers: best.transfers,
-        fareYen: best.fareYen,
-        distanceKm: best.distanceKm,
-        legs: best.legs,
-        intermediateStops: best.intermediateStops,
-        alternatives: routes.filter((r) => r !== best).map((r) => ({
-          departure: r.departure, arrival: r.arrival, minutes: r.minutes,
-          rideMinutes: r.rideMinutes, transfers: r.transfers,
-          fareYen: r.fareYen, distanceKm: r.distanceKm, summary: r.summary,
-        })),
-      },
-    });
-  }
-
-  // 採るのは「その時刻に出て、いちばん早く着く」もの。乗車時間ではなく
-  // **待ち時間を含めた着時刻**で選びます。始発待ちの長い速達より、
-  // すぐ乗れる各駅のほうが早く着くことがあります。
-  //
-  // ただし**乗り物が指定されているときは、速さより指定が先**です。
-  //
-  //   「フェリーで佐渡へ」と書いた人に、いちばん早い経路を返しても
-  //   意味がありません。船を使う候補が返っているのに、到着が遅いから
-  //   採られない——それでは「フェリーで」と書けないのと同じです。
-  //
-  // 指定に合う候補があれば、そのなかでいちばん早いものを採ります。
-  // 1つも無ければ、これまでどおり速い順です（無いものは作れません）。
-  const prefer = Array.isArray(body?.prefer) ? body.prefer : [];
-  const fits = prefer.length
-    ? routes.filter((r) => routeKinds(r).some((k) => prefer.includes(k)))
-    : [];
-  const pool = fits.length ? fits : routes;
-  const best = pool.reduce((a, b) => (a.minutes <= b.minutes ? a : b));
-
-  return json({
-    routed: true,
-    search: "depart",
-    // 位置で聞いたか（古い中継は名前だけで聞きます。呼ぶ側の見分け用）
-    byLocation: Boolean(u.searchParams.get("flatlon") || u.searchParams.get("tlatlon")),
-    minutes: best.minutes,
-    rideMinutes: best.rideMinutes,
-    waitMinutes: best.waitMinutes,
-    summary: best.summary,
-    // 採った経路に含まれる乗り物と、指定に合っていたか。
-    // 画面は「フェリーで組みました」「船の便は見つかりませんでした」を
-    // ここで言い分けます（黙って陸の経路を出すと、指定を無視した
-    // ことに気づけません）。
-    kinds: routeKinds(best),
-    preferMet: prefer.length ? fits.length > 0 : true,
-    meta: {
-      url: u.toString(),
-      departure: best.departure,
-      arrival: best.arrival,
-      requestedDeparture: requested.toISOString(),
-      transfers: best.transfers,
-      fareYen: best.fareYen,
-      distanceKm: best.distanceKm,
-      legs: best.legs,
-      intermediateStops: best.intermediateStops,
-      // 残りの候補。画面で「ほかの行き方」として出せます。
-      alternatives: routes.filter((r) => r !== best).map((r) => ({
-        departure: r.departure, arrival: r.arrival, minutes: r.minutes,
-        rideMinutes: r.rideMinutes, transfers: r.transfers,
-        fareYen: r.fareYen, distanceKm: r.distanceKm, summary: r.summary,
-      })),
-    },
-  });
-}
-
-/** class に「その名前がそのまま入っている」li の中身。 */
-function liWithClass(html, name) {
-  // `class=[^"]*time` のような書き方は、`icnPriTime`（早・楽の印）にも
-  // 当たります。実際そうなっていて、所要時間の行ではなく「早」の字を
-  // 読んでいました。名前は区切って突き合わせます。
-  const re = /<li[^>]*class=["']([^"']*)["'][^>]*>([\s\S]*?)<\/li>/gi;
-  let m;
-  while ((m = re.exec(html))) {
-    if (m[1].split(/\s+/).includes(name)) return cleanText(m[2]);
-  }
-  return "";
 }
 
 /**
@@ -1080,144 +800,6 @@ export function routeKinds(route) {
   }
   return out;
 }
-
-export function parseSummary(html) {
-  const box = html.match(/class=["'][^"']*routeSummary[^"']*["'][\s\S]{0,20000}/i)?.[0] ?? "";
-  const time = liWithClass(box, "time");
-  const transferText = liWithClass(box, "transfer");
-  const fareText = liWithClass(box, "fare");
-  const distanceText = liWithClass(box, "distance");
-  const transfers = Number(transferText.match(/(\d+)/)?.[1] ?? 0);
-  const fareYen = Number((fareText.match(/([\d,]+)\s*円/)?.[1] ?? "0").replace(/,/g, "")) || null;
-  const distanceKm = Number((distanceText.match(/([\d.]+)km/)?.[1] ?? "0")) || null;
-  // 「10:00発→11:27着 1時間27分(乗車1時間27分)」から時刻と所要時間を取ります。
-  // ここが**いちばん確かな出どころ**です。下の明細はHTMLの作りが変わると
-  // 空になりますが、この行は要約として必ず出ます。
-  const clock = [...time.matchAll(/(\d{1,2}:\d{2})/g)].map((m) => m[1]);
-  const dur = time.match(/(?:(\d+)\s*時間)?\s*(\d+)\s*分/);
-  const minutes = dur ? Number(dur[1] ?? 0) * 60 + Number(dur[2]) : null;
-  return {
-    text: [time, transferText, fareText, distanceText].filter(Boolean).join(" / "),
-    transfers, fareYen, distanceKm,
-    departure: clock[0] ?? null, arrival: clock[1] ?? null, minutes,
-  };
-}
-
-/** 候補ごとのHTML。route01, route02, … を切り出します。 */
-export function routeBlocks(html) {
-  const marks = [];
-  const re = /id=["']route(\d{2})["']/gi;
-  let m;
-  while ((m = re.exec(html))) marks.push(m.index);
-  if (!marks.length) return [html];
-  return marks.map((start, i) => html.slice(start, marks[i + 1] ?? html.length));
-}
-
-/** いちばん上の候補だけ。 */
-export function firstYahooRoute(html) {
-  return routeBlocks(html)[0];
-}
-
-/**
- * class に「その名前がそのまま入っている」div の位置。
- *
- * `class=[^"]*routeDetail` のような書き方だと、外側の
- * `class="elmRouteDetail"` にも当たります。実際そうなっていて、
- * 明細ではなく要約の部分だけを見ていたため、駅が1件も取れず
- * 所要時間が0分になっていました。名前は区切って突き合わせます。
- */
-export function divsWithClass(html, name) {
-  const re = /<div[^>]*class=["']([^"']*)["'][^>]*>/gi;
-  const out = [];
-  let m;
-  while ((m = re.exec(html))) {
-    if (m[1].split(/\s+/).includes(name)) out.push({ start: m.index, end: re.lastIndex });
-  }
-  return out;
-}
-
-export function parseRouteDetail(html) {
-  const blocks = divsWithClass(html, "routeDetail");
-  const detail = blocks.length
-    ? html.slice(blocks[0].end, blocks[1]?.start ?? html.length)
-    : html;
-
-  // 駅の区切りは「次の駅ブロックが始まるまで」です。あいだには
-  // 運賃や路線の欄が挟まります（駅 → fareSection → 駅）。
-  const marks = divsWithClass(detail, "station");
-  const stations = [];
-  for (let i = 0; i < marks.length; i++) {
-    const chunk = detail.slice(marks[i].end, marks[i + 1]?.start ?? detail.length);
-    const name = cleanText(firstMatch(chunk, /<dt[^>]*>([\s\S]*?)<\/dt>/i));
-    const head = chunk.slice(0, chunk.search(/<dl[^>]*>/i) + 1 || chunk.length);
-    // 乗換駅は「10:39着 / 10:48発」のように、時刻のうしろに文字が付きます。
-    // 時刻だけの行にしか当てていなかったので、乗換駅の時刻が
-    // 取れていませんでした。中身から時刻を拾います。
-    const times = [...head.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
-      .map((m) => cleanText(m[1]).match(/(\d{1,2}:\d{2})/)?.[1])
-      .filter(Boolean);
-    if (name) stations.push({ name, times });
-  }
-
-  const transports = [];
-  const transportRe = /<li[^>]*class=["'][^"']*transport[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi;
-  let tm;
-  while ((tm = transportRe.exec(detail))) {
-    const text = cleanText(tm[1]);
-    // 徒歩の区間には「地図でルートを表示」というリンクの文字が付きます。
-    if (text) transports.push(text.replace(/^\[?(?:train|line)\]?\s*/i, "")
-      .replace(/\s*地図でルートを表示\s*$/, ""));
-  }
-
-  const legs = [];
-  for (let i = 0; i < transports.length && i + 1 < stations.length; i++) {
-    const from = stations[i];
-    const to = stations[i + 1];
-    const dep = from.times[from.times.length - 1] ?? null;
-    const arr = to.times[0] ?? null;
-    legs.push({
-      kind: "ride",
-      from: from.name,
-      to: to.name,
-      departure: dep,
-      arrival: arr,
-      minutes: dep && arr ? clockDiff(dep, arr) : null,
-      line: transports[i],
-    });
-  }
-
-  const departure = stations[0]?.times[0] ?? null;
-  const arrival = stations.at(-1)?.times.at(-1) ?? null;
-  const intermediateStops = stations.slice(1, -1).map((s) => ({
-    station: s.name,
-    arrival: s.times[0] ?? null,
-    departure: s.times[1] ?? null,
-  }));
-  return { departure, arrival, legs, intermediateStops };
-}
-
-function firstMatch(s, re) { return s.match(re)?.[1] ?? ""; }
-function cleanText(s) {
-  return String(s ?? "")
-    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&#39;|&#x27;/gi, "'").replace(/&quot;/gi, '"')
-    .replace(/&amp;/gi, "&")
-    .replace(/\s+/g, " ").trim();
-}
-function tokyoParts(date) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).formatToParts(date);
-  const get = (name) => parts.find((x) => x.type === name)?.value ?? "";
-  return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour") === "24" ? "00" : get("hour"), minute: get("minute") };
-}
-function clockMinutes(hm) { const [h, m] = hm.split(":").map(Number); return h * 60 + m; }
-function clockDiff(from, to) { return (clockMinutes(to) - clockMinutes(from) + 1440) % 1440; }
-function tokyoClockMinutes(date) { const p = tokyoParts(date); return Number(p.hour) * 60 + Number(p.minute); }
 
 /**
  * 同じ問い合わせは、覚えておいて返します。
@@ -1465,7 +1047,7 @@ export class RateLimiter {
         minute: sum(lastMinute, kind), minuteLimit: limits[kind].minute,
         hour: sum(recent, kind), hourLimit: limits[kind].hour,
       });
-      // 画面に出す見出しは、お金のかかる側です。無料のYahoo!は
+      // 画面に出す見出しは、お金のかかる側です。無料の側は
       // 「ぶつかることのない枠」なので、内訳として添えるだけにします。
       const usage = { ...shape("paid"), free: shape("free"),
                       paid: shape("paid") };
@@ -1536,7 +1118,7 @@ async function passthrough(res, service = "upstream") {
  * 断るときの返事は、いつも同じ形にします。
  *
  * これまでは入口ごとにばらばらでした（Googleは500、Geminiは502、
- * Yahoo!は429、Workers AIは503）。受け取る側は、どれがやり直せば通る
+ * 上流は429、Workers AIは503）。受け取る側は、どれがやり直せば通る
  * ものなのかを、番号から推し量るしかありません。
  *
  *   code      … 何が起きたか（機械が見る）
