@@ -1,0 +1,13 @@
+route_id,service_id,trip_id,trip_headsign,direction_id
+r1,svc1,t1a,神社前,0
+r1,svc1,t1b,神社前,0
+r1,svc1,t1c,神社前,0
+r1,svc1,t1d,神社前,0
+r1,svc1,t1e,神社前,0
+r1,svc1,t1r1,駅前,1
+r1,svc1,t1r2,駅前,1
+r2,svc1,t2a,山頂,0
+r2,svc1,t2b,山頂,0
+r2,svc1,t2c,山頂,0
+r2,svc1,t2r1,神社前,1
+r2,svc1,t2r2,神社前,1

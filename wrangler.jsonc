@@ -80,6 +80,21 @@
   // packages/core/src/config.js の MODEL_PROVIDER を "cloudflare" にすると、こちらを
   // 使います。料金は Cloudflare のアカウント側（無料枠あり）です。
   "ai": { "binding": "AI" },
+  // ── 乗り換え検索・自前エンジン（server/own-*.mjs）の時刻表 ──────────
+  // TODO(picks): Cloudflare で D1 データベースと KV 名前空間を作り、下の
+  // database_id / id を実 ID に差し替えてからコメントを外すこと。
+  // 作っていない ID を有効にすると、そのままではデプロイできません
+  // （下の analytics_engine_datasets と同じ扱い）。
+  // データは tools/own_convert.py で GTFS-JP から作ります:
+  //   D1 … --sql の出力を `wrangler d1 execute TRANSIT_DB --file=...` で入れる
+  //   KV … --kv の出力を `wrangler kv bulk put --binding TRANSIT_KV ...` で入れる
+  // バインディングが無いあいだは、transit.js の own は「設定なし」として
+  // 次の API（駅すぱあと等）へ回ります。本番の応答時間は未測定です。
+  // "d1_databases": [
+  //   { "binding": "TRANSIT_DB", "database_name": "tabisaki-transit", "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+  // ],
+  // "kv_namespaces" へ足すもの（既存の PRIVATE_KB と並べる）:
+  //   { "binding": "TRANSIT_KV", "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
 
   // --- レート制限（Durable Object） -----------------------------------
   // KV では数えられません。同時に来た2本が同じ値を読み、同じ値を書くため、

@@ -178,7 +178,7 @@ export function createTransitRouting(name = "transit", label = "乗り換え検�
 /** 中継に任せる（既定）。キーのある API から順に、引けるまで試します。 */
 export const transitRouting = createTransitRouting();
 const namedTransit = [
-  ["otp", "OpenTripPlanner（中継経由・手元で動かすもの。docs/otp.md）"],
+  ["own", "自前エンジン（中継経由・GTFS-JP の時刻表）"],
   ["ls8h", "ls8h（中継経由・キー不要）"],
   ["ekispert", "駅すぱあと Web サービス（中継経由・要キー）"],
   ["navitime", "NAVITIME Route(totalnavi)（中継経由・要キー）"],
