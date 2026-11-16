@@ -6,7 +6,7 @@
 
 | API | 中継に入れるもの | 費用 | 終電 | 範囲 |
 |---|---|---|---|---|
-| OpenTripPlanner（手元で動かす。[otp.md](otp.md)） | `OTP_URL` | 無料（自分の機械） | × | 読ませた GTFS-JP の範囲だけ。いまは熊本（路線バス・熊本電鉄・熊本市電）。JR は入らない |
+| OpenTripPlanner（手元で動かす。[otp.md](otp.md)） | `OTP_URL` | 無料（自分の機械） | × | 読ませた GTFS-JP の範囲だけ。いまは熊本（路線バス・熊本電鉄・熊本市電）と富山（路線バス・市内電車・万葉線・コミュニティバス）。JR は入らない（[gtfs-pipeline.md](gtfs-pipeline.md)） |
 | [駅すぱあと API][1]（Val研究所） | `EKISPERT_API_KEY` | 従量課金。90日の無料試用・フリープランあり | ○ | 全国の鉄道・飛行機・船。バスは契約しだい |
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |

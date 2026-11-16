@@ -7,11 +7,18 @@ GTFS-JP（時刻表）と OpenStreetMap（道路・歩道）を読ませた Open
 - 構成: `compose.yaml` の `otp-build`・`otp`（公式イメージ `opentripplanner/opentripplanner:2.6.0`、版を固定）
 - 設定: `otp/router-config.json`（歩く速さ 1.2m/秒＝時速4.3km など）・`otp/otp-config.json`
 - 地域: `otp/regions/kumamoto.json`（はじめの地域。下の「なぜ熊本か」）
-- データ集め: `tools/otp_fetch.py`
+- データ集め: `tools/otp_fetch.py`（時刻表の取得と検査は `tools/gtfs_feeds.py`。[gtfs-pipeline.md](gtfs-pipeline.md)）
+- 1本で回す: `tools/otp_pipeline.sh`（取得 → 検査 → 組み立て → 起こし直し → 試しの検索）
 - つなぎ: `server/transit.js` の `otp`（Cloudflare 版の中継と、Node 版の中継 `server/node-proxy.mjs` の両方）
 - 測定: `tools/otp_bench.mjs`
 
 ## 動かしかた
+
+```sh
+bash tools/otp_pipeline.sh                        # 熊本。下の3つと、試しの検索までを1本で
+```
+
+1つずつ動かすときは、次の順です。
 
 ```sh
 python3 tools/otp_fetch.py                        # 時刻表 6本と地図を data/otp/kumamoto/ に（1分ほど。地図の元は 350MB）
@@ -107,17 +114,18 @@ OTP が止まっていても、旅程づくりは止まりません。
 
 ## 地域を足すとき
 
-`otp/regions/<地域>.json` を作ります（`kumamoto.json` と同じ形。`feeds` は
-[GTFS データリポジトリ](https://gtfs-data.jp/) の事業者の ID と時刻表の ID）。
+`otp/regions/<地域>.json` を作ります。時刻表は、県を書けば一覧から自動で選ばれます
+（`"select": {"prefectures": [16]}`。くわしくは [gtfs-pipeline.md](gtfs-pipeline.md#地域のファイル)）。
 
 ```sh
-python3 tools/otp_fetch.py otp/regions/<地域>.json
-OTP_REGION=<地域> docker compose --profile otp run --rm otp-build
-OTP_REGION=<地域> docker compose --profile otp up -d otp
+bash tools/otp_pipeline.sh <地域>
 ```
 
-時刻表には期限があります（熊本電鉄電車は 2026-12-28 まで）。期限が近づいたら `otp_fetch.py` と
-`otp-build` をやり直します。
+いまある地域は、熊本（`kumamoto`）と富山（`toyama`）です。OTP は1つの地域を読んで動くので、
+地域を変えるときは `otp_pipeline.sh` で起こし直します（`OTP_REGION` で compose に伝えます）。
+
+時刻表には期限があります。`otp_pipeline.sh` を回すと、一覧の公開日が変わったものだけ落とし直し、
+期限切れのものは外して組み立て直します（変わっていなければ組み立てを飛ばします）。
 
 GTFS-JP の古い版（第2版まで）の `translations.txt` は形が違い、OTP が組み立ての途中で止まります。
 `otp_fetch.py` は、古い形のときだけこのファイルを外します（読み仮名と英語名だけで、経路には効きません）。
@@ -130,8 +138,8 @@ GTFS-JP の古い版（第2版まで）の `translations.txt` は形が違い、
 
 ## ライセンス
 
-データはリポジトリに入れていません（`data/otp/` は .gitignore 済み。`otp_fetch.py` で作り直せます）。
-`data/otp/<地域>/SOURCES.md` に出典を書き出します。
+データはリポジトリに入れていません（`data/otp/`・`data/gtfs/` は .gitignore 済み。`otp_fetch.py` で作り直せます）。
+`data/otp/<地域>/SOURCES.md` に、読ませた時刻表の事業者名とライセンスを書き出します。
 
 | データ | ライセンス |
 | --- | --- |

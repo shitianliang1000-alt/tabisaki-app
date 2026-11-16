@@ -22,6 +22,7 @@ services:
 
   # ── OpenTripPlanner（乗り換え検索を手元で。Issue #429、docs/otp.md） ──
   # ふつうの docker compose up では動きません（--profile otp のときだけ）。
+  #     bash tools/otp_pipeline.sh [地域]                 # 下の3つと試しの検索を1本で（docs/gtfs-pipeline.md）
   #     python3 tools/otp_fetch.py                        # 時刻表と地図を data/otp/kumamoto/ に集める
   #     docker compose --profile otp run --rm otp-build   # 経路網を組み立てる（graph.obj）
   #     docker compose --profile otp up -d otp            # http://127.0.0.1:8080/otp/gtfs/v1
