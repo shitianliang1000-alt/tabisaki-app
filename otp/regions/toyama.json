@@ -1,0 +1,9 @@
+{
+  "name": "富山（富山市・高岡市と、そのまわり）",
+  "why": "路面電車（富山地方鉄道市内電車・万葉線）と路線バス、各市町のコミュニティバスが GTFS-JP で公開されている。時刻表を手で並べず、県の一覧から範囲で自動に選ぶ例",
+  "osm": {
+    "extract": "https://download.openstreetmap.fr/extracts/asia/japan/chubu.osm.pbf",
+    "bbox": [136.85, 36.50, 137.45, 36.87]
+  },
+  "select": { "prefectures": [16], "min_stops": 3, "exclude": [] }
+}
