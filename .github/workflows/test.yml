@@ -35,7 +35,7 @@ jobs:
       # GTFS-JP の取得・検査・OTP への反映の道具（落とさずに試せる部分。docs/gtfs-pipeline.md）
       - name: GTFS pipeline tools
         run: |
-          python3 -m py_compile tools/gtfs_feeds.py tools/otp_fetch.py
+          python3 -m py_compile tools/gtfs_feeds.py tools/otp_fetch.py tools/build_bus_timetable.py
           bash -n tools/otp_pipeline.sh
           python3 -m unittest discover -s tools -p 'test_gtfs*.py'
       # 知識ベースの点検（誤りは単体試験でも止まります。ここでは件数と

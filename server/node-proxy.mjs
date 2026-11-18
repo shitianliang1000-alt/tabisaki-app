@@ -28,6 +28,7 @@
  */
 
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import { transitHandler, TransitError } from "./transit.js";
 import { privateKbHandler } from "./private-kb.js";
 import { dirStore } from "./private-kb-dir.mjs";
@@ -323,7 +324,11 @@ function send(res, status, head, message, doc = null) {
 function transitEnv() {
   const names = ["OTP_URL", "EKISPERT_API_KEY", "NAVITIME_RAPIDAPI_KEY", "HERE_API_KEY", "TRANSIT_ORDER", "TRANSITOUS"];
   const env = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
-  return { ...env, YAHOO_TRANSIT: "off" };
+  // 自前のバス時刻表（server/bus.js）。data/bus/ を直に読みます。
+  const busLoader = process.env.BUS_TIMETABLE === "off" ? null : async (p) => {
+    try { return JSON.parse(await readFile(new URL(`../data/bus/${p}`, import.meta.url), "utf8")); } catch { return null; }
+  };
+  return { ...env, YAHOO_TRANSIT: "off", ...(busLoader ? { BUS_LOADER: busLoader } : {}) };
 }
 
 /** 上限を超えたら、そこで読むのをやめます（最後まで受けてから測らない）。 */

@@ -41,6 +41,14 @@ export const SOURCES = [
       "src=osm-tourlist のスポットの名前と座標（tools/import_osm_tourlist.py）",
     ],
   },
+  {
+    id: "bus-gtfs",
+    name: "バス事業者・自治体の GTFS-JP（自前のバス時刻表。事業者ごとの一覧は data/bus/index.json と credits.html）",
+    license: "CC BY 4.0 / CC0 1.0（事業者ごと）",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/deed.ja",
+    attribution: "各バス事業者・自治体（data/bus/index.json の publisher）",
+    appliesTo: ["data/bus/（tools/build_bus_timetable.py が GTFS-JP を加工したもの。中継の server/bus.js が読む）"],
+  },
 ];
 
 export const ARTIFACTS = [
@@ -48,6 +56,7 @@ export const ARTIFACTS = [
   { file: "kb/tags-*.json", derivedFrom: ["kb-spots", "wikipedia"], note: "カテゴリ等の構造情報が主根拠だが、説明文由来の判定を含むため両出典を併記する" },
   { file: "kb/summaries.json", derivedFrom: ["kb-spots", "wikipedia"], note: "summary 文は CC BY-SA 4.0、件数等の構造部分はプロジェクトデータ" },
   { file: "kb/regions.json", derivedFrom: ["kb-spots"], note: "プロジェクトデータのみ" },
+  { file: "data/bus/", derivedFrom: ["bus-gtfs"], note: "GTFS-JP を加工したもの。事業者ごとのライセンスと出典は data/bus/index.json。credits.html の一覧は tools/build_bus_timetable.py が書き直す。中継の答え（provider: bus）にも attribution を付ける" },
   { file: "packages/core/rail/jr-graph.json", derivedFrom: ["wikipedia"], note: "最長片道切符のソルバー（Issue #431）が読む路線網。全体が CC BY-SA 4.0（share-alike）。サイト・アプリには入れない" },
 ];
 

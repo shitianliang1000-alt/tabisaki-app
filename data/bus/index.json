@@ -1,0 +1,317 @@
+{
+ "version": 1,
+ "tile": 50,
+ "built": 20261118,
+ "feeds": [
+  {
+   "id": "akitachuo",
+   "name": "秋田中央交通",
+   "license": "CC BY 4.0",
+   "publisher": "秋田県バス協会",
+   "source": "秋田県公共交通オープンデータ",
+   "url": "https://www.akita-bus.or.jp/~akita-gtfs/bus-akitachuoukotsu.zip",
+   "agencies": [
+    "秋田中央交通"
+   ],
+   "start": 20261001,
+   "end": 20270930,
+   "stops": 1074,
+   "patterns": 112,
+   "trips": 1396,
+   "files": 1
+  },
+  {
+   "id": "akitacity",
+   "name": "秋田市マイタウン・バス／ぐるる",
+   "license": "CC BY 4.0",
+   "publisher": "秋田県バス協会",
+   "source": "秋田県公共交通オープンデータ",
+   "url": "https://www.akita-bus.or.jp/~akita-gtfs/bus-akitacity.zip",
+   "agencies": [
+    "秋田市"
+   ],
+   "start": 20261001,
+   "end": 20270930,
+   "stops": 580,
+   "patterns": 68,
+   "trips": 454,
+   "files": 1
+  },
+  {
+   "id": "aomoricity",
+   "name": "青森市営バス",
+   "license": "CC BY 4.0",
+   "publisher": "青森市企業局交通部",
+   "source": "青森市営バス",
+   "url": "https://aomoricitybus.com/opendata/gtfs-aomoricitybus.zip",
+   "agencies": [
+    "青森市営バス"
+   ],
+   "start": 20261201,
+   "end": 20271130,
+   "stops": 825,
+   "patterns": 258,
+   "trips": 1508,
+   "files": 2
+  },
+  {
+   "id": "azuma",
+   "name": "東バス（東運輸）",
+   "license": "CC BY 4.0",
+   "publisher": "東運輸",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/9360001013023",
+   "agencies": [
+    "東バス"
+   ],
+   "start": 20260701,
+   "end": 20270331,
+   "stops": 253,
+   "patterns": 26,
+   "trips": 106,
+   "files": 1
+  },
+  {
+   "id": "daishinto",
+   "name": "レイディアントシティ横濱 自主運行バス（大新東）",
+   "license": "CC0 1.0",
+   "publisher": "大新東",
+   "source": "GTFSデータリポジトリ",
+   "url": "https://api.gtfs-data.jp/v2/organizations/daishinto/feeds/Radiant-City/files/feed.zip?rid=current",
+   "agencies": [
+    "大新東株式会社"
+   ],
+   "start": 20260301,
+   "end": 20270228,
+   "stops": 9,
+   "patterns": 3,
+   "trips": 456,
+   "files": 1
+  },
+  {
+   "id": "echigo",
+   "name": "越後交通（ときライナー）",
+   "license": "CC BY 4.0",
+   "publisher": "越後交通",
+   "source": "Bus-Vision",
+   "url": "https://loc.bus-vision.jp/gtfs_v2/echigokotsu/gtfsFeed",
+   "agencies": [
+    "越後交通(株)"
+   ],
+   "start": 20260401,
+   "end": 20270422,
+   "stops": 88,
+   "patterns": 9,
+   "trips": 68,
+   "files": 1
+  },
+  {
+   "id": "iriomote",
+   "name": "西表島交通",
+   "license": "CC BY 4.0",
+   "publisher": "西表島交通",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/2360001013046",
+   "agencies": [
+    "西表島交通株式会社"
+   ],
+   "start": 20261001,
+   "end": 20261231,
+   "stops": 29,
+   "patterns": 2,
+   "trips": 8,
+   "files": 1
+  },
+  {
+   "id": "kenei",
+   "name": "長崎県営バス",
+   "license": "CC BY 4.0",
+   "publisher": "長崎県交通局",
+   "source": "GTFSデータリポジトリ",
+   "url": "https://api.gtfs-data.jp/v2/organizations/keneibus/feeds/nagasaki-kenei-bus/files/feed.zip?rid=current",
+   "agencies": [
+    "長崎県交通局"
+   ],
+   "start": 20260401,
+   "end": 20270401,
+   "stops": 1754,
+   "patterns": 419,
+   "trips": 3826,
+   "files": 3
+  },
+  {
+   "id": "kotoden",
+   "name": "ことでんバス",
+   "license": "CC BY 4.0",
+   "publisher": "ことでんバス",
+   "source": "ことでんグループ",
+   "url": "https://www.kotoden.co.jp/publichtm/gtfs/gtfsdata/latest/gtfs_kb.zip",
+   "agencies": [
+    "ことでんバス"
+   ],
+   "start": 20261001,
+   "end": 20270331,
+   "stops": 658,
+   "patterns": 80,
+   "trips": 1034,
+   "files": 1
+  },
+  {
+   "id": "miyakokyoei",
+   "name": "宮古協栄バス",
+   "license": "CC BY 4.0",
+   "publisher": "宮古協栄バス",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/7360003005301",
+   "agencies": [
+    "宮古協栄バス合資会社"
+   ],
+   "start": 20231029,
+   "end": 20270327,
+   "stops": 129,
+   "patterns": 25,
+   "trips": 48,
+   "files": 1
+  },
+  {
+   "id": "nagai",
+   "name": "永井バス（永井運輸）",
+   "license": "CC BY 4.0",
+   "publisher": "永井運輸",
+   "source": "GTFSデータリポジトリ",
+   "url": "https://api.gtfs-data.jp/v2/organizations/nagai-unyu/feeds/Nagaibus/files/feed.zip?rid=current",
+   "agencies": [
+    "永井運輸株式会社"
+   ],
+   "start": 20261001,
+   "end": 20270930,
+   "stops": 401,
+   "patterns": 46,
+   "trips": 514,
+   "files": 1
+  },
+  {
+   "id": "okaden",
+   "name": "岡電バス（岡山電気軌道）",
+   "license": "CC BY 4.0",
+   "publisher": "岡山電気軌道",
+   "source": "Bus-Vision",
+   "url": "https://loc.bus-vision.jp/gtfs/okaden/gtfsFeed",
+   "agencies": [
+    "岡山電気軌道(バス)"
+   ],
+   "start": 20261101,
+   "end": 20270219,
+   "stops": 705,
+   "patterns": 179,
+   "trips": 1595,
+   "files": 2
+  },
+  {
+   "id": "okibus",
+   "name": "沖縄バス",
+   "license": "CC BY 4.0",
+   "publisher": "沖縄バス",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/2360001000457",
+   "agencies": [
+    "沖縄バス（株）"
+   ],
+   "start": 20240401,
+   "end": 20270331,
+   "stops": 974,
+   "patterns": 104,
+   "trips": 723,
+   "files": 2
+  },
+  {
+   "id": "ryobi",
+   "name": "両備バス",
+   "license": "CC BY 4.0",
+   "publisher": "両備ホールディングス",
+   "source": "Bus-Vision",
+   "url": "https://loc.bus-vision.jp/gtfs/ryobi/gtfsFeed",
+   "agencies": [
+    "両備バス"
+   ],
+   "start": 20261001,
+   "end": 20270219,
+   "stops": 1059,
+   "patterns": 148,
+   "trips": 1325,
+   "files": 2
+  },
+  {
+   "id": "saga",
+   "name": "佐賀県の路線バス（佐賀市営・昭和・祐徳ほか）",
+   "license": "CC BY 4.0",
+   "publisher": "佐賀県",
+   "source": "佐賀県バス情報オープンデータ",
+   "url": "http://opendata.sagabus.info/saga-current.zip",
+   "agencies": [
+    "佐賀市",
+    "佐賀市交通局",
+    "佐賀県嬉野市",
+    "昭和自動車株式会社",
+    "祐徳自動車株式会社"
+   ],
+   "start": 20260901,
+   "end": 20271113,
+   "stops": 2485,
+   "patterns": 408,
+   "trips": 7128,
+   "files": 4
+  },
+  {
+   "id": "tokyobus_okinawa",
+   "name": "東京バス（沖縄）",
+   "license": "CC BY 4.0",
+   "publisher": "東京バス",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/7011501003070",
+   "agencies": [
+    "東京バス株式会社"
+   ],
+   "start": 20260820,
+   "end": 20261231,
+   "stops": 26,
+   "patterns": 16,
+   "trips": 140,
+   "files": 1
+  },
+  {
+   "id": "toyo",
+   "name": "東陽バス",
+   "license": "CC BY 4.0",
+   "publisher": "東陽バス",
+   "source": "OTTOP（沖縄県）",
+   "url": "https://api3.ottop.org/download/gtfs/ooXuXei4op7y/2360001015810",
+   "agencies": [
+    "東陽バス（株）"
+   ],
+   "start": 20251117,
+   "end": 20270331,
+   "stops": 440,
+   "patterns": 20,
+   "trips": 548,
+   "files": 1
+  },
+  {
+   "id": "wakayama",
+   "name": "和歌山バス",
+   "license": "CC BY 4.0",
+   "publisher": "和歌山バス",
+   "source": "Bus-Vision",
+   "url": "https://loc.bus-vision.jp/gtfs/wakayama/gtfsFeed",
+   "agencies": [
+    "和歌山バス"
+   ],
+   "start": 20260901,
+   "end": 20270219,
+   "stops": 518,
+   "patterns": 103,
+   "trips": 4175,
+   "files": 1
+  }
+ ]
+}

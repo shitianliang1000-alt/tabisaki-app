@@ -3,6 +3,7 @@ import { ENDPOINTS, record, Stats } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
+import { assetsLoader, BUS_ASSET_DIR } from "./bus.js";
 import { privateKbHandler } from "./private-kb.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
 import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
@@ -174,6 +175,10 @@ export default {
     if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
       return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
+    // 自前のバス時刻表のデータ（server/bus.js）も、中継の中からだけ読みます。
+    if (url.pathname.startsWith(BUS_ASSET_DIR)) {
+      return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
     // トップ（/）は tour.html（映像で見る旅さき）です。前のトップ（動く見本の紹介）は /landing に残しています。
     if (env?.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
       if (url.pathname === "/" && !url.searchParams.has("p")) {
@@ -325,7 +330,7 @@ async function relay(request, env, ctx) {
       if (path.endsWith("/routes")) return cors(await routes(request, env), origin, allow);
       if (path.endsWith("/cf/generate")) return cors(await cfGenerate(request, env), origin, allow);
       // どの乗り換え検索が使えるか（キーの値は返しません）。
-      if (path.endsWith("/transit/providers")) return cors(json(providerStatus(env)), origin, allow);
+      if (path.endsWith("/transit/providers")) return cors(json(providerStatus(withBus(env))), origin, allow);
       if (path.endsWith("/transit")) return cors(await transit(request, env), origin, allow);
       if (path.endsWith("/metrics")) return cors(await metrics(request, env), origin, allow);
       // 非商用データ（Workers KV の PRIVATE_KB）で確かめます。返すのは true/false だけで、
@@ -348,7 +353,7 @@ async function relay(request, env, ctx) {
             HERE_API_KEY: hasSecret(env, "HERE_API_KEY"),
           },
           // 乗り換え検索の順番と、使えるもの（server/transit.js）。
-          transit: providerStatus(env),
+          transit: providerStatus(withBus(env)),
           // Workers AI が使えるなら、AIのキーは要りません。
           workersAi: Boolean(env.AI),
           // 非商用データの入れ物（Workers KV）がつながっているか（中身は返しません）。
@@ -758,6 +763,12 @@ async function geminiModels(env) {
   return json({ models: names });
 }
 
+/** 自前のバス時刻表を読めるようにした env（server/bus.js。ASSETS が無ければそのまま）。 */
+function withBus(env) {
+  const loader = assetsLoader(env);
+  return loader ? { ...env, BUS_LOADER: loader } : env;
+}
+
 /**
  * 乗り換え検索（POST /transit）。どの API で引くかは server/transit.js が
  * 決めます（Yahoo!路線情報のスクレイピングは廃止済み。#367）。
@@ -765,7 +776,7 @@ async function geminiModels(env) {
 async function transit(request, env) {
   const body = await readJson(request);
   try {
-    return json(await transitHandler(body, env));
+    return json(await transitHandler(body, withBus(env)));
   } catch (e) {
     if (!(e instanceof TransitError)) throw e;
     return fail(e.status, e.code.toUpperCase(), e.message,
@@ -952,7 +963,9 @@ async function dailyUsage(env) {
 // 書きません）。Durable Object は使われているあいだメモリを保つので、数え
 // かたは変わりません。しばらく使われずに落ちたときだけ、最後の数十秒ぶんを
 // 数えそこねます（1時間の枠が少し甘くなるだけで、1分の枠は元から過ぎています）。
-export const RATE_SAVE_MS = 30_000;
+// （Worker の入口から数を export すると、workerd が「入口の型が違う」と言って起動しません。
+// 2026-11-18 に wrangler dev で見つけた。tests/bus.test.js が見張ります。）
+const RATE_SAVE_MS = 30_000;
 const HOUR_MS = 3_600_000;
 
 export class RateLimiter {

@@ -35,6 +35,16 @@
     "スポットの osmInfo（営業時間・電話・公式サイト・車いすの可否・料金の有無。tools/osm_enrich.py）",
     "src=osm-tourlist のスポットの名前と座標（tools/import_osm_tourlist.py）"
    ]
+  },
+  {
+   "id": "bus-gtfs",
+   "name": "バス事業者・自治体の GTFS-JP（自前のバス時刻表。事業者ごとの一覧は data/bus/index.json と credits.html）",
+   "license": "CC BY 4.0 / CC0 1.0（事業者ごと）",
+   "licenseUrl": "https://creativecommons.org/licenses/by/4.0/deed.ja",
+   "attribution": "各バス事業者・自治体（data/bus/index.json の publisher）",
+   "appliesTo": [
+    "data/bus/（tools/build_bus_timetable.py が GTFS-JP を加工したもの。中継の server/bus.js が読む）"
+   ]
   }
  ],
  "artifacts": [
@@ -71,6 +81,13 @@
    "note": "プロジェクトデータのみ"
   },
   {
+   "file": "data/bus/",
+   "derivedFrom": [
+    "bus-gtfs"
+   ],
+   "note": "GTFS-JP を加工したもの。事業者ごとのライセンスと出典は data/bus/index.json。credits.html の一覧は tools/build_bus_timetable.py が書き直す。中継の答え（provider: bus）にも attribution を付ける"
+  },
+  {
    "file": "packages/core/rail/jr-graph.json",
    "derivedFrom": [
     "wikipedia"
@@ -78,5 +95,5 @@
    "note": "最長片道切符のソルバー（Issue #431）が読む路線網。全体が CC BY-SA 4.0（share-alike）。サイト・アプリには入れない"
   }
  ],
- "displayText": "旅さきプロジェクト収集データ（位置・カテゴリ・営業時間等の構造的事実）: 旅さき (tabisaki)（Project data） / Wikipedia（説明文・wikipedia フィールドの参照先テキスト）: Wikipedia contributors（CC BY-SA 4.0） / OpenStreetMap（補完フィールド osmInfo と、src=osm-tourlist の名前・座標）: © OpenStreetMap contributors（ODbL 1.0）"
+ "displayText": "旅さきプロジェクト収集データ（位置・カテゴリ・営業時間等の構造的事実）: 旅さき (tabisaki)（Project data） / Wikipedia（説明文・wikipedia フィールドの参照先テキスト）: Wikipedia contributors（CC BY-SA 4.0） / OpenStreetMap（補完フィールド osmInfo と、src=osm-tourlist の名前・座標）: © OpenStreetMap contributors（ODbL 1.0） / バス事業者・自治体の GTFS-JP（自前のバス時刻表。事業者ごとの一覧は data/bus/index.json と credits.html）: 各バス事業者・自治体（data/bus/index.json の publisher）（CC BY 4.0 / CC0 1.0（事業者ごと））"
 }

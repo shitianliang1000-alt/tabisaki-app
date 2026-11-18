@@ -60,3 +60,7 @@ Thumbs.db
 
 # 学習の結果（training/。重み・GGUF は大きいので Hugging Face Hub に置く）
 /runs/
+/data/gtfs-bus/
+
+# wrangler dev が作る手元の状態
+/.wrangler/

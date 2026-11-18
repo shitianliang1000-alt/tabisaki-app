@@ -194,7 +194,7 @@ test("使えるもの: キーが無ければ有料の API は使わない。ls8h
 });
 
 test("順番: TRANSIT_ORDER で変えられ、知らない名前は捨てる", () => {
-  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "ls8h", "transitous"]);
+  assert.deepEqual(orderFrom({}), ["otp", "ekispert", "navitime", "here", "ls8h", "transitous", "bus"]);
   assert.deepEqual(orderFrom({ TRANSIT_ORDER: "transitous, nope ,ls8h" }), ["transitous", "ls8h"]);
   const st = providerStatus({ HERE_API_KEY: "x" });
   assert.equal(st.providers.find((p) => p.name === "here").available, true);
