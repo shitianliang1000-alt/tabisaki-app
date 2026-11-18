@@ -271,12 +271,43 @@ export async function privateStatus(env) {
 // --- 入れ物の中身を作る（tools/upload_private_kb.mjs が使います） ---------
 
 /**
+ * `wrangler kv bulk put` の形（`[{key:"stops:<geohash5>", value:"[[id, 緯度, 経度], …]"}]`）の
+ * 停留所・駅の一覧（kb-private/tokyo-stops-kv.json）を、`[緯度, 経度, 名前]` の行にします。
+ * 名前は入っていないので `tokyo:<id>` にします（判定は座標しか使いません）。
+ * 形の違う行は黙って捨てます。
+ * @returns {Array<[number, number, string]>}
+ */
+export function stopsFromGeohashKv(list) {
+  const rows = [];
+  for (const item of Array.isArray(list) ? list : []) {
+    if (!/^stops:[0-9b-hjkmnp-z]{1,12}$/.test(String(item?.key ?? ""))) continue;
+    let value = item.value;
+    if (typeof value === "string") {
+      try { value = JSON.parse(value); } catch { continue; }
+    }
+    for (const r of Array.isArray(value) ? value : []) {
+      if (!Array.isArray(r) || r.length < 3) continue;
+      const lat = Number(r[1]);
+      const lng = Number(r[2]);
+      if (!pointOf({ lat, lng })) continue;
+      rows.push([lat, lng, `tokyo:${String(r[0]).slice(0, 40)}`]);
+    }
+  }
+  return rows;
+}
+
+/**
  * kb-private/ の中身から、KV に入れる鍵と中身の一覧を作ります。
  *
- * @param {{busIndex?:object, readBusTile?:(file:string)=>object|null, spotsDoc?:object}} src
+ * extraStops は、P11 のバス停に足す停留所・駅（`[緯度, 経度, 名前]`）です。
+ * 同じ `bus/<緯度>_<経度>.json` に混ぜるので、読む側（stopNear）はそのままで使えます。
+ * すでに同じ座標（小数5桁）の停留所があるものは足しません。
+ *
+ * @param {{busIndex?:object, readBusTile?:(file:string)=>object|null, spotsDoc?:object,
+ *          extraStops?:Array<[number, number, string]>}} src
  * @returns {Map<string, any>} 鍵 → JSON にする値
  */
-export function packPrivateKb({ busIndex, readBusTile, spotsDoc }) {
+export function packPrivateKb({ busIndex, readBusTile, spotsDoc, extraStops }) {
   const out = new Map();
   const bus = new Map();
   const add = (map, lat, lng, name) => {
@@ -294,6 +325,19 @@ export function packPrivateKb({ busIndex, readBusTile, spotsDoc }) {
   }
   for (const s of busRows) add(bus, Number(s[0]), Number(s[1]), s[2]);
 
+  // 足す停留所・駅（東京など）。同じ座標が既にあれば足しません。
+  const seen = new Set();
+  for (const rows of bus.values()) for (const r of rows) seen.add(`${r[0]},${r[1]}`);
+  let extraCount = 0;
+  for (const s of Array.isArray(extraStops) ? extraStops : []) {
+    const lat = Math.round(Number(s?.[0]) * 1e5) / 1e5;
+    const lng = Math.round(Number(s?.[1]) * 1e5) / 1e5;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || seen.has(`${lat},${lng}`)) continue;
+    seen.add(`${lat},${lng}`);
+    add(bus, lat, lng, s[2] || "stop");
+    extraCount++;
+  }
+
   const spots = new Map();
   for (const list of Object.values(spotsDoc?.shards ?? {})) {
     for (const s of Array.isArray(list) ? list : []) {
@@ -307,7 +351,11 @@ export function packPrivateKb({ busIndex, readBusTile, spotsDoc }) {
     note: "国土数値情報（非商用）。公開しないこと。中継の中の判定だけに使う（docs/private-kb.md）。",
     bus: [...bus.keys()].sort(),
     spots: [...spots.keys()].sort(),
-    counts: { bus: busRows.length, spots: [...spots.values()].reduce((n, r) => n + r.length, 0) },
+    counts: {
+      bus: busRows.length,
+      spots: [...spots.values()].reduce((n, r) => n + r.length, 0),
+      ...(extraCount ? { extraStops: extraCount } : {}),
+    },
   });
   return out;
 }

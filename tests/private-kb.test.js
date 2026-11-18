@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkUpload, MAX_VALUE_BYTES, packPrivateKb, privateKbHandler, privateStatus, putPrivate,
-  radiusOf, spotListed, stopNear, storeFrom, tileOf,
+  radiusOf, spotListed, stopNear, stopsFromGeohashKv, storeFrom, tileOf,
 } from "../server/private-kb.js";
 import { dirStore } from "../server/private-kb-dir.mjs";
 import { busStopNear, resetPrivateHintCache, spotListed as spotListedHint }
@@ -48,6 +48,33 @@ test("詰め直しは1度四方のタイルと manifest", () => {
   assert.equal(packed.get("manifest.json").counts.bus, 2);
   assert.equal(packed.get("bus/35_138.json").length, 2);
   assert.equal(tileOf(35.99, 138.01), "35_138");
+});
+
+test("東京の停留所・駅（stops:<geohash> の形）をバス停のタイルに混ぜる", async () => {
+  // 架空の値です。同じ座標の2件は1件にまとめ、P11 と同じ座標のものは足しません。
+  const kv = [
+    { key: "stops:xn76u", value: JSON.stringify([[1, 35.6812, 139.7671], [2, 35.6812, 139.7671]]) },
+    { key: "stops:xn69p", value: [[3, 35.3601, 138.727]] },
+    { key: "stops:bad!", value: "[[4, 35.7, 139.7]]" },
+    { key: "stops:xn77h", value: "壊れた JSON" },
+    { key: "stops:xn77j", value: "[[5, 0, 0], [6]]" },
+  ];
+  const extraStops = stopsFromGeohashKv(kv);
+  assert.deepEqual(extraStops.map((r) => r[2]), ["tokyo:1", "tokyo:2", "tokyo:3"]);
+  const p = packPrivateKb({
+    busIndex, readBusTile: (f) => (f === "stops-bus/35_138.json" ? busTile : null), spotsDoc, extraStops,
+  });
+  const m = p.get("manifest.json");
+  assert.deepEqual(m.bus, ["35_138", "35_139"]);
+  assert.equal(m.counts.bus, 2);
+  assert.equal(m.counts.extraStops, 1);
+  assert.equal(p.get("bus/35_138.json").length, 2);
+  for (const [key, value] of p) assert.equal(checkUpload(key, JSON.stringify(value)), null, key);
+  const store = memStore(p);
+  assert.deepEqual(await stopNear(store, { lat: 35.6815, lng: 139.7675, km: 0.5 }),
+    { available: true, within: true });
+  // 足さないときは manifest に extraStops を書きません
+  assert.equal(packed.get("manifest.json").counts.extraStops, undefined);
 });
 
 test("バス停が半径内にあるか（true/false だけ）", async () => {

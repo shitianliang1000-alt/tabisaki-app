@@ -28,7 +28,7 @@ import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { packPrivateKb } from "../server/private-kb.js";
+import { packPrivateKb, stopsFromGeohashKv } from "../server/private-kb.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -56,10 +56,13 @@ if (!busIndex && !spotsDoc) {
   console.error("プロジェクトの共有フォルダの kb-private/ を、リポジトリの一番上に写してください。");
   process.exit(1);
 }
+// 東京の停留所・駅（`stops:<geohash5>` の形）があれば、バス停のタイルに混ぜます。
+const extraStops = stopsFromGeohashKv(readJson(join(SRC, "tokyo-stops-kv.json")));
 const packed = packPrivateKb({
   busIndex,
   readBusTile: (file) => readJson(join(SRC, file)),
   spotsDoc,
+  extraStops,
 });
 
 // 出力先は、リポジトリに入らない場所に限ります。
@@ -77,7 +80,9 @@ for (const [key, value] of packed) {
 }
 const manifest = packed.get("manifest.json");
 console.log(`詰め直しました: ${OUT}（バス停 ${manifest.counts.bus}件・${manifest.bus.length}枚、`
-  + `観光資源・文化施設 ${manifest.counts.spots}件・${manifest.spots.length}枚）`);
+  + `観光資源・文化施設 ${manifest.counts.spots}件・${manifest.spots.length}枚`
+  + (extraStops.length ? `、東京の停留所・駅 ${manifest.counts.extraStops ?? 0}件を足しました（重なり除く・元 ${extraStops.length}件）` : "")
+  + "）");
 if (has("pack-only")) process.exit(0);
 
 // 2. KV に一度に入れる（wrangler kv bulk put。1回の呼び出しで全部入ります）
