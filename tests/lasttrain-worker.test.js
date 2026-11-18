@@ -89,7 +89,8 @@ test("通常の検索では type=departure で聞く", async () => {
   try {
     const res = await post({ ...BASE });
     assert.equal(res.status, 200);
-    const u = new URL(calls[0]);
+    // 通常の検索は ls8h と Transitous に同時に聞くので、ls8h への呼び出しを探します。
+    const u = new URL(calls.find((c) => new URL(c).host === "api.transit.ls8h.com"));
     assert.equal(u.searchParams.get("type"), "departure");
   } finally { restore(); }
 });
