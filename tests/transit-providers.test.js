@@ -11,7 +11,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import {
-  available, choose, cleanName, clockOf, clockOfSecs, dms, labelLine, navitimeUnuse, orderFrom,
+  available, choose, cleanName, clockDiff, clockOf, clockOfSecs, dms, labelLine, navitimeUnuse, orderFrom,
   otpBase, otpLine, providerStatus, readEkispert, readHere, readLs8h, readNavitime, readOtp, readQuery, readTransitous,
   searchAuto, searchWith, transitHandler, TransitError,
 } from "../server/transit.js";
@@ -488,4 +488,114 @@ test("ls8h: 終電の候補は、API が返したものをそのまま読みま�
   // 候補の取捨はしません（Yahoo! の終電検索を ls8h に置き換えただけです）
   assert.equal(readLs8h(data, Q({ search: "last" })).length, 2);
   assert.equal(readLs8h(data, Q()).length, 2);
+});
+
+
+// ---------------------------------------------------------------------------
+//  2026-11-18 本番の 16 経路を時刻表と比べて見つかったこと
+// ---------------------------------------------------------------------------
+
+const H = 3600;
+const ls8hLeg = (routeName, from, to, dep, arr, mode = "bus") => ({
+  kind: "transit", routeName, mode,
+  from: { id: from, name: from }, to: { id: to, name: to },
+  departureSecs: dep, arrivalSecs: arr, headwayBased: false,
+});
+const ls8hWalk = (from, to, dep, arr) => ({
+  kind: "walk", from: { name: from }, to: { name: to }, departureSecs: dep, arrivalSecs: arr,
+});
+
+test("時刻の差: 日をまたぐときだけ 24 時間を足し、24 時を超える書きかたは丸めない", () => {
+  assert.equal(clockDiff("23:50", "00:10"), 20);
+  assert.equal(clockDiff("12:16", "36:41"), 1465);
+  assert.equal(clockDiff("09:00", "09:00"), 0);
+});
+
+test("ls8h: 翌日に着く便（36:41 着）を、25 分の便と取り違えない", () => {
+  const q = readQuery({ from: "熊本桜町バスターミナル", to: "熊本空港",
+    fromAt: { lat: 32.8013, lng: 130.7048 }, toAt: { lat: 32.8347, lng: 130.861 },
+    departAt: "2026-11-19T09:00:00+09:00" });
+  const data = { journeys: [
+    { departureSecs: 9 * H + 2 * 60, arrivalSecs: 17 * H + 21 * 60, transferCount: 1,
+      legs: [ls8hLeg("熊本駅前→阿蘇～黒川→別府", "桜町", "満願寺入口", 12 * H + 20 * 60, 14 * H + 50 * 60),
+             ls8hLeg("由布院→黒川～阿蘇→熊本駅前", "満願寺入口", "阿蘇くまもと空港", 15 * H + 32 * 60, 17 * H + 17 * 60)] },
+    { departureSecs: 12 * H + 19 * 60, arrivalSecs: 36 * H + 41 * 60, transferCount: 1,
+      legs: [ls8hLeg("熊本駅前→阿蘇～黒川→由布院", "桜町", "満願寺入口", 31 * H + 35 * 60, 34 * H + 5 * 60),
+             ls8hLeg("別府→黒川～阿蘇→熊本駅前", "満願寺入口", "阿蘇くまもと空港", 34 * H + 52 * 60, 36 * H + 37 * 60)] },
+  ] };
+  const out = choose(readLs8h(data, q), q, { provider: "ls8h" });
+  assert.equal(out.meta.arrival, "17:17");
+  assert.ok(out.minutes > 8 * 60);
+});
+
+test("ls8h: 先頭の徒歩は、聞いた時刻ではなく、乗る便の直前に寄せる", () => {
+  const q = readQuery({ from: "富山駅", to: "高岡駅",
+    fromAt: { lat: 36.7013, lng: 137.2133 }, toAt: { lat: 36.7412, lng: 137.0147 },
+    departAt: "2026-11-19T09:00:00+09:00" });
+  const data = { journeys: [{ departureSecs: 9 * H, arrivalSecs: 10 * H + 25 * 60, transferCount: 0,
+    accessWalkSecs: 56, egressWalkSecs: 66,
+    legs: [ls8hWalk("富山", "富山駅前", 9 * H, 9 * H + 2 * 60),
+           ls8hLeg("高岡・新湊線", "富山駅前", "高岡駅北", 9 * H + 30 * 60, 10 * H + 23 * 60),
+           ls8hWalk("高岡駅北", "高岡駅前", 10 * H + 23 * 60, 10 * H + 25 * 60)] }] };
+  const [r] = readLs8h(data, q);
+  assert.equal(r.departure, "09:28");
+  assert.equal(r.legs[0].arrival, "09:30");
+  // 区間に徒歩があるときは、accessWalkSecs の徒歩を重ねて足さない
+  assert.equal(r.legs.filter((l) => l.vehicle === "walk").length, 2);
+  const out = choose([r], q, {});
+  assert.equal(out.waitMinutes, 28);
+  assert.equal(out.rideMinutes, 57);
+});
+
+test("ls8h: 最寄りの停留所から 20 分を超えて歩く候補は捨てる（奈良駅→東大寺で 90 分歩く）", () => {
+  const q = readQuery({ from: "奈良駅", to: "東大寺",
+    fromAt: { lat: 34.681, lng: 135.8197 }, toAt: { lat: 34.6889, lng: 135.8398 },
+    departAt: "2026-11-19T09:00:00+09:00" });
+  const data = { journeys: [{ departureSecs: 9 * H + 22 * 60, arrivalSecs: 10 * H + 59 * 60, transferCount: 0,
+    accessWalkSecs: 866, egressWalkSecs: 5422,
+    legs: [ls8hLeg("難波線・奈良線", "近鉄奈良", "大和西大寺", 9 * H + 22 * 60, 9 * H + 27 * 60, "rail")] }] };
+  assert.equal(readLs8h(data, q).length, 0);
+});
+
+test("ローマ字の添え書きは、長音符号が付いていても落とす", () => {
+  assert.equal(cleanName("東京 Tōkyō"), "東京");
+  assert.equal(cleanName("JR中央線快速 JR Chūō Rapid Line"), "JR中央線快速");
+  assert.equal(cleanName("東４２－２"), "東４２－２");
+});
+
+test("自動: ls8h と Transitous には同時に聞き、早く着くほうを選ぶ", async () => {
+  const q = readQuery({ from: "東京駅", to: "新宿駅",
+    fromAt: { lat: 35.6812, lng: 139.7671 }, toAt: { lat: 35.6902, lng: 139.6995 },
+    departAt: "2026-11-19T09:00:00+09:00" });
+  const ls8hSlow = { journeys: [{ departureSecs: 9 * H + 3 * 60, arrivalSecs: 9 * H + 37 * 60, transferCount: 0,
+    legs: [ls8hLeg("山手線（内回り）", "東京", "新宿", 9 * H + 3 * 60, 9 * H + 37 * 60, "rail")] }] };
+  const transitousFast = { itineraries: [{ transfers: 0, legs: [
+    { mode: "RAIL", from: { name: "東京 Tōkyō" }, to: { name: "新宿" },
+      startTime: "2026-11-19T00:03:00Z", endTime: "2026-11-19T00:17:00Z",
+      routeShortName: "JC", routeLongName: "JR中央線快速 JR Chūō Rapid Line" },
+  ] }] };
+  const hosts = [];
+  const fetchStub = async (u) => {
+    const url = String(u);
+    hosts.push(new URL(url).host);
+    return okJson(url.includes("ls8h") ? ls8hSlow : transitousFast)();
+  };
+  const out = await searchAuto(q, {}, { fetch: fetchStub });
+  assert.deepEqual(hosts.sort(), ["api.transit.ls8h.com", "api.transitous.org"]);
+  assert.equal(out.provider, "transitous");
+  assert.equal(out.providerLabel, "Transitous");
+  assert.equal(out.meta.arrival, "09:17");
+  assert.equal(out.meta.legs[0].line, "JC JR中央線快速");
+  assert.equal(out.meta.legs[0].from, "東京");
+  assert.deepEqual(out.tried, [{ provider: "ls8h", routed: false }, { provider: "transitous", routed: true }]);
+  assert.equal(out.meta.alternatives[0].provider, "ls8h");
+});
+
+test("自動: 同時に聞いた片方が落ちても、もう片方の答えを使う", async () => {
+  const fetchStub = async (u) => (String(u).includes("ls8h")
+    ? new Response("x", { status: 500 }) : okJson(transitousOdawara)());
+  const out = await searchAuto(Q(), {}, { fetch: fetchStub });
+  assert.equal(out.routed, true);
+  assert.equal(out.provider, "transitous");
+  assert.equal(out.tried[0].error, "upstream");
 });

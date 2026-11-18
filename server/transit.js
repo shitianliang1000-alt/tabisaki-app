@@ -150,7 +150,13 @@ export function clockOf(iso) {
 }
 
 const minutesOfClock = (hm) => { const [h, m] = hm.split(":").map(Number); return h * 60 + m; };
-const clockDiff = (a, b) => (minutesOfClock(b) - minutesOfClock(a) + 1440) % 1440;
+// 日をまたぐ（23:50→00:10）ときだけ 24 時間を足します。ls8h は翌日の便を
+// 「31:35」のように 24 時を超えて書くので、% 1440 で丸めると、丸1日かかる
+// 経路が 25 分に見えていました（熊本桜町→熊本空港が翌日着なのに選ばれた）。
+export const clockDiff = (a, b) => {
+  const d = minutesOfClock(b) - minutesOfClock(a);
+  return d < 0 ? d + 1440 : d;
+};
 
 // ── 乗り物の見分け ─────────────────────────────────
 
@@ -211,7 +217,7 @@ export function choose(routes, q, extra = {}) {
     if ((r.legs ?? []).some((l) => excluded(l.vehicle, q.modes))) continue;
     const ride = r.departure !== r.arrival ? clockDiff(r.departure, r.arrival) : (r.rideMinutes ?? 0);
     if (!(ride > 0)) continue;
-    const wait = q.search === "last" ? 0 : (minutesOfClock(r.departure) - asked + 1440) % 1440;
+    const wait = q.search === "last" ? 0 : clockDiff(`${String(Math.floor(asked / 60)).padStart(2, "0")}:${String(asked % 60).padStart(2, "0")}`, r.departure);
     list.push({ ...r, rideMinutes: ride, waitMinutes: wait, minutes: wait + ride });
   }
   if (!list.length) return { routed: false, reason: extra.reason ?? "経路が見つかりませんでした", ...extra };
@@ -239,6 +245,8 @@ export function choose(routes, q, extra = {}) {
     kinds: kindsOf(best),
     preferMet,
     ...extra,
+    // いくつかの API の候補から選んだとき（searchAuto の無料の組）は、選ばれた候補の API。
+    ...(best.provider ? { provider: best.provider, providerLabel: LABELS[best.provider] ?? best.provider } : {}),
     meta: {
       ...(extra.url ? { url: extra.url } : {}),
       departure: best.departure,
@@ -253,6 +261,7 @@ export function choose(routes, q, extra = {}) {
         departure: r.departure, arrival: r.arrival, minutes: r.minutes,
         rideMinutes: r.rideMinutes, transfers: r.transfers ?? 0,
         fareYen: r.fareYen ?? null, distanceKm: r.distanceKm ?? null, summary: r.summary,
+        ...(r.provider ? { provider: r.provider } : {}),
       })),
     },
   };
@@ -311,7 +320,17 @@ const TRANSITOUS_KIND = {
 /** 「小田原 Odawara」のように付いてくるローマ字を落とします（日本語の名前のときだけ）。 */
 export function cleanName(s) {
   const n = String(s ?? "").trim();
-  return /[\u3040-\u30ff\u4e00-\u9fff]/.test(n) ? n.replace(/\s+[A-Za-z][A-Za-z .'()\-]*$/, "") : n;
+  if (!/[\u3040-\u30ff\u4e00-\u9fff]/.test(n)) return n;
+  // 「東京 Tōkyō」「JR中央線快速 JR Chūō Rapid Line」のように、長音符号の付いた
+  // ローマ字も落とします。後ろから見て、ローマ字・空白・記号だけが続く所までを切ります
+  // （正規表現の後戻りで長い入力が遅くならないよう、1文字ずつ見ます）。
+  const latinTail = /[\p{Script=Latin}0-9 .'()\-]/u;
+  let cut = n.length;
+  for (let i = n.length - 1; i >= 0; i -= 1) {
+    if (!latinTail.test(n[i])) break;
+    if (n[i] === " " && i + 1 < n.length && /\p{Script=Latin}/u.test(n[i + 1])) cut = i;
+  }
+  return n.slice(0, cut).trim() || n;
 }
 
 export function readTransitous(data, q) {
@@ -322,7 +341,7 @@ export function readTransitous(data, q) {
       to: l.to?.name === "END" ? q.to : cleanName(l.to?.name),
       departure: clockOf(l.startTime ?? l.scheduledStartTime),
       arrival: clockOf(l.endTime ?? l.scheduledEndTime),
-      line: [l.routeShortName, l.routeLongName].filter((s) => s && !/^\d{5,}$/.test(s)).join(" ")
+      line: [l.routeShortName, cleanName(l.routeLongName)].filter((s) => s && !/^\d{5,}$/.test(s)).join(" ")
         || l.agencyName || "",
     }));
     return routeFrom(legs, { transfers: it.transfers });
@@ -643,57 +662,61 @@ export function clockOfSecs(secs) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// 地点から最寄りの駅・停留所まで、これより長く歩く候補は捨てます。
+// ls8h は、行き先の近くに収録された停留所が無いと、遠くの駅から長く歩く
+// 経路を返します（奈良駅→東大寺で「大和西大寺から 90 分歩く」、京都駅→
+// 清水寺で「御陵から 27 分歩く」）。そのまま出すより、次の API か目安に
+// 回したほうが正しくなります。
+export const LS8H_MAX_WALK_SECS = 20 * 60;
+
 export function readLs8h(data, q) {
   const journeys = data?.journeys ?? [];
-  const routes = journeys.map((j) => {
-    const legs = (j.legs ?? []).map((l) => {
-      if (l.kind === "walk") {
-        return {
-          vehicle: "walk",
-          from: l.from?.name ?? "", to: l.to?.name ?? "",
-          departure: clockOfSecs(l.departureSecs), arrival: clockOfSecs(l.arrivalSecs),
-          line: "",
-        };
-      }
+  const routes = [];
+  for (const j of journeys) {
+    if (Number(j.accessWalkSecs) > LS8H_MAX_WALK_SECS || Number(j.egressWalkSecs) > LS8H_MAX_WALK_SECS) continue;
+    // 区間を秒のまま組み、最後に HH:MM にします。
+    const raw = (j.legs ?? []).map((l) => {
+      const base = {
+        from: cleanName(l.from?.name), to: cleanName(l.to?.name),
+        dep: Number(l.departureSecs), arr: Number(l.arrivalSecs),
+      };
+      if (l.kind === "walk") return { ...base, vehicle: "walk", line: "" };
       let vehicle = LS8H_KIND[l.mode] ?? "rail";
       const route = String(l.routeName ?? "");
       if (vehicle === "rail" && route.includes("新幹線")) vehicle = "shinkansen";
       else if (vehicle === "rail" && /特急/.test(String(l.trainType ?? ""))) vehicle = "express";
       if (vehicle === "bus" && /高速/.test(route)) vehicle = "coach";
-      return {
-        vehicle,
-        from: l.from?.name ?? "", to: l.to?.name ?? "",
-        departure: clockOfSecs(l.departureSecs), arrival: clockOfSecs(l.arrivalSecs),
-        line: [route, l.trainType].filter(Boolean).join(" "),
-      };
+      return { ...base, vehicle, line: [route, l.trainType].filter(Boolean).join(" ") };
     });
+    const firstRide = raw.findIndex((l) => l.vehicle !== "walk");
+    if (firstRide < 0) continue; // 歩くだけの候補は、乗り換え検索の答えにしません（OTP と同じ）。
     // 座標で聞いたときは、地点から最寄り停留所までの徒歩が区間に入らず
-    // accessWalkSecs / egressWalkSecs に分かれます。区間に戻して、
-    // 所要時間に徒歩ぶんが入るようにします。
-    const first = legs[0];
-    if (first && Number(j.accessWalkSecs) > 0) {
-      legs.unshift({
-        vehicle: "walk", from: q.from, to: first.from,
-        departure: clockOfSecs(j.departureSecs - j.accessWalkSecs), arrival: first.departure,
-        line: "",
-      });
+    // accessWalkSecs / egressWalkSecs に分かれることがあります。区間に戻して、
+    // 所要時間に徒歩ぶんが入るようにします（区間に徒歩があるときは足しません）。
+    if (firstRide === 0 && Number(j.accessWalkSecs) > 0) {
+      raw.unshift({ vehicle: "walk", from: q.from, to: raw[0].from, dep: raw[0].dep - j.accessWalkSecs, arr: raw[0].dep, line: "" });
     }
-    const lastLeg = legs.at(-1);
-    if (lastLeg && Number(j.egressWalkSecs) > 0) {
-      legs.push({
-        vehicle: "walk", from: lastLeg.to, to: q.to,
-        departure: lastLeg.arrival, arrival: clockOfSecs(j.arrivalSecs + j.egressWalkSecs),
-        line: "",
-      });
+    const last = raw.at(-1);
+    if (last.vehicle !== "walk" && Number(j.egressWalkSecs) > 0) {
+      raw.push({ vehicle: "walk", from: last.to, to: q.to, dep: last.arr, arr: last.arr + j.egressWalkSecs, line: "" });
     }
+    // 先頭の徒歩は、ls8h では「聞いた時刻」から始まります（富山駅→高岡で
+    // 09:00 に歩き出して、09:30 のバスを 28 分待つ）。乗る便に間に合う
+    // ように出ればよいので、歩く長さはそのままで、乗る直前に寄せます。
+    let until = raw[raw.findIndex((l) => l.vehicle !== "walk")].dep;
+    for (let i = raw.findIndex((l) => l.vehicle !== "walk") - 1; i >= 0; i -= 1) {
+      const len = Math.max(0, raw[i].arr - raw[i].dep);
+      raw[i] = { ...raw[i], arr: until, dep: until - len };
+      until = raw[i].dep;
+    }
+    const legs = raw.map(({ dep, arr, ...l }) => ({ ...l, departure: clockOfSecs(dep), arrival: clockOfSecs(arr) }));
     const fare = Number(j.fare?.ticket) || Number(j.fare?.ic) || null;
-    return routeFrom(legs, {
+    routes.push(routeFrom(legs, {
       transfers: Number.isFinite(j.transferCount) ? j.transferCount : undefined,
       fareYen: fare,
-    });
-  });
-  // 歩くだけの候補は、乗り換え検索の答えにしません（OTP と同じ）。
-  return routes.filter((r) => r.legs.some((l) => l.vehicle !== "walk"));
+    }));
+  }
+  return routes;
 }
 
 async function ls8h(q, env, fetchImpl) {
@@ -757,17 +780,66 @@ export async function searchWith(name, q, env, deps = {}) {
   });
 }
 
+// キーの要らない2つ。どちらも収録に穴があり（ls8h は東京メトロ・JR 中央線
+// 快速・あいの風とやま鉄道を引けないことがある、Transitous は地方のバスが
+// 薄い）、片方が「経路あり」でも大きく遠回りのことがあります。2026-11-18 に
+// 16 経路を時刻表と比べたら、ls8h 単独で 9 本、Transitous 単独で 10 本が
+// 合い、両方に聞いて早く着くほうを選ぶと 12 本が合いました。
+// 無料なので、両方に同時に聞いて、早く着く候補を選びます。
+export const FREE_TOGETHER = ["ls8h", "transitous"];
+
+async function rawRoutes(name, q, env, fetchImpl) {
+  const { routes } = await SEARCH[name](q, env, fetchImpl);
+  return routes.map((r) => ({ ...r, provider: name }));
+}
+
+/** 無料の組に同時に聞き、全部の候補から choose で選びます。 */
+async function searchFreeTogether(names, q, env, deps, tried) {
+  const fetchImpl = deps.fetch ?? fetch;
+  const settled = await Promise.allSettled(names.map((n) => rawRoutes(n, q, env, fetchImpl)));
+  const all = [];
+  for (const s of settled) {
+    if (s.status === "fulfilled") {
+      all.push(...s.value);
+    } else if (!(s.reason instanceof TransitError)) {
+      throw s.reason;
+    }
+  }
+  const out = choose(all, q, {
+    provider: names[0], providerLabel: LABELS[names[0]],
+    reason: `${names.map((n) => LABELS[n]).join("・")} から経路が返りませんでした`,
+  });
+  settled.forEach((s, i) => {
+    const name = names[i];
+    if (s.status === "rejected") tried.push({ provider: name, error: s.reason.code });
+    else tried.push({ provider: name, routed: out.routed && out.provider === name });
+  });
+  return out;
+}
+
 /**
  * 決まった順に試します。答えが「経路なし」でも次へ進みます
  * （無料の Transitous は地域によってバスが入っていないため）。
+ * 順番の中で ls8h と Transitous が続くところは、同時に聞いて早いほうを選びます。
  * 全部だめなら、最後のわけを付けて routed:false を返します。
  */
 export async function searchAuto(q, env, deps = {}) {
   const tried = [];
   let last = null;
-  for (const name of orderFrom(env)) {
-    if (!available(name, env)) continue;
-    if (q.search === "last" && !SUPPORTS_LAST.has(name)) continue;
+  const order = orderFrom(env).filter((name) => available(name, env)
+    && !(q.search === "last" && !SUPPORTS_LAST.has(name)));
+  for (let i = 0; i < order.length; i += 1) {
+    const name = order[i];
+    // 続いて並ぶ無料の組をまとめます。
+    const group = [];
+    while (FREE_TOGETHER.includes(order[i + group.length])) group.push(order[i + group.length]);
+    if (group.length > 1) {
+      i += group.length - 1;
+      const out = await searchFreeTogether(group, q, env, deps, tried);
+      if (out.routed) return { ...out, tried };
+      last = out;
+      continue;
+    }
     try {
       const out = await searchWith(name, q, env, deps);
       tried.push({ provider: name, routed: Boolean(out.routed) });
