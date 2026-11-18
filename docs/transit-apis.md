@@ -11,9 +11,10 @@
 | [NAVITIME Route(totalnavi)][2]（RapidAPI） | `NAVITIME_RAPIDAPI_KEY` | RapidAPI の料金表しだい | × | 全国の鉄道・飛行機。路線バス・高速バス・フェリーは追加契約 |
 | [HERE Public Transit API v8][3] | `HERE_API_KEY` | 無料枠あり。日本の対応範囲は都市ごと | × | 主に海外。日本は一部の都市 |
 | [Transitous][4]（MOTIS・GTFS） | 要らない（`TRANSITOUS=off` で止める） | 無料・**非商用だけ** | × | 公開された GTFS のある路線だけ。新幹線と大手私鉄は入っていて、京都市バスや JR 北海道、飛行機は入っていない（2026年10月に確かめた） |
+| 旅さきのバス時刻表（自前。[bus-timetable.md](bus-timetable.md)） | 要らない（`BUS_TIMETABLE=off` で止める） | 無料（Worker の中で引く） | × | ls8h に入っていないバス事業者の GTFS-JP（いまは岡山・和歌山・佐賀・長崎・香川・秋田・青森・沖縄など 18 本）。バス1本と1回乗り換えだけ。位置（`fromAt`・`toAt`）が要る |
 | [ls8h Transit API][6] | 要らない（`LS8H=off` で止める） | 無料 | ○ | 全国の鉄道・バス（GTFS / ODPT 由来）。フェリーは入っていない。運賃は返らないことが多い。非公式の個人運営 API で、利用条件・継続性は未確認 |
 
-自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → ls8h → Transitous` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。順番の中で ls8h と Transitous が続くところは、両方に同時に聞いて、早く着く候補を選びます（どちらも無料で、収録の穴が違うため。2026-11-18 に 16 経路を時刻表と比べると、ls8h だけで 9 本、Transitous だけで 10 本、両方から選ぶと 12 本が合いました）。答えた API は `provider` に入ります。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
+自動で試す順番は、`OpenTripPlanner → 駅すぱあと → NAVITIME → HERE → ls8h → Transitous → 旅さきのバス時刻表` です（OpenTripPlanner は `OTP_URL` を入れたときだけ）。中継の変数 `TRANSIT_ORDER`（カンマ区切り）で変えられます。キーが無いもの、終電を探せないもの（終電を聞かれたとき）は飛ばします。順番の中で ls8h・Transitous・旅さきのバス時刻表が続くところは、全部に同時に聞いて、早く着く候補を選びます（どれも無料で、収録の穴が違うため。2026-11-18 に 16 経路を時刻表と比べると、ls8h だけで 9 本、Transitous だけで 10 本、両方から選ぶと 12 本が合いました）。答えた API は `provider` に入ります。答えが「経路なし」のときも次へ進みます。全部だめなら、画面は駅までの距離からの目安で組みます。
 
 Yahoo!路線情報のスクレイピングは廃止しました（#367）。鉄道は ls8h が担います。ls8h で経路が組めない区間（フェリー、ls8h 未収録のバスなど）は、アプリ内では目安の時間で組み、旅程の区間にある「経路を開く」から Google マップ（Maps URLs）の公共交通検索へ案内します。
 
@@ -47,7 +48,7 @@ curl -X POST "$PROXY_URL/transit" -H 'Content-Type: application/json' -d '{
 }'
 ```
 
-`provider` は `auto`（既定）・`otp`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous` のどれかです。答えには `provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
+`provider` は `auto`（既定）・`otp`・`ls8h`・`ekispert`・`navitime`・`here`・`transitous`・`bus` のどれかです。旅さきのバス時刻表が答えたときは、時刻表の出典が `attribution` に入ります（CC BY の表記）。答えには `provider` と `providerLabel` に答えた API が入ります。`auto` のときは、試した順と結果が `tried` に入ります。
 
 本文の `modes`（`al` 飛行機・`shin` 新幹線・`ex` 特急・`hb` 高速バス・`lb` 路線バス・`sr` 船、0 で使わない）と `prefer`（`air`・`ferry`）、`search: "last"`（終電）が使えます。
 

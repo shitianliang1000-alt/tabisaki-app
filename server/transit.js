@@ -9,6 +9,8 @@
 //   navitime   NAVITIME Route(totalnavi)       NAVITIME_RAPIDAPI_KEY（RapidAPI 経由）
 //   here       HERE Public Transit API v8       HERE_API_KEY
 //   transitous Transitous（MOTIS・GTFS）       キー不要・非商用だけ
+//   bus        旅さきのバス時刻表（server/bus.js）ls8h に無いバス事業者の GTFS-JP。キー不要。
+//              中継が env.BUS_LOADER（データの読み込み）を渡したときだけ。BUS_TIMETABLE=off で止まる
 //
 // Yahoo!路線情報のスクレイピングは廃止しました（#367）。鉄道は ls8h が担い、
 // ls8h で組めない区間（フェリー・未収録のバス等）は、画面の Google マップ
@@ -23,14 +25,17 @@
 //
 // 文書: docs/transit-apis.md
 
+import { searchBus } from "./bus.js";
+
 const TIMEOUT_MS = 20_000;
 const UA = "Tabisaki/1.0 (+https://github.com/shitianliang1000-alt/tabisaki-app)";
 
-export const PROVIDERS = ["otp", "ekispert", "navitime", "here", "ls8h", "transitous"];
+export const PROVIDERS = ["otp", "ekispert", "navitime", "here", "ls8h", "transitous", "bus"];
 export const DEFAULT_ORDER = PROVIDERS;
 
 export const LABELS = {
   otp: "OpenTripPlanner",
+  bus: "旅さきのバス時刻表",
   ls8h: "ls8h",
   ekispert: "駅すぱあと",
   navitime: "NAVITIME",
@@ -60,6 +65,7 @@ export function available(name, env) {
     case "navitime": return has(env, "NAVITIME_RAPIDAPI_KEY");
     case "here": return has(env, "HERE_API_KEY");
     case "transitous": return !off(env, "TRANSITOUS");
+    case "bus": return typeof env?.BUS_LOADER === "function" && !off(env, "BUS_TIMETABLE");
     default: return false;
   }
 }
@@ -247,6 +253,8 @@ export function choose(routes, q, extra = {}) {
     ...extra,
     // いくつかの API の候補から選んだとき（searchAuto の無料の組）は、選ばれた候補の API。
     ...(best.provider ? { provider: best.provider, providerLabel: LABELS[best.provider] ?? best.provider } : {}),
+    // 時刻表の出典（旅さきのバス時刻表。CC BY は表記が義務なので、答えにも付けます）
+    ...(best.attribution ? { attribution: best.attribution } : {}),
     meta: {
       ...(extra.url ? { url: extra.url } : {}),
       departure: best.departure,
@@ -757,9 +765,22 @@ async function ls8h(q, env, fetchImpl) {
   return { routes: await plan("departure", `${t.hh}:${t.mm}`), url: null };
 }
 
+// ── 旅さきのバス時刻表 ──────────────────────────────
+// ls8h に入っていないバス事業者の GTFS-JP を、tools/build_bus_timetable.py で
+// 小さく切って中継に置いたもの（server/bus.js・docs/bus-timetable.md）。
+// 1本で行ける便と、1回乗り換えの便を探します。位置（fromAt・toAt）が要ります。
+
+async function bus(q, env) {
+  if (!q.fromAt || !q.toAt) {
+    throw new TransitError("unsupported", "旅さきのバス時刻表は、出発地と到着地の位置が要ります", { status: 400 });
+  }
+  const found = await searchBus(env.BUS_LOADER, q);
+  return { routes: found.map((r) => ({ ...routeFrom(r.legs), attribution: `時刻表: ${r.attribution} を加工` })), url: null };
+}
+
 // ── 入口 ───────────────────────────────────────
 
-const SEARCH = { otp, ls8h, ekispert, navitime, here, transitous };
+const SEARCH = { otp, ls8h, ekispert, navitime, here, transitous, bus };
 
 /** 1つの API で引きます。 */
 export async function searchWith(name, q, env, deps = {}) {
@@ -786,7 +807,7 @@ export async function searchWith(name, q, env, deps = {}) {
 // 16 経路を時刻表と比べたら、ls8h 単独で 9 本、Transitous 単独で 10 本が
 // 合い、両方に聞いて早く着くほうを選ぶと 12 本が合いました。
 // 無料なので、両方に同時に聞いて、早く着く候補を選びます。
-export const FREE_TOGETHER = ["ls8h", "transitous"];
+export const FREE_TOGETHER = ["ls8h", "transitous", "bus"];
 
 async function rawRoutes(name, q, env, fetchImpl) {
   const { routes } = await SEARCH[name](q, env, fetchImpl);

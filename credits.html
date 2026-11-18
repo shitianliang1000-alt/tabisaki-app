@@ -105,6 +105,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</pre>
   <dd>
     <p><a href="https://api.transit.ls8h.com/api/docs">ls8h Transit API</a>（GTFS・ODPT 由来の時刻表データ）を、旅さきの中継サーバーを通して使っています。データの出典は各フィードの提供元に帰属します。</p>
     <p>中継サーバーの設定によって、次の乗り換え検索も使います: <a href="https://ekispert.jp/">駅すぱあと</a>（ヴァル研究所）、<a href="https://www.navitime.co.jp/">NAVITIME</a>（ナビタイムジャパン）、<a href="https://www.here.com/">HERE</a>、<a href="https://transitous.org/">Transitous</a>（<a href="https://transitous.org/sources/">時刻表データの出典</a>）。経路を引けない区間は、Google マップの経路検索へ案内します。</p>
+    <p>ls8h に入っていないバスは、次の事業者・自治体が公開している GTFS-JP を加工して、旅さきの中継サーバーで引いています（旅さきのバス時刻表）。</p>
+    <!-- bus-timetable:start（tools/build_bus_timetable.py が書き直します。手で直さないでください） -->
+    <ul class="bus-credits">
+      <li>秋田中央交通: 秋田県バス協会・秋田県公共交通オープンデータ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>秋田市マイタウン・バス／ぐるる: 秋田県バス協会・秋田県公共交通オープンデータ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>青森市営バス: 青森市企業局交通部・青森市営バス「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>東バス（東運輸）: 東運輸・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>レイディアントシティ横濱 自主運行バス（大新東）: 大新東・GTFSデータリポジトリ「GTFS-JP」（<a href="https://creativecommons.org/publicdomain/zero/1.0/deed.ja">CC0 1.0</a>）を加工して作成</li>
+      <li>越後交通（ときライナー）: 越後交通・Bus-Vision「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>西表島交通: 西表島交通・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>長崎県営バス: 長崎県交通局・GTFSデータリポジトリ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>ことでんバス: ことでんバス・ことでんグループ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>宮古協栄バス: 宮古協栄バス・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>永井バス（永井運輸）: 永井運輸・GTFSデータリポジトリ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>岡電バス（岡山電気軌道）: 岡山電気軌道・Bus-Vision「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>沖縄バス: 沖縄バス・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>両備バス: 両備ホールディングス・Bus-Vision「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>佐賀県の路線バス（佐賀市営・昭和・祐徳ほか）: 佐賀県・佐賀県バス情報オープンデータ「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>東京バス（沖縄）: 東京バス・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>東陽バス: 東陽バス・OTTOP（沖縄県）「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+      <li>和歌山バス: 和歌山バス・Bus-Vision「GTFS-JP」（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a>）を加工して作成</li>
+    </ul>
+    <!-- bus-timetable:end -->
   </dd>
   <dt>このアプリのプログラム</dt>
   <dd>

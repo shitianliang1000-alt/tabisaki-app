@@ -32,4 +32,10 @@ mkdir -p "$out"/__site "$out"/assets
 cp php/inc/landing.html "$out"/__site/landing.html
 cp -r php/assets/. "$out"/assets/
 node tools/build_php_data.mjs "$out"
+# 自前のバス時刻表（server/bus.js が中継の中から読む。/__bus/ は外には 404）。
+# data/bus/ は tools/build_bus_timetable.py が作ります（docs/bus-timetable.md）。
+if [ -d data/bus ]; then
+  mkdir -p "$out"/__bus
+  cp -r data/bus/. "$out"/__bus/
+fi
 echo "built $out ($(find "$out" -type f | wc -l) files)"

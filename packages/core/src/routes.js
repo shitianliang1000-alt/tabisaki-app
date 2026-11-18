@@ -1062,6 +1062,8 @@ async function transitLegUncached(a, b, opts) {
       // Transitous。中継の POST /transit が付けます）。
       provider: doc.provider ?? null,
       providerLabel: doc.providerLabel ?? null,
+      // 時刻表の出典（旅さきのバス時刻表が答えたとき。CC BY の表記）。
+      attribution: doc.attribution ?? null,
       searchedAt: doc.searchedAt ?? null,
       stations: byLocation
         ? { from: steps?.boardAt ?? from.name ?? null,
@@ -1071,7 +1073,8 @@ async function transitLegUncached(a, b, opts) {
       // （旅程の「どこまで確かめたか」に、その名前で出ます）。
       transitDoc: doc.meta
         ? { ...doc.meta, provider: doc.provider ?? undefined,
-            providerLabel: doc.providerLabel ?? undefined }
+            providerLabel: doc.providerLabel ?? undefined,
+            attribution: doc.attribution ?? undefined }
         : null,
       // 乗る路線と乗り場の手順（どのバスに、どこから乗るのか）。
       // 旅程の行の「乗換の手順」で開けます。
