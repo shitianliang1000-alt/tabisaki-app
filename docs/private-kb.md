@@ -55,6 +55,18 @@
 この画面は**入れるだけ**で、中身を見せる口はありません。決まった名前（`manifest.json`・`bus/緯度_経度.json`・
 `spots/緯度_経度.json`）と決まった形の JSON だけを受け付けます（`server/private-kb.js` の `checkUpload`）。
 
+### 東京の停留所・駅も足す（2026-11-18）
+
+共有フォルダの `kb-private/tokyo-stops-kv.json`（鍵 `stops:<ジオハッシュ5桁>`、値 `[[id, 緯度, 経度], …]`、3,061件）は、
+`stops:` の鍵のまま KV に入れても読むコードがありません。そこで `tools/upload_private_kb.mjs` が詰め直すときに、
+同じ `bus/<緯度>_<経度>.json` のタイルに混ぜます（`server/private-kb.js` の `stopsFromGeohashKv`・`packPrivateKb` の `extraStops`）。
+同じ座標の重なりは1件にまとめ、名前は無いので `tokyo:<id>` にします。判定（`/stops/near`）は座標しか見ないので、読む側の変更はありません。
+manifest の `counts.extraStops` に、足した件数が出ます。
+
+`kb-private/` に `tokyo-stops-kv.json` があれば自動で混ぜるので、管理画面から入れるときも手順は上の 4・5 と同じです
+（`kv-upload.zip` は東京入りで作り直してあります。変わるのは `bus/35_138`・`bus/35_139`・`bus/35_140` と `manifest.json` だけですが、
+フォルダごと入れ直して構いません）。
+
 ## 入れかた B: コマンドで
 
 認証情報（Cloudflare のログイン・トークン）は、持ち主が手元で入れます。リポジトリには書きません。
