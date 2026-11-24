@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- 観光地・駅・バス停のデータを、要る範囲だけ取れる API にしました（`GET /v1/data/spots?near=…`・`/stations`・`/stops`）。CUI とアプリが収録を丸ごと抱えずに使えます。配るのは再配布してよい出どころのデータだけで、国土数値情報の非商用データは入れません。1件ごとに出どころ、返事ごとに書くべき表記が付きます。鍵なしで呼べ（1分60回）、鍵があれば枠が広がります。データの作り直し・Workers KV への投入・鍵の発行は `./tabisaki data` で行います（[docs/data-api.md](./docs/data-api.md)）
 - 手元の OpenTripPlanner に読ませる時刻表（GTFS-JP）を、1本のコマンドで集めて・検査して・組み立て直せるようにしました（`bash tools/otp_pipeline.sh`）。県を書けば GTFS データリポジトリの一覧から範囲の時刻表を自動で選び、公開日が変わったものだけ落とし、壊れているもの・期限切れは理由を書いて外します。2つ目の地域として富山（時刻表 23本）を足しました。全国 572本を検査して、収録のスポットのそばに便のある停留所があるかを県ごとにまとめました（[docs/gtfs-pipeline.md](./docs/gtfs-pipeline.md)・[docs/gtfs-coverage.md](./docs/gtfs-coverage.md)、#430）
 - 収録のデータを、項目ごとに「どこから来たか」で追えるようにしました（Wikipedia・OpenStreetMap・Wikidata・Yahoo! JAPAN・国土地理院・旅さきの独自データなど）。旅程の Markdown・カレンダー（.ics）・画面には、その旅程が使ったデータの出典が自動で付きます。旅程の JSON と API、スポットの書き出しには、出どころ・ライセンス・書くべき表記をまとめた `license_summary` が入ります。収録を出どころごとに分けた形へ移す道具と手順も用意しました（[docs/data-provenance.md](./docs/data-provenance.md)、#426）
 - スポットどうしの関係を書きとめ（`./tabisaki spot relate`。一緒に回る・どちらか・先に行く・中にある）、近くにかたまっているスポットをまとめ（`spot cluster`）、直線の距離がいちばん短くなる回る順番を出し（`spot route`）、ほかに比べて収録の少ない地域と分類を探せます（`spot gap`）。距離は直線で、移動の時間ではないことを毎回出します（[docs/user-kb.md](./docs/user-kb.md#関係かたまり回る順番足りないところ)、#357）

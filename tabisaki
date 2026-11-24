@@ -41,6 +41,7 @@ usage() {
   test               （ファイルを付けないとき）試験（単体・PHP の書きまちがい）
   deploy cf          Cloudflare に上げる（npx wrangler deploy。ログインか CLOUDFLARE_API_TOKEN が要ります）
   deploy ftp         PHP 版を FTP で InfinityFree に上げる（FTP_HOST・FTP_USER・FTP_PASS が要ります）
+  data <…>           バス停・駅・観光地の配信 API: build・check・push・key・get（docs/data-api.md）
   help               これを出す
 TXT
 }
@@ -79,6 +80,8 @@ case "$cmd" in
           node --test tests/*.test.js
           if command -v php >/dev/null 2>&1; then for f in php/*.php php/inc/*.php; do php -l "$f" >/dev/null; done; echo "php -l ok"; fi
         fi ;;
+  data) need node "Node.js 22 以上を入れてください。"
+        exec node tools/data_api.mjs "$@" ;;
   api) need node "Node.js 22 以上を入れてください。"
        exec node packages/server/server.mjs ;;
   php) sh tools/build_php.sh .php-site "${1:-}" ;;

@@ -4,6 +4,7 @@ import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 import { privateKbHandler } from "./private-kb.js";
+import { DATA_API_PREFIX, DATA_ASSET_DIR, serveDataApi } from "./data-api.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
 import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
 import { dailyLimit, jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
@@ -169,6 +170,16 @@ export default {
         onBadPassword: () => rateCheck(env, ip, 5, "paid"),
         overview: () => overviewFor(env, url.origin),
       });
+    }
+    // バス停・駅・観光地のデータ配信 API（server/data-api.js）。読むだけの公開データなので、
+    // 中継の Origin の決まりは使わず、回数の制限だけをかけます。
+    if (url.pathname === DATA_API_PREFIX || url.pathname.startsWith(`${DATA_API_PREFIX}/`)) {
+      const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+      return serveDataApi(request, env, { ip: rateKey(ip), rate: (who, limits) => dataRateCheck(env, who, limits) });
+    }
+    // 同梱したデータの置き場（.site/__data/）は、上の窓口からしか読ませません。
+    if (url.pathname.startsWith(DATA_ASSET_DIR) || url.pathname === DATA_ASSET_DIR.slice(0, -1)) {
+      return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
     // 管理画面のファイルの置き場は、直には見せません（合言葉は上で聞きます）。
     if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
@@ -889,6 +900,18 @@ export function poolOf(path) {
     if (path.endsWith(suffix)) return pool;
   }
   return "paid";
+}
+
+/**
+ * データ配信 API の回数。中継（AI・乗り換え）とは別の実体で数えるので、データを
+ * たくさん読んでも AI の枠は減りません。who は "data|<IP>" か "datakey|<鍵の指紋>"。
+ */
+async function dataRateCheck(env, who, limits) {
+  if (!env.RATE || String(env.RATE_LIMIT ?? "").toLowerCase() === "off") return { ok: true };
+  const stub = env.RATE.get(env.RATE.idFromName(who));
+  const q = new URLSearchParams({ cost: "1", pool: "free",
+                                  limits: JSON.stringify({ free: limits, paid: limits }) });
+  return (await stub.fetch(`https://rate/check?${q}`)).json();
 }
 
 async function rateCheck(env, ip, cost, pool = "paid") {
