@@ -32,4 +32,7 @@ mkdir -p "$out"/__site "$out"/assets
 cp php/inc/landing.html "$out"/__site/landing.html
 cp -r php/assets/. "$out"/assets/
 node tools/build_php_data.mjs "$out"
+# データ配信 API（/v1/data/…）が読むもの。__data/ は Worker の窓口からしか読めません
+# （server/data-api.js）。再配布してよいものだけを入れます（tools/data_api.mjs）。
+node tools/data_api.mjs build --out "$out/__data/v1" --quiet
 echo "built $out ($(find "$out" -type f | wc -l) files)"

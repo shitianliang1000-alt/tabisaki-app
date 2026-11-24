@@ -70,7 +70,9 @@
     "directory": "./.site",
     "binding": "ASSETS",
     "run_worker_first": ["/", "/index.html", "/app", "/app/", "/__site/*",
-                         "/__admin/*", "/admin", "/admin/*", "/private", "/private/*"],
+                         "/__admin/*", "/admin", "/admin/*", "/private", "/private/*",
+                         // データ配信 API（server/data-api.js）と、その同梱データ（外からは 404）
+                         "/v1/data", "/v1/data/*", "/__data", "/__data/*"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },
@@ -115,6 +117,12 @@
   // 上の migrations の行の末尾 ] のあとに「,」を足し、次の3行の // を外します。
   "kv_namespaces": [
     { "binding": "PRIVATE_KB", "id": "d3f7f2d6eb474d5598d4bbc44e87582e" }
+    // --- データ配信 API の入れ物（任意。docs/data-api.md） -----------------
+    // 無くても動きます（デプロイに同梱した .site/__data/ を配ります）。デプロイせずに
+    // データを差し替えたいとき・API の鍵を使いたいときだけ、ダッシュボードで
+    // tabisaki-data を作り、出てきた ID を入れて次の行の // を外します
+    // （上の行の末尾に「,」を足します）。**非商用データの PRIVATE_KB とは別の入れ物にします。**
+    // { "binding": "DATA_KB", "id": "<tabisaki-data の ID>" }
   ]
 
   // --- 使われかたの件数（Workers Analytics Engine） ---------------------

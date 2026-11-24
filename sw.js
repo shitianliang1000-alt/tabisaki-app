@@ -43,7 +43,8 @@
 // v31: guided decoding の packages/core/src/guided.js を足しました（#435）。
 // v32: 特殊な旅程の packages/core/src/special.js と、ほかの PR をまとめて入れました（#442 など）。
 // v37: データの出どころを追う packages/core/src/provenance.js を足しました（#426）。
-const VERSION = "tabisaki-v37";
+// v38: データ配信 API を呼ぶ packages/core/src/data-client.js を足しました。
+const VERSION = "tabisaki-v38";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -175,6 +176,7 @@ const SHELL_FILES = [
   "./packages/core/src/normals.js",
   "./packages/core/src/jma-areas.js",
   "./packages/core/src/notaspot.js",
+  "./packages/core/src/data-client.js",
   "./packages/core/src/pipeline.js",
   "./packages/core/src/places.js",
   "./packages/core/src/private-hint.js",

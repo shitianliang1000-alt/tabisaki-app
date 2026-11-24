@@ -1,6 +1,6 @@
 # API の仕様と安全の決めごと
 
-旅さきの API サーバー（`packages/server`）の仕様です。手元で動かす方法は [self-hosting.md](./self-hosting.md) にあります。
+旅さきの API サーバー（`packages/server`）の仕様です。バス停・駅・観光地のデータを配る API（Cloudflare Worker の `GET /v1/data/…`）は [data-api.md](./data-api.md) にあります。手元で動かす方法は [self-hosting.md](./self-hosting.md) にあります。
 
 この文書は Issue #376 で決めたことをまとめています。中身が変わったら、ここと `tests/server-security.test.js` を一緒に直してください。
 

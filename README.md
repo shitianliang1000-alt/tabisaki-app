@@ -61,6 +61,7 @@ cd tabisaki-app
 * 手元・自前のモデル（vLLM・Ollama）の出力と道具の呼び出しを JSON Schema でしばる。しばりの有無で崩れを比べる `tools/tool_call_eval.mjs`（[docs/guided-decoding.md](docs/guided-decoding.md)）
 * `./tabisaki similar "清水寺"` で似たスポットを探し、`./tabisaki kb extract --region=関東` で地域のぶんだけ切り出す（[docs/kb-extract.md](docs/kb-extract.md)）
 * `./tabisaki api` で、手元用の API サーバー（`POST /v1/plan`、[docs/api.md](./docs/api.md)）を立てる。Docker でも動く
+* 観光地・駅・バス停のデータを HTTP で取る（`GET /v1/data/…`、[docs/data-api.md](./docs/data-api.md)）。`./tabisaki data get spots --near 35.68,139.76`
 * Node.js 22 以上だけで動き、`npm install` も外への通信も要らない（`--local` のときは手元の LLM へだけ）
 
 ## Install
