@@ -70,7 +70,11 @@ test("Cloudflare の静的ファイルにある管理画面は、合言葉なし
   assert.equal(ok.status, 200);
   assert.equal(await ok.text(), "asset:/__admin/index.html");
   const js = await worker.fetch(get("/private/js/config.js", { Authorization: basic("かぎ-123") }), e);
-  assert.equal(await js.text(), "asset:/js/config.js");
+  // 管理画面が読む js/ は、公開サイトには無く __private/ にあります（2026-11-24 から）。
+  assert.equal(await js.text(), "asset:/__private/js/config.js");
+  const css = await worker.fetch(get("/private/css/hig.css", { Authorization: basic("かぎ-123") }), e);
+  assert.equal(await css.text(), "asset:/css/hig.css");
+  assert.equal((await worker.fetch(get("/__private/js/config.js"), e)).status, 404);
   // サイトのページ（無いファイル）は、静的ファイルの側へ渡します。
   const page = await worker.fetch(get("/nope.html"), e);
   assert.equal(await page.text(), "asset:/nope.html");

@@ -33,22 +33,17 @@ test("./tabisaki deploy は、先に試験を通す", async () => {
   assert.ok(deploy.indexOf("node --test") < deploy.indexOf("ftp_upload"));
 });
 
-test("PHP 版: 画面と部品は毎回確かめ、版の付いたトップの部品だけ長く持つ", async () => {
+test("PHP 版: 画面と部品は毎回確かめ、絵と字だけ長く持つ", async () => {
   const ht = await read("php/.htaccess");
   const noCache = /<FilesMatch "([^"]+)">\s*Header set Cache-Control "no-cache"/.exec(ht);
   assert.ok(noCache, "no-cache の決まりがありません");
   const re = new RegExp(noCache[1]);
-  for (const f of ["app.php", "index.php", "sw.js", "app.js", "app.css", "manifest.webmanifest", "areas.json"]) {
+  for (const f of ["index.php", "tour.html", "sw.js", "tour.js", "tour.css", "sitemap.xml"]) {
     assert.ok(re.test(f), `${f} が毎回確かめる側に入っていません`);
   }
   for (const f of ["icon.svg", "og.png", "noto-sans-jp-109-500-normal.woff2"]) {
     assert.ok(!re.test(f), `${f} まで毎回確かめています`);
   }
-  assert.match(ht, /<FilesMatch "\^landing\\\.\(css\|js\)\$">\s*Header set Cache-Control "public, max-age=31536000, immutable"/);
-  // 長く持つのは ?v= を付けて読むときだけ成り立ちます。
-  const tpl = await read("php/inc/landing.html");
-  assert.match(tpl, /assets\/landing\.css\?v=\{\{build\}\}/);
-  assert.match(tpl, /assets\/landing\.js\?v=\{\{build\}\}/);
 });
 
 test("GitHub から Cloudflare へ上げるのは、main の試験が通ったあとだけ", async () => {

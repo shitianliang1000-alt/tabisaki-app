@@ -1,7 +1,6 @@
-import { ADMIN_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
+import { ADMIN_ASSET_DIR, PRIVATE_ASSET_DIR, isAdminPath, serveAdmin } from "./admin.js";
 import { ENDPOINTS, record, Stats } from "./stats.js";
 import { cleanExtra } from "../js/metrics.js";
-import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 import { privateKbHandler } from "./private-kb.js";
 import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
@@ -171,24 +170,20 @@ export default {
       });
     }
     // 管理画面のファイルの置き場は、直には見せません（合言葉は上で聞きます）。
-    if (url.pathname.startsWith(ADMIN_ASSET_DIR) || url.pathname === ADMIN_ASSET_DIR.slice(0, -1)) {
+    if ([ADMIN_ASSET_DIR, PRIVATE_ASSET_DIR].some((d) => url.pathname.startsWith(d) || url.pathname === d.slice(0, -1))) {
       return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    // トップ（/）は tour.html（映像で見る旅さき）です。前のトップ（動く見本の紹介）は /landing に残しています。
+    // トップ（/）は tour.html（旅さきの紹介）です。
+    // 2026-11-24: ブラウザで使う Web 版（/app・/index.html・前のトップ /landing・旅程のリンク /?p=）は
+    // やめました。旧リンクはトップへ移します（端末版・アプリ版の入れかたがあります）。
     if (env?.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
-      if (url.pathname === "/" && !url.searchParams.has("p")) {
+      if (isRetiredWebApp(url)) {
+        return new Response(null, { status: 301, headers: { Location: new URL("/", url.origin).href } });
+      }
+      if (url.pathname === "/") {
         const res = await env.ASSETS.fetch(new Request(new URL("/tour", url.origin), request));
         if (res.ok) return res;
       }
-      if (url.pathname === "/landing") {
-        const page = await servePage(new Request(new URL("/", url.origin), request), env);
-        if (page) return page;
-      }
-    }
-    // チャットの画面（/app）と、?p= の旧リンクは、開いたときに作ります（server/landing.js）。
-    if (env?.ASSETS) {
-      const page = await servePage(request, env);
-      if (page) return page;
     }
     // サイトのページ（GET）。ふつうは Cloudflare がこの Worker を通さずに
     // 静的ファイルを返します。ここに来るのは、無いファイルを開いたときです。
@@ -205,6 +200,13 @@ export default {
     return res;
   },
 };
+
+/** やめた Web 版の入口か（/app・/app/・/index.html・/landing・/?p=…）。 */
+export function isRetiredWebApp(url) {
+  const p = url.pathname;
+  return p === "/app" || p === "/app/" || p === "/index.html" || p === "/landing" || p === "/landing/"
+    || (p === "/" && url.searchParams.has("p"));
+}
 
 /**
  * 無いページを開いた人には、空の 404 ではなく 404.html（エリアの一覧などへの

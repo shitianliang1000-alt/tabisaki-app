@@ -27,14 +27,13 @@
   // 組み立てます（下の build。Workers Builds の `wrangler versions upload`
   // でも、手元の `wrangler deploy` でも先に走ります）。
   //
-  //   .site/            … サイト（tools/build_site.sh と同じもの）
+  //   .site/            … 紹介ページ（tools/build_site.sh を WEBAPP=0 で）
   //   .site/__admin/    … 管理画面（admin/）。**直には配りません。**
-  //   .site/__site/     … トップのひな形（php/inc/landing.html と同じもの）
-  //   .site/assets/     … トップの CSS・JS（php/assets/ と同じもの）
-  //   .site/data/       … トップが読むエリアのデータ（tools/build_php_data.mjs）
+  //   .site/__private/  … 管理画面が読む js/・kb/・packages/core/src/。**直には配りません。**
+  //   .site/assets/     … 紹介ページの CSS・JS・動画（php/assets/ と同じもの）
   //
-  // トップ（/）とチャットの画面（/app・/index.html）は、開いたときに Worker が
-  // 作ります（server/landing.js。PHP 版の index.php・app.php と同じ中身）。
+  // トップ（/）は tour.html です。2026-11-24 にブラウザで使う Web 版をやめたので、
+  // /app・/index.html・/landing は Worker がトップへ移します（server/worker.js）。
   //
   // admin/ には認証が無いので、/__admin/ と /admin・/private/ は必ず
   // Worker を先に通します（run_worker_first）。Worker は合言葉
@@ -59,7 +58,7 @@
   //   { "pattern": "example.jp", "custom_domain": true },
   //   { "pattern": "www.example.jp", "custom_domain": true }
   // ],
-  // あわせて server/landing.js・php/inc/site.php の SITE_ORIGIN と
+  // あわせて server/admin.js の SITE_ORIGIN と
   // tools/build_area_pages.mjs の DEFAULT_BASE を同じアドレスにします
   // （tests/canonical.test.js が揃っているかを見ます）。
 
@@ -69,8 +68,8 @@
   "assets": {
     "directory": "./.site",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/index.html", "/app", "/app/", "/__site/*",
-                         "/__admin/*", "/admin", "/admin/*", "/private", "/private/*"],
+    "run_worker_first": ["/", "/index.html", "/app", "/app/",
+                         "/__admin/*", "/__private", "/__private/*", "/admin", "/admin/*", "/private", "/private/*"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },

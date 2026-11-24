@@ -8,11 +8,23 @@ const read = (p) => readFile(new URL(`../${p}`, import.meta.url), "utf8");
 test("公開物に、SSH・アプリ・API・観光地のページが入る", async () => {
   const sh = await read("tools/build_site.sh");
   for (const f of ["ssh.html", "mobile.html", "api.html", "tour.html"]) assert.ok(sh.includes(f), f);
-  assert.match(sh, /cp -r css js kb vendor spots /);
+  assert.match(sh, /cp -r css spots /);
+  // アプリ版の中身（WEBAPP=1）には、Web 版の画面とエンジンが今までどおり入る
+  assert.match(sh, /cp -r js kb vendor /);
+});
+
+test("公開サイト（Cloudflare・PHP）は Web 版を入れずに組み立てる", async () => {
+  for (const f of ["tools/build_worker.sh", "tools/build_php.sh"]) {
+    assert.match(await read(f), /WEBAPP=0 REQUIRE_MINIFY=1 sh tools\/build_site\.sh/, f);
+  }
+  assert.doesNotMatch(await read("mobile/build.sh"), /WEBAPP=0/);
+  const tour = await read("tour.html");
+  assert.doesNotMatch(tour, /href="\.?\/?app\b/, "トップから Web 版へのリンク");
+  assert.match(tour, /id="get"/);
 });
 
 test("トップ（/）は Worker も PHP も tour.html を出す", async () => {
-  assert.match(await read("server/worker.js"), /url\.pathname === "\/" && !url\.searchParams\.has\("p"\)/);
+  assert.match(await read("server/worker.js"), /url\.pathname === "\/"\) \{\n\s*const res = await env\.ASSETS\.fetch\(new Request\(new URL\("\/tour"/);
   assert.match(await read("php/index.php"), /tour\.html/);
 });
 

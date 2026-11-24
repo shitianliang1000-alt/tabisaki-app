@@ -24,6 +24,7 @@
 // 止まるよりは、削らずに出すほうがましです）。CI では
 // REQUIRE_MINIFY=1 を付けて、飛ばしたら失敗にします。
 
+import { existsSync } from "node:fs";
 import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -112,11 +113,13 @@ async function main() {
     return;
   }
   for (const [sub, ext, loader] of [["js", ".js", "js"], ["packages/core/src", ".js", "js"], ["css", ".css", "css"]]) {
+    // 公開サイト（WEBAPP=0）には js/ と packages/ がありません（Web 版を配らないので）。
+    if (!existsSync(join(dist, sub))) continue;
     const r = await minifyDir(esbuild, join(dist, sub), ext, loader);
     const kb = (n) => `${Math.round(n / 1024)}KB`;
     console.log(`minify ${sub}/: ${r.files} files, ${kb(r.before)} -> ${kb(r.after)}`);
   }
-  await bundleApp(esbuild, dist);
+  if (existsSync(join(dist, "js/app.js"))) await bundleApp(esbuild, dist);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) await main();

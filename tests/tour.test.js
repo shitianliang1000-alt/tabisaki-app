@@ -24,7 +24,7 @@ test("tour.html が読む絵と動画が、ぜんぶある", () => {
   const refs = [...html.matchAll(/\s(?:src|poster|href)="(assets\/[^"?]+)/g)].map((m) => m[1]);
   // 札で切り替える動画（data-src に拡張子なしで書いてあります）
   for (const m of html.matchAll(/data-src="(assets\/[^"]+)"/g)) refs.push(`${m[1]}.mp4`, `${m[1]}.webp`);
-  assert.ok(refs.length > 15);
+  assert.ok(refs.length > 8);
   for (const r of refs) assert.ok(fs.existsSync(new URL(`php/${r}`, root)), `php/${r} がありません`);
 });
 

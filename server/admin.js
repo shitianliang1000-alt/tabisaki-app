@@ -35,6 +35,12 @@ export const SITE_ORIGIN = "https://tabisaki-github-io.shitianliang1000.workers.
 export const SITE_ROOT = `${SITE_ORIGIN}/`;
 /** 静的ファイルの中で、管理画面のファイルを置いている場所（直には配りません）。 */
 export const ADMIN_ASSET_DIR = "/__admin/";
+/**
+ * 管理画面が読む旅さきの部品（js/・kb/・packages/core/src/）の置き場（直には配りません）。
+ * 2026-11-24 から公開サイトには Web 版を置かないので、管理画面のぶんだけここに入れます
+ * （tools/build_worker.sh）。css/ は公開サイトにもあるので、そちらを読みます。
+ */
+export const PRIVATE_ASSET_DIR = "/__private/";
 
 // 公開サイトから取ってきてよい場所。これ以外は取りに行きません
 // （どこでも中継する入口にはしません）。
@@ -99,7 +105,8 @@ export async function serveAdmin(request, env, { onBadPassword, overview } = {})
   }
   if (MIRRORED.test(rest)) {
     if (env.ASSETS) {
-      return guarded(await env.ASSETS.fetch(new Request(`https://assets.local/${rest}${url.search}`,
+      const dir = rest.startsWith("css/") ? "/" : PRIVATE_ASSET_DIR;
+      return guarded(await env.ASSETS.fetch(new Request(`https://assets.local${dir}${rest}${url.search}`,
         { method: request.method, headers: { Accept: request.headers.get("Accept") ?? "*/*" } })));
     }
     const res = await fetch(`${SITE_ROOT}${rest}${url.search}`, {
