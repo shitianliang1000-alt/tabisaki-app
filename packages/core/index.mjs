@@ -27,6 +27,8 @@ process.env.TZ = "Asia/Tokyo";
 
 // 差し替える前の fetch（手元の LLM へ話すときに使います）。
 const nativeFetch = globalThis.fetch;
+/** 差し替える前の fetch。スクレイピング（自己責任の設定のときだけ）は、これで端末から直接読みます。 */
+export const realFetch = nativeFetch;
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const js = (f) => import(pathToFileURL(path.join(ROOT, "packages", "core", "src", f)).href);

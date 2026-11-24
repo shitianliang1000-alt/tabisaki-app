@@ -43,6 +43,13 @@ export const TRANSIT_PROVIDER = "auto";
  *     npx wrangler secret put GEMINI_API_KEY
  */
 export const MODEL_PROVIDER = "gemini";
+//
+// **既定の AI は、持ち主が学習した Gemma 4（自前のモデル）です。**
+// 画面（アプリ）は上の "gemini" の形のまま中継へ頼み、中継が OWN_MODEL_URL
+// （持ち主の PC の Ollama・vLLM など）へ先に聞きます。答えないときだけ AI Studio の
+// Gemma 4 に回ります（server/own-model.js）。どちらを使うか・自前のモデルの名前は
+// アプリの「設定」か `tabisaki settings ai` で変えられます（packages/core/src/app-settings.js、
+// docs/settings.md）。鍵はブラウザにもアプリにも置きません。
 
 // Workers AI で動かすモデル。E2B は Workers AI には無いので、Gemma 4 の
 // うち配信されているものを使います（26B-A4B は実際に動く4Bぶんの重みで、

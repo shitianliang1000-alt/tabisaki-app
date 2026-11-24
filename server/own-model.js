@@ -15,10 +15,39 @@
 //   OWN_MODEL_KEY         入口の鍵（secret。要らない入口なら空）
 //   OWN_MODEL_TIMEOUT_MS  自前のモデルを待つ時間（既定 40000）。過ぎたら AI Studio へ
 //   OWN_MODEL_FALLBACK    "off" にすると AI Studio へ聞き直しません（自前だけで試すとき）
+//   OWN_MODEL_NAMES       画面の設定から名指ししてよいモデル名（カンマ区切り）。ここに無い名前が
+//                         来たら OWN_MODEL_NAME を使います（入口に入っている別のモデルを、
+//                         外から勝手に呼ばせないため）
+//
+// 画面（アプリの設定）は本文に aiSource（"own" | "studio"）と ownModel（名前）を添えます
+// （packages/core/src/app-settings.js の aiRelayFields）。"studio" なら自前のモデルを飛ばして
+// AI Studio だけに聞きます。どちらも上流へは渡しません。
 //
 // 詳しくは docs/own-model.md。
 
+// 持ち主が学習した Gemma 4（26B A4B・MoE と読んでいます。docs/settings.md）。
+// training/pipeline.sh の NAME と同じ名前です。
 export const OWN_MODEL_DEFAULT_NAME = "tabisaki-gemma";
+
+const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,79}$/;
+
+/** 入口に渡すモデル名（OWN_MODEL_NAME。無ければ既定）。 */
+export function ownModelName(env) {
+  return String(env?.OWN_MODEL_NAME ?? "").trim() || OWN_MODEL_DEFAULT_NAME;
+}
+
+/**
+ * 画面の設定（本文の aiSource・ownModel）と中継の設定から、投げ先を決めます。
+ * @returns {{useOwn: boolean, name: string, requested: "own" | "studio"}}
+ */
+export function pickSource(body, env) {
+  const requested = body?.aiSource === "studio" ? "studio" : "own";
+  const base = ownModelName(env);
+  const allowed = new Set([base, ...String(env?.OWN_MODEL_NAMES ?? "").split(",").map((x) => x.trim()).filter(Boolean)]);
+  const asked = typeof body?.ownModel === "string" ? body.ownModel.trim() : "";
+  const name = asked && MODEL_NAME.test(asked) && allowed.has(asked) ? asked : base;
+  return { useOwn: requested === "own" && ownModelConfigured(env), name, requested };
+}
 export const OWN_MODEL_DEFAULT_TIMEOUT_MS = 40_000;
 
 /** 自前のモデルの入口が設定されているか。 */
@@ -101,8 +130,8 @@ export function chatToGemini(out, model = OWN_MODEL_DEFAULT_NAME) {
  * 自前のモデルに聞きます。答えが取れれば Gemini の形を、取れなければ
  * { error } を返します（投げません。呼ぶ側が AI Studio へ回します）。
  */
-export async function askOwnModel(payload, env, { fetchImpl = fetch, guidedSchema = null } = {}) {
-  const name = String(env?.OWN_MODEL_NAME ?? "").trim() || OWN_MODEL_DEFAULT_NAME;
+export async function askOwnModel(payload, env, { fetchImpl = fetch, guidedSchema = null, name: pick = null } = {}) {
+  const name = pick || ownModelName(env);
   const headers = { "Content-Type": "application/json" };
   const key = String(env?.OWN_MODEL_KEY ?? "").trim();
   if (key) headers.Authorization = `Bearer ${key}`;

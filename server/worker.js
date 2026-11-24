@@ -4,7 +4,7 @@ import { cleanExtra } from "../js/metrics.js";
 import { servePage } from "./landing.js";
 import { providerStatus, transitHandler, TransitError } from "./transit.js";
 import { privateKbHandler } from "./private-kb.js";
-import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed } from "./own-model.js";
+import { askOwnModel, ownModelConfigured, ownModelFallbackAllowed, pickSource } from "./own-model.js";
 import { cacheApiStore, cacheKey, createCache, memoryStore } from "../packages/core/src/cache.js";
 import { dailyLimit, jstDay, rateKey, secondsToJstMidnight } from "./relay-guard.js";
 
@@ -677,8 +677,8 @@ export function cfText(out) {
 async function gemini(request, env, method) {
   // 自前のモデル（OWN_MODEL_URL）があれば、文の生成はまずそちらへ聞きます
   // （server/own-model.js・docs/own-model.md）。無ければいままでどおりです。
-  const own = method === "generateContent" && ownModelConfigured(env);
-  if (!own) {
+  // 画面の設定（aiSource・ownModel）で「AI Studio だけ」も選べます（pickSource）。
+  if (method !== "generateContent" || !ownModelConfigured(env)) {
     const missing = missingSecret(env, "GEMINI_API_KEY");
     if (missing) return missing;
   }
@@ -686,11 +686,18 @@ async function gemini(request, env, method) {
   const model = String(body?.model ?? "");
   if (!ALLOWED_MODELS.has(model)) return text("そのモデルは使えません", 400);
   // guidedSchema は自前のモデルにだけ使う形のしばり（#435）。Google へは渡しません（400 になります）。
-  const { model: _drop, guidedSchema, ...payload } = body;
+  // aiSource・ownModel は投げ先を決める印で、どちらの上流にも渡しません。
+  const { model: _drop, guidedSchema, aiSource: _src, ownModel: _name, ...payload } = body ?? {};
+  const pick = pickSource(body, env);
+  const own = method === "generateContent" && pick.useOwn;
+  if (!own) {
+    const missing = missingSecret(env, "GEMINI_API_KEY");
+    if (missing) return missing;
+  }
   const started = Date.now();
   let ownError = null;
   if (own) {
-    const got = await askOwnModel(payload, env, { guidedSchema });
+    const got = await askOwnModel(payload, env, { guidedSchema, name: pick.name });
     if (got.data) return withSource(json(got.data), "own");
     ownError = got.error;
     if (!ownModelFallbackAllowed(env)) {

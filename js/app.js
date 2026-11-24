@@ -701,6 +701,30 @@ let areaMap = null;
 let areaModule = null;
 let areaPicked = "";
 
+// 設定（データの取り方・AI。js/settings-panel.js）。開いたときに初めて読みます。
+let settingsPanel = null;
+function wireSettings() {
+  const btn = $("#open-settings");
+  const dlg = $("#settings-dialog");
+  const consent = $("#scrape-consent");
+  if (!btn || !dlg?.showModal || !consent) {
+    if (btn) btn.hidden = true;
+    return;
+  }
+  btn.addEventListener("click", async () => {
+    try {
+      if (!settingsPanel) {
+        const mod = await import("./settings-panel.js");
+        settingsPanel = mod.setupSettingsPanel({ dialog: dlg, consent,
+          onSaved: () => setBadge("設定を保存しました（この端末の中だけ）") });
+      }
+      settingsPanel.open();
+    } catch (e) {
+      setBadge(`設定を開けませんでした: ${e.message}`, true);
+    }
+  });
+}
+
 function wireAreaMap() {
   const btn = $("#open-area-map");
   const dlg = $("#area-dialog");
@@ -1206,6 +1230,7 @@ function wireForm() {
     });
   }
   wireAreaMap();
+  wireSettings();
   wireUserSet();
   for (const btn of document.querySelectorAll("[data-example]")) {
     btn.addEventListener("click", () => {

@@ -3945,3 +3945,20 @@ body[data-trip-mode="on"] .turn-details { border: 0; background: transparent; }
 .slot-extra { font-size: var(--hig-t-caption1); color: var(--chat-ink-2); margin-bottom: -6px; }
 .slot-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .slot-off { display: inline-flex; align-items: center; gap: 6px; font-size: var(--hig-t-caption1); color: var(--chat-ink-2); }
+
+/* 設定（js/settings-panel.js） */
+.settings-dialog { width: min(96vw, 560px); max-height: 92vh; overflow: auto; }
+.settings-group { border: 0; margin: 0 0 16px; padding: 0; }
+.settings-group legend { font-weight: 600; margin-bottom: 8px; }
+.settings-choice { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+.settings-choice input { margin-top: 4px; }
+.settings-choice small { display: block; color: var(--muted, #6b6b6b); line-height: 1.5; }
+.settings-choice--warn strong { color: var(--danger, #b3261e); }
+.settings-field { display: grid; gap: 4px; margin: 8px 0; font-size: .95em; }
+.settings-field input { font: inherit; padding: 8px 10px; border: 1px solid var(--line, #ccc); border-radius: 8px; background: transparent; color: inherit; }
+.settings-note { color: var(--muted, #6b6b6b); font-size: .9em; margin: 4px 0 0; }
+.settings-error { color: var(--danger, #b3261e); }
+.settings-consent { white-space: pre-wrap; font: inherit; line-height: 1.6; margin: 0 0 12px; }
+.settings-agree { display: flex; gap: 8px; align-items: center; }
+.scrape-read { margin: 8px 0 0; }
+.scrape-read small { display: block; color: var(--muted, #6b6b6b); }

@@ -159,3 +159,27 @@ export async function pullModel({ baseUrl, model, fetchImpl = globalThis.fetch, 
   }
   if (last?.status !== "success") throw localError("pull_failed", "モデルの取得が途中で終わりました（ネットにつながっているか確かめてください）");
 }
+
+/**
+ * --local / --hybrid で使うモデルを決めます。
+ *
+ *   1. --model= で名指ししたもの（無ければ ensureLocalModel と同じく直しかた付きで止めます）
+ *   2. 設定の自前のモデル（tabisaki settings ai。既定は持ち主が学習した tabisaki-gemma）
+ *   3. 自前のモデルがまだ入っていなければ、配布の Gemma 4（DEFAULT_LOCAL_MODEL）に落とし、
+ *      そのことを note に書きます（学習前・取り込み前でも動くように）
+ *
+ * @returns {Promise<{model: string, info: object, note: string}>}
+ */
+export async function pickLocalModel({ baseUrl, explicit = null, preferred = null, fetchImpl } = {}) {
+  if (explicit) return { model: explicit, info: await ensureLocalModel({ baseUrl, model: explicit, fetchImpl }), note: "" };
+  const want = preferred || DEFAULT_LOCAL_MODEL;
+  const info = await probeRuntime(baseUrl, { fetchImpl });
+  if (hasModel(info.models, want)) return { model: want, info, note: "" };
+  if (want !== DEFAULT_LOCAL_MODEL && hasModel(info.models, DEFAULT_LOCAL_MODEL)) {
+    return { model: DEFAULT_LOCAL_MODEL, info,
+             note: `自前のモデル「${want}」が見つからないので、${DEFAULT_LOCAL_MODEL} で組みます`
+               + "（学習した GGUF を ollama create で入れるか、tabisaki settings ai --model=<名前> で名前を合わせてください）" };
+  }
+  await ensureLocalModel({ baseUrl, model: want, fetchImpl });
+  return { model: want, info, note: "" };
+}

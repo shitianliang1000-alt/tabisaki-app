@@ -14,6 +14,7 @@
 
 import { readFileSync } from "node:fs";
 import { JOURNEY_COMMANDS, JOURNEY_HELP, runJourney } from "../../journey/cli.mjs";
+import { readAppSettings } from "../../core/app-settings-file.mjs";
 
 const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
@@ -30,7 +31,8 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   --kb=<名前>         ユーザーKB（~/.tabisaki/kbs/<名前>/）を公式の収録に重ねて組む
                       （書かなければ kb switch で決めたもの。--kb=official で重ねない）
   --local             手元の LLM（Ollama など）で行き先を選ぶ（docs/local-llm.md）
-  --model=<名前>      --local で使うモデル（既定: gemma4:e2b）
+  --model=<名前>      --local で使うモデル（既定: 設定の自前のモデル tabisaki-gemma。
+                      入っていなければ gemma4:e2b。tabisaki settings ai で変えられます）
   --llm-url=<URL>     手元の LLM の行き先（既定: http://127.0.0.1:11434）
   --hybrid            手元の LLM で答え、確信度が低いときと Web 検索が要るときだけクラウドへ
                       回す（docs/model-router.md。クラウドの入口は GEMINI_API_KEY か --cloud-url）
@@ -40,6 +42,14 @@ const HELP = `使いかた: tabisaki plan "<希望の文>" [オプション]
   tabisaki router stats [--target=0.2]  使い分けの記録をまとめ、閾値の目安を出す
   tabisaki router log [--limit=20]      使い分けの記録を新しい順に出す
   tabisaki router threshold [<0〜1>]    いまの閾値を出す（値を書くと変える）
+
+  tabisaki settings                         いまの設定（データの取り方・AI）を出す
+  tabisaki settings data-source api|scrape [--yes]
+                      データの取り方。api（公式の API・既定）か scrape（非推奨・自己責任。
+                      注意書きに同意してから有効になります。docs/settings.md）
+  tabisaki settings ai own|studio [--model=<名前>] [--base=<元の大きさ>]
+                      AI。own（自前の Gemma 4・既定）か studio（Google AI Studio の Gemma・予備）
+  tabisaki settings reset                   設定を既定に戻す
 
   tabisaki local setup [--model=…] [--pull]  手元の LLM を確かめる（--pull でモデルを取る）
   tabisaki local models                     勧めるモデルと、要るメモリ・ディスク
@@ -76,7 +86,7 @@ sync と voice-plan の設定（合言葉・モデル）は docs/calendar-and-vo
 
 const OPTIONS = new Set(["from", "days", "date", "start", "back", "transport", "output", "lang", "kb",
   "model", "llm-url", "region", "out", "method", "limit", "index", "caldav-url", "style",
-  "threshold", "cloud-url", "target", "search-file", "input",
+  "threshold", "cloud-url", "base", "target", "search-file", "input",
   "delay", "late", "dwell", "closed", "on", "runs", "seed", "jitter", "provider", "rain", "state", "max-failures"]);
 // 値を取らないもの。
 const FLAGS = new Set(["help", "version", "local", "hybrid", "pull", "dry-run", "yes", "remove", "research",
@@ -335,7 +345,8 @@ export async function main(argv, {
     }
     if (opts.help || !cmd || cmd === "help") { stdout.write(HELP); return cmd || opts.help ? 0 : 2; }
     if (cmd === "plugins") return await plugins(rest, { stdout });
-    if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr });
+    if (cmd === "local") return await localCommand(rest, opts, { stdout, stderr, env });
+    if (cmd === "settings") return await settingsCommand(rest, opts, { stdout, stderr, stdin, env });
     if (cmd === "router") return await routerCommand(rest, opts, { stdout, env });
     if (cmd === "kb" || cmd === "similar") return await kbCommand(cmd, rest, opts, { stdout, stderr });
     if (cmd === "sync") return await sync(opts, rest, { stdout, stderr, stdin, env });
@@ -375,19 +386,19 @@ export async function main(argv, {
     if (opts.hybrid) {
       const rl = await import("../../core/router-log.mjs");
       const baseUrl = core.resolveBaseUrl(opts["llm-url"]);
-      const model = opts.model ?? core.DEFAULT_LOCAL_MODEL;
       const { threshold } = rl.resolveThreshold(opts.threshold, env);
       const cloud = cloudFor(opts, env);
-      await core.ensureLocalModel({ baseUrl, model });
+      const { model, note } = await core.pickLocalModel({ baseUrl, explicit: opts.model, preferred: preferredModel(env) });
+      if (note) stderr.write(`${note}\n`);
       hybrid = { local: { baseUrl, model }, threshold, cloud, onRecord: rl.fileRecorder(env) };
       stderr.write(`手元の LLM（${model}）で組み、確信度が ${threshold} 未満のときだけクラウドに聞き直します…\n`);
     }
     if (opts.local) {
       const baseUrl = core.resolveBaseUrl(opts["llm-url"]);
-      const model = opts.model ?? core.DEFAULT_LOCAL_MODEL;
       // 組みはじめる前に確かめます。途中で失敗すると本体が黙って収録データだけで
       // 組み直すので、「--local を付けたのに使われていない」が起きます。
-      await core.ensureLocalModel({ baseUrl, model });
+      const { model, note } = await core.pickLocalModel({ baseUrl, explicit: opts.model, preferred: preferredModel(env) });
+      if (note) stderr.write(`${note}\n`);
       local = { baseUrl, model };
       stderr.write(`手元の LLM（${model}）で組んでいます。数分かかることがあります…\n`);
     }
@@ -442,9 +453,16 @@ export async function main(argv, {
       await run(result);
       return 0;
     }
-    const text = output === "ics" ? await core.toIcs(result)
-      : output === "json" ? core.toJson(result)
+    // スクレイピング（非推奨・自己責任の設定のときだけ）。公式サイトから読んだことは、
+    // 収録のデータとは混ぜずに、旅程の下へ「未確認」として分けて付けます。
+    const scraped = await scrapeIfAllowed(core, result, { env, stderr });
+    let text = output === "ics" ? await core.toIcs(result)
+      : output === "json" ? core.toJson(scraped ? { ...result, scraped } : result)
       : output === "text" ? core.toPlainText(result, { lang }) : core.toMarkdown(result, { lang });
+    if (scraped && (output === "markdown" || output === "md" || output === "text")) {
+      const sc = await import("../../core/src/scrape.js");
+      text += "\n" + sc.scrapeSummaryLines(scraped).join("\n");
+    }
     stdout.write(text);
     return 0;
   } catch (e) {
@@ -665,6 +683,85 @@ async function localCommand([sub, ...extra], opts, { stdout, stderr }) {
   say("");
   say(`使えます。tabisaki plan "<希望>" --local${opts.model ? ` --model=${model}` : ""}${opts["llm-url"] ? ` --llm-url=${baseUrl}` : ""} で組めます。`);
   return 0;
+}
+
+/** 設定の自前のモデル（AI が own のときだけ。studio のときは配布の Gemma 4 を手元で使います）。 */
+function preferredModel(env) {
+  const { value } = readAppSettings(env);
+  return value.ai.source === "own" ? value.ai.model : null;
+}
+
+/** 設定が scrape で、同意があるときだけ、旅程の場所の公式サイトを端末から読みます。 */
+async function scrapeIfAllowed(core, result, { env, stderr }) {
+  const { value } = readAppSettings(env);
+  const as = await import("../../core/src/app-settings.js");
+  if (!as.canScrape(value) || !result?.itinerary) return null;
+  const sc = await import("../../core/src/scrape.js");
+  stderr.write("スクレイピング（非推奨・自己責任の設定）: 旅程の場所の公式サイトを読んでいます…\n");
+  const scraper = sc.createScraper({ fetchImpl: core.realFetch ?? globalThis.fetch });
+  return sc.scrapeItinerary(result.itinerary, { settings: value, scraper, canScrape: as.canScrape });
+}
+
+/** tabisaki settings [show|data-source|ai|reset] */
+async function settingsCommand([sub = "show", arg, ...extra], opts, { stdout, stderr, stdin, env }) {
+  const as = await import("../../core/src/app-settings.js");
+  const file = await import("../../core/app-settings-file.mjs");
+  if (extra.length) throw usage(`余計な語があります: ${extra.join(" ")}`);
+  const say = (line) => stdout.write(line + "\n");
+  const current = file.readAppSettings(env);
+  for (const e of current.errors) stderr.write(`tabisaki: ${e}\n`);
+  const show = (v, saved = true) => {
+    const ds = as.DATA_SOURCES.find((d) => d.id === v.dataSource);
+    const ai = as.AI_SOURCES.find((a) => a.id === v.ai.source);
+    say(`設定ファイル: ${file.appSettingsPath(env)}${saved ? "" : "（まだ無いので既定）"}`);
+    say(`データの取り方: ${v.dataSource}（${ds.label}）`);
+    if (v.dataSource === "scrape") say(`  注意書きに同意: ${v.scrapeConsent.at}（版 ${v.scrapeConsent.version}）`);
+    say(`AI: ${v.ai.source}（${ai.label}）`);
+    if (v.ai.source === "own") say(`  モデル名: ${v.ai.model}・元: ${v.ai.base}`);
+  };
+  if (sub === "show") {
+    if (arg) throw usage(`余計な語があります: ${arg}`);
+    show(current.value, current.from === "file");
+    return 0;
+  }
+  if (sub === "reset") {
+    if (arg) throw usage(`余計な語があります: ${arg}`);
+    const { value } = await file.writeAppSettings(as.defaultAppSettings(), env);
+    say("既定に戻しました。");
+    show(value);
+    return 0;
+  }
+  if (sub === "data-source") {
+    if (!as.DATA_SOURCES.some((d) => d.id === arg)) throw usage(`tabisaki settings data-source ${as.DATA_SOURCES.map((d) => d.id).join("|")} の形で書いてください`);
+    const next = { ...current.value, dataSource: arg };
+    if (arg === "scrape") {
+      // 注意書きは必ず見せます。端末でないとき（パイプ・cron）は --yes が要ります。
+      stderr.write(as.SCRAPE_CONSENT_TEXT + "\n\n");
+      if (!opts.yes) {
+        const a = await ask("同意して、自己責任でスクレイピングを有効にしますか？ [y/N] ", { stdin, stderr });
+        if (a === null) throw usage("端末でないときは、注意書きを読んだうえで --yes を付けてください");
+        if (!/^y(es)?$/i.test(a)) { stderr.write("やめました（公式の API のままです）。\n"); return 0; }
+      }
+      next.scrapeConsent = as.scrapeConsentNow();
+    } else {
+      next.scrapeConsent = null; // 戻したら同意も消します。次に有効にするときは、もう一度読んでもらいます
+    }
+    const { value } = await file.writeAppSettings(next, env);
+    say(arg === "scrape" ? "スクレイピングを有効にしました（非推奨・自己責任）。" : "公式の API・オープンデータだけを使います。");
+    show(value);
+    return 0;
+  }
+  if (sub === "ai") {
+    if (!as.AI_SOURCES.some((a) => a.id === arg)) throw usage(`tabisaki settings ai ${as.AI_SOURCES.map((a) => a.id).join("|")} [--model=<名前>] [--base=<元の大きさ>] の形で書いてください`);
+    const ai = { ...current.value.ai, source: arg };
+    if (opts.model !== undefined) ai.model = opts.model;
+    if (opts.base !== undefined) ai.base = opts.base;
+    const { value } = await file.writeAppSettings({ ...current.value, ai }, env);
+    say("AI の設定を変えました。");
+    show(value);
+    return 0;
+  }
+  throw usage("tabisaki settings / settings data-source api|scrape / settings ai own|studio / settings reset のどれかです");
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("tabisaki-plan.mjs")) {

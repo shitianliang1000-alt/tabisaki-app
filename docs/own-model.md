@@ -235,6 +235,10 @@ OWN_MODEL_KEY=$GEMINI_API_KEY node tools/model_eval.mjs \
 | `OWN_MODEL_KEY` | **secret** | 入口の鍵（要らない入口なら置かない） |
 | `OWN_MODEL_TIMEOUT_MS` | var | 自前のモデルを待つ時間（既定 40000。最大 110000）。過ぎたら AI Studio へ |
 | `OWN_MODEL_FALLBACK` | var | `off` にすると AI Studio に聞き直さない（自前だけで試すとき） |
+| `OWN_MODEL_NAMES` | var | アプリの設定から名指ししてよいモデル名（カンマ区切り）。無い名前が来たら `OWN_MODEL_NAME` を使う |
+
+アプリの「設定」で AI を「Google AI Studio の Gemma 4」にすると、その端末からの頼みは自前のモデルを飛ばします。
+既定は自前のモデルです（Gemma 4 26B A4B・MoE と読んでいます。[settings.md](./settings.md)）。
 
 AI Studio を待つ時間は、自前のモデルを待ったぶん縮めます（画面は 135 秒で諦めるため）。`/status` に `ownModel: true/false` が出ます（URL・鍵は出しません）。
 鍵はブラウザに置きません（いままでと同じ決まりです）。
