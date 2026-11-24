@@ -23,6 +23,7 @@ import { NOTICE_LIMITS } from "./notify.js";
 import { describeOrderDiff } from "./orderdiff.js";
 import { itineraryLicenseSummary } from "../packages/core/src/provenance.js";
 import { laterToday } from "./tripmode.js";
+import { scrapeButton } from "./scrape-button.js";
 import { ISSUES, PACE, STATUS, clearFeedback, feedbackFor, issueUrl, loadFeedback,
          removeFeedback, reportMarkdown, saveFeedback, spotsOf, summarize, tripKey,
          tripStarted } from "./feedback.js";
@@ -2503,6 +2504,12 @@ function renderItem(item, index, itin, handlers, sunNote) {
   if (item.costYen > 0) {
     info.append(el("p", { class: "cost" },
       `¥${item.costYen.toLocaleString()}${item.estimated === false ? "" : "（目安）"}`));
+  }
+
+  // スクレイピング（非推奨・自己責任の設定・携帯アプリだけ）。押したときだけ公式サイトを読みます。
+  if (item.kind === "spot" && item.place) {
+    const sb = scrapeButton(item.place, { el });
+    if (sb) extra.append(sb);
   }
 
   if (extra !== info && extra.childElementCount) {

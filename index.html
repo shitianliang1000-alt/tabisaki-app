@@ -209,6 +209,10 @@
   </section>
 
     <div class="side-fill"></div>
+    <!-- 設定（データの取り方・AI）。中身は js/settings-panel.js。開いたときに初めて読みます。 -->
+    <button type="button" class="side-item md-state" id="open-settings" aria-haspopup="dialog" title="設定">
+      <svg class="ic" data-icon="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 5L10.3 2.5L13.7 2.5L14 5L15.5 5.6L17.5 4.1L19.9 6.5L18.4 8.5L19 10L21.5 10.3L21.5 13.7L19 14L18.4 15.5L19.9 17.5L17.5 19.9L15.5 18.4L14 19L13.7 21.5L10.3 21.5L10 19L8.5 18.4L6.5 19.9L4.1 17.5L5.6 15.5L5 14L2.5 13.7L2.5 10.3L5 10L5.6 8.5L4.1 6.5L6.5 4.1L8.5 5.6ZM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Z"/></svg><span>設定</span>
+    </button>
     <!-- 紹介・都道府県の一覧・著作権表記へのリンクは、トップ（/）に置いています。
          チャットの画面には並べません。 -->
     <p id="ph-data" hidden></p>
@@ -833,6 +837,56 @@
   <div class="area-list"></div>
   <div class="md-dialog-actions">
     <button type="button" class="md-btn md-btn--text md-state" id="area-close">閉じる</button>
+  </div>
+</dialog>
+
+<!-- 設定（packages/core/src/app-settings.js）。保存はこの端末の中だけです。鍵は扱いません。 -->
+<dialog id="settings-dialog" class="md-dialog settings-dialog" aria-labelledby="settings-title">
+  <h2 class="hig-title-2" id="settings-title">設定</h2>
+  <form method="dialog" id="settings-form">
+    <fieldset class="settings-group">
+      <legend>データの取り方</legend>
+      <label class="settings-choice"><input type="radio" name="dataSource" value="api">
+        <span><strong>公式の API・オープンデータ（おすすめ）</strong>
+        <small>乗り換え・天気・地図は公式の API、スポットは収録データ（出典つき）だけを使います。</small></span></label>
+      <label class="settings-choice settings-choice--warn"><input type="radio" name="dataSource" value="scrape">
+        <span><strong>スクレイピング（非推奨・自己責任）</strong>
+        <small>上に加えて、スポットの公式サイトなどの公開ページを、この端末から直接読みます。有効にする前に注意書きが出ます。</small></span></label>
+      <p class="settings-note" id="settings-scrape-note" hidden></p>
+    </fieldset>
+    <fieldset class="settings-group">
+      <legend>AI</legend>
+      <label class="settings-choice"><input type="radio" name="aiSource" value="own">
+        <span><strong>自前の Gemma 4（学習済み・既定）</strong>
+        <small>持ち主が学習したモデルです。答えないときだけ Google AI Studio の Gemma 4 に回ります。</small></span></label>
+      <label class="settings-choice"><input type="radio" name="aiSource" value="studio">
+        <span><strong>Google AI Studio の Gemma 4（予備）</strong>
+        <small>自前のモデルを使わずに、AI Studio だけに聞きます。</small></span></label>
+      <label class="settings-field">モデル名
+        <input type="text" name="aiModel" id="settings-ai-model" autocomplete="off" spellcheck="false"
+               inputmode="latin" maxlength="80"></label>
+      <label class="settings-field">元にした Gemma 4
+        <input type="text" name="aiBase" id="settings-ai-base" autocomplete="off" spellcheck="false"
+               inputmode="latin" maxlength="80"></label>
+      <p class="settings-note">既定は Gemma 4 26B A4B（MoE）です。名前は中継に登録したもの（OWN_MODEL_NAME・OWN_MODEL_NAMES）だけが通ります。</p>
+    </fieldset>
+    <p class="settings-error" id="settings-error" role="alert" hidden></p>
+    <div class="md-dialog-actions">
+      <button type="button" class="md-btn md-btn--text md-state" id="settings-close">閉じる</button>
+      <button type="submit" class="md-btn md-btn--filled md-state" id="settings-save" value="save">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- スクレイピングを有効にする前の注意書き。文は app-settings.js の SCRAPE_CONSENT_TEXT。 -->
+<dialog id="scrape-consent" class="md-dialog settings-dialog" aria-labelledby="scrape-consent-title">
+  <h2 class="hig-title-2" id="scrape-consent-title">スクレイピングは非推奨です</h2>
+  <pre class="settings-consent" id="scrape-consent-text"></pre>
+  <label class="settings-agree"><input type="checkbox" id="scrape-consent-check">
+    読んだうえで、自己責任で使います</label>
+  <div class="md-dialog-actions">
+    <button type="button" class="md-btn md-btn--text md-state" id="scrape-consent-no">やめる</button>
+    <button type="button" class="md-btn md-btn--filled md-btn--danger md-state" id="scrape-consent-yes" disabled>有効にする</button>
   </div>
 </dialog>
 

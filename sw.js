@@ -43,7 +43,8 @@
 // v31: guided decoding の packages/core/src/guided.js を足しました（#435）。
 // v32: 特殊な旅程の packages/core/src/special.js と、ほかの PR をまとめて入れました（#442 など）。
 // v37: データの出どころを追う packages/core/src/provenance.js を足しました（#426）。
-const VERSION = "tabisaki-v37";
+// v38: 設定の画面（js/settings-panel.js・app-settings.js）とスクレイピング（scrape.js）を足しました。
+const VERSION = "tabisaki-v38";
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 // タイルは版と関係なく残します。版を上げるたびに、見た地図が消える
@@ -124,6 +125,8 @@ const SHELL_FILES = [
   "./js/photos.js",
   "./js/reach.js",
   "./js/routemap.js",
+  "./js/scrape-button.js",
+  "./js/settings-panel.js",
   "./js/share.js",
   "./js/shell.js",
   "./js/slotcard.js",
@@ -195,8 +198,10 @@ const SHELL_FILES = [
   "./packages/core/src/routes.js",
   "./packages/core/src/sample-data.js",
   "./packages/core/src/scenic.js",
+  "./packages/core/src/scrape.js",
   "./packages/core/src/score.js",
   "./packages/core/src/settings.js",
+  "./packages/core/src/app-settings.js",
   "./packages/core/src/shapes.js",
   "./packages/core/src/special.js",
   "./packages/core/src/stays.js",

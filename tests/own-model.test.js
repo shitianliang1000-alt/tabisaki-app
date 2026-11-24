@@ -112,3 +112,54 @@ test("OWN_MODEL_URL が無ければ、いままでどおり AI Studio だけ", a
   assert.equal(res.headers.get("X-Tabisaki-Model-Source"), null);
   assert.equal(seen.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// アプリの設定（aiSource・ownModel）で投げ先とモデル名を選ぶ（docs/settings.md）
+
+const callWith = (extra, env) => worker.fetch(new Request("https://relay.example/gemini/generate", {
+  method: "POST",
+  headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+  body: JSON.stringify({ model: "gemma-4-26b-a4b-it", contents: [{ role: "user", parts: [{ text: "こんにちは" }] }], ...extra }),
+}), { ALLOW_ORIGIN: ORIGIN, ...env });
+
+test("pickSource: 既定は自前、studio なら飛ばす、名前は中継に登録したものだけ", async () => {
+  const { pickSource } = await import("../server/own-model.js");
+  const env = { OWN_MODEL_URL: "https://own.example" };
+  assert.deepEqual(pickSource({}, env), { useOwn: true, name: "tabisaki-gemma", requested: "own" });
+  assert.equal(pickSource({ aiSource: "studio" }, env).useOwn, false);
+  assert.equal(pickSource({}, {}).useOwn, false, "入口が無ければ自前は使えない");
+  assert.equal(pickSource({ ownModel: "other" }, env).name, "tabisaki-gemma", "登録していない名前は使わない");
+  assert.equal(pickSource({ ownModel: "tabisaki-gemma4-26b" }, { ...env, OWN_MODEL_NAMES: "tabisaki-gemma4-26b, x" }).name, "tabisaki-gemma4-26b");
+  assert.equal(pickSource({ ownModel: "a b" }, { ...env, OWN_MODEL_NAMES: "a b" }).name, "tabisaki-gemma");
+  assert.equal(pickSource({}, { ...env, OWN_MODEL_NAME: "my-gemma" }).name, "my-gemma");
+});
+
+test("設定で studio を選ぶと、自前のモデルへは聞かず、印は上流へ渡さない", async () => {
+  const seen = [];
+  const res = await withFetch(async (url, init) => {
+    seen.push({ url: String(url), body: JSON.parse(init.body) });
+    return ok({ candidates: [{ content: { parts: [{ text: "AI Studio" }] } }] });
+  }, () => callWith({ aiSource: "studio", ownModel: "tabisaki-gemma" }, { OWN_MODEL_URL: "https://own.example", GEMINI_API_KEY: "g" }));
+  assert.equal(res.status, 200);
+  assert.equal(seen.length, 1);
+  assert.match(seen[0].url, /generativelanguage\.googleapis\.com/);
+  assert.equal(seen[0].body.aiSource, undefined);
+  assert.equal(seen[0].body.ownModel, undefined);
+});
+
+test("設定のモデル名（登録済み）を自前の入口へ渡す", async () => {
+  const seen = [];
+  const res = await withFetch(async (url, init) => {
+    seen.push(JSON.parse(init.body));
+    return ok({ choices: [{ message: { content: "自前" } }] });
+  }, () => callWith({ aiSource: "own", ownModel: "tabisaki-gemma4-26b" },
+    { OWN_MODEL_URL: "https://own.example", OWN_MODEL_NAMES: "tabisaki-gemma4-26b" }));
+  assert.equal(res.status, 200);
+  assert.equal(seen[0].model, "tabisaki-gemma4-26b");
+  assert.equal(seen[0].aiSource, undefined);
+});
+
+test("studio を選んだのに AI Studio の鍵が無ければ、鍵が無いと返す", async () => {
+  const res = await withFetch(async () => ok({}), () => callWith({ aiSource: "studio" }, { OWN_MODEL_URL: "https://own.example" }));
+  assert.notEqual(res.status, 200);
+});

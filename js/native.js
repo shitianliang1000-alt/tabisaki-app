@@ -39,3 +39,30 @@ export function shareBase(loc = globalThis.location, native = isNativeApp(), sit
   }
   return `${loc.origin}${loc.pathname}`;
 }
+
+/**
+ * 携帯アプリの中から、相手のサイトを直接読む fetch（スクレイピングの設定のときだけ使います）。
+ *
+ * ブラウザの fetch はほかのサイトに断られる（CORS）ので、Capacitor の CapacitorHttp で
+ * 端末から読みます。全体の fetch は差し替えません（中継への頼みは、いままでどおり
+ * Origin を付けたブラウザの fetch で送ります）。
+ *
+ * @returns {null | ((url: string, init?: object) => Promise<object>)} アプリでなければ null
+ */
+export function nativeHttpFetch(cap = globalThis.Capacitor) {
+  const http = cap?.Plugins?.CapacitorHttp;
+  if (!isNativeApp(cap) || !http?.request) return null;
+  return async (url, init = {}) => {
+    const r = await http.request({
+      url: String(url), method: "GET", headers: init.headers ?? {},
+      responseType: "text", connectTimeout: 10000, readTimeout: 10000,
+    });
+    const headers = Object.fromEntries(Object.entries(r.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
+    const body = typeof r.data === "string" ? r.data : JSON.stringify(r.data ?? "");
+    return {
+      ok: r.status >= 200 && r.status < 300, status: r.status, url: r.url || String(url),
+      headers: { get: (k) => headers[String(k).toLowerCase()] ?? null },
+      text: async () => body,
+    };
+  };
+}

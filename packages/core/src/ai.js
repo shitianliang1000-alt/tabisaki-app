@@ -16,6 +16,7 @@ import {
 import { endpointFor, keyHeaders, missingSecretHelp, proxyStatus,
          readProxyError, requestSignal, usingProxy } from "./endpoints.js";
 import { effectiveConfig } from "./settings.js";
+import { aiRelayFields, loadAppSettings } from "./app-settings.js";
 import { buildSearchText, extractKeywords } from "./keywords.js";
 import { meteredFetch } from "./quota.js";
 import { cacheKey, createCache, memoryStore, webStorageStore } from "./cache.js";
@@ -747,7 +748,9 @@ function proxyError(res, body) {
  * 返るので、候補を順に落として「接続できませんでした」になります。
  */
 function withModel(body, model, cfg) {
-  return usingProxy(cfg) ? { ...body, model } : body;
+  // 設定の AI（自前の Gemma 4 か AI Studio か・自前のモデル名）も添えます。鍵は入りません。
+  // 中継が投げ先を決め、上流へ渡す前に落とします（server/own-model.js の pickSource）。
+  return usingProxy(cfg) ? { ...body, model, ...aiRelayFields(loadAppSettings()) } : body;
 }
 
 /**
