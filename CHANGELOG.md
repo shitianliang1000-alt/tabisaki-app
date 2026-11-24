@@ -8,6 +8,7 @@
 
 ## まだ版にしていない変更
 
+- CUI とアプリに「設定」を足しました。データの取り方は「公式の API・オープンデータ」が既定で、「スクレイピング（非推奨・自己責任）」は注意書きに同意したときだけ有効になり、スポットの公式サイトを端末から読んで「未確認」として分けて出します。AI の既定は持ち主が学習した Gemma 4（26B A4B）で、Google AI Studio の Gemma 4 に切り替えたり、モデル名を差し替えたりできます（`./tabisaki settings`・[docs/settings.md](./docs/settings.md)）
 - 手元の OpenTripPlanner に読ませる時刻表（GTFS-JP）を、1本のコマンドで集めて・検査して・組み立て直せるようにしました（`bash tools/otp_pipeline.sh`）。県を書けば GTFS データリポジトリの一覧から範囲の時刻表を自動で選び、公開日が変わったものだけ落とし、壊れているもの・期限切れは理由を書いて外します。2つ目の地域として富山（時刻表 23本）を足しました。全国 572本を検査して、収録のスポットのそばに便のある停留所があるかを県ごとにまとめました（[docs/gtfs-pipeline.md](./docs/gtfs-pipeline.md)・[docs/gtfs-coverage.md](./docs/gtfs-coverage.md)、#430）
 - 収録のデータを、項目ごとに「どこから来たか」で追えるようにしました（Wikipedia・OpenStreetMap・Wikidata・Yahoo! JAPAN・国土地理院・旅さきの独自データなど）。旅程の Markdown・カレンダー（.ics）・画面には、その旅程が使ったデータの出典が自動で付きます。旅程の JSON と API、スポットの書き出しには、出どころ・ライセンス・書くべき表記をまとめた `license_summary` が入ります。収録を出どころごとに分けた形へ移す道具と手順も用意しました（[docs/data-provenance.md](./docs/data-provenance.md)、#426）
 - スポットどうしの関係を書きとめ（`./tabisaki spot relate`。一緒に回る・どちらか・先に行く・中にある）、近くにかたまっているスポットをまとめ（`spot cluster`）、直線の距離がいちばん短くなる回る順番を出し（`spot route`）、ほかに比べて収録の少ない地域と分類を探せます（`spot gap`）。距離は直線で、移動の時間ではないことを毎回出します（[docs/user-kb.md](./docs/user-kb.md#関係かたまり回る順番足りないところ)、#357）
