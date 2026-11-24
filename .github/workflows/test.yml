@@ -158,6 +158,7 @@ jobs:
   # 旅程は作れません（tests/e2e/README.md）。外へは出ない前提で動かします。
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -210,14 +211,15 @@ jobs:
           cat perf-web.md >> "$GITHUB_STEP_SUMMARY"
           exit $code
 
-      # ホーム画面に足した直後に圏外になり、そのまま開いたとき（start_url の /app）。
-      # /app は Worker・PHP が返すページなので、PHP 版を組んで確かめます。
-      - name: Offline launch test (PHP site)
+      # 2026-11-24: Web 版はやめました。前にホーム画面へ置いた人が開いたとき（/app）に
+      # 紹介ページへ着き、前の Service Worker が外れるかを、PHP 版で確かめます。
+      - name: Retired web app (PHP site)
+        timeout-minutes: 3
         run: |
           sh tools/build_php.sh .php-site
           php -S 127.0.0.1:8090 -t .php-site tools/php_router.php >/dev/null 2>&1 &
           for i in $(seq 1 20); do
-            curl -sSf -o /dev/null http://127.0.0.1:8090/app && break
+            curl -sSf -o /dev/null http://127.0.0.1:8090/ && break
             sleep 0.5
           done
-          BASE_URL=http://127.0.0.1:8090 node tests/e2e/offline-launch.mjs
+          BASE_URL=http://127.0.0.1:8090 node tests/e2e/retired-webapp.mjs
