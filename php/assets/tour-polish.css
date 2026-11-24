@@ -275,3 +275,8 @@ p{ line-height: 1.85; }
   .num b{ -webkit-text-fill-color: #111; color: #111; background: none; }
   .lead, .tab-note, .credits{ color: #333; }
 }
+
+/* 2026-11-24: 表紙の画面の中は、録画ではなく端末版の実際の出力（字）です。 */
+.laptop-screen .code.term { margin: 0; text-align: left; border-radius: 6px; aspect-ratio: 16 / 10; display: flex; flex-direction: column; overflow: hidden; }
+.laptop-screen .code.term pre { flex: 1; margin: 0; overflow: auto; font-size: clamp(7px, 1.15vw, 13px); line-height: 1.55; white-space: pre; }
+#get .code { margin-top: 24px; }

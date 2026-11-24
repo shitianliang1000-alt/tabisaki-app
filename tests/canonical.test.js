@@ -7,15 +7,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-import { SITE_ORIGIN } from "../server/landing.js";
+import { SITE_ORIGIN } from "../server/admin.js";
 
 const root = new URL("../", import.meta.url);
 const read = (f) => readFile(new URL(f, root), "utf8");
 const SITE = "https://tabisaki-github-io.shitianliang1000.workers.dev";
 
-test("Worker と PHP 版は、同じ正式なアドレスを持つ", async () => {
+test("Worker とエリアのページは、同じ正式なアドレスを持つ", async () => {
   assert.equal(SITE_ORIGIN, SITE);
-  assert.match(await read("php/inc/site.php"), /const SITE_ORIGIN = 'https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev';/);
   assert.match(await read("tools/build_area_pages.mjs"), /const DEFAULT_BASE = "https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/";/);
 });
 
@@ -23,6 +22,7 @@ test("静的なページ・サイトマップ・robots.txt も、正式なアド
   const html = await read("index.html");
   assert.match(html, /<link rel="canonical" href="https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/app">/);
   assert.match(html, /<meta property="og:url" content="https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/app">/);
+  assert.match(await read("tour.html"), /<link rel="canonical" href="https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/">/);
   assert.match(await read("credits.html"), /<link rel="canonical" href="https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/credits\.html">/);
   assert.match(await read("robots.txt"), /^Sitemap: https:\/\/tabisaki-github-io\.shitianliang1000\.workers\.dev\/sitemap\.xml$/m);
   const sitemap = await read("sitemap.xml");

@@ -118,6 +118,21 @@ export function nextSaturday(now = new Date()) {
 }
 
 /**
+ * ブラウザで使う Web 版（/app）へのリンクを置くか。
+ *
+ * 2026-11-24: 公開サイトでは Web 版を配らなくなりました（端末版とアプリ版だけ）。
+ * サイトを組むとき（tools/build_worker.sh・tools/build_php.sh）は WEBAPP=0 で呼ばれ、
+ * 「旅程をつくる」のリンクは、トップの入れかた（/#get）へ向けます。
+ * アプリ版の中身（mobile/build.sh）と画面のテストは、今までどおり /app へのリンクです。
+ */
+export const WEBAPP = process.env.WEBAPP !== "0";
+
+/** Web 版が無いときの「旅程をつくる」の行き先（トップの入れかた）。 */
+function getLink(rel) {
+  return `${rel || "./"}#get`;
+}
+
+/**
  * アプリへのリンク。`?q=` は「どんな旅にしたい？」の欄に入るだけです。
  * チャットの画面の正式なアドレスは /app です（canonical と同じにして、
  * 内部リンクの評価が index.html と /app に割れないようにします）。
@@ -522,6 +537,12 @@ ${spots.map((s) => {
 }
 
 function promptLinks(rel, prompts) {
+  if (!WEBAPP) {
+    return `<ul class="prompts">
+${prompts.map((p) => `  <li>「${esc(p)}」</li>`).join("\n")}
+</ul>
+<p class="fine">旅さき（<a href="${getLink(rel)}">端末版・アプリ版</a>）にこの文を書くと、旅程を組みます。</p>`;
+  }
   return `<ul class="prompts">
 ${prompts.map((p) => `  <li><a class="cta" href="${esc(appLink(rel, p))}">「${esc(p)}」で旅程をつくる</a></li>`).join("\n")}
 </ul>`;
@@ -629,8 +650,8 @@ ${items ? `<section>
 <h2>1日のモデルコース</h2>
 <p class="fine">${esc(fmtDate(date))}に${esc(region.station ?? "")}を9:00に出て、18:00までに戻る例です。旅さきのエンジンで組んでいます。移動時間は距離からの目安で、実際の便ではありません。</p>
 ${courseHtml(items)}
-<p><a class="cta primary" href="${esc(courseLink(rel, `${region.name}を1日でめぐる`, region.id, courseSpotIds(course)))}">このコースを旅さきで開く</a></p>
-<p class="fine">コースの場所を「必ず行く」に入れて開きます。日付や出発地を変えて、自分の旅程に組み直せます。</p>
+${WEBAPP ? `<p><a class="cta primary" href="${esc(courseLink(rel, `${region.name}を1日でめぐる`, region.id, courseSpotIds(course)))}">このコースを旅さきで開く</a></p>
+<p class="fine">コースの場所を「必ず行く」に入れて開きます。日付や出発地を変えて、自分の旅程に組み直せます。</p>` : `<p class="fine">旅さき（<a href="${getLink(rel)}">端末版・アプリ版</a>）で、日付や出発地を変えて組み直せます。</p>`}
 </section>` : ""}
 <section>
 <h2>こんな旅もつくれます</h2>
@@ -679,7 +700,7 @@ export function renderPrefPage({ prefName, prefSlug, spots, regions, base, count
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › <a href="${rel}areas/index.html">エリア</a> › ${esc(prefName)}</nav>
 <h1>${esc(prefName)}の観光地</h1>
 <p class="lead">収録 ${count.toLocaleString("ja-JP")} か所。定番だけでなく、知る人ぞ知る場所も混ぜて旅程を組めます。</p>
-<p><a class="cta primary" href="${esc(appLink(rel, `${prefName}で、定番と穴場をまぜて1日まわる`))}">${esc(prefName)}で旅程をつくる</a></p>
+<p><a class="cta primary" href="${esc(WEBAPP ? appLink(rel, `${prefName}で、定番と穴場をまぜて1日まわる`) : getLink(rel))}">${esc(prefName)}で旅程をつくる</a></p>
 ${regions.length ? `<section>
 <h2>エリアのモデルコース</h2>
 <ul class="regions">
@@ -777,7 +798,7 @@ export function renderNotFoundPage({ prefs, base }) {
   const description = "お探しのページは見つかりませんでした。旅さきのトップか、エリアの一覧からお探しください。";
   const body = `<h1>ページが見つかりません</h1>
 <p class="lead">お探しのページは、移動したか、無くなったようです。</p>
-<p><a class="cta primary" href="${root}app">旅さきで旅程をつくる</a></p>
+<p><a class="cta primary" href="${WEBAPP ? `${root}app` : getLink(root)}">${WEBAPP ? "旅さきで旅程をつくる" : "旅さきのトップへ"}</a></p>
 <p><a class="cta" href="${root}areas/index.html">エリアから探す</a></p>
 ${prefs.length ? `<section>
 <h2>都道府県から探す</h2>
@@ -917,15 +938,15 @@ export function renderIntroPage({ base, featured = [], prefCount = 0, spotCount 
   const rel = "";
   const canonical = `${base}about.html`;
   const title = "旅さきとは｜行きたいことから旅行プランを作成するAI旅程アプリ";
-  const description = "「温泉と海をゆっくり」と書くだけで、行き先・まわる順・移動時間まで組んだ旅程が届く無料のウェブアプリ。"
+  const description = `「温泉と海をゆっくり」と書くだけで、行き先・まわる順・移動時間まで組んだ旅程が届く${WEBAPP ? "無料のウェブアプリ" : "無料のソフトウェア（端末版・アプリ版）"}。`
     + `全国${prefCount}都道府県・${spotCount.toLocaleString("ja-JP")}か所の観光地から、営業時間と移動時間を照らし合わせて組みます。`;
   const sample = featured[0] ?? null;
   const body = `<nav class="crumbs" aria-label="現在地"><a href="${home(rel)}">旅さき</a> › 旅さきとは</nav>
 <div class="hero">
 <h1><span class="nw">行きたい、を</span><span class="nw">書くだけで</span><span class="nw">そのまま行ける</span><span class="nw">旅程に。</span></h1>
-<p class="lead">旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くと、行き先・まわる順・移動時間まで組んだ旅行プランを作る、無料のウェブアプリです。行き先がまだ決まっていなくても始められます。</p>
-<p><a class="cta primary" href="${rel}app">旅さきで旅程をつくる</a></p>
-<p class="fine">登録は要りません。ブラウザで開くだけで使えます。</p>
+<p class="lead">旅さきは、「温泉と海をゆっくり楽しみたい」のように行きたいことを書くと、行き先・まわる順・移動時間まで組んだ旅行プランを作る、${WEBAPP ? "無料のウェブアプリ" : "無料のソフトウェア（端末版・アプリ版）"}です。行き先がまだ決まっていなくても始められます。</p>
+<p><a class="cta primary" href="${WEBAPP ? `${rel}app` : getLink(rel)}">${WEBAPP ? "旅さきで旅程をつくる" : "旅さきを入れる"}</a></p>
+<p class="fine">${WEBAPP ? "登録は要りません。ブラウザで開くだけで使えます。" : "登録は要りません。端末版とアプリ版があります。"}</p>
 </div>
 <section>
 <h2>3つの手順で、1日の旅が決まります</h2>
@@ -967,10 +988,10 @@ ${featured.map((f) => `  <li><a href="${esc(`${rel}areas/${f.prefSlug}/${f.regio
   <dt>泊まりがけの旅行も組めますか？</dt>
   <dd>組めます。日数を足すと、複数日の旅程になります。</dd>
   <dt>電車やバスの時刻は正確ですか？</dt>
-  <dd>経路検索につながっているときは実際の便から、つながらないときは距離からの目安で組みます。目安のときは画面にそう出します。お出かけ前に、時刻表と各施設の公式の情報もご確認ください。</dd>
+  <dd>経路検索につながっているときは実際の便から、つながらないときは距離からの目安で組みます。目安のときはそう書き添えます。お出かけ前に、時刻表と各施設の公式の情報もご確認ください。</dd>
 </dl>
 </section>
-<p><a class="cta primary" href="${rel}app">旅さきで旅程をつくる</a></p>`;
+<p><a class="cta primary" href="${WEBAPP ? `${rel}app` : getLink(rel)}">${WEBAPP ? "旅さきで旅程をつくる" : "旅さきを入れる"}</a></p>`;
   const jsonLd = { "@context": "https://schema.org", "@graph": [
     { "@type": "AboutPage", name: title, url: canonical, inLanguage: "ja",
       about: { "@type": "WebApplication", name: "旅さき", url: base,
@@ -1031,9 +1052,8 @@ export async function buildAll(kbDoc, { base, now = new Date(), planCourse = nul
   const intro = { ...renderIntroPage({ base, featured, date, prefCount: prefs.length,
                                        spotCount: prefs.reduce((n, p) => n + p.count, 0) }),
                   lastmod: latestDay([siteUpdated, ...featured.map((f) => f.lastmod)]) };
-  // 映像で見るページ（tour.html。リポジトリの根にある静的なページ）も載せます。
-  const tour = { url: `${base}tour.html`, lastmod: siteUpdated };
-  const entries = [intro, tour, ...pages].map((p) => ({ url: p.url, lastmod: p.lastmod }));
+  // tour.html はトップ（/）そのものなので、別には載せません（canonical も / です）。
+  const entries = [intro, ...pages].map((p) => ({ url: p.url, lastmod: p.lastmod }));
   return { pages, intro, notFound: renderNotFoundPage({ prefs, base }),
            sitemap: sitemapXml(base, entries, now, { rootLastmod: siteUpdated }) };
 }
@@ -1120,7 +1140,7 @@ async function main(outDir) {
   const days = gitDays(ROOT, kbFiles.map((f) => `kb/${f}`));
   const updated = new Map(kbFiles.filter((f) => days.has(`kb/${f}`)).map((f) => [f, days.get(`kb/${f}`)]));
   // トップ（アプリ）の日は、アプリを作っているファイルが最後に変わった日です。
-  const siteUpdated = latestDay([...gitDays(ROOT, ["index.html", "js", "packages/core/src", "css"]).values()]);
+  const siteUpdated = latestDay([...gitDays(ROOT, ["tour.html", "index.html", "js", "packages/core/src", "css"]).values()]);
 
   const { pages, intro, notFound, sitemap } = await buildAll({ index, regions, shards },
     { base, now: new Date(), planCourse, updated, siteUpdated });

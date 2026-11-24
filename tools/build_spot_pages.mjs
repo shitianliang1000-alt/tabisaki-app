@@ -62,8 +62,8 @@ const CSP = `default-src 'self'; img-src 'self' data: ${PHOTO_HOSTS}; media-src 
 function nav(current) {
   const items = [
     ["観光地", "spots/index.html"],
-    ["SSH・端末", "ssh.html"],
-    ["アプリ", "mobile.html"],
+    ["端末版", "ssh.html"],
+    ["アプリ版", "mobile.html"],
     ["API", "api.html"],
   ];
   const links = items.map(([label, href]) =>
@@ -77,7 +77,7 @@ function nav(current) {
     <nav class="lnav-links" aria-label="サイトの中">
 ${links}
     </nav>
-    <a class="btn btn-sm" href="../app">旅さきを使う</a>
+    <a class="btn btn-sm" href="../#get">旅さきを入れる</a>
   </div>
 </header>
 <nav class="pagenav" aria-label="サイトの中">
@@ -92,10 +92,9 @@ function foot() {
   <div class="wrap foot-in">
     <a class="foot-brand" href="../"><img src="../mark.svg" alt="" width="22" height="22"><span>旅さき</span></a>
     <nav aria-label="ほかのページ">
-      <a href="../app">旅程をつくる</a>
       <a href="index.html">観光地</a>
-      <a href="../ssh.html">SSH・端末</a>
-      <a href="../mobile.html">アプリ</a>
+      <a href="../ssh.html">端末版</a>
+      <a href="../mobile.html">アプリ版</a>
       <a href="../api.html">API</a>
       <a href="../credits.html">著作権表記</a>
     </nav>
@@ -221,7 +220,8 @@ ${points}
 ${routeBlock(spot)}
           <h2 id="plan">旅さきで、この場所から組む</h2>
           <p>${h(spot.name)}を起点に、日数と好みを書くと、営業時間と移動時間を照らし合わせた旅程を作ります。ほかの観光地と組み合わせたいときは、地名をそのまま文に書いてください。</p>
-          <p><a class="btn" href="../app?q=${encodeURIComponent(spot.name + "を中心に、ゆっくり回りたい")}&amp;go=1">${h(spot.name)}で旅を組む</a></p>
+          <figure class="code"><figcaption><span>端末版で組む</span><button type="button" class="copy">写す</button></figcaption><pre>./tabisaki plan "${h(spot.name)}を中心に、ゆっくり回りたい"</pre></figure>
+          <p>アプリ版でも、同じ文を書けば組めます（<a href="../#get">旅さきの入れかた</a>）。</p>
           <div class="note"><span class="i" aria-hidden="true">i</span><p>営業時間・拝観料・休館日は変わります。この記事の時刻は目安です。出かける前に、施設の公式の案内で確かめてください。</p></div>
           ${near ? `<h2 id="near">近くの観光地</h2>\n      <div class="cards">\n${near}\n      </div>` : ""}
           ${pager}
@@ -316,8 +316,8 @@ ${nav("観光地")}
   <section class="sub-hero">
     <p class="eyebrow">観光地</p>
     <h1 class="sub-title">行き先を、読んでから決める。</h1>
-    <p class="sub-lead">全国の有名どころ ${count} か所を、見どころ・行きかた・開いている時間・おすすめの順路でまとめました。気になった場所から、そのまま旅程を組めます。</p>
-    <p class="sub-actions"><a class="btn" href="../app">旅さきをひらく</a><a class="btn-ghost" href="#courses">モデルコースを見る</a></p>
+    <p class="sub-lead">全国の有名どころ ${count} か所を、見どころ・行きかた・開いている時間・おすすめの順路でまとめました。気になった場所は、旅さき（端末版・アプリ版）でそのまま旅程にできます。</p>
+    <p class="sub-actions"><a class="btn" href="../#get">旅さきを入れる</a><a class="btn-ghost" href="#courses">モデルコースを見る</a></p>
   </section>
 
   <section class="sec" id="list">
@@ -351,7 +351,7 @@ ${courses}
 
   <section class="end-cta">
     <h2>読んでから、組む。</h2>
-    <p><a class="btn btn-lg" href="../app">旅さきをひらく</a></p>
+    <p><a class="btn btn-lg" href="../#get">旅さきを入れる</a></p>
   </section>
 </main>
 ${foot()}

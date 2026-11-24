@@ -52,19 +52,21 @@ jobs:
           sh tools/build_php.sh .php-site
           php -S 127.0.0.1:8090 -t .php-site tools/php_router.php >/dev/null 2>&1 &
           sleep 1
-          # トップ（tour）、前のトップ（/landing）、チャットの画面（/app → app.php）
+          # トップ（紹介ページ）。2026-11-24 から Web 版（/app・/landing・/index.html）はトップへ移します。
           curl -sSf http://127.0.0.1:8090/ | grep -q '<title>旅さき'
-          curl -sSf http://127.0.0.1:8090/landing | grep -q 'id="stage"'
-          curl -sSf http://127.0.0.1:8090/app | grep -q 'id="plus-sep-tune"'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/inc/landing.html)" = 403
-          # /app/ は /app へ移す（そのままだと css/・js/ が /app/ の下を探して崩れる）
-          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' 'http://127.0.0.1:8090/app/?q=x')" = "301 http://127.0.0.1:8090/app?q=x"
-      # Cloudflare 用の組み立て（トップのひな形・データ・管理画面が入るか）
+          curl -sSf http://127.0.0.1:8090/ | grep -q 'id="get"'
+          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' 'http://127.0.0.1:8090/app?q=x')" = "301 http://127.0.0.1:8090/"
+          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:8090/landing)" = "301 http://127.0.0.1:8090/"
+          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:8090/index.html)" = "301 http://127.0.0.1:8090/"
+          # Web 版の中身は公開しません
+          test ! -e .php-site/index.html && test ! -e .php-site/js && test ! -e .php-site/kb
+      # Cloudflare 用の組み立て（紹介ページ・その部品・管理画面が入り、Web 版が入らないか）
       - name: Cloudflare site build
         run: |
           sh tools/build_worker.sh .site
-          test -f .site/__site/landing.html && test -f .site/data/areas.json && test -f .site/assets/landing.js
-          test -f .site/__admin/index.html
+          test -f .site/tour.html && test -f .site/assets/tour.js && test -f .site/areas/index.html
+          test -f .site/__admin/index.html && test -f .site/__private/js/confidence.js
+          test ! -e .site/index.html && test ! -e .site/js && test ! -e .site/kb
 
   # 旅程の成立率（tools/plan_bench.mjs・docs/benchmarks.md）。決まった頼みごとと、
   # シードを固定したランダムな頼みごとで旅程を組み、営業時間・移動時間・

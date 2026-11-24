@@ -31,56 +31,59 @@ const vio = new IntersectionObserver((es) => {
 auto.forEach((v) => vio.observe(v));
 
 // --- 見どころ ---
+// 2026-11-24: 紹介ページから見どころの帯を外したので、無いときは何もしません。
 const rail = $("#hl-rail");
-const cards = $$(".hl-card", rail);
-const dots = $("#hl-dots");
-const pauseBtn = $("#hl-play");
-let current = 0, paused = still, railSeen = false;
-cards.forEach((card, i) => {
-  const b = document.createElement("button");
-  b.type = "button"; b.setAttribute("aria-label", `${i + 1}つめの見どころ`);
-  b.addEventListener("click", () => goTo(i));
-  dots.append(b);
-  $("video", card).addEventListener("ended", () => { if (!paused) goTo((i + 1) % cards.length); });
-});
-dots.removeAttribute("aria-hidden");
-function goTo(i) {
-  rail.scrollTo({ left: cards[i].offsetLeft - cards[0].offsetLeft, behavior: still ? "auto" : "smooth" });
-  setCurrent(i);
-}
-function setCurrent(i) {
-  current = i;
-  [...dots.children].forEach((d, k) => d.setAttribute("aria-current", String(k === i)));
-  cards.forEach((c, k) => {
-    const v = $("video", c);
-    if (k === i && railSeen && !paused) { v.currentTime = 0; play(v); } else v.pause();
+if (rail) {
+  const cards = $$(".hl-card", rail);
+  const dots = $("#hl-dots");
+  const pauseBtn = $("#hl-play");
+  let current = 0, paused = still, railSeen = false;
+  cards.forEach((card, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("aria-label", `${i + 1}つめの見どころ`);
+    b.addEventListener("click", () => goTo(i));
+    dots.append(b);
+    $("video", card).addEventListener("ended", () => { if (!paused) goTo((i + 1) % cards.length); });
   });
-}
-// 手で送ったときは、まん中に来たカードを「いま」にします。
-let railT;
-rail.addEventListener("scroll", () => {
-  clearTimeout(railT);
-  railT = setTimeout(() => {
-    const mid = rail.scrollLeft + rail.clientWidth / 2;
-    let best = 0, d = Infinity;
-    cards.forEach((c, k) => { const dd = Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid); if (dd < d) { d = dd; best = k; } });
-    if (best !== current) setCurrent(best);
-  }, 120);
-}, { passive: true });
-new IntersectionObserver(([e]) => {
-  railSeen = e.isIntersecting;
-  const v = $("video", cards[current]);
-  railSeen && !paused ? play(v) : v.pause();
-}, { threshold: 0.4 }).observe(rail);
-pauseBtn.setAttribute("aria-pressed", String(paused));
-pauseBtn.addEventListener("click", () => {
-  paused = !paused;
+  dots.removeAttribute("aria-hidden");
+  function goTo(i) {
+    rail.scrollTo({ left: cards[i].offsetLeft - cards[0].offsetLeft, behavior: still ? "auto" : "smooth" });
+    setCurrent(i);
+  }
+  function setCurrent(i) {
+    current = i;
+    [...dots.children].forEach((d, k) => d.setAttribute("aria-current", String(k === i)));
+    cards.forEach((c, k) => {
+      const v = $("video", c);
+      if (k === i && railSeen && !paused) { v.currentTime = 0; play(v); } else v.pause();
+    });
+  }
+  // 手で送ったときは、まん中に来たカードを「いま」にします。
+  let railT;
+  rail.addEventListener("scroll", () => {
+    clearTimeout(railT);
+    railT = setTimeout(() => {
+      const mid = rail.scrollLeft + rail.clientWidth / 2;
+      let best = 0, d = Infinity;
+      cards.forEach((c, k) => { const dd = Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid); if (dd < d) { d = dd; best = k; } });
+      if (best !== current) setCurrent(best);
+    }, 120);
+  }, { passive: true });
+  new IntersectionObserver(([e]) => {
+    railSeen = e.isIntersecting;
+    const v = $("video", cards[current]);
+    railSeen && !paused ? play(v) : v.pause();
+  }, { threshold: 0.4 }).observe(rail);
   pauseBtn.setAttribute("aria-pressed", String(paused));
-  pauseBtn.setAttribute("aria-label", paused ? "見どころを再生する" : "見どころの再生を止める");
-  const v = $("video", cards[current]);
-  paused ? v.pause() : (v.play()?.catch?.(() => {}));
-});
-setCurrent(0);
+  pauseBtn.addEventListener("click", () => {
+    paused = !paused;
+    pauseBtn.setAttribute("aria-pressed", String(paused));
+    pauseBtn.setAttribute("aria-label", paused ? "見どころを再生する" : "見どころの再生を止める");
+    const v = $("video", cards[current]);
+    paused ? v.pause() : (v.play()?.catch?.(() => {}));
+  });
+  setCurrent(0);
+}
 
 // --- 字が明るくなる文 ---
 const scrub = $("#scrub");
